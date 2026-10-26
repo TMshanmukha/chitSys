@@ -1,0 +1,36 @@
+import dotenv from 'dotenv';
+import { z } from 'zod';
+
+dotenv.config();
+
+const envSchema = z.object({
+  PORT: z.string().default('5000').transform((val) => parseInt(val, 10)),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  FRONTEND_ORIGIN: z.string().default('http://localhost:5173'),
+
+  DB_HOST: z.string().default('localhost'),
+  DB_PORT: z.string().default('3306').transform((val) => parseInt(val, 10)),
+  DB_NAME: z.string().default('chitfund_db'),
+  DB_USER: z.string().default('root'),
+  DB_PASSWORD: z.string().default(''),
+  DB_CONNECTION_LIMIT: z.string().default('10').transform((val) => parseInt(val, 10)),
+
+  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters long'),
+  JWT_EXPIRES_IN: z.string().default('2h'),
+  COOKIE_SECRET: z.string().default('chitfund_cookie_secret_fallback'),
+
+  BOOTSTRAP_ADMIN_USERNAME: z.string().default('admin'),
+  BOOTSTRAP_ADMIN_PASSWORD: z.string().default('AdminChitFund2026!'),
+  BOOTSTRAP_ADMIN_FULLNAME: z.string().default('Main Administrator'),
+  BOOTSTRAP_ADMIN_PHONE: z.string().default('9876543210'),
+});
+
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error('❌ Critical Environment Configuration Error:');
+  console.error(parsed.error.format());
+  process.exit(1);
+}
+
+export const env = parsed.data;
