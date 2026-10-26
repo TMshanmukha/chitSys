@@ -40,7 +40,7 @@ export default function Navbar({ onToggleSidebar, pageTitle }) {
           onClick={toggleTheme}
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors flex items-center justify-center"
+          className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors flex items-center justify-center cursor-pointer"
         >
           {isDark ? (
             <Sun className="w-4 h-4 text-amber-400" />
@@ -48,6 +48,7 @@ export default function Navbar({ onToggleSidebar, pageTitle }) {
             <Moon className="w-4 h-4 text-slate-600" />
           )}
         </button>
+
 
         {/* User Pill */}
         <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80">

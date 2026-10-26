@@ -107,10 +107,11 @@ export default function LoginPage() {
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
         <button
           type="button"
+          id="login-theme-toggle-btn"
           onClick={toggleTheme}
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         >
           {isDark ? (
             <Sun className="w-4 h-4 text-amber-400" />
@@ -119,6 +120,7 @@ export default function LoginPage() {
           )}
         </button>
       </div>
+
 
       {/* Main Container */}
       <div className="w-full max-w-md">
