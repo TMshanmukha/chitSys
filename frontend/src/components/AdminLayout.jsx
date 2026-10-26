@@ -5,23 +5,23 @@ import Navbar from './Navbar';
 
 const TITLE_MAP = {
   '/admin/dashboard': 'Operations Overview',
-  '/admin/chit-groups': 'Chit Groups Management',
-  '/admin/agents': 'Collection Agents & Route Assignments',
-  '/admin/members': 'Chit Members Directory',
+  '/admin/chit-groups': 'Chit Groups',
+  '/admin/agents': 'Collection Agents',
+  '/admin/members': 'Members Directory',
   '/admin/collections': 'Daily & Monthly Collections',
-  '/admin/reports': 'Financial & Reconciliation Reports',
-  '/admin/users': 'Administrative User Management',
-  '/admin/settings': 'System Configuration & Security Settings',
+  '/admin/reports': 'Collection Reports',
+  '/admin/users': 'User Management',
+  '/admin/settings': 'System Settings',
 };
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
-  const currentTitle = TITLE_MAP[location.pathname] || 'Admin Dashboard';
+  const currentTitle = TITLE_MAP[location.pathname] || 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col transition-colors">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -34,7 +34,7 @@ export default function AdminLayout() {
         />
 
         {/* Page Content Outlet */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-950 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
       </div>

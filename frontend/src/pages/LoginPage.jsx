@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   ShieldCheck,
   UserCheck,
@@ -13,12 +14,14 @@ import {
   Loader2,
   Building2,
   KeyRound,
-  Sparkles,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated, isAdmin, isAgent } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
 
   // Role selection: 'ADMIN' | 'COLLECTION_AGENT'
   const [selectedRole, setSelectedRole] = useState('ADMIN');
@@ -41,14 +44,8 @@ export default function LoginPage() {
     setSelectedRole(newRole);
     setError('');
     setSuccessMessage('');
-    // Clear or reset fields appropriately
-    if (newRole === 'ADMIN') {
-      setUsername('');
-      setPassword('');
-    } else {
-      setUsername('');
-      setPassword('');
-    }
+    setUsername('');
+    setPassword('');
   };
 
   const handleSubmit = async (e) => {
@@ -75,7 +72,7 @@ export default function LoginPage() {
         password,
       });
 
-      setSuccessMessage('Credentials verified. Redirecting to workspace...');
+      setSuccessMessage('Credentials verified. Redirecting...');
 
       setTimeout(() => {
         if (res.user.role === 'SUPER_ADMIN' || res.user.role === 'ADMIN') {
@@ -83,7 +80,7 @@ export default function LoginPage() {
         } else {
           navigate('/agent/dashboard', { replace: true });
         }
-      }, 500);
+      }, 400);
     } catch (err) {
       setError(err.message || 'Authentication failed. Please check your credentials.');
     } finally {
@@ -91,7 +88,6 @@ export default function LoginPage() {
     }
   };
 
-  // Quick fill helper for testing & development
   const handleQuickFill = (role) => {
     if (role === 'ADMIN') {
       setSelectedRole('ADMIN');
@@ -106,42 +102,55 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-center items-center bg-slate-900 text-slate-100 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
-      {/* Background visual accents */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen w-full flex flex-col justify-center items-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 sm:p-6 transition-colors relative">
+      {/* Top Bar Theme Toggle */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-600" />
+          )}
+        </button>
+      </div>
 
       {/* Main Container */}
-      <div className="w-full max-w-md z-10">
+      <div className="w-full max-w-md">
         {/* Branding Header */}
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-blue-500 shadow-lg shadow-indigo-500/25 mb-3">
-            <Building2 className="w-8 h-8 text-white" />
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-blue-600 text-white shadow-xs mb-3">
+            <Building2 className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-['Outfit']">
-            ChitFund <span className="text-indigo-400">Pro</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            ChitFund <span className="text-blue-600 dark:text-blue-400">Pro</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Private Chit Fund & Daily Collection Management System
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Collection & Chit Fund Management System
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-slate-800/90 backdrop-blur-xl border border-slate-700/60 rounded-2xl shadow-2xl p-5 sm:p-7 transition-all">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 sm:p-7 transition-colors">
           {/* Role Selection Switcher */}
-          <div className="mb-6">
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Select Authorized Portal
+          <div className="mb-5">
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+              Select Login Role
             </label>
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900/80 rounded-xl border border-slate-700/50">
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
               <button
                 type="button"
                 id="role-admin-btn"
                 onClick={() => handleRoleChange('ADMIN')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                   selectedRole === 'ADMIN'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <ShieldCheck className="w-4 h-4" />
@@ -152,10 +161,10 @@ export default function LoginPage() {
                 type="button"
                 id="role-agent-btn"
                 onClick={() => handleRoleChange('COLLECTION_AGENT')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                   selectedRole === 'COLLECTION_AGENT'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <UserCheck className="w-4 h-4" />
@@ -164,25 +173,13 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Role Status Tag */}
-          <div className="mb-4 flex items-center justify-between px-3 py-2 bg-slate-900/50 rounded-lg border border-slate-700/40 text-xs">
-            <span className="text-slate-400">Target Role:</span>
-            <span
-              className={`font-semibold uppercase tracking-wider ${
-                selectedRole === 'ADMIN' ? 'text-indigo-400' : 'text-blue-400'
-              }`}
-            >
-              {selectedRole === 'ADMIN' ? 'Owner / Administrator' : 'Authorized Route Agent'}
-            </span>
-          </div>
-
           {/* Feedback Alerts */}
           {error && (
             <div
               id="auth-error-alert"
-              className="mb-4 flex items-start gap-2.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs sm:text-sm"
+              className="mb-4 flex items-start gap-2.5 p-3 rounded-xl bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900/50 text-red-700 dark:text-rose-300 text-xs sm:text-sm"
             >
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-rose-400" />
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-500 dark:text-rose-400" />
               <div className="flex-1">{error}</div>
             </div>
           )}
@@ -190,23 +187,23 @@ export default function LoginPage() {
           {successMessage && (
             <div
               id="auth-success-alert"
-              className="mb-4 flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm"
+              className="mb-4 flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm"
             >
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span>{successMessage}</span>
             </div>
           )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Agent Username Field (Shown for Collection Agent, optional for Admin) */}
+            {/* Agent Username Field */}
             {selectedRole === 'COLLECTION_AGENT' ? (
               <div>
                 <label
                   htmlFor="username"
-                  className="block text-xs font-medium text-slate-300 mb-1.5"
+                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
                 >
-                  Agent Username / ID <span className="text-rose-400">*</span>
+                  Agent Username / ID
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -221,20 +218,18 @@ export default function LoginPage() {
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="e.g. agent01"
                     disabled={isSubmitting}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-colors"
                   />
                 </div>
               </div>
             ) : (
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label
-                    htmlFor="admin-username"
-                    className="block text-xs font-medium text-slate-300"
-                  >
-                    Administrator Username <span className="text-slate-500 font-normal">(Default: admin)</span>
-                  </label>
-                </div>
+                <label
+                  htmlFor="admin-username"
+                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                >
+                  Admin Username <span className="text-slate-400 font-normal">(Default: admin)</span>
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                     <User className="w-4 h-4" />
@@ -246,9 +241,9 @@ export default function LoginPage() {
                     autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="admin (Leave empty to use primary Super Admin)"
+                    placeholder="admin (or leave blank for main admin)"
                     disabled={isSubmitting}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-colors"
                   />
                 </div>
               </div>
@@ -259,14 +254,10 @@ export default function LoginPage() {
               <div className="flex items-center justify-between mb-1.5">
                 <label
                   htmlFor="password"
-                  className="block text-xs font-medium text-slate-300"
+                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
                 >
-                  {selectedRole === 'ADMIN' ? 'Admin Password / PIN' : 'Agent PIN / Password'}{' '}
-                  <span className="text-rose-400">*</span>
+                  {selectedRole === 'ADMIN' ? 'Admin Password / PIN' : 'Agent PIN / Password'}
                 </label>
-                <span className="text-[11px] text-slate-500">
-                  {selectedRole === 'ADMIN' ? 'Secured by Argon2/Bcrypt' : 'Numeric or alphanumeric'}
-                </span>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -285,13 +276,13 @@ export default function LoginPage() {
                       : 'Enter agent password or PIN'
                   }
                   disabled={isSubmitting}
-                  className="w-full pl-9 pr-10 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full pl-9 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -303,61 +294,49 @@ export default function LoginPage() {
               type="submit"
               id="login-submit-btn"
               disabled={isSubmitting}
-              className={`w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${
-                selectedRole === 'ADMIN'
-                  ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30'
-                  : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Verifying Credentials...</span>
+                  <span>Verifying...</span>
                 </>
               ) : (
                 <>
-                  <ShieldCheck className="w-4 h-4" />
                   <span>Sign In as {selectedRole === 'ADMIN' ? 'Administrator' : 'Collection Agent'}</span>
                 </>
               )}
             </button>
           </form>
 
-          {/* Quick Demo Fill Buttons */}
-          <div className="mt-6 pt-5 border-t border-slate-700/60">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span className="flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Quick Test Credentials
-              </span>
-              <span className="text-[10px] text-slate-500">Dev Mode</span>
-            </div>
+          {/* Quick Fill Buttons for easy testing */}
+          <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <span className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 text-center">
+              Quick Test Autofill
+            </span>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => handleQuickFill('ADMIN')}
-                className="py-1.5 px-2 bg-slate-900/60 hover:bg-slate-900 border border-slate-700/50 hover:border-indigo-500/50 rounded-lg text-slate-300 text-xs transition-all flex flex-col items-center"
+                className="py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium transition-colors"
               >
-                <span className="font-semibold text-indigo-300">Admin Account</span>
-                <span className="text-[10px] text-slate-400">admin / AdminChit...</span>
+                Admin (admin)
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickFill('COLLECTION_AGENT')}
-                className="py-1.5 px-2 bg-slate-900/60 hover:bg-slate-900 border border-slate-700/50 hover:border-blue-500/50 rounded-lg text-slate-300 text-xs transition-all flex flex-col items-center"
+                className="py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium transition-colors"
               >
-                <span className="font-semibold text-blue-300">Agent Account</span>
-                <span className="text-[10px] text-slate-400">agent01 / Agent12...</span>
+                Agent (agent01)
               </button>
             </div>
           </div>
         </div>
 
-        {/* Security Footer Notice */}
-        <div className="text-center mt-6 text-xs text-slate-500 flex items-center justify-center gap-2">
-          <Lock className="w-3.5 h-3.5 text-slate-400" />
-          <span>Internal Financial Portal. Authorized Business Access Only.</span>
-        </div>
+        {/* Footer */}
+        <p className="text-center mt-5 text-xs text-slate-500 dark:text-slate-400">
+          Chit Fund Collection Management Portal
+        </p>
       </div>
     </div>
   );
