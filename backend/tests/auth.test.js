@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'http';
+import bcrypt from 'bcryptjs';
 import app from '../src/server.js';
 import { pool } from '../src/config/db.js';
 
 let server;
 let baseUrl;
+let testAgentId;
+const testAgentUsername = 'test_agent_suite';
+const testAgentPassword = 'TestPassword123!';
 
 test.before(async () => {
   await new Promise((resolve) => {
@@ -16,9 +20,23 @@ test.before(async () => {
       resolve();
     });
   });
+
+  // Create temporary test agent for role and credential testing
+  const agentHash = await bcrypt.hash(testAgentPassword, 10);
+  await pool.execute('DELETE FROM users WHERE username = ?', [testAgentUsername]);
+  const [insertRes] = await pool.execute(
+    `INSERT INTO users (full_name, username, password_hash, role, phone, is_active)
+     VALUES (?, ?, ?, 'COLLECTION_AGENT', '9999988888', 1)`,
+    ['Test Collection Agent', testAgentUsername, agentHash]
+  );
+  testAgentId = insertRes.insertId;
 });
 
 test.after(async () => {
+  // Clean up test agent
+  if (testAgentId) {
+    await pool.execute('DELETE FROM users WHERE id = ?', [testAgentId]);
+  }
   await new Promise((resolve) => server.close(resolve));
   await pool.end();
 });
@@ -61,7 +79,7 @@ test('1. Valid Administrator Login', async () => {
     body: {
       role: 'ADMIN',
       username: 'admin',
-      password: 'AdminChitFund2026!',
+      password: 'admin',
     },
   });
 
@@ -72,12 +90,11 @@ test('1. Valid Administrator Login', async () => {
 });
 
 test('2. Valid Administrator Login with Default Username (PIN/Password Only)', async () => {
-  // As required: No administrator name field required for default admin
   const res = await request('/api/auth/login', {
     method: 'POST',
     body: {
       role: 'ADMIN',
-      password: 'AdminChitFund2026!',
+      password: 'admin',
     },
   });
 
@@ -106,8 +123,8 @@ test('4. Valid Collection Agent Login', async () => {
     method: 'POST',
     body: {
       role: 'COLLECTION_AGENT',
-      username: 'agent01',
-      password: 'Agent1234!',
+      username: testAgentUsername,
+      password: testAgentPassword,
     },
   });
 
@@ -122,7 +139,7 @@ test('5. Invalid Collection Agent Credentials', async () => {
     method: 'POST',
     body: {
       role: 'COLLECTION_AGENT',
-      username: 'agent01',
+      username: testAgentUsername,
       password: 'IncorrectPassword',
     },
   });
@@ -136,8 +153,8 @@ test('6. Role Mismatch: Agent Attempting to Log in via Admin Portal', async () =
     method: 'POST',
     body: {
       role: 'ADMIN',
-      username: 'agent01',
-      password: 'Agent1234!',
+      username: testAgentUsername,
+      password: testAgentPassword,
     },
   });
 
@@ -151,7 +168,7 @@ test('7. Role Mismatch: Admin Attempting to Log in via Agent Portal', async () =
     body: {
       role: 'COLLECTION_AGENT',
       username: 'admin',
-      password: 'AdminChitFund2026!',
+      password: 'admin',
     },
   });
 
@@ -160,14 +177,20 @@ test('7. Role Mismatch: Admin Attempting to Log in via Agent Portal', async () =
 });
 
 test('8. Inactive Account Login Rejected', async () => {
+  // Temporarily deactivate agent
+  await pool.execute('UPDATE users SET is_active = 0 WHERE id = ?', [testAgentId]);
+
   const res = await request('/api/auth/login', {
     method: 'POST',
     body: {
       role: 'COLLECTION_AGENT',
-      username: 'inactive_agent',
-      password: 'Agent1234!',
+      username: testAgentUsername,
+      password: testAgentPassword,
     },
   });
+
+  // Re-activate agent
+  await pool.execute('UPDATE users SET is_active = 1 WHERE id = ?', [testAgentId]);
 
   assert.equal(res.status, 401);
   assert.equal(res.data.success, false);
@@ -185,7 +208,7 @@ test('10. Authenticated Access to Session Check (/api/auth/me)', async () => {
     method: 'POST',
     body: {
       role: 'ADMIN',
-      password: 'AdminChitFund2026!',
+      password: 'admin',
     },
   });
 
@@ -203,8 +226,8 @@ test('11. Collection Agent Attempting to Access Admin Route (/api/admin/audit-lo
     method: 'POST',
     body: {
       role: 'COLLECTION_AGENT',
-      username: 'agent01',
-      password: 'Agent1234!',
+      username: testAgentUsername,
+      password: testAgentPassword,
     },
   });
 
@@ -221,7 +244,7 @@ test('12. Administrator Permitted to Access Admin Route (/api/admin/audit-logs)'
     method: 'POST',
     body: {
       role: 'ADMIN',
-      password: 'AdminChitFund2026!',
+      password: 'admin',
     },
   });
 
@@ -239,7 +262,7 @@ test('13. Logout Revokes Session', async () => {
     method: 'POST',
     body: {
       role: 'ADMIN',
-      password: 'AdminChitFund2026!',
+      password: 'admin',
     },
   });
 

@@ -88,18 +88,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickFill = (role) => {
-    if (role === 'ADMIN') {
-      setSelectedRole('ADMIN');
-      setUsername('admin');
-      setPassword('AdminChitFund2026!');
-    } else {
-      setSelectedRole('COLLECTION_AGENT');
-      setUsername('agent01');
-      setPassword('Agent1234!');
-    }
-    setError('');
-  };
 
   return (
     <div className="min-h-screen w-full flex flex-col justify-center items-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 sm:p-6 transition-colors relative">
@@ -301,7 +289,7 @@ export default function LoginPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Verifying...</span>
+                  <span>Signing In...</span>
                 </>
               ) : (
                 <>
@@ -310,36 +298,14 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Fill Buttons for easy testing */}
-          <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800">
-            <span className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 text-center">
-              Quick Test Autofill
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('ADMIN')}
-                className="py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium transition-colors"
-              >
-                Admin (admin)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('COLLECTION_AGENT')}
-                className="py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium transition-colors"
-              >
-                Agent (agent01)
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
         <p className="text-center mt-5 text-xs text-slate-500 dark:text-slate-400">
-          Chit Fund Collection Management Portal
+          Chit Fund Collection Management Portal · Secure Access
         </p>
       </div>
     </div>
   );
 }
+

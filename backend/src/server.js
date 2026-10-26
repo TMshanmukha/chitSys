@@ -8,6 +8,8 @@ import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import agentRoutes from './routes/agentRoutes.js';
+
 
 const app = express();
 
@@ -93,6 +95,8 @@ app.get('/api/health', (req, res) => {
 // Mount Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/agent', agentRoutes);
+
 
 // 404 Handler for undefined API routes
 app.use('/api/*', (req, res) => {

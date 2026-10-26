@@ -4,7 +4,7 @@ import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
 async function seedDatabase() {
-  logger.info('🌱 Starting Database Seeding Process...');
+  logger.info('🌱 Starting Production Database Seeding Process...');
 
   const connection = await mysql.createConnection({
     host: env.DB_HOST,
@@ -15,15 +15,19 @@ async function seedDatabase() {
   });
 
   try {
-    // 1. Seed Default Permissions
-    logger.info('Seeding default role permissions...');
+    // 1. Seed Core Permissions
+    logger.info('Verifying role permissions...');
     const permissions = [
-      { role: 'SUPER_ADMIN', key: 'ALL_PRIVILEGES', desc: 'Full business ownership & administrative authority' },
+      { role: 'SUPER_ADMIN', key: 'ALL_PRIVILEGES', desc: 'Full administrative authority and business ownership' },
       { role: 'ADMIN', key: 'MANAGE_GROUPS', desc: 'Create and update chit groups and schedules' },
-      { role: 'ADMIN', key: 'MANAGE_AGENTS', desc: 'Assign and monitor collection agents' },
-      { role: 'ADMIN', key: 'VIEW_REPORTS', desc: 'View collection and cash handover reports' },
-      { role: 'COLLECTION_AGENT', key: 'RECORD_COLLECTION', desc: 'Record daily and monthly collections on assigned routes' },
-      { role: 'COLLECTION_AGENT', key: 'VIEW_ASSIGNED_GROUPS', desc: 'View assigned chit group members and dues' },
+      { role: 'ADMIN', key: 'MANAGE_MEMBERS', desc: 'Register members and manage participant records' },
+      { role: 'ADMIN', key: 'MANAGE_AGENTS', desc: 'Create and assign field collection agents' },
+      { role: 'ADMIN', key: 'RECORD_COLLECTION', desc: 'Record collections directly from office' },
+      { role: 'ADMIN', key: 'RECONCILE_HANDOVERS', desc: 'Verify and settle daily agent cash handovers' },
+      { role: 'ADMIN', key: 'VIEW_REPORTS', desc: 'Generate financial reports and collection logs' },
+      { role: 'COLLECTION_AGENT', key: 'RECORD_COLLECTION', desc: 'Record daily/monthly payments on assigned routes' },
+      { role: 'COLLECTION_AGENT', key: 'VIEW_ASSIGNED_GROUPS', desc: 'View assigned members and collection dues' },
+      { role: 'COLLECTION_AGENT', key: 'SUBMIT_HANDOVER', desc: 'Submit daily cash handover reconciliation slips' },
     ];
 
     for (const p of permissions) {
@@ -35,87 +39,62 @@ async function seedDatabase() {
       );
     }
 
-    // 2. Seed Super Admin
-    logger.info(`Checking Super Admin account ('${env.BOOTSTRAP_ADMIN_USERNAME}')...`);
+    // 2. Clean up any operational test data and extra accounts to ensure pure production state
+    logger.info('Purging demo and test transactional data...');
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('TRUNCATE TABLE collections');
+    await connection.query('TRUNCATE TABLE group_memberships');
+    await connection.query('TRUNCATE TABLE agent_group_assignments');
+    await connection.query('TRUNCATE TABLE cash_handovers');
+    await connection.query('TRUNCATE TABLE payouts');
+    await connection.query('TRUNCATE TABLE members');
+    await connection.query('TRUNCATE TABLE chit_groups');
+    await connection.query("DELETE FROM users WHERE username != 'admin'");
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+
+    // 3. Ensure Single Primary Admin Account (Username: admin, Password: admin)
+    const adminUsername = 'admin';
+    const adminPassword = 'admin';
+    const adminHash = await bcrypt.hash(adminPassword, 12);
+
     const [adminRows] = await connection.query(
       'SELECT id FROM users WHERE username = ? LIMIT 1',
-      [env.BOOTSTRAP_ADMIN_USERNAME]
+      [adminUsername]
     );
 
     let superAdminId;
     if (adminRows.length === 0) {
-      const adminHash = await bcrypt.hash(env.BOOTSTRAP_ADMIN_PASSWORD, 12);
       const [insertRes] = await connection.query(
         `INSERT INTO users (full_name, username, password_hash, role, phone, is_active)
          VALUES (?, ?, ?, 'SUPER_ADMIN', ?, 1)`,
-        [
-          env.BOOTSTRAP_ADMIN_FULLNAME,
-          env.BOOTSTRAP_ADMIN_USERNAME,
-          adminHash,
-          env.BOOTSTRAP_ADMIN_PHONE,
-        ]
+        ['Business Administrator', adminUsername, adminHash, '9876543210']
       );
       superAdminId = insertRes.insertId;
-      logger.info(`✅ Created Super Admin account: '${env.BOOTSTRAP_ADMIN_USERNAME}'`);
+      logger.info(`✅ Created Primary Administrator: '${adminUsername}'`);
     } else {
       superAdminId = adminRows[0].id;
-      logger.info(`⏩ Super Admin account '${env.BOOTSTRAP_ADMIN_USERNAME}' already exists.`);
-    }
-
-    // 3. Seed Demo Collection Agent
-    const demoAgentUsername = 'agent01';
-    const demoAgentPass = 'Agent1234!';
-    const [agentRows] = await connection.query(
-      'SELECT id FROM users WHERE username = ? LIMIT 1',
-      [demoAgentUsername]
-    );
-
-    if (agentRows.length === 0) {
-      const agentHash = await bcrypt.hash(demoAgentPass, 12);
+      // Update password hash to 'admin'
       await connection.query(
-        `INSERT INTO users (full_name, username, password_hash, role, phone, is_active, created_by)
-         VALUES (?, ?, ?, 'COLLECTION_AGENT', ?, 1, ?)`,
-        ['Ramesh Kumar (Route Agent)', demoAgentUsername, agentHash, '9845123456', superAdminId]
+        'UPDATE users SET password_hash = ?, is_active = 1 WHERE id = ?',
+        [adminHash, superAdminId]
       );
-      logger.info(`✅ Created Demo Collection Agent: '${demoAgentUsername}'`);
-    } else {
-      logger.info(`⏩ Demo Collection Agent '${demoAgentUsername}' already exists.`);
+      logger.info(`✅ Updated Primary Administrator password for '${adminUsername}'`);
     }
 
-    // 4. Seed Inactive Agent (for testing account deactivation behavior)
-    const inactiveAgentUsername = 'inactive_agent';
-    const [inactiveRows] = await connection.query(
-      'SELECT id FROM users WHERE username = ? LIMIT 1',
-      [inactiveAgentUsername]
-    );
-
-    if (inactiveRows.length === 0) {
-      const inactiveHash = await bcrypt.hash('Agent1234!', 12);
-      await connection.query(
-        `INSERT INTO users (full_name, username, password_hash, role, phone, is_active, created_by)
-         VALUES (?, ?, ?, 'COLLECTION_AGENT', ?, 0, ?)`,
-        ['Suresh Rao (Deactivated)', inactiveAgentUsername, inactiveHash, '9845000000', superAdminId]
-      );
-      logger.info(`✅ Created Inactive Agent: '${inactiveAgentUsername}' for safety tests`);
-    }
-
-    // 5. Audit Log Seed Entry
+    // 4. Audit Log entry
     await connection.query(
       `INSERT INTO audit_logs (user_id, action, resource, details, status)
-       VALUES (?, 'SYSTEM_SEED', 'DATABASE', JSON_OBJECT('event', 'Initial database seeding completed'), 'SUCCESS')`,
+       VALUES (?, 'SYSTEM_INIT', 'DATABASE', JSON_OBJECT('event', 'Production schema & single admin setup completed'), 'SUCCESS')`,
       [superAdminId]
     );
 
-    logger.info('🎉 Database seeding completed successfully!');
-    logger.info('==========================================');
-    logger.info('Admin Credentials:');
-    logger.info(`Username: ${env.BOOTSTRAP_ADMIN_USERNAME}`);
-    logger.info(`Password: ${env.BOOTSTRAP_ADMIN_PASSWORD}`);
-    logger.info('------------------------------------------');
-    logger.info('Collection Agent Credentials:');
-    logger.info(`Username: ${demoAgentUsername}`);
-    logger.info(`Password: ${demoAgentPass}`);
-    logger.info('==========================================');
+    logger.info('🎉 Database initialization complete!');
+    logger.info('==================================================');
+    logger.info('Single System Administrator Account:');
+    logger.info(`Username: ${adminUsername}`);
+    logger.info(`Password: ${adminPassword}`);
+    logger.info('No demo agents exist. You can create real collection agents from the Agent Management module.');
+    logger.info('==================================================');
   } catch (error) {
     logger.error('❌ Seeding failed:', { message: error.message, stack: error.stack });
     process.exit(1);

@@ -6,102 +6,49 @@ import {
   Users,
   UserCheck,
   Receipt,
-  IndianRupee,
-  ArrowRight,
   PlusCircle,
-  Calendar,
   MapPin,
   CheckCircle2,
-  Clock,
   Wallet,
   Smartphone,
+  ArrowRight,
+  TrendingUp,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [summary, setSummary] = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchSummary() {
+    async function fetchDashboard() {
       try {
         setLoading(true);
-        const res = await api.get('/admin/summary');
+        const res = await api.get('/admin/overview');
         if (res.data?.success) {
-          setSummary(res.data.data);
+          setData(res.data.data);
         }
       } catch (err) {
-        console.error('Failed to load dashboard summary:', err);
+        console.error('Failed to load dashboard overview:', err);
       } finally {
         setLoading(false);
       }
     }
-    fetchSummary();
+    fetchDashboard();
   }, []);
 
-  // Practical business demonstration data for chit operations overview
-  const activeGroups = [
-    {
-      code: 'DG-101',
-      name: 'Daily Market Scheme A',
-      type: 'Daily',
-      route: 'Main Bazaar Sector 1',
-      agent: 'Ramesh Kumar',
-      installment: '₹500 / day',
-      members: 30,
-      status: 'Active',
-    },
-    {
-      code: 'MG-201',
-      name: 'Monthly Commercial Chit',
-      type: 'Monthly',
-      route: 'Gandhi Road & Textile Lane',
-      agent: 'Ramesh Kumar',
-      installment: '₹10,000 / mo',
-      members: 20,
-      status: 'Active',
-    },
-    {
-      code: 'DG-102',
-      name: 'Vegetable Market Daily Pool',
-      type: 'Daily',
-      route: 'Rythu Bazaar Complex',
-      agent: 'Suresh Rao',
-      installment: '₹300 / day',
-      members: 40,
-      status: 'Active',
-    },
-    {
-      code: 'MG-202',
-      name: 'Small Business Monthly Chit',
-      type: 'Monthly',
-      route: 'Auto Nagar Industrial Area',
-      agent: 'Unassigned',
-      installment: '₹5,000 / mo',
-      members: 25,
-      status: 'Setup',
-    },
-  ];
-
-  const agentSummaries = [
-    {
-      name: 'Ramesh Kumar',
-      route: 'Main Bazaar & Gandhi Road',
-      cashCollected: '₹14,500',
-      onlineCollected: '₹8,000',
-      totalCollected: '₹22,500',
-      handoverStatus: 'Pending Verification',
-    },
-    {
-      name: 'Suresh Rao',
-      route: 'Rythu Bazaar Complex',
-      cashCollected: '₹9,800',
-      onlineCollected: '₹3,200',
-      totalCollected: '₹13,000',
-      handoverStatus: 'Reconciled',
-    },
-  ];
+  const totalGroups = data?.totalGroups || 0;
+  const totalMembers = data?.totalMembers || 0;
+  const totalAgents = data?.totalAgents || 0;
+  const todayCash = parseFloat(data?.todayCash || 0);
+  const todayOnline = parseFloat(data?.todayOnline || 0);
+  const todayTotal = parseFloat(data?.todayTotal || 0);
+  const expectedTarget = parseFloat(data?.expectedDailyTarget || 0);
+  const progressPercent = expectedTarget > 0 ? Math.min(Math.round((todayTotal / expectedTarget) * 100), 100) : 0;
+  const recentCollections = data?.recentCollections || [];
+  const groupsList = data?.groupsList || [];
+  const agentsSummary = data?.agentsSummary || [];
 
   return (
     <div className="space-y-6 sm:space-y-7 animate-fadeIn">
@@ -109,13 +56,13 @@ export default function AdminDashboard() {
       <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-            Business Administration
+            Chit Fund Operations
           </span>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-0.5">
             Welcome, {user?.full_name || 'Administrator'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Operational summary of your chit fund groups, collection routes, and field agents.
+            Real-time business status of chit groups, collections, and registered agents.
           </p>
         </div>
 
@@ -145,18 +92,20 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              12
+              {loading ? '...' : totalGroups}
             </span>
-            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">8 Daily · 4 Monthly</span>
+            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+              {data?.dailyGroups || 0} Daily · {data?.monthlyGroups || 0} Monthly
+            </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total active chit schemes</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Configured chit schemes</p>
         </div>
 
         {/* Metric 2: Members Enrolled */}
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Enrolled Members
+              Registered Members
             </span>
             <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <Users className="w-4 h-4" />
@@ -164,18 +113,18 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              115
+              {loading ? '...' : totalMembers}
             </span>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Verified KYC</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Participants</span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Participants in chit pools</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Members in database</p>
         </div>
 
         {/* Metric 3: Collection Agents */}
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Collection Agents
+              Route Agents
             </span>
             <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center">
               <UserCheck className="w-4 h-4" />
@@ -183,14 +132,14 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {loading ? '...' : summary?.totalAgents || 2}
+              {loading ? '...' : totalAgents}
             </span>
-            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">On Route Today</span>
+            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Field Staff</span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Authorized field staff</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Authorized for cash collection</p>
         </div>
 
-        {/* Metric 4: Expected Daily Target */}
+        {/* Metric 4: Today's Target */}
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -202,11 +151,11 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              ₹45,000
+              ₹{expectedTarget.toLocaleString('en-IN')}
             </span>
-            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Target Dues</span>
+            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Daily Dues</span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Scheduled daily collections</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Calculated from active groups</p>
         </div>
       </div>
 
@@ -220,14 +169,14 @@ export default function AdminDashboard() {
                 Today's Collection Breakdown
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Split between physical cash and verified digital UPI payments
+                Split between physical cash and digital UPI payments recorded in MySQL
               </p>
             </div>
             <Link
               to="/admin/collections"
               className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
             >
-              <span>View All</span>
+              <span>View Collections</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -238,7 +187,9 @@ export default function AdminDashboard() {
                 <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>Physical Cash</span>
               </div>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">₹24,300</p>
+              <p className="text-xl font-bold text-slate-900 dark:text-white">
+                ₹{todayCash.toLocaleString('en-IN')}
+              </p>
               <span className="text-[11px] text-slate-500 dark:text-slate-400">Handover pending</span>
             </div>
 
@@ -247,8 +198,10 @@ export default function AdminDashboard() {
                 <Smartphone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>Digital UPI</span>
               </div>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">₹11,200</p>
-              <span className="text-[11px] text-emerald-600 dark:text-emerald-400">Auto-credited</span>
+              <p className="text-xl font-bold text-slate-900 dark:text-white">
+                ₹{todayOnline.toLocaleString('en-IN')}
+              </p>
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400">Direct credit</span>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
@@ -256,21 +209,28 @@ export default function AdminDashboard() {
                 <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 <span>Total Collected</span>
               </div>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">₹35,500</p>
-              <span className="text-[11px] text-blue-600 dark:text-blue-400">78% of Daily Target</span>
+              <p className="text-xl font-bold text-slate-900 dark:text-white">
+                ₹{todayTotal.toLocaleString('en-IN')}
+              </p>
+              <span className="text-[11px] text-blue-600 dark:text-blue-400">
+                {expectedTarget > 0 ? `${progressPercent}% of Target` : 'Recorded today'}
+              </span>
             </div>
           </div>
 
-          {/* Simple Clean Progress Bar */}
+          {/* Progress Bar */}
           <div className="pt-2">
             <div className="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
               <span>Collection Progress</span>
-              <span>₹35,500 of ₹45,000 target</span>
+              <span>
+                ₹{todayTotal.toLocaleString('en-IN')}{' '}
+                {expectedTarget > 0 ? `of ₹${expectedTarget.toLocaleString('en-IN')}` : ''}
+              </span>
             </div>
             <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
               <div
                 className="h-full bg-blue-600 rounded-full transition-all"
-                style={{ width: '78%' }}
+                style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
@@ -283,7 +243,7 @@ export default function AdminDashboard() {
               Quick Operations
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Frequently accessed management functions
+              Key operational management portals
             </p>
           </div>
 
@@ -294,7 +254,7 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-2.5">
                 <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Manage Chit Groups</span>
+                <span>Chit Groups & Routes</span>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-400" />
             </Link>
@@ -305,7 +265,7 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-2.5">
                 <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Assign Agents to Routes</span>
+                <span>Create & Assign Agents</span>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-400" />
             </Link>
@@ -316,18 +276,18 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-2.5">
                 <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Member Participant Directory</span>
+                <span>Enroll Participants</span>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-400" />
             </Link>
 
             <Link
-              to="/admin/reports"
+              to="/admin/collections"
               className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
             >
               <div className="flex items-center gap-2.5">
                 <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Daily Handover Reports</span>
+                <span>Record New Collection</span>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-400" />
             </Link>
@@ -340,17 +300,17 @@ export default function AdminDashboard() {
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-base">
-              Active Chit Schemes
+              Active Chit Schemes ({groupsList.length})
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Overview of running daily and monthly collection pools
+              Running schemes from MySQL database
             </p>
           </div>
           <Link
             to="/admin/chit-groups"
             className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
           >
-            <span>Configure Groups</span>
+            <span>Manage All Groups</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -362,118 +322,137 @@ export default function AdminDashboard() {
                 <th className="py-3 px-4">Scheme Code</th>
                 <th className="py-3 px-4">Group Name</th>
                 <th className="py-3 px-4">Frequency</th>
-                <th className="py-3 px-4">Route Location</th>
-                <th className="py-3 px-4">Assigned Agent</th>
+                <th className="py-3 px-4">Location</th>
                 <th className="py-3 px-4">Installment</th>
-                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Enrolled Members</th>
+                <th className="py-3 px-4">Assigned Agent</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-              {activeGroups.map((group) => (
-                <tr key={group.code} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3 px-4 font-semibold text-blue-600 dark:text-blue-400 font-mono">
-                    {group.code}
-                  </td>
-                  <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
-                    {group.name}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                        group.type === 'Daily'
-                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                          : 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                      }`}
-                    >
-                      {group.type}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{group.route}</span>
-                  </td>
-                  <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
-                    {group.agent}
-                  </td>
-                  <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
-                    {group.installment}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      {group.status}
-                    </span>
+              {groupsList.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-slate-500 dark:text-slate-400">
+                    No active chit groups created yet. Click "Create Chit Group" to start your first scheme.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                groupsList.map((group) => (
+                  <tr key={group.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3 px-4 font-semibold text-blue-600 dark:text-blue-400 font-mono">
+                      {group.group_code}
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                      {group.group_name}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                          group.frequency === 'DAILY'
+                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                            : 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                        }`}
+                      >
+                        {group.frequency}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{group.location_name}</span>
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                      ₹{parseFloat(group.installment_amount).toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
+                      {group.enrolled_members} Members
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                      {group.assigned_agents || 'Unassigned'}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Field Agents Today's Summary */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+      {/* Recent Collections Table */}
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-base">
-              Route Agents Collection Status
+              Recent Collections
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Today's collection totals and cash handover reconciliation
+              Latest payment records stored in MySQL
             </p>
           </div>
           <Link
-            to="/admin/agents"
+            to="/admin/collections"
             className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
           >
-            <span>Agent Directory</span>
+            <span>All Collections</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {agentSummaries.map((agent) => (
-            <div
-              key={agent.name}
-              className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex flex-col justify-between gap-3"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">
-                    {agent.name}
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{agent.route}</span>
-                  </p>
-                </div>
-                <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                    agent.handoverStatus === 'Reconciled'
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                      : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                  }`}
-                >
-                  {agent.handoverStatus}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-xs">
-                <div>
-                  <span className="text-[11px] text-slate-400 block">Cash</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">{agent.cashCollected}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] text-slate-400 block">UPI</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">{agent.onlineCollected}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] text-slate-400 block">Total</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">{agent.totalCollected}</span>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="py-3 px-4">Receipt No.</th>
+                <th className="py-3 px-4">Member Name</th>
+                <th className="py-3 px-4">Chit Group</th>
+                <th className="py-3 px-4">Amount</th>
+                <th className="py-3 px-4">Method</th>
+                <th className="py-3 px-4">Collector</th>
+                <th className="py-3 px-4">Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+              {recentCollections.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-slate-500 dark:text-slate-400">
+                    No collection records yet today. Go to "Collections" to record payments.
+                  </td>
+                </tr>
+              ) : (
+                recentCollections.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3 px-4 font-mono font-medium text-blue-600 dark:text-blue-400">
+                      {c.receipt_number}
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                      {c.member_name}
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                      {c.group_name} ({c.group_code})
+                    </td>
+                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                      ₹{parseFloat(c.amount).toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                          c.payment_method === 'CASH'
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                        }`}
+                      >
+                        {c.payment_method}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                      {c.agent_name}
+                    </td>
+                    <td className="py-3 px-4 text-slate-500 font-mono">
+                      {c.collection_time || 'Today'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
