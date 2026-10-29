@@ -3,29 +3,37 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
 import { env } from '../config/env.js';
+import { sslConfig } from '../config/db.js';
 import { logger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function runMigrations() {
+export async function runMigrations() {
   logger.info('📦 Initializing Database Migration Process...');
 
-  // Step 1: Connect to MySQL server (without specifying target database yet)
+  // Step 1: Connect to MySQL server
   const connection = await mysql.createConnection({
     host: env.DB_HOST,
     port: env.DB_PORT,
     user: env.DB_USER,
     password: env.DB_PASSWORD,
+    database: env.DB_NAME || undefined,
+    ssl: sslConfig,
     multipleStatements: true,
   });
 
   try {
     // Step 2: Ensure database exists
     logger.info(`Ensuring database '${env.DB_NAME}' exists...`);
-    await connection.query(
-      `CREATE DATABASE IF NOT EXISTS \`${env.DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
-    );
+    try {
+      await connection.query(
+        `CREATE DATABASE IF NOT EXISTS \`${env.DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+      );
+    } catch (dbErr) {
+      // In cloud databases (e.g. TiDB Serverless, Aiven), database is pre-created and CREATE DATABASE may be restricted
+      logger.info(`Database note: ${dbErr.message}`);
+    }
     await connection.query(`USE \`${env.DB_NAME}\`;`);
 
     // Step 3: Create schema_migrations table
@@ -37,10 +45,17 @@ async function runMigrations() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // Step 4: Read migration files from database/migrations
-    const migrationsDir = path.resolve(__dirname, '../../../database/migrations');
-    if (!fs.existsSync(migrationsDir)) {
-      logger.error(`Migrations directory not found at: ${migrationsDir}`);
+    // Step 4: Read migration files from candidate directories
+    const candidatePaths = [
+      path.resolve(__dirname, '../../../database/migrations'),
+      path.resolve(__dirname, '../../database/migrations'),
+      path.resolve(__dirname, '../database/migrations'),
+      path.resolve(__dirname, '../../migrations'),
+      path.resolve(__dirname, '../migrations'),
+    ];
+    const migrationsDir = candidatePaths.find((p) => fs.existsSync(p));
+    if (!migrationsDir) {
+      logger.error('Migrations directory not found in any standard path');
       process.exit(1);
     }
 

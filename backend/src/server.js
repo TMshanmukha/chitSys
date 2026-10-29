@@ -27,8 +27,12 @@ app.use(
 
 // CORS Configuration
 const isDev = env.NODE_ENV === 'development';
+const configuredOrigins = env.FRONTEND_ORIGIN
+  ? env.FRONTEND_ORIGIN.split(',').map((o) => o.trim())
+  : [];
+
 const allowedOrigins = [
-  env.FRONTEND_ORIGIN,
+  ...configuredOrigins,
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -39,7 +43,7 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g., mobile apps, curl, or same-origin server proxy)
+    // Allow requests with no origin (e.g., mobile apps, curl, or server-to-server)
     if (!origin) {
       return callback(null, true);
     }
@@ -47,6 +51,16 @@ const corsOptions = {
     // In development mode, allow any localhost or 127.0.0.1 port
     if (isDev && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       return callback(null, true);
+    }
+
+    // Automatically allow any Vercel deployment domain (*.vercel.app)
+    try {
+      const parsedUrl = new URL(origin);
+      if (parsedUrl.hostname.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+    } catch (e) {
+      // Ignore URL parse errors
     }
 
     if (allowedOrigins.includes(origin)) {
@@ -119,6 +133,14 @@ async function startServer() {
   const dbConnected = await testConnection();
   if (!dbConnected) {
     logger.warn('⚠️ Server started without active MySQL connection. Some routes will fail until database is available.');
+  } else if (env.AUTO_MIGRATE === 'true') {
+    try {
+      const { runMigrations } = await import('./scripts/migrate.js');
+      await runMigrations();
+      logger.info('✅ Auto-migrations completed on startup.');
+    } catch (migErr) {
+      logger.error('❌ Auto-migration error on startup:', { message: migErr.message });
+    }
   }
 
   const server = app.listen(env.PORT, '0.0.0.0', () => {

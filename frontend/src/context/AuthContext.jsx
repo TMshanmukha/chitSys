@@ -39,6 +39,13 @@ export function AuthProvider({ children }) {
       const payloadUsername = role === 'ADMIN' ? (username?.trim() || 'admin') : username?.trim();
       const res = await api.post('/auth/login', { role, username: payloadUsername, password });
       if (res.data?.success && res.data?.user) {
+        if (res.data.token) {
+          try {
+            localStorage.setItem('chit_token', res.data.token);
+          } catch (e) {
+            // Ignore storage errors
+          }
+        }
         setUser(res.data.user);
         return { success: true, user: res.data.user };
       }
@@ -57,6 +64,11 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      try {
+        localStorage.removeItem('chit_token');
+      } catch (e) {
+        // Ignore storage errors
+      }
       setUser(null);
       setAuthError(null);
     }

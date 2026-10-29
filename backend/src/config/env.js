@@ -14,6 +14,8 @@ const envSchema = z.object({
   DB_USER: z.string().default('root'),
   DB_PASSWORD: z.string().default(''),
   DB_CONNECTION_LIMIT: z.string().default('10').transform((val) => parseInt(val, 10)),
+  DB_SSL: z.enum(['true', 'false']).default('false'),
+  AUTO_MIGRATE: z.enum(['true', 'false']).default('false'),
 
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters long'),
   JWT_EXPIRES_IN: z.string().default('2h'),

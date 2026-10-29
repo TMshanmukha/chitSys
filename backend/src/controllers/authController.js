@@ -39,6 +39,7 @@ export async function login(req, res, next) {
       success: true,
       message: 'Authentication successful.',
       user,
+      token,
     });
   } catch (error) {
     res.status(401).json({

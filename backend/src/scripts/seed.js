@@ -1,9 +1,10 @@
 import bcrypt from 'bcryptjs';
 import mysql from 'mysql2/promise';
 import { env } from '../config/env.js';
+import { sslConfig } from '../config/db.js';
 import { logger } from '../utils/logger.js';
 
-async function seedDatabase() {
+export async function seedDatabase() {
   logger.info('🌱 Starting Production Database Seeding Process...');
 
   const connection = await mysql.createConnection({
@@ -12,6 +13,7 @@ async function seedDatabase() {
     user: env.DB_USER,
     password: env.DB_PASSWORD,
     database: env.DB_NAME,
+    ssl: sslConfig,
   });
 
   try {

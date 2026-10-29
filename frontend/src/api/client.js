@@ -8,6 +8,19 @@ const api = axios.create({
   },
 });
 
+// Request interceptor to attach JWT token if stored (enables bulletproof cross-origin auth)
+api.interceptors.request.use((config) => {
+  try {
+    const token = localStorage.getItem('chit_token');
+    if (token && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (e) {
+    // Ignore storage errors in restrictive environments
+  }
+  return config;
+});
+
 // Response interceptor with automatic retry for transient network hiccups or proxy cold-starts
 api.interceptors.response.use(
   (response) => response,
