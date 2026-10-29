@@ -56,7 +56,7 @@ export async function runMigrations() {
     const migrationsDir = candidatePaths.find((p) => fs.existsSync(p));
     if (!migrationsDir) {
       logger.error('Migrations directory not found in any standard path');
-      process.exit(1);
+      return;
     }
 
     const files = fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql')).sort();
@@ -81,18 +81,33 @@ export async function runMigrations() {
       // Execute migration script
       await connection.query(sqlContent);
 
-      // Record migration
-      await connection.query('INSERT INTO schema_migrations (version) VALUES (?)', [file]);
+      // Record migration with INSERT IGNORE to prevent race collisions
+      await connection.query('INSERT IGNORE INTO schema_migrations (version) VALUES (?)', [file]);
       logger.info(`✅ Successfully applied migration: ${file}`);
     }
 
+    // Step 5: Ensure default primary admin user exists (username: admin, password: admin)
+    const adminHash = '$2a$10$6zzE21xVg1NcBDd93JIFg.CE2kgm4xiCRAvXCVQuX45X0GZW4Kb1C';
+    await connection.query(
+      `INSERT IGNORE INTO users (full_name, username, password_hash, role, phone, is_active)
+       VALUES (?, ?, ?, 'SUPER_ADMIN', ?, 1)`,
+      ['Main Administrator', 'admin', adminHash, '9876543210']
+    );
+
     logger.info('🎉 All database migrations executed successfully!');
   } catch (error) {
-    logger.error('❌ Migration failed:', { message: error.message, stack: error.stack });
-    process.exit(1);
+    logger.error('❌ Migration error:', { message: error.message, stack: error.stack });
+    throw error;
   } finally {
     await connection.end();
   }
 }
 
-runMigrations();
+// Only invoke directly if executed from CLI
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  runMigrations().catch((err) => {
+    logger.error('Fatal CLI migration error:', { message: err.message });
+    process.exit(1);
+  });
+}

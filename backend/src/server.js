@@ -129,24 +129,11 @@ app.use(errorHandler);
 async function startServer() {
   logger.info('🚀 Starting Chit Fund Management Backend Server...');
 
-  // Test MySQL connection
-  const dbConnected = await testConnection();
-  if (!dbConnected) {
-    logger.warn('⚠️ Server started without active MySQL connection. Some routes will fail until database is available.');
-  } else if (env.AUTO_MIGRATE === 'true') {
-    try {
-      const { runMigrations } = await import('./scripts/migrate.js');
-      await runMigrations();
-      logger.info('✅ Auto-migrations completed on startup.');
-    } catch (migErr) {
-      logger.error('❌ Auto-migration error on startup:', { message: migErr.message });
-    }
-  }
-
+  // Start HTTP listener immediately so cloud health checks (Back4App) succeed in <100ms
   const server = app.listen(env.PORT, '0.0.0.0', () => {
-    logger.info(`✨ Server running on http://localhost:${env.PORT}`);
+    logger.info(`✨ Server running on http://0.0.0.0:${env.PORT}`);
     logger.info(`🔒 Allowed Frontend Origin: ${env.FRONTEND_ORIGIN}`);
-    logger.info(`🌐 Health check available at: http://localhost:${env.PORT}/api/health`);
+    logger.info(`🌐 Health check available at: http://0.0.0.0:${env.PORT}/`);
   });
 
   // Handle server-level errors such as port collisions gracefully
@@ -159,6 +146,22 @@ async function startServer() {
     }
     process.exit(1);
   });
+
+  // Test MySQL connection and optionally run migrations in background
+  (async () => {
+    const dbConnected = await testConnection();
+    if (!dbConnected) {
+      logger.warn('⚠️ Server started without active MySQL connection. Some routes will fail until database is available.');
+    } else if (env.AUTO_MIGRATE === 'true') {
+      try {
+        const { runMigrations } = await import('./scripts/migrate.js');
+        await runMigrations();
+        logger.info('✅ Auto-migrations completed on startup.');
+      } catch (migErr) {
+        logger.error('❌ Auto-migration error on startup:', { message: migErr.message });
+      }
+    }
+  })();
 
   // Graceful shutdown
   const shutdown = () => {
