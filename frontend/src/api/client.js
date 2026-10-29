@@ -10,7 +10,7 @@ const isLocal =
 // In cloud production (Vercel), use configured VITE_API_BASE_URL or Back4App endpoint.
 const apiBaseUrl = isLocal
   ? '/api'
-  : (import.meta.env.VITE_API_BASE_URL || 'https://chitsys-pugafvj4.back4.app/api');
+  : (import.meta.env.VITE_API_BASE_URL || 'https://chitsys-kaue7wrz.back4.app/api');
 
 const api = axios.create({
   baseURL: apiBaseUrl,
