@@ -15,6 +15,7 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().default('G4AeaVfuumT41J0F'),
   DB_CONNECTION_LIMIT: z.string().default('10').transform((val) => parseInt(val, 10)),
   DB_SSL: z.enum(['true', 'false']).default('true'),
+  DB_SSL_CA_PATH: z.string().default('./certs/isrgrootx1 (3).pem'),
   AUTO_MIGRATE: z.enum(['true', 'false']).default('true'),
 
   JWT_SECRET: z.string().min(16).default('c8f8b3c98d6e4a2b10984f728190d65b71234a9e5c1284d728198f6230129abc'),

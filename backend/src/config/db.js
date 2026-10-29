@@ -1,15 +1,17 @@
 import mysql from 'mysql2/promise';
+import path from 'path';
+import fs from 'fs';
 import { env } from './env.js';
 import { logger } from '../utils/logger.js';
 
-export const isCloudDb =
+// Determine if this is a cloud DB (TiDB) – TLS required when connecting remotely
+const isCloudDb =
   env.DB_SSL === 'true' ||
   env.DB_PORT === 4000 ||
   (env.DB_HOST && !['localhost', '127.0.0.1'].includes(env.DB_HOST));
 
-export const sslConfig = isCloudDb
-  ? { minVersion: 'TLSv1.2', rejectUnauthorized: false }
-  : undefined;
+const caPath = env.DB_SSL_CA_PATH ? path.resolve(process.cwd(), env.DB_SSL_CA_PATH) : undefined;
+export const sslConfig = isCloudDb && caPath ? { ca: fs.readFileSync(caPath), rejectUnauthorized: false, minVersion: 'TLSv1.2' } : undefined;
 
 export const pool = mysql.createPool({
   host: env.DB_HOST,
