@@ -96,8 +96,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
+// Root & Health check endpoints for cloud platforms (Back4App, Docker, Koyeb)
+app.get(['/', '/health', '/api/health'], (req, res) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),

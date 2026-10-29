@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy backend package manifests
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --no-audit
 
 # Copy backend source code
 COPY backend/ ./
