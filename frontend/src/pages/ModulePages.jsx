@@ -3227,7 +3227,7 @@ export function SettingsPage() {
             System Configuration & Company Profile
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure business registration details, default chit fund rules, and verify database integrity
+            Configure company registration details, official contact info, and default chit scheme operating rules
           </p>
         </div>
 
@@ -3309,6 +3309,18 @@ export function SettingsPage() {
                 />
               </div>
             </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Official Support Email
+              </label>
+              <input
+                type="email"
+                value={config.supportEmail}
+                onChange={(e) => setConfig({ ...config, supportEmail: e.target.value })}
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
+            </div>
           </div>
         </div>
 
@@ -3378,37 +3390,8 @@ export function SettingsPage() {
           </div>
         </div>
 
-        {/* Card 3: Database & Security Integrity */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 text-xs">
-          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-            <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <h3 className="font-bold text-slate-900 dark:text-white text-sm">
-              Database & Security Parameters
-            </h3>
-          </div>
-
-          <div className="space-y-2 text-slate-600 dark:text-slate-400">
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span>Database Engine</span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-white">MySQL 9.3</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span>Database Schema</span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-white">chitfund_db</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span>Authentication Session</span>
-              <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">HttpOnly Secure JWT</span>
-            </div>
-            <div className="flex justify-between py-1.5">
-              <span>Password Algorithm</span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-white">Bcrypt (Salt 12)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Receipt & Handover Verification */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 text-xs">
+        {/* Card 3: Receipt & Numbering Standard */}
+        <div className="lg:col-span-2 p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 text-xs">
           <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
             <Receipt className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <h3 className="font-bold text-slate-900 dark:text-white text-sm">
@@ -3416,22 +3399,22 @@ export function SettingsPage() {
             </h3>
           </div>
 
-          <div className="space-y-2 text-slate-600 dark:text-slate-400">
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span>Receipt Numbering Standard</span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-white">REC-YYYYMMDD-XXXX</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-slate-600 dark:text-slate-400">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+              <span className="text-[11px] block font-medium">Receipt Format</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-white">REC-YYYYMMDD-XXXX</span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span>Member Identifier Standard</span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-white">MEM-XXXX</span>
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+              <span className="text-[11px] block font-medium">Member Identifier Format</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-white">MEM-XXXX</span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span>Universal Date Format</span>
-              <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">DD/MM/YYYY</span>
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+              <span className="text-[11px] block font-medium">Display Date Standard</span>
+              <span className="font-mono font-bold text-blue-600 dark:text-blue-400">DD/MM/YYYY</span>
             </div>
-            <div className="flex justify-between py-1.5">
-              <span>Daily Reconciliation</span>
-              <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">Synchronous Active</span>
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+              <span className="text-[11px] block font-medium">Daily Reconciliation</span>
+              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">Synchronous Active</span>
             </div>
           </div>
         </div>
