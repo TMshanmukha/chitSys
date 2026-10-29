@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import agentRoutes from './routes/agentRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 
 const app = express();
@@ -96,6 +97,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agent', agentRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 // 404 Handler for undefined API routes
@@ -119,10 +121,21 @@ async function startServer() {
     logger.warn('⚠️ Server started without active MySQL connection. Some routes will fail until database is available.');
   }
 
-  const server = app.listen(env.PORT, () => {
+  const server = app.listen(env.PORT, '0.0.0.0', () => {
     logger.info(`✨ Server running on http://localhost:${env.PORT}`);
     logger.info(`🔒 Allowed Frontend Origin: ${env.FRONTEND_ORIGIN}`);
     logger.info(`🌐 Health check available at: http://localhost:${env.PORT}/api/health`);
+  });
+
+  // Handle server-level errors such as port collisions gracefully
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      logger.error(`❌ Port ${env.PORT} is already in use by another running process.`);
+      logger.info(`💡 Please terminate any existing node processes using port ${env.PORT} or change PORT in .env.`);
+    } else {
+      logger.error(`❌ Server listener error: ${err.message}`);
+    }
+    process.exit(1);
   });
 
   // Graceful shutdown

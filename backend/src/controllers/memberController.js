@@ -20,10 +20,12 @@ export async function listMembers(req, res, next) {
         m.id, m.member_code, m.full_name, m.phone, m.alternate_phone,
         m.address, m.kyc_type, m.kyc_number, m.is_active, m.created_at,
         COUNT(DISTINCT gm.id) as total_groups,
-        COALESCE(SUM(c.amount), 0) as total_paid
+        COALESCE(SUM(c.amount), 0) as total_paid,
+        COUNT(DISTINCT a.id) as auctions_won_count
       FROM members m
       LEFT JOIN group_memberships gm ON m.id = gm.member_id
-      LEFT JOIN collections c ON m.id = c.member_id
+      LEFT JOIN collections c ON m.id = c.member_id AND c.verification_status != 'CANCELLED'
+      LEFT JOIN auctions a ON m.id = a.winning_member_id
     `;
     const params = [];
 
@@ -111,7 +113,10 @@ export async function createMember(req, res, next) {
 
 export async function enrollMemberInGroup(req, res, next) {
   try {
-    const { groupId, memberId, ticketNumber } = req.body;
+    const groupId = req.body.groupId || req.body.group_id;
+    const memberId = req.body.memberId || req.body.member_id;
+    const ticketNumber = req.body.ticketNumber || req.body.ticket_number;
+
     if (!groupId || !memberId) {
       return res.status(400).json({ success: false, message: 'Group ID and Member ID are required.' });
     }
@@ -132,6 +137,37 @@ export async function enrollMemberInGroup(req, res, next) {
       [groupId, memberId, ticket]
     );
 
+    // Also auto-add as a stop in route_stops if route stops exist
+    const [[{ stopCount }]] = await pool.execute(
+      'SELECT COUNT(*) as stopCount FROM route_stops WHERE group_id = ?',
+      [groupId]
+    );
+    if (stopCount < 20) {
+      const progress = stopCount / 20;
+      const coordX = Math.round(80 + progress * 640);
+      const coordY = Math.round(180 + Math.sin(progress * Math.PI * 2) * 80);
+
+      // Get member name
+      const [[mem]] = await pool.execute('SELECT full_name, address FROM members WHERE id = ?', [memberId]);
+      const [[grp]] = await pool.execute('SELECT installment_amount FROM chit_groups WHERE id = ?', [groupId]);
+
+      await pool.execute(
+        `INSERT INTO route_stops (group_id, member_id, stop_order, stop_name, landmark, expected_amount, coord_x, coord_y)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE stop_name = VALUES(stop_name)`,
+        [
+          groupId,
+          memberId,
+          ticket,
+          `${mem.full_name} (${mem.address || 'Member Residence'})`,
+          `Stop #${ticket}`,
+          grp.installment_amount,
+          coordX,
+          coordY,
+        ]
+      );
+    }
+
     await recordAuditLog({
       userId: req.user.id,
       action: 'ENROLL_MEMBER_IN_GROUP',
@@ -151,6 +187,104 @@ export async function enrollMemberInGroup(req, res, next) {
         message: 'This ticket slot is already occupied or the member is already enrolled with this ticket.',
       });
     }
+    next(error);
+  }
+}
+
+export async function getMemberPassbook(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // 1. Member profile
+    const [memberRows] = await pool.execute(
+      'SELECT * FROM members WHERE id = ? LIMIT 1',
+      [id]
+    );
+
+    if (memberRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Member not found.' });
+    }
+
+    const member = memberRows[0];
+
+    // 2. Enrolled groups
+    const [enrolledGroups] = await pool.execute(
+      `SELECT gm.id as membership_id, gm.ticket_number, gm.joined_date, gm.status as membership_status,
+              g.id as group_id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
+              g.location_name, g.installment_amount, g.total_pool_amount, g.duration_periods
+       FROM group_memberships gm
+       JOIN chit_groups g ON gm.group_id = g.id
+       WHERE gm.member_id = ?
+       ORDER BY gm.joined_date DESC`,
+      [id]
+    );
+
+    // 3. Collections Ledger (Payments Made)
+    const [collections] = await pool.execute(
+      `SELECT c.id, c.receipt_number, c.amount, c.payment_method, c.payment_reference,
+              c.collection_date, c.collection_time, c.verification_status, c.notes,
+              g.group_name, g.group_code, g.chit_type,
+              u.full_name as agent_name
+       FROM collections c
+       JOIN chit_groups g ON c.group_id = g.id
+       JOIN users u ON c.agent_id = u.id
+       WHERE c.member_id = ? AND c.verification_status != 'CANCELLED'
+       ORDER BY c.collection_date DESC, c.collection_time DESC`,
+      [id]
+    );
+
+    // 4. Auctions Won / Prize Money Lifted
+    const [auctionsWon] = await pool.execute(
+      `SELECT a.*, g.group_name, g.group_code, g.total_pool_amount
+       FROM auctions a
+       JOIN chit_groups g ON a.group_id = g.id
+       WHERE a.winning_member_id = ?
+       ORDER BY a.auction_date DESC`,
+      [id]
+    );
+
+    // 5. Member Individual Dividends Ledger (Saved per-member records)
+    const [dividendsLedger] = await pool.execute(
+      `SELECT md.id, md.auction_id, md.group_id, md.period_number, md.draw_number,
+              md.dividend_amount, md.net_installment_due, md.credited_date, md.is_prized,
+              md.status, md.notes,
+              g.group_name, g.group_code, g.chit_type, g.frequency,
+              a.bid_discount, a.foreman_commission
+       FROM member_dividends md
+       JOIN chit_groups g ON md.group_id = g.id
+       JOIN auctions a ON md.auction_id = a.id
+       WHERE md.member_id = ?
+       ORDER BY md.credited_date DESC, md.period_number DESC`,
+      [id]
+    );
+
+    const totalDividendsEarned = dividendsLedger.reduce(
+      (acc, d) => acc + parseFloat(d.dividend_amount || 0),
+      0
+    );
+
+    // Totals
+    const totalPaid = collections.reduce((acc, c) => acc + parseFloat(c.amount), 0);
+    const totalPrizeMoneyWon = auctionsWon.reduce((acc, a) => acc + parseFloat(a.net_payable_amount), 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        member,
+        enrolledGroups,
+        collections,
+        auctionsWon,
+        dividendsLedger,
+        summary: {
+          totalPaid,
+          totalDividendsEarned,
+          totalPrizeMoneyWon,
+          totalReceiptsCount: collections.length,
+          netPosition: totalPrizeMoneyWon - totalPaid,
+        },
+      },
+    });
+  } catch (error) {
     next(error);
   }
 }

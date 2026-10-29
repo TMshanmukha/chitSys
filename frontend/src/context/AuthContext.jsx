@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
+import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
 const AuthContext = createContext(null);
 
@@ -35,14 +36,15 @@ export function AuthProvider({ children }) {
   const login = async ({ role, username, password }) => {
     try {
       setAuthError(null);
-      const res = await api.post('/auth/login', { role, username, password });
+      const payloadUsername = role === 'ADMIN' ? (username?.trim() || 'admin') : username?.trim();
+      const res = await api.post('/auth/login', { role, username: payloadUsername, password });
       if (res.data?.success && res.data?.user) {
         setUser(res.data.user);
         return { success: true, user: res.data.user };
       }
       throw new Error(res.data?.message || 'Authentication failed.');
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Login failed. Please check credentials.';
+      const message = getFriendlyErrorMessage(err, 'Invalid username or password. Please verify your credentials and try again.');
       setAuthError(message);
       throw new Error(message);
     }

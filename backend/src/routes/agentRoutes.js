@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getMyAssignedRoutes } from '../controllers/agentController.js';
 import { recordCollection, listCollections } from '../controllers/collectionController.js';
+import { logAgentStopActivity } from '../controllers/trackingController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 
@@ -18,5 +19,8 @@ router.post('/collections', recordCollection);
 
 // View agent's own collection history
 router.get('/collections', listCollections);
+
+// Log stop activity (closed shop, callback, visited)
+router.post('/tracking/log-activity', logAgentStopActivity);
 
 export default router;

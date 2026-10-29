@@ -61,7 +61,10 @@ export async function requireAuth(req, res, next) {
       });
     }
 
-    req.user = user;
+    req.user = {
+      ...user,
+      userId: user.id,
+    };
     req.tokenId = decoded.jti;
     next();
   } catch (error) {

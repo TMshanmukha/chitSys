@@ -105,6 +105,17 @@ export async function recordCollection(req, res, next) {
       ]
     );
 
+    // Also synchronize agent tracking log: set this member node to PAID immediately
+    try {
+      await pool.execute(
+        `INSERT INTO agent_tracking_logs (agent_id, group_id, member_id, stop_id, tracking_date, status, last_ping_time, notes)
+         VALUES (?, ?, ?, ?, CURDATE(), 'PAID', CURTIME(), ?)`,
+        [recordingAgentId, validated.group_id, validated.member_id, validated.member_id, validated.notes || 'Paid in field']
+      );
+    } catch (e) {
+      console.error('Tracking log sync warning:', e.message);
+    }
+
     await recordAuditLog({
       userId: req.user.id,
       action: 'RECORD_COLLECTION',
