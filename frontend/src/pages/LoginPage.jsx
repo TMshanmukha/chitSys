@@ -19,7 +19,6 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
-import AnimatedChitBackground from '../components/AnimatedChitBackground';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -109,9 +108,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between items-center bg-transparent text-slate-800 dark:text-slate-100 p-4 sm:p-6 relative overflow-hidden transition-colors selection:bg-blue-500 selection:text-white">
-      {/* Background with Static Chit Fund Imagery, Money, and Ambient Lights */}
-      <AnimatedChitBackground />
+    <div className="min-h-screen w-full flex flex-col justify-between items-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 sm:p-6 relative overflow-hidden transition-colors selection:bg-blue-500 selection:text-white">
+      {/* Clean Subtle Geometric Background for Login Portal */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/15 dark:bg-blue-600/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/15 dark:bg-indigo-600/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-sky-500/10 dark:bg-sky-500/5 rounded-full blur-[140px]" />
+      </div>
 
       {/* Top Header Bar */}
       <header className="w-full max-w-5xl flex items-center justify-between z-10 py-2">
