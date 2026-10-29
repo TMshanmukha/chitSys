@@ -34,8 +34,8 @@ export default function AnimatedChitBackground() {
       {/* ========================================================= */}
 
       {/* --- ITEM 1: Handcrafted SVG ₹500 Indian Currency Note (Top Left) --- */}
-      <div className="absolute top-[8%] left-[4%] animate-floatGently opacity-45 dark:opacity-30 transform -rotate-6 hover:scale-105 transition-transform duration-500">
-        <svg width="220" height="98" viewBox="0 0 220 98" fill="none" className="drop-shadow-md">
+      <div className="absolute top-[8%] left-[4%] animate-floatGently opacity-22 dark:opacity-16 transform -rotate-6 hover:scale-105 transition-transform duration-500">
+        <svg width="220" height="98" viewBox="0 0 220 98" fill="none" className="drop-shadow-sm">
           {/* Note Base: Sage Stone Grey Currency Paper */}
           <rect x="2" y="2" width="216" height="94" rx="4" fill="#E8ECE9" stroke="#3D5A45" strokeWidth="1.5" />
           <rect x="6" y="6" width="208" height="86" rx="2" fill="#F0F4F1" stroke="#4E7058" strokeWidth="0.8" strokeDasharray="3 2" />
@@ -64,7 +64,7 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* --- ITEM 2: Handcrafted Paper Chit Slip #04 (Top Left, near money) --- */}
-      <div className="absolute top-[18%] left-[15%] animate-driftSlow opacity-50 dark:opacity-35 transform rotate-8">
+      <div className="absolute top-[18%] left-[15%] animate-driftSlow opacity-24 dark:opacity-18 transform rotate-8">
         <svg width="150" height="110" viewBox="0 0 150 110" fill="none" className="drop-shadow-lg">
           {/* Perforated Top Paper Slip */}
           <rect x="4" y="4" width="142" height="102" rx="3" fill="#FCFAF2" stroke="#D1C7A5" strokeWidth="1.2" />
@@ -95,8 +95,8 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* --- ITEM 3: Handcrafted SVG ₹200 Indian Currency Note (Top Right) --- */}
-      <div className="absolute top-[10%] right-[6%] animate-floatGentlyRev opacity-45 dark:opacity-30 transform rotate-10 hover:scale-105 transition-transform duration-500">
-        <svg width="200" height="90" viewBox="0 0 200 90" fill="none" className="drop-shadow-md">
+      <div className="absolute top-[10%] right-[6%] animate-floatGentlyRev opacity-22 dark:opacity-16 transform rotate-10 hover:scale-105 transition-transform duration-500">
+        <svg width="200" height="90" viewBox="0 0 200 90" fill="none" className="drop-shadow-sm">
           {/* Note Base: Vibrant Saffron / Warm Orange Paper */}
           <rect x="2" y="2" width="196" height="86" rx="4" fill="#FFF3E0" stroke="#E65100" strokeWidth="1.2" />
           <rect x="6" y="6" width="188" height="78" rx="2" fill="#FFE0B2" fillOpacity="0.4" stroke="#F57C00" strokeWidth="0.8" strokeDasharray="3 2" />
@@ -122,8 +122,8 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* --- ITEM 4: Handcrafted Paper Chit Slip #19 (Top Right, near ₹200 note) --- */}
-      <div className="absolute top-[22%] right-[16%] animate-driftSlowRev opacity-45 dark:opacity-30 transform -rotate-12">
-        <svg width="140" height="95" viewBox="0 0 140 95" fill="none" className="drop-shadow-md">
+      <div className="absolute top-[22%] right-[16%] animate-driftSlowRev opacity-24 dark:opacity-18 transform -rotate-12">
+        <svg width="140" height="95" viewBox="0 0 140 95" fill="none" className="drop-shadow-sm">
           <rect x="3" y="3" width="134" height="89" rx="3" fill="#FFFDF8" stroke="#D8CFB4" strokeWidth="1.2" />
           <line x1="6" y1="16" x2="134" y2="16" stroke="#D8CFB4" strokeWidth="1" strokeDasharray="2 2" />
           
@@ -142,8 +142,8 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* --- ITEM 5: Handcrafted SVG ₹2000 Currency Note (Bottom Left) --- */}
-      <div className="absolute bottom-[10%] left-[5%] animate-floatGently opacity-45 dark:opacity-30 transform rotate-8 hover:scale-105 transition-transform duration-500">
-        <svg width="220" height="98" viewBox="0 0 220 98" fill="none" className="drop-shadow-md">
+      <div className="absolute bottom-[10%] left-[5%] animate-floatGently opacity-22 dark:opacity-16 transform rotate-8 hover:scale-105 transition-transform duration-500">
+        <svg width="220" height="98" viewBox="0 0 220 98" fill="none" className="drop-shadow-sm">
           {/* Note Base: Magenta Currency Paper */}
           <rect x="2" y="2" width="216" height="94" rx="4" fill="#FCE4EC" stroke="#880E4F" strokeWidth="1.4" />
           <rect x="6" y="6" width="208" height="86" rx="2" fill="#F8BBD0" fillOpacity="0.4" stroke="#AD1457" strokeWidth="0.8" strokeDasharray="3 2" />
@@ -169,8 +169,8 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* --- ITEM 6: Handcrafted Paper Chit Slip #32 - Double Chit (Bottom Left, near ₹2000) --- */}
-      <div className="absolute bottom-[20%] left-[16%] animate-driftSlow opacity-50 dark:opacity-35 transform -rotate-6">
-        <svg width="155" height="105" viewBox="0 0 155 105" fill="none" className="drop-shadow-md">
+      <div className="absolute bottom-[20%] left-[16%] animate-driftSlow opacity-24 dark:opacity-18 transform -rotate-6">
+        <svg width="155" height="105" viewBox="0 0 155 105" fill="none" className="drop-shadow-sm">
           <rect x="4" y="4" width="147" height="97" rx="4" fill="#FEFDF9" stroke="#CFBF90" strokeWidth="1.2" />
           <line x1="8" y1="18" x2="147" y2="18" stroke="#CFBF90" strokeWidth="1" strokeDasharray="3 2" />
           
@@ -189,8 +189,8 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* --- ITEM 7: Handcrafted Paper Chit Slip #08 - Dividend Voucher (Bottom Right) --- */}
-      <div className="absolute bottom-[14%] right-[6%] animate-floatGentlyRev opacity-50 dark:opacity-35 transform -rotate-10">
-        <svg width="165" height="105" viewBox="0 0 165 105" fill="none" className="drop-shadow-md">
+      <div className="absolute bottom-[14%] right-[6%] animate-floatGentlyRev opacity-24 dark:opacity-18 transform -rotate-10">
+        <svg width="165" height="105" viewBox="0 0 165 105" fill="none" className="drop-shadow-sm">
           <rect x="4" y="4" width="157" height="97" rx="3" fill="#FCFAF2" stroke="#CBD5E1" strokeWidth="1.2" />
           <line x1="8" y1="20" x2="157" y2="20" stroke="#CBD5E1" strokeWidth="1" strokeDasharray="3 2" />
           
@@ -211,8 +211,8 @@ export default function AnimatedChitBackground() {
 
       {/* --- ITEM 8: Minted Gold Coins Scattered (Subtle 3D Radial Coins) --- */}
       {/* Coin 1: Top Center */}
-      <div className="absolute top-[6%] left-[44%] animate-floatGently opacity-55 dark:opacity-40">
-        <svg width="44" height="44" viewBox="0 0 44 44" fill="none" className="drop-shadow-md">
+      <div className="absolute top-[6%] left-[44%] animate-floatGently opacity-28 dark:opacity-20">
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none" className="drop-shadow-sm">
           <circle cx="22" cy="22" r="20" fill="url(#goldGradient1)" stroke="#B45309" strokeWidth="1.5" />
           <circle cx="22" cy="22" r="17" stroke="#FDE68A" strokeWidth="0.8" strokeDasharray="3 1.5" />
           <text x="22" y="28" textAnchor="middle" fill="#78350F" fontSize="17" fontWeight="bold" fontFamily="sans-serif">₹</text>
@@ -227,8 +227,8 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* Coin 2: Mid-Right */}
-      <div className="absolute top-[48%] right-[4%] animate-driftSlow opacity-50 dark:opacity-35">
-        <svg width="38" height="38" viewBox="0 0 38 38" fill="none" className="drop-shadow-md">
+      <div className="absolute top-[48%] right-[4%] animate-driftSlow opacity-25 dark:opacity-18">
+        <svg width="38" height="38" viewBox="0 0 38 38" fill="none" className="drop-shadow-sm">
           <circle cx="19" cy="19" r="17" fill="url(#goldGradient2)" stroke="#B45309" strokeWidth="1.2" />
           <circle cx="19" cy="19" r="14" stroke="#FEF08A" strokeWidth="0.7" strokeDasharray="2 1" />
           <text x="19" y="24" textAnchor="middle" fill="#78350F" fontSize="15" fontWeight="bold">₹</text>
@@ -243,8 +243,8 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* Coin 3: Bottom Center */}
-      <div className="absolute bottom-[6%] left-[48%] animate-floatGentlyRev opacity-50 dark:opacity-35">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="drop-shadow-md">
+      <div className="absolute bottom-[6%] left-[48%] animate-floatGentlyRev opacity-25 dark:opacity-18">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="drop-shadow-sm">
           <circle cx="20" cy="20" r="18" fill="url(#goldGradient3)" stroke="#D97706" strokeWidth="1.2" />
           <circle cx="20" cy="20" r="15" stroke="#FEF9C3" strokeWidth="0.8" strokeDasharray="3 1" />
           <text x="20" y="26" textAnchor="middle" fill="#78350F" fontSize="16" fontWeight="bold">₹</text>
@@ -259,7 +259,7 @@ export default function AnimatedChitBackground() {
       </div>
 
       {/* --- ITEM 9: Center Floating Paper Chit Token #12 --- */}
-      <div className="absolute top-[44%] left-[6%] animate-driftSlowRev opacity-45 dark:opacity-30 transform rotate-14">
+      <div className="absolute top-[44%] left-[6%] animate-driftSlowRev opacity-22 dark:opacity-16 transform rotate-14">
         <svg width="110" height="75" viewBox="0 0 110 75" fill="none" className="drop-shadow-sm">
           <rect x="3" y="3" width="104" height="69" rx="3" fill="#FFFDF8" stroke="#CBD5E1" strokeWidth="1" />
           <line x1="6" y1="14" x2="104" y2="14" stroke="#E2E8F0" strokeWidth="0.8" strokeDasharray="2 2" />

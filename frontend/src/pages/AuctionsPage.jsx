@@ -145,6 +145,12 @@ export default function AuctionsPage() {
   useEffect(() => {
     if (selectedSchemeId) {
       loadSchemeBreakdown(selectedSchemeId);
+      setTimeout(() => {
+        document.getElementById('scheme-breakdown-details')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 150);
     }
   }, [selectedSchemeId]);
 
@@ -452,7 +458,7 @@ export default function AuctionsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div id="scheme-breakdown-details" className="space-y-6">
             {/* Scheme Anatomy & Transparency Notice Box */}
             <div className="p-5 rounded-2xl bg-white dark:bg-slate-800/80 border border-blue-200/80 dark:border-slate-700/80 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">

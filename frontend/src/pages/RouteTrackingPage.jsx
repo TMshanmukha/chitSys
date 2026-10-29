@@ -26,6 +26,9 @@ import {
   Printer,
   ShieldCheck,
   Search,
+  ChevronDown,
+  ChevronUp,
+  Layers,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
@@ -40,6 +43,7 @@ export default function RouteTrackingPage() {
   const [selectedStop, setSelectedStop] = useState(null);
   const [routeCategoryFilter, setRouteCategoryFilter] = useState('ALL'); // 'ALL' | 'DAILY_ROUTE' | 'MONTHLY_ROUTE'
   const [routeSearchTerm, setRouteSearchTerm] = useState('');
+  const [showAllChits, setShowAllChits] = useState(false);
   const [stopSearchTerm, setStopSearchTerm] = useState('');
   const [showLogModal, setShowLogModal] = useState(false);
   const [loggingStatus, setLoggingStatus] = useState('NOT_PAID');
@@ -190,6 +194,17 @@ export default function RouteTrackingPage() {
     return path;
   };
 
+  // Handle clicking a chit scheme: selects route and automatically scrolls to the 2D route map
+  const handleSelectRoute = (routeId) => {
+    setSelectedRouteId(routeId);
+    setTimeout(() => {
+      const el = document.getElementById('route-trajectory-map');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 120);
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Top Header */}
@@ -328,23 +343,39 @@ export default function RouteTrackingPage() {
             </h4>
           </div>
 
-          {/* Instant Search Bar */}
-          <div className="relative min-w-[280px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={routeSearchTerm}
-              onChange={(e) => setRouteSearchTerm(e.target.value)}
-              placeholder="Search scheme name, code (e.g. DL-01), agent..."
-              className="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-            {routeSearchTerm && (
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Instant Search Bar */}
+            <div className="relative flex-1 sm:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={routeSearchTerm}
+                onChange={(e) => setRouteSearchTerm(e.target.value)}
+                placeholder="Search scheme name, code (e.g. DL-01), agent..."
+                className="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              {routeSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setRouteSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Show All / Collapse Toggle Button (When not searching) */}
+            {!routeSearchTerm && filteredRoutes.length > 1 && (
               <button
                 type="button"
-                onClick={() => setRouteSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                onClick={() => setShowAllChits(!showAllChits)}
+                className="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 shrink-0"
+                title={showAllChits ? 'Collapse scheme cards' : 'Display all schemes'}
               >
-                <X className="w-3.5 h-3.5" />
+                <Layers className="w-3.5 h-3.5" />
+                <span>{showAllChits ? 'Collapse' : `Show All (${filteredRoutes.length})`}</span>
+                {showAllChits ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
             )}
           </div>
@@ -356,50 +387,69 @@ export default function RouteTrackingPage() {
             No chit schemes match "{routeSearchTerm}". Try another keyword or clear search.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 pt-1">
-            {filteredRoutes.map((route) => {
-              const isSelected = route.id === selectedRouteId || (activeRoute && route.id === activeRoute.id);
-              return (
+          <div className="space-y-2 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
+              {(routeSearchTerm || showAllChits
+                ? filteredRoutes
+                : filteredRoutes.filter((r) => r.id === selectedRouteId || (activeRoute && r.id === activeRoute.id))
+              ).map((route) => {
+                const isSelected = route.id === selectedRouteId || (activeRoute && route.id === activeRoute.id);
+                return (
+                  <button
+                    key={route.id}
+                    type="button"
+                    onClick={() => handleSelectRoute(route.id)}
+                    className={`p-3 rounded-xl text-left transition-all cursor-pointer card-interactive-elevate border ${
+                      isSelected
+                        ? 'bg-blue-50/90 dark:bg-blue-950/50 border-blue-500 text-blue-950 dark:text-blue-100 shadow-[0_8px_20px_-4px_rgba(37,99,235,0.25)] ring-1 ring-blue-500'
+                        : 'bg-white/70 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 hover:border-blue-400 text-slate-800 dark:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">
+                        {route.groupCode}
+                      </span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase ${
+                          route.chitType === 'DAILY_CHIT'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            : route.chitType === 'DOUBLE_CHIT'
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                            : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                        }`}
+                      >
+                        {route.chitType === 'DAILY_CHIT' ? 'Daily' : route.chitType === 'DOUBLE_CHIT' ? 'Double' : 'Monthly'}
+                      </span>
+                    </div>
+
+                    <div className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
+                      {route.groupName}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <span className="truncate">👤 {route.agent?.name || 'Unassigned'}</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                        {route.stats.visitedStops}/{route.stats.totalStops} Paid
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Expand helper button if not searching and showAllChits is false */}
+            {!routeSearchTerm && !showAllChits && filteredRoutes.length > 1 && (
+              <div className="text-center pt-1">
                 <button
-                  key={route.id}
                   type="button"
-                  onClick={() => setSelectedRouteId(route.id)}
-                  className={`p-3 rounded-xl text-left transition-all cursor-pointer card-interactive-elevate border ${
-                    isSelected
-                      ? 'bg-blue-50/90 dark:bg-blue-950/50 border-blue-500 text-blue-950 dark:text-blue-100 shadow-[0_8px_20px_-4px_rgba(37,99,235,0.25)] ring-1 ring-blue-500'
-                      : 'bg-white/70 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 hover:border-blue-400 text-slate-800 dark:text-slate-200'
-                  }`}
+                  onClick={() => setShowAllChits(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer py-1 px-3 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">
-                      {route.groupCode}
-                    </span>
-                    <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase ${
-                        route.chitType === 'DAILY_CHIT'
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                          : route.chitType === 'DOUBLE_CHIT'
-                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                      }`}
-                    >
-                      {route.chitType === 'DAILY_CHIT' ? 'Daily' : route.chitType === 'DOUBLE_CHIT' ? 'Double' : 'Monthly'}
-                    </span>
-                  </div>
-
-                  <div className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
-                    {route.groupName}
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                    <span className="truncate">👤 {route.agent?.name || 'Unassigned'}</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                      {route.stats.visitedStops}/{route.stats.totalStops} Paid
-                    </span>
-                  </div>
+                  <span>Click to view all {filteredRoutes.length} available schemes</span>
+                  <ChevronDown className="w-3.5 h-3.5" />
                 </button>
-              );
-            })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -419,7 +469,7 @@ export default function RouteTrackingPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div id="route-trajectory-map" className="space-y-6">
           {/* Active Route Header & Metrics Card */}
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
