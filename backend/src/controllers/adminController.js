@@ -845,4 +845,243 @@ export async function updateAdminPassword(req, res, next) {
   }
 }
 
+/**
+ * Daily Agent Work, Collections & Performance Ledger for Admin:
+ * - Breakdown per agent separately:
+ *   - Assigned routes
+ *   - Target expected for date
+ *   - Cash collected, Online collected, Total collected
+ *   - Pending amount remaining
+ *   - Receipts count & detailed receipt list
+ *   - Work notes / visit remarks
+ * - Everyday live reset (CURDATE) while saving all historical data (custom date & all-time mode)
+ */
+export async function getAgentsDailyPerformance(req, res, next) {
+  try {
+    const { date, mode, agentId } = req.query;
+    const isAllTime = mode === 'ALL_TIME';
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    const dateObj = new Date(targetDate);
+    const isFirstDayOfSelectedDate = dateObj.getDate() === 1;
+
+    // 1. Fetch collection agents
+    let agentQuery = `
+      SELECT id, full_name, username, phone, role, is_active, last_login_at, created_at
+      FROM users
+      WHERE role = 'COLLECTION_AGENT'
+    `;
+    const agentParams = [];
+    if (agentId && agentId !== 'ALL') {
+      agentQuery += ' AND id = ?';
+      agentParams.push(agentId);
+    }
+    agentQuery += ' ORDER BY full_name ASC';
+    const [agents] = await pool.query(agentQuery, agentParams);
+
+    // 2. Fetch assigned groups and subscribers for each agent
+    const [assignments] = await pool.query(`
+      SELECT 
+        aga.agent_id,
+        g.id as group_id, g.group_code, g.group_name, g.frequency, g.chit_type, g.location_name,
+        g.installment_amount, g.total_pool_amount,
+        COUNT(DISTINCT gm.id) as subscriber_count,
+        COALESCE(SUM(g.installment_amount), 0) as group_target_amount
+      FROM agent_group_assignments aga
+      JOIN chit_groups g ON aga.group_id = g.id
+      LEFT JOIN group_memberships gm ON g.id = gm.group_id AND gm.status = 'ACTIVE'
+      WHERE aga.is_active = 1 AND g.status = 'ACTIVE'
+      GROUP BY aga.agent_id, g.id
+      ORDER BY g.group_name ASC
+    `);
+
+    // 3. Fetch collections by agent for the target date (or all-time)
+    let collQuery = `
+      SELECT 
+        c.agent_id,
+        c.id as collection_id, c.receipt_number, c.group_id, c.member_id, c.amount,
+        c.payment_method, c.payment_reference, c.collection_date, c.collection_time,
+        c.verification_status, c.notes,
+        m.full_name as member_name, m.phone as member_phone, m.member_code,
+        g.group_name, g.group_code, g.frequency
+      FROM collections c
+      JOIN members m ON c.member_id = m.id
+      JOIN chit_groups g ON c.group_id = g.id
+      WHERE c.verification_status != 'CANCELLED'
+    `;
+    const collParams = [];
+
+    if (!isAllTime) {
+      collQuery += ' AND c.collection_date = ?';
+      collParams.push(targetDate);
+    }
+
+    if (agentId && agentId !== 'ALL') {
+      collQuery += ' AND c.agent_id = ?';
+      collParams.push(agentId);
+    }
+
+    collQuery += ' ORDER BY c.collection_date DESC, c.collection_time DESC';
+    const [collections] = await pool.query(collQuery, collParams);
+
+    // 4. Fetch agent tracking logs (stop remarks & visit status)
+    let logsQuery = `
+      SELECT 
+        atl.id, atl.agent_id, atl.group_id, atl.member_id, atl.stop_id,
+        atl.tracking_date, atl.status, atl.last_ping_time, atl.notes,
+        m.full_name as member_name, m.phone as member_phone,
+        g.group_name, g.group_code
+      FROM agent_tracking_logs atl
+      LEFT JOIN members m ON (atl.member_id = m.id OR atl.stop_id = m.id)
+      LEFT JOIN chit_groups g ON atl.group_id = g.id
+    `;
+    const logsParams = [];
+    if (!isAllTime) {
+      logsQuery += ' WHERE atl.tracking_date = ?';
+      logsParams.push(targetDate);
+    }
+    if (agentId && agentId !== 'ALL') {
+      logsQuery += isAllTime ? ' WHERE atl.agent_id = ?' : ' AND atl.agent_id = ?';
+      logsParams.push(agentId);
+    }
+    logsQuery += ' ORDER BY atl.last_ping_time DESC';
+    const [trackingLogs] = await pool.query(logsQuery, logsParams);
+
+    // 5. Build agent ledger
+    const agentReports = agents.map((agent) => {
+      const agentRoutes = assignments.filter((a) => a.agent_id === agent.id);
+      const agentCollections = collections.filter((c) => c.agent_id === agent.id);
+      const agentLogs = trackingLogs.filter((l) => l.agent_id === agent.id);
+
+      // Financial calculations
+      const cashCollected = agentCollections
+        .filter((c) => c.payment_method === 'CASH')
+        .reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
+      const onlineCollected = agentCollections
+        .filter((c) => c.payment_method !== 'CASH')
+        .reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
+      const totalCollected = cashCollected + onlineCollected;
+
+      // Calculate Target expected for date:
+      // Daily routes have installments due every day.
+      // Monthly routes have installments due strictly on 1st of month.
+      let targetExpected = 0;
+      agentRoutes.forEach((r) => {
+        const isDaily = r.frequency === 'DAILY';
+        const isMonthlyDue = r.frequency === 'MONTHLY' && isFirstDayOfSelectedDate;
+
+        if (isAllTime) {
+          targetExpected += Number(r.group_target_amount || 0);
+        } else if (isDaily || isMonthlyDue) {
+          targetExpected += Number(r.group_target_amount || 0);
+        }
+      });
+
+      const pendingAmount = Math.max(0, targetExpected - totalCollected);
+      const completionPercent = targetExpected > 0
+        ? Math.round((totalCollected / targetExpected) * 100)
+        : (totalCollected > 0 ? 100 : 0);
+
+      // Unique visited members today
+      const visitedMemberIds = new Set([
+        ...agentCollections.map((c) => c.member_id),
+        ...agentLogs.filter((l) => l.status === 'PAID' || l.notes).map((l) => l.member_id),
+      ]);
+
+      const totalAssignedSubscribers = agentRoutes.reduce((sum, r) => sum + Number(r.subscriber_count || 0), 0);
+
+      return {
+        agentId: agent.id,
+        fullName: agent.full_name,
+        username: agent.username,
+        phone: agent.phone,
+        isActive: Boolean(agent.is_active),
+        lastLoginAt: agent.last_login_at,
+        assignedRoutesCount: agentRoutes.length,
+        assignedRoutes: agentRoutes.map((r) => ({
+          groupId: r.group_id,
+          groupCode: r.group_code,
+          groupName: r.group_name,
+          frequency: r.frequency,
+          chitType: r.chit_type,
+          locationName: r.location_name,
+          installmentAmount: Number(r.installment_amount),
+          totalPoolAmount: Number(r.total_pool_amount),
+          subscribersCount: Number(r.subscriber_count),
+          expectedTarget: Number(r.group_target_amount),
+        })),
+        totalSubscribersCount: totalAssignedSubscribers,
+        visitedSubscribersCount: visitedMemberIds.size,
+        targetExpected,
+        cashCollected,
+        onlineCollected,
+        totalCollected,
+        pendingAmount,
+        completionPercent,
+        receiptsCount: agentCollections.length,
+        receipts: agentCollections.map((c) => ({
+          id: c.collection_id,
+          receiptNumber: c.receipt_number,
+          memberName: c.member_name,
+          memberPhone: c.member_phone,
+          groupName: c.group_name,
+          groupCode: c.group_code,
+          amount: Number(c.amount),
+          paymentMethod: c.payment_method,
+          paymentReference: c.payment_reference,
+          collectionDate: c.collection_date,
+          collectionTime: c.collection_time,
+          notes: c.notes,
+        })),
+        workLogs: agentLogs.map((l) => ({
+          id: l.id,
+          groupId: l.group_id,
+          groupName: l.group_name,
+          groupCode: l.group_code,
+          memberName: l.member_name,
+          status: l.status,
+          time: l.last_ping_time,
+          notes: l.notes,
+        })),
+      };
+    });
+
+    // Grand totals
+    const grandCash = agentReports.reduce((sum, a) => sum + a.cashCollected, 0);
+    const grandOnline = agentReports.reduce((sum, a) => sum + a.onlineCollected, 0);
+    const grandTotal = grandCash + grandOnline;
+    const grandTarget = agentReports.reduce((sum, a) => sum + a.targetExpected, 0);
+    const grandPending = Math.max(0, grandTarget - grandTotal);
+    const grandReceipts = agentReports.reduce((sum, a) => sum + a.receiptsCount, 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        filter: {
+          date: targetDate,
+          mode: isAllTime ? 'ALL_TIME' : 'DAILY',
+          isToday: targetDate === new Date().toISOString().slice(0, 10),
+          isFirstDayOfMonth: isFirstDayOfSelectedDate,
+        },
+        summary: {
+          totalAgentsCount: agents.length,
+          activeFieldAgentsCount: agentReports.filter((a) => a.totalCollected > 0 || a.workLogs.length > 0).length,
+          grandTarget,
+          grandCash,
+          grandOnline,
+          grandTotal,
+          grandPending,
+          grandReceipts,
+          averageCompletionPercent: grandTarget > 0 ? Math.round((grandTotal / grandTarget) * 100) : 0,
+        },
+        agents: agentReports,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+
 

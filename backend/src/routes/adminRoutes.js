@@ -7,6 +7,7 @@ import {
   recordCommissionWithdrawal,
   updateAdminProfile,
   updateAdminPassword,
+  getAgentsDailyPerformance,
 } from '../controllers/adminController.js';
 import { listGroups, createGroup, getGroupDetails } from '../controllers/groupController.js';
 import { listMembers, createMember, enrollMemberInGroup, getMemberPassbook } from '../controllers/memberController.js';
@@ -75,8 +76,10 @@ router.get('/auctions/summary', getAuctionSummary);
 router.get('/auctions/scheme/:groupId/breakdown', getSchemeAuctionBreakdown);
 router.get('/auctions/breakdown/:groupId', getSchemeAuctionBreakdown);
 
-// Route & Agent Tracking (2D Visual Route Map & Waypoints)
+// Route & Agent Tracking (2D Visual Route Map & Daily Performance Ledger)
 router.get('/tracking/overview', getRouteTrackingOverview);
+router.get('/tracking/agents-daily', getAgentsDailyPerformance);
+router.get('/agents/daily-performance', getAgentsDailyPerformance);
 router.post('/tracking/populate', populateRouteStopsFromMembers);
 router.post('/tracking/log-activity', logAgentStopActivity);
 

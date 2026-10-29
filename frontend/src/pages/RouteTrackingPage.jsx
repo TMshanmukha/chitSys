@@ -29,6 +29,17 @@ import {
   ChevronDown,
   ChevronUp,
   Layers,
+  Activity,
+  Wallet,
+  Banknote,
+  CreditCard,
+  History,
+  CalendarDays,
+  CheckCheck,
+  Users2,
+  Eye,
+  ArrowUpRight,
+  Check,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
@@ -57,6 +68,57 @@ export default function RouteTrackingPage() {
 
   // Member Information Form Modal (Triggered by pressing any node)
   const [showMemberModal, setShowMemberModal] = useState(false);
+
+  // Top-level Navigation: 'PERFORMANCE_LEDGER' | 'ROUTE_MAP'
+  const [activeMainTab, setActiveMainTab] = useState('PERFORMANCE_LEDGER');
+
+  // Daily Agent Collection Ledger States
+  const [ledgerDate, setLedgerDate] = useState(new Date().toISOString().slice(0, 10));
+  const [ledgerMode, setLedgerMode] = useState('DAILY'); // 'DAILY' | 'ALL_TIME'
+  const [ledgerAgentFilter, setLedgerAgentFilter] = useState('ALL');
+  const [ledgerData, setLedgerData] = useState({
+    summary: {
+      totalAgentsCount: 0,
+      activeFieldAgentsCount: 0,
+      grandTarget: 0,
+      grandCash: 0,
+      grandOnline: 0,
+      grandTotal: 0,
+      grandPending: 0,
+      grandReceipts: 0,
+      averageCompletionPercent: 0,
+    },
+    agents: [],
+    filter: {},
+  });
+  const [loadingLedger, setLoadingLedger] = useState(false);
+  const [expandedAgentId, setExpandedAgentId] = useState(null);
+  const [agentWorkSubTabs, setAgentWorkSubTabs] = useState({}); // { [agentId]: 'RECEIPTS' | 'LOGS' | 'ROUTES' }
+  const [ledgerSearchTerm, setLedgerSearchTerm] = useState('');
+
+  const loadDailyLedger = async (isSilent = false) => {
+    if (!isSilent) setLoadingLedger(true);
+    try {
+      const params = {};
+      if (ledgerMode === 'ALL_TIME') {
+        params.mode = 'ALL_TIME';
+      } else {
+        params.date = ledgerDate;
+        params.mode = 'DAILY';
+      }
+      if (ledgerAgentFilter && ledgerAgentFilter !== 'ALL') {
+        params.agentId = ledgerAgentFilter;
+      }
+      const res = await api.get('/admin/tracking/agents-daily', { params });
+      if (res.data?.success) {
+        setLedgerData(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load daily agent performance ledger:', err);
+    } finally {
+      if (!isSilent) setLoadingLedger(false);
+    }
+  };
 
   const loadTracking = async (isSilent = false) => {
     if (!isSilent) setRefreshing(true);
@@ -90,14 +152,17 @@ export default function RouteTrackingPage() {
   // Initial load and periodic 6-second synchronous polling
   useEffect(() => {
     loadTracking();
+    loadDailyLedger();
     const interval = setInterval(() => {
       loadTracking(true);
+      loadDailyLedger(true);
     }, 6000);
     return () => clearInterval(interval);
-  }, [selectedRouteId, selectedStop?.id]);
+  }, [selectedRouteId, selectedStop?.id, ledgerDate, ledgerMode, ledgerAgentFilter]);
 
   const handleRefresh = () => {
     loadTracking(false);
+    loadDailyLedger(false);
   };
 
   // Filter routes by category and instant search term
@@ -201,6 +266,48 @@ export default function RouteTrackingPage() {
     smoothScrollTo('route-trajectory-map', { offset: 32, behavior: 'smooth', delay: 100 });
   };
 
+  // Filter agents by search term and selected agent
+  const filteredAgents = (ledgerData.agents || []).filter((agent) => {
+    if (ledgerAgentFilter !== 'ALL' && agent.agentId !== Number(ledgerAgentFilter)) {
+      return false;
+    }
+    if (!ledgerSearchTerm.trim()) return true;
+    const term = ledgerSearchTerm.toLowerCase();
+    const nameMatch = agent.fullName?.toLowerCase().includes(term);
+    const usernameMatch = agent.username?.toLowerCase().includes(term);
+    const phoneMatch = agent.phone?.toLowerCase().includes(term);
+    const routeMatch = agent.assignedRoutes?.some((r) =>
+      r.groupName?.toLowerCase().includes(term) || r.groupCode?.toLowerCase().includes(term)
+    );
+    const receiptMatch = agent.receipts?.some((rcp) =>
+      rcp.receiptNumber?.toLowerCase().includes(term) ||
+      rcp.memberName?.toLowerCase().includes(term) ||
+      rcp.notes?.toLowerCase().includes(term)
+    );
+    const logMatch = agent.workLogs?.some((l) =>
+      l.memberName?.toLowerCase().includes(term) ||
+      l.notes?.toLowerCase().includes(term)
+    );
+    return nameMatch || usernameMatch || phoneMatch || routeMatch || receiptMatch || logMatch;
+  });
+
+  const toggleAgentExpand = (agentId) => {
+    setExpandedAgentId((prev) => (prev === agentId ? null : agentId));
+  };
+
+  const getAgentSubTab = (agentId) => agentWorkSubTabs[agentId] || 'RECEIPTS';
+  const setAgentSubTab = (agentId, tab) => {
+    setAgentWorkSubTabs((prev) => ({ ...prev, [agentId]: tab }));
+  };
+
+  const handleJumpToAgentRoute = (groupId) => {
+    setActiveMainTab('ROUTE_MAP');
+    if (groupId) {
+      setSelectedRouteId(groupId);
+    }
+    smoothScrollTo('route-trajectory-map', { offset: 32, behavior: 'smooth', delay: 100 });
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Top Header */}
@@ -211,10 +318,10 @@ export default function RouteTrackingPage() {
             <span>Field Operations Center</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
-            Agent Live Route Tracking
+            Route Operations & Agent Collections
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-time 2D representation of subscriber member nodes — click any node to view the Member Information Form
+            Monitor real-time agent collections, cash on hand, pending amounts, assigned routes, and live work dossiers
           </p>
         </div>
 
@@ -225,7 +332,67 @@ export default function RouteTrackingPage() {
             <span>Live Auto-Syncing (6s)</span>
           </div>
 
-          {/* Route Category Filter with pill styling */}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing || loadingLedger}
+            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+            title="Instant Refresh Now"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing || loadingLedger ? 'animate-spin text-blue-600' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Primary Navigation Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('PERFORMANCE_LEDGER')}
+            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              activeMainTab === 'PERFORMANCE_LEDGER'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Daily Agent Collection & Work Ledger</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                activeMainTab === 'PERFORMANCE_LEDGER'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+              }`}
+            >
+              Everyday Reset
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('ROUTE_MAP')}
+            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              activeMainTab === 'ROUTE_MAP'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Compass className="w-4 h-4" />
+            <span>2D Visual Route Map</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                activeMainTab === 'ROUTE_MAP'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              {trackingData.routes?.length || 0} Routes
+            </span>
+          </button>
+        </div>
+
+        {activeMainTab === 'ROUTE_MAP' && (
           <div className="flex items-center gap-1.5 flex-wrap text-xs font-semibold">
             <button
               type="button"
@@ -233,7 +400,7 @@ export default function RouteTrackingPage() {
                 setRouteCategoryFilter('ALL');
                 smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
               }}
-              className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
+              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
                 routeCategoryFilter === 'ALL'
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
                   : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
@@ -247,7 +414,7 @@ export default function RouteTrackingPage() {
                 setRouteCategoryFilter('DAILY_ROUTE');
                 smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
               }}
-              className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
+              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
                 routeCategoryFilter === 'DAILY_ROUTE'
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
                   : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
@@ -261,7 +428,7 @@ export default function RouteTrackingPage() {
                 setRouteCategoryFilter('MONTHLY_ROUTE');
                 smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
               }}
-              className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
+              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
                 routeCategoryFilter === 'MONTHLY_ROUTE'
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
                   : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
@@ -270,20 +437,633 @@ export default function RouteTrackingPage() {
               🏛️ Monthly Routes
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-            title="Instant Refresh Now"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
-          </button>
-        </div>
+        )}
       </div>
 
-      {/* Overview Stat Cards with Day-by-Day (Daily) vs Month-by-Month (Monthly) Separation */}
+      {activeMainTab === 'PERFORMANCE_LEDGER' ? (
+        /* DAILY AGENT PERFORMANCE & WORK LEDGER */
+        <div className="space-y-6">
+          {/* Control Filter Bar */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 sm:space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              {/* Date & Preset Pickers */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <CalendarDays className="w-4 h-4 text-slate-400" />
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Date:</span>
+                  <input
+                    type="date"
+                    value={ledgerDate}
+                    onChange={(e) => {
+                      setLedgerDate(e.target.value);
+                      setLedgerMode('DAILY');
+                    }}
+                    className="bg-transparent text-xs font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                  />
+                </div>
+
+                {/* Quick Today Preset */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLedgerDate(new Date().toISOString().slice(0, 10));
+                    setLedgerMode('DAILY');
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    ledgerMode === 'DAILY' && ledgerDate === new Date().toISOString().slice(0, 10)
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Today's Live Ledger</span>
+                </button>
+
+                {/* Global Lifetime History Preset */}
+                <button
+                  type="button"
+                  onClick={() => setLedgerMode(ledgerMode === 'ALL_TIME' ? 'DAILY' : 'ALL_TIME')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    ledgerMode === 'ALL_TIME'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>Global Lifetime History</span>
+                </button>
+              </div>
+
+              {/* Agent Filter & Instant Search */}
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={ledgerAgentFilter}
+                  onChange={(e) => setLedgerAgentFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Field Agents ({ledgerData.agents?.length || 0})</option>
+                  {(ledgerData.agents || []).map((ag) => (
+                    <option key={ag.agentId} value={ag.agentId}>
+                      {ag.fullName} (@{ag.username})
+                    </option>
+                  ))}
+                </select>
+
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={ledgerSearchTerm}
+                    onChange={(e) => setLedgerSearchTerm(e.target.value)}
+                    placeholder="Search agent, route, receipt #..."
+                    className="w-full pl-8 pr-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Daily Reset & Global History Explanation Banner */}
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-start gap-3">
+              <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                {ledgerMode === 'ALL_TIME' ? (
+                  <span>
+                    🌐 <strong>Global Lifetime Performance Ledger</strong>: Showing total all-time historical collections, receipts, and field visits across all days.
+                  </span>
+                ) : ledgerDate === new Date().toISOString().slice(0, 10) ? (
+                  <span>
+                    🟢 <strong>Today's Live Collection Roster (Resets Every Midnight)</strong>: Field collection targets and cash totals refresh fresh each day at 00:00 midnight IST. All historical day logs and issued receipts remain permanently archived in the global database.
+                  </span>
+                ) : (
+                  <span>
+                    📅 <strong>Archived Historical Record for {formatDate(ledgerDate)}</strong>: Viewing settled collection metrics, physical cash collected, and field notes for this specific past date.
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Grand Executive Summary KPI Strip */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            {/* Cash on Hand */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Cash on Hand</span>
+                <Banknote className="w-4 h-4" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                ₹{Number(ledgerData.summary?.grandCash || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Physical currency with agents</span>
+            </div>
+
+            {/* Digital / UPI */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-purple-600 dark:text-purple-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Digital / Online</span>
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-purple-600 dark:text-purple-400">
+                ₹{Number(ledgerData.summary?.grandOnline || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">UPI & direct bank transfers</span>
+            </div>
+
+            {/* Total Inflow */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-blue-600 dark:text-blue-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Total Inflow</span>
+                <Wallet className="w-4 h-4" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-blue-600 dark:text-blue-400">
+                ₹{Number(ledgerData.summary?.grandTotal || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Gross collections achieved</span>
+            </div>
+
+            {/* Expected Target */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Target Expected</span>
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                ₹{Number(ledgerData.summary?.grandTarget || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Daily routes + Monthly on 1st</span>
+            </div>
+
+            {/* Total Pending */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Pending Amount</span>
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-amber-600 dark:text-amber-400">
+                ₹{Number(ledgerData.summary?.grandPending || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">{ledgerData.summary?.averageCompletionPercent || 0}% overall efficiency</span>
+            </div>
+
+            {/* Receipts & Active Agents */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Work Volume</span>
+                <Receipt className="w-4 h-4 text-blue-500" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                {ledgerData.summary?.grandReceipts || 0} Receipts
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">
+                {ledgerData.summary?.activeFieldAgentsCount || 0} / {ledgerData.summary?.totalAgentsCount || 0} active agents
+              </span>
+            </div>
+          </div>
+
+          {/* Agent-by-Agent Detailed Performance Roster */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <Users2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>Field Collection Agents Performance ({filteredAgents.length})</span>
+              </h3>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Showing individual cash, pending, route assignments & work dossiers
+              </span>
+            </div>
+
+            {filteredAgents.length === 0 ? (
+              <div className="p-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-2">
+                <Users2 className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto" />
+                <h4 className="font-bold text-slate-800 dark:text-slate-200">No field agents match your search filter</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Try clearing the search query or changing the date to inspect past collection records.
+                </p>
+              </div>
+            ) : (
+              filteredAgents.map((agent) => {
+                const isExpanded = expandedAgentId === agent.agentId;
+                const subTab = getAgentSubTab(agent.agentId);
+
+                return (
+                  <div
+                    key={agent.agentId}
+                    className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                  >
+                    {/* Agent Header & Action Strip */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-xs">
+                          {agent.fullName?.slice(0, 2).toUpperCase() || 'AG'}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-extrabold text-base text-slate-900 dark:text-white">
+                              {agent.fullName}
+                            </h4>
+                            <span className="text-xs text-slate-500 font-mono">@{agent.username}</span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                agent.isActive
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                              }`}
+                            >
+                              {agent.isActive ? 'Active Field Agent' : 'Inactive'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                            {agent.phone ? (
+                              <a
+                                href={`tel:${agent.phone}`}
+                                className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                              >
+                                <PhoneCall className="w-3 h-3" />
+                                <span>{agent.phone}</span>
+                              </a>
+                            ) : (
+                              <span>No phone registered</span>
+                            )}
+                            <span>·</span>
+                            <span>{agent.assignedRoutesCount} Assigned Routes</span>
+                            <span>·</span>
+                            <span>
+                              Last active: {agent.lastLoginAt ? formatDateTime(agent.lastLoginAt) : 'Recent activity logged'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Jump to Map Button */}
+                      {agent.assignedRoutes.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleJumpToAgentRoute(agent.assignedRoutes[0]?.groupId)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-blue-700 dark:text-blue-300 text-xs font-bold transition-all cursor-pointer self-start sm:self-auto"
+                        >
+                          <Compass className="w-3.5 h-3.5" />
+                          <span>View Route on 2D Map</span>
+                          <ArrowUpRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Financial Metrics Strip */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Target Expected
+                        </span>
+                        <div className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
+                          ₹{agent.targetExpected.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                          Cash on Hand
+                        </span>
+                        <div className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          ₹{agent.cashCollected.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
+                        <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
+                          Online / Digital
+                        </span>
+                        <div className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
+                          ₹{agent.onlineCollected.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
+                        <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
+                          Total Collected
+                        </span>
+                        <div className="text-sm sm:text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
+                          ₹{agent.totalCollected.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 col-span-2 sm:col-span-1">
+                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+                          Pending Amount
+                        </span>
+                        <div className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
+                          ₹{agent.pendingAmount.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar & Coverage */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className="text-slate-600 dark:text-slate-300">
+                          {agent.completionPercent}% Target Achieved
+                        </span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {agent.visitedSubscribersCount} of {agent.totalSubscribersCount} subscribers visited ({agent.receiptsCount} receipts)
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, agent.completionPercent)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Assigned Routes Section */}
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Assigned Routes & Scheme Details ({agent.assignedRoutes.length})
+                      </span>
+                      {agent.assignedRoutes.length === 0 ? (
+                        <p className="text-xs text-slate-400 italic">No chit routes currently assigned to this agent.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {agent.assignedRoutes.map((r) => (
+                            <div
+                              key={r.groupId}
+                              className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center gap-2.5 text-xs"
+                            >
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
+                                  r.frequency === 'DAILY'
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                                }`}
+                              >
+                                {r.frequency === 'DAILY' ? '🚚 Daily' : '🏛️ Monthly'}
+                              </span>
+                              <div>
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {r.groupName} ({r.groupCode})
+                                </span>
+                                <div className="text-[11px] text-slate-500">
+                                  👥 {r.subscribersCount} subs · ₹{r.installmentAmount.toLocaleString('en-IN')} inst · Target: ₹{r.expectedTarget.toLocaleString('en-IN')}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleJumpToAgentRoute(r.groupId)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 transition-colors cursor-pointer ml-1"
+                                title="Open this scheme on 2D route map"
+                              >
+                                <Compass className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Information of Work (Expandable Work Dossier) */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => toggleAgentExpand(agent.agentId)}
+                        className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>Information of Work & Audit Dossier</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold">
+                            {agent.receiptsCount} Receipts Issued
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold">
+                            {agent.workLogs.length} Field Remarks Logged
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-500">
+                          <span>{isExpanded ? 'Hide Dossier' : 'Inspect Information'}</span>
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </div>
+                      </button>
+
+                      {/* Expanded Work Dossier Content */}
+                      {isExpanded && (
+                        <div className="mt-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3 animate-fadeIn">
+                          {/* Dossier Tabs */}
+                          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                            <button
+                              type="button"
+                              onClick={() => setAgentSubTab(agent.agentId, 'RECEIPTS')}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                subTab === 'RECEIPTS'
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              🧾 Receipts Breakdown ({agent.receipts.length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAgentSubTab(agent.agentId, 'LOGS')}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                subTab === 'LOGS'
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              📝 Field Remarks & Notes ({agent.workLogs.length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAgentSubTab(agent.agentId, 'ROUTES')}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                subTab === 'ROUTES'
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              🚚 Route Details ({agent.assignedRoutes.length})
+                            </button>
+                          </div>
+
+                          {/* Sub-tab 1: Receipts Breakdown Table */}
+                          {subTab === 'RECEIPTS' && (
+                            <div className="overflow-x-auto">
+                              {agent.receipts.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic py-3 text-center">
+                                  No receipts registered for this agent on this date.
+                                </p>
+                              ) : (
+                                <table className="w-full text-left text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-400 uppercase text-[10px]">
+                                      <th className="py-2 px-2 font-bold">Receipt #</th>
+                                      <th className="py-2 px-2 font-bold">Subscriber</th>
+                                      <th className="py-2 px-2 font-bold">Chit Scheme</th>
+                                      <th className="py-2 px-2 font-bold">Payment Method</th>
+                                      <th className="py-2 px-2 font-bold text-right">Amount</th>
+                                      <th className="py-2 px-2 font-bold">Time</th>
+                                      <th className="py-2 px-2 font-bold">Notes / Remarks</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                                    {agent.receipts.map((rcp) => (
+                                      <tr key={rcp.id} className="hover:bg-white/50 dark:hover:bg-slate-700/50">
+                                        <td className="py-2 px-2 font-mono font-bold text-blue-600 dark:text-blue-400">
+                                          {rcp.receiptNumber}
+                                        </td>
+                                        <td className="py-2 px-2 font-medium text-slate-800 dark:text-slate-200">
+                                          {rcp.memberName}
+                                          {rcp.memberPhone && (
+                                            <span className="text-[10px] text-slate-400 block font-mono">
+                                              {rcp.memberPhone}
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="py-2 px-2 text-slate-600 dark:text-slate-300">
+                                          {rcp.groupName}
+                                        </td>
+                                        <td className="py-2 px-2">
+                                          <span
+                                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                              rcp.paymentMethod === 'CASH'
+                                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                                : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                                            }`}
+                                          >
+                                            {rcp.paymentMethod}
+                                          </span>
+                                        </td>
+                                        <td className="py-2 px-2 font-extrabold text-right text-slate-900 dark:text-white">
+                                          ₹{rcp.amount.toLocaleString('en-IN')}
+                                        </td>
+                                        <td className="py-2 px-2 text-slate-400 font-mono text-[11px]">
+                                          {rcp.collectionTime ? formatTime(rcp.collectionTime) : '-'}
+                                        </td>
+                                        <td className="py-2 px-2 text-slate-500 dark:text-slate-400 text-[11px]">
+                                          {rcp.notes || '-'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Sub-tab 2: Field Remarks & Notes */}
+                          {subTab === 'LOGS' && (
+                            <div className="space-y-2">
+                              {agent.workLogs.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic py-3 text-center">
+                                  No field remarks logged for this agent on this date.
+                                </p>
+                              ) : (
+                                agent.workLogs.map((log) => (
+                                  <div
+                                    key={log.id}
+                                    className="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                                  >
+                                    <div className="space-y-0.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                                          {log.memberName || 'Subscriber Stop'}
+                                        </span>
+                                        <span className="text-[11px] text-slate-400">({log.groupName || log.groupCode})</span>
+                                        <span
+                                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            log.status === 'PAID'
+                                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                          }`}
+                                        >
+                                          {log.status}
+                                        </span>
+                                      </div>
+                                      <p className="text-slate-600 dark:text-slate-300 font-medium">
+                                        💬 "{log.notes || 'Status updated by field agent'}"
+                                      </p>
+                                    </div>
+                                    <div className="text-[11px] text-slate-400 font-mono shrink-0">
+                                      {log.time ? formatDateTime(log.time) : '-'}
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+
+                          {/* Sub-tab 3: Route Details */}
+                          {subTab === 'ROUTES' && (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs">
+                                <thead>
+                                  <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-400 uppercase text-[10px]">
+                                    <th className="py-2 px-2 font-bold">Route Code</th>
+                                    <th className="py-2 px-2 font-bold">Scheme Name</th>
+                                    <th className="py-2 px-2 font-bold">Frequency</th>
+                                    <th className="py-2 px-2 font-bold">Location</th>
+                                    <th className="py-2 px-2 font-bold text-right">Installment</th>
+                                    <th className="py-2 px-2 font-bold text-right">Subscribers</th>
+                                    <th className="py-2 px-2 font-bold text-right">Route Target</th>
+                                    <th className="py-2 px-2 text-center font-bold">Map</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                                  {agent.assignedRoutes.map((r) => (
+                                    <tr key={r.groupId} className="hover:bg-white/50 dark:hover:bg-slate-700/50">
+                                      <td className="py-2 px-2 font-mono font-bold text-blue-600 dark:text-blue-400">
+                                        {r.groupCode}
+                                      </td>
+                                      <td className="py-2 px-2 font-semibold text-slate-800 dark:text-slate-200">
+                                        {r.groupName}
+                                      </td>
+                                      <td className="py-2 px-2">
+                                        <span
+                                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            r.frequency === 'DAILY'
+                                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                              : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                                          }`}
+                                        >
+                                          {r.frequency}
+                                        </span>
+                                      </td>
+                                      <td className="py-2 px-2 text-slate-500">{r.locationName || '-'}</td>
+                                      <td className="py-2 px-2 font-mono text-right text-slate-800 dark:text-slate-200">
+                                        ₹{r.installmentAmount.toLocaleString('en-IN')}
+                                      </td>
+                                      <td className="py-2 px-2 font-mono text-right text-slate-800 dark:text-slate-200">
+                                        {r.subscribersCount}
+                                      </td>
+                                      <td className="py-2 px-2 font-bold text-right text-emerald-600 dark:text-emerald-400">
+                                        ₹{r.expectedTarget.toLocaleString('en-IN')}
+                                      </td>
+                                      <td className="py-2 px-2 text-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleJumpToAgentRoute(r.groupId)}
+                                          className="p-1 rounded text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-950 transition-colors cursor-pointer"
+                                          title="View on Map"
+                                        >
+                                          <Compass className="w-3.5 h-3.5 inline" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ) : (
+        /* 2D VISUAL ROUTE MAP & WAYPOINTS */
+        <>
+          {/* Overview Stat Cards with Day-by-Day (Daily) vs Month-by-Month (Monthly) Separation */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
@@ -1026,6 +1806,8 @@ export default function RouteTrackingPage() {
           </div>
         </div>
       )}
+    </>
+  )}
 
       {/* Member Information Form Modal (Brought up when pressing any node) */}
       {showMemberModal && selectedStop && (
@@ -1372,7 +2154,7 @@ export default function RouteTrackingPage() {
                   onChange={(e) => setLoggingStatus(e.target.value)}
                   className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 >
-                  <option value="NOT_PAID">🔴 NOT PAID (Default / Awaiting Payment)</option>
+                  <option value="NOT_PAID">🔴 NOT PAID (Awaiting Payment)</option>
                   <option value="PAID">🟢 PAID (Money Collected & Verified)</option>
                 </select>
               </div>
