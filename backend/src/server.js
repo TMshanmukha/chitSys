@@ -54,6 +54,11 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    // Allow any origin if wildcard is set in FRONTEND_ORIGIN
+    if (configuredOrigins.includes('*') || env.FRONTEND_ORIGIN === '*') {
+      return callback(null, true);
+    }
+
     // In development mode, allow any localhost or 127.0.0.1 port
     if (isDev && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       return callback(null, true);

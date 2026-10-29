@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: chitfund-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_HOST
+        value: gateway01.ap-southeast-1.prod.aws.tidbcloud.com
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_NAME
+        value: chitsys
+      - key: DB_USER
+        value: 2LuZwBwHrygVbiF.root
+      - key: DB_PASSWORD
+        value: G4AeaVfuumT41J0F
+      - key: DB_SSL
+        value: "true"
+      - key: AUTO_MIGRATE
+        value: "true"
+      - key: FRONTEND_ORIGIN
+        value: "*"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: BOOTSTRAP_ADMIN_USERNAME
+        value: admin
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        value: admin
