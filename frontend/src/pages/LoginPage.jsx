@@ -108,7 +108,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between items-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 sm:p-6 relative overflow-hidden transition-colors selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen w-full flex flex-col justify-between items-center bg-slate-50 dark:bg-[#070b14] text-slate-800 dark:text-slate-100 p-4 sm:p-6 relative overflow-hidden transition-colors selection:bg-blue-500 selection:text-white">
       {/* Clean Subtle Geometric Background for Login Portal */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />

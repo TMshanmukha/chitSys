@@ -35,14 +35,18 @@
     letter-spacing: inherit;
   }
 
-  /* Dark mode root styles */
+  /* -------------------------------------------------------------------------- */
+  /* PREMIUM OBSIDIAN DARK MODE ROOT (Clean, velvety midnight canvas)           */
+  /* -------------------------------------------------------------------------- */
   html.dark {
-    background-color: #020617;
+    background-color: #070b14;
+    color: #f8fafc;
+    color-scheme: dark;
   }
 
   html.dark body {
-    background-color: transparent;
-    color: #f1f5f9;
+    background-color: #070b14;
+    color: #f8fafc;
   }
 
   #root {
@@ -66,13 +70,13 @@
   border-radius: 4px;
 }
 html.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #23314a;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 html.dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #374768;
 }
 
 /* Rich Glassmorphic & 3D Interactive Design Utilities */
@@ -85,9 +89,9 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 }
 
 html.dark .glass-panel {
-  background: rgba(15, 23, 42, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 25px 50px -15px rgba(0, 0, 0, 0.5);
+  background: #0d1424 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 .menu-hover-lift {
@@ -179,7 +183,7 @@ html.dark .glass-panel {
   transform: translateY(-1px) scale(0.995);
 }
 
-/* Glassmorphism for transparent boxes across the app */
+/* Glassmorphism for transparent boxes in Light Mode */
 .glass-box {
   background: rgba(255, 255, 255, 0.74);
   backdrop-filter: blur(16px);
@@ -189,47 +193,194 @@ html.dark .glass-panel {
 }
 
 html.dark .glass-box {
-  background: rgba(15, 23, 42, 0.74);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.45);
+  background: #0e1628 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
-/* Universal transparent glass styling for cards, panels, and tables */
+/* Universal Card & Panel Styling */
+/* Light Mode: Frosted Glass */
 .rounded-xl.bg-white,
 .rounded-2xl.bg-white,
 .rounded-3xl.bg-white,
 div[class*="rounded-2xl bg-white"],
 div[class*="rounded-xl bg-white"],
 div[class*="rounded-3xl bg-white"] {
-  background-color: rgba(255, 255, 255, 0.78) !important;
+  background-color: rgba(255, 255, 255, 0.82) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
 }
 
+/* Dark Mode: Solid, crisp, elegant midnight obsidian cards (NO MUDDY TRANSLUCENCY!) */
+html.dark .rounded-xl.bg-white,
+html.dark .rounded-2xl.bg-white,
+html.dark .rounded-3xl.bg-white,
+html.dark div[class*="rounded-2xl bg-white"],
+html.dark div[class*="rounded-xl bg-white"],
+html.dark div[class*="rounded-3xl bg-white"],
 html.dark .rounded-xl.bg-slate-900,
 html.dark .rounded-2xl.bg-slate-900,
 html.dark .rounded-3xl.bg-slate-900,
 html.dark div[class*="rounded-2xl bg-slate-900"],
 html.dark div[class*="rounded-xl bg-slate-900"],
-html.dark div[class*="rounded-3xl bg-slate-900"] {
-  background-color: rgba(15, 23, 42, 0.78) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
+html.dark div[class*="rounded-3xl bg-slate-900"],
+html.dark div[class*="rounded-2xl bg-slate-900/80"],
+html.dark div[class*="rounded-xl bg-slate-900/80"] {
+  background-color: #0e1628 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 6px 24px -4px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-/* Floating separate dock/bar (Navbar & Sidebar separation from body page) */
+/* Inner Sections, Wells and Sub-cards in Dark Mode */
+html.dark .bg-slate-50,
+html.dark div[class*="bg-slate-50"],
+html.dark .bg-slate-800,
+html.dark div[class*="bg-slate-800"],
+html.dark div[class*="bg-slate-800/80"],
+html.dark div[class*="bg-slate-800/60"],
+html.dark div[class*="bg-slate-800/40"] {
+  background-color: #131d33 !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* Floating Navigation Bars (Sidebar, Header Navbar) */
 .floating-glass-bar {
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: 0 14px 38px -8px rgba(0, 0, 0, 0.06);
 }
 
-html.dark .floating-glass-bar {
-  background: rgba(15, 23, 42, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 18px 44px -8px rgba(0, 0, 0, 0.55);
+html.dark .floating-glass-bar,
+html.dark aside,
+html.dark header {
+  background: rgba(11, 18, 32, 0.94) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  box-shadow: 0 18px 44px -8px rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Modals & Dialogs (Solid, pure, prominent with sharp elevation) */
+html.dark [role="dialog"],
+html.dark .modal-content,
+html.dark div[class*="fixed inset-0"] div[class*="rounded-2xl"],
+html.dark div[class*="fixed inset-0"] div[class*="rounded-3xl"] {
+  background-color: #0e1628 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Form Controls in Dark Mode: High-contrast, clean, responsive */
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark select,
+html.dark textarea {
+  background-color: #0b111f !important;
+  border-color: #24334d !important;
+  color: #ffffff !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28) !important;
+  outline: none !important;
+}
+
+/* Tables in Dark Mode: Clean lines, high legibility */
+html.dark table thead,
+html.dark table thead tr {
+  background-color: #090e1b !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark table thead th {
+  color: #94a3b8 !important;
+  font-weight: 700 !important;
+}
+
+html.dark table tbody tr {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+html.dark table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.025) !important;
+}
+
+html.dark table td {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Crisp Text Readability in Dark Mode */
+html.dark .text-slate-900 {
+  color: #ffffff !important;
+}
+html.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+html.dark .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+html.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+html.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+html.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Vibrant, Luminous Status & Financial Badges in Dark Mode */
+html.dark .bg-emerald-50,
+html.dark div[class*="bg-emerald-950"],
+html.dark span[class*="bg-emerald-950"] {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.32) !important;
+}
+
+html.dark .bg-blue-50,
+html.dark div[class*="bg-blue-950"],
+html.dark span[class*="bg-blue-950"] {
+  background-color: rgba(59, 130, 246, 0.16) !important;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.32) !important;
+}
+
+html.dark .bg-purple-50,
+html.dark div[class*="bg-purple-950"],
+html.dark span[class*="bg-purple-950"] {
+  background-color: rgba(168, 85, 247, 0.16) !important;
+  color: #c084fc !important;
+  border-color: rgba(168, 85, 247, 0.32) !important;
+}
+
+html.dark .bg-amber-50,
+html.dark div[class*="bg-amber-950"],
+html.dark span[class*="bg-amber-950"] {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.32) !important;
+}
+
+html.dark .bg-rose-50,
+html.dark .bg-red-50,
+html.dark div[class*="bg-rose-950"],
+html.dark span[class*="bg-rose-950"] {
+  background-color: rgba(244, 63, 94, 0.16) !important;
+  color: #fb7185 !important;
+  border-color: rgba(244, 63, 94, 0.32) !important;
 }
 
 /* Interaction Animations: Moving, Selecting, Confirmation & Final Success */

@@ -31,7 +31,7 @@ export default function AdminLayout() {
   const currentTitle = TITLE_MAP[location.pathname] || 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-slate-50/80 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col transition-colors relative overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50/80 dark:bg-[#070b14] text-slate-800 dark:text-slate-100 flex flex-col transition-colors relative overflow-x-hidden">
       {/* Lightly Animated Floating Chit Fund Motifs Background */}
       <AnimatedChitBackground />
 

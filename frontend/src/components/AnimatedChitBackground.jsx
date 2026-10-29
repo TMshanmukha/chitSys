@@ -13,28 +13,39 @@ export default function AnimatedChitBackground() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none" aria-hidden="true">
       {/* 1. Soft Ambient Light Gradient Mesh */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50/60 via-blue-50/30 to-indigo-50/40 dark:from-slate-950 dark:via-slate-900/40 dark:to-blue-950/40 transition-colors" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50/60 via-blue-50/30 to-indigo-50/40 dark:from-[#080c14] dark:via-[#0b111f] dark:to-[#080d18] transition-colors" />
 
       {/* 2. Soft Luminous Color Nebulas (Light and Non-Intrusive) */}
-      <div className="absolute -top-32 -left-32 w-[600px] h-[600px] bg-gradient-to-br from-blue-400/10 to-indigo-500/8 dark:from-blue-600/10 dark:to-indigo-600/8 rounded-full blur-[140px] animate-pulse" />
-      <div className="absolute top-1/4 -right-32 w-[550px] h-[550px] bg-gradient-to-bl from-amber-400/8 via-orange-400/6 to-emerald-400/6 dark:from-amber-600/8 dark:to-purple-900/8 rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '7s' }} />
-      <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-gradient-to-tr from-emerald-400/8 via-teal-400/6 to-cyan-400/8 dark:from-emerald-600/8 dark:to-cyan-900/8 rounded-full blur-[160px]" />
+      <div className="absolute -top-32 -left-32 w-[600px] h-[600px] bg-gradient-to-br from-blue-400/10 to-indigo-500/8 dark:from-blue-600/15 dark:to-indigo-600/10 rounded-full blur-[140px] animate-pulse" />
+      <div className="absolute top-1/4 -right-32 w-[550px] h-[550px] bg-gradient-to-bl from-amber-400/8 via-orange-400/6 to-emerald-400/6 dark:from-indigo-600/10 dark:to-purple-900/15 rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '7s' }} />
+      <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-gradient-to-tr from-emerald-400/8 via-teal-400/6 to-cyan-400/8 dark:from-blue-900/10 dark:to-teal-900/10 rounded-full blur-[160px]" />
 
       {/* 3. Subtle Ledger Grid Pattern */}
       <div 
-        className="absolute inset-0 opacity-[0.025] dark:opacity-[0.035]"
+        className="absolute inset-0 opacity-[0.025] dark:opacity-[0.04] text-slate-900 dark:text-cyan-400"
         style={{
           backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
           backgroundSize: '28px 28px',
         }}
       />
 
+      {/* 4. High-Tech Concentric Financial Grid Rings (Night Mode Only) */}
+      <div className="hidden dark:block absolute top-[15%] right-[8%] w-[420px] h-[420px] rounded-full border border-blue-500/15 animate-spinSlow pointer-events-none">
+        <div className="absolute inset-8 rounded-full border border-indigo-500/15 border-dashed" />
+        <div className="absolute inset-20 rounded-full border border-cyan-500/15" />
+      </div>
+      <div className="hidden dark:block absolute bottom-[8%] left-[5%] w-[360px] h-[360px] rounded-full border border-cyan-500/15 animate-spinSlow pointer-events-none" style={{ animationDirection: 'reverse', animationDuration: '32s' }}>
+        <div className="absolute inset-10 rounded-full border border-blue-500/15 border-dashed" />
+      </div>
+
       {/* ========================================================= */}
       {/* HANDCRAFTED MANUAL CODE: RANDOM CHITS & MONEY VECTOR ART  */}
+      {/* (Displayed exclusively in Light Mode to keep Night Mode   */}
+      {/* clean, sleek, high-contrast and executive)                */}
       {/* ========================================================= */}
-
-      {/* --- ITEM 1: Handcrafted SVG ₹500 Indian Currency Note (Top Left) --- */}
-      <div className="absolute top-[8%] left-[4%] animate-floatGently opacity-22 dark:opacity-16 transform -rotate-6 hover:scale-105 transition-transform duration-500">
+      <div className="dark:hidden">
+        {/* --- ITEM 1: Handcrafted SVG ₹500 Indian Currency Note (Top Left) --- */}
+        <div className="absolute top-[8%] left-[4%] animate-floatGently opacity-22 transform -rotate-6 hover:scale-105 transition-transform duration-500">
         <svg width="220" height="98" viewBox="0 0 220 98" fill="none" className="drop-shadow-sm">
           {/* Note Base: Sage Stone Grey Currency Paper */}
           <rect x="2" y="2" width="216" height="94" rx="4" fill="#E8ECE9" stroke="#3D5A45" strokeWidth="1.5" />
@@ -270,6 +281,7 @@ export default function AnimatedChitBackground() {
           <circle cx="88" cy="40" r="10" stroke="#0284C7" strokeWidth="0.8" />
           <text x="88" y="43" textAnchor="middle" fill="#0284C7" fontSize="8" fontWeight="bold">₹</text>
         </svg>
+      </div>
       </div>
     </div>
   );
