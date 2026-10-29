@@ -23,7 +23,7 @@ test('ChitBase Business Logic and Database Verification', async (t) => {
   await t.test('2. Create Daily Chit Route Group', async () => {
     const [[adminUser]] = await pool.query("SELECT id FROM users WHERE role = 'SUPER_ADMIN' LIMIT 1");
     const adminId = adminUser?.id || 1;
-    const code = 'DTEST' + Math.floor(Math.random() * 1000);
+    const code = 'DTEST' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 100);
     const [result] = await pool.execute(`
       INSERT INTO chit_groups (
         group_code, group_name, chit_type, route_category, frequency, 
@@ -44,7 +44,7 @@ test('ChitBase Business Logic and Database Verification', async (t) => {
   await t.test('3. Create Monthly Double Chit Group', async () => {
     const [[adminUser]] = await pool.query("SELECT id FROM users WHERE role = 'SUPER_ADMIN' LIMIT 1");
     const adminId = adminUser?.id || 1;
-    const code = 'DBL' + Math.floor(Math.random() * 1000);
+    const code = 'DBL' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 100);
     const [result] = await pool.execute(`
       INSERT INTO chit_groups (
         group_code, group_name, chit_type, route_category, frequency, 
