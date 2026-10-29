@@ -113,11 +113,11 @@ app.get(['/health', '/api/health'], (req, res) => {
   });
 });
 
-// Mount Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/agent', agentRoutes);
-app.use('/api/notifications', notificationRoutes);
+// Mount Routes (support both /api/path and /path in case proxy rewrites differ)
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/admin', '/admin'], adminRoutes);
+app.use(['/api/agent', '/agent'], agentRoutes);
+app.use(['/api/notifications', '/notifications'], notificationRoutes);
 
 
 // Serve frontend static assets (Vite production build)
@@ -144,6 +144,40 @@ if (distDir) {
       return next();
     }
     res.sendFile(path.join(distDir, 'index.html'));
+  });
+} else {
+  // Graceful fallback for root and index.html in serverless environment
+  app.get(['/', '/index.html'], (req, res) => {
+    res.status(200).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ChitFund Pro - Loading</title>
+  <meta http-equiv="refresh" content="1; url=/" />
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0b0f19; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .card { background: #131b2e; border: 1px solid #1e293b; padding: 2rem; border-radius: 12px; text-align: center; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    h1 { color: #f59e0b; font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p { color: #94a3b8; font-size: 0.95rem; line-height: 1.5; }
+    .btn { display: inline-block; margin-top: 1rem; padding: 0.6rem 1.4rem; background: #f59e0b; color: #000; font-weight: 600; text-decoration: none; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>ChitFund Pro</h1>
+    <p>Application is initializing. If you are not redirected automatically, click below to open ChitFund Pro.</p>
+    <a href="/" class="btn">Open App</a>
+  </div>
+</body>
+</html>`);
+  });
+
+  // Catch-all for non-API routes when static dir is unbundled
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) {
+      return next();
+    }
+    res.redirect('/');
   });
 }
 
