@@ -315,7 +315,7 @@ export async function getMyAssignedRoutes(req, res, next) {
         const isDaily = m.group_frequency === 'DAILY';
         const isPaid = Boolean(m.cycle_collection_id) || m.cycle_tracking_status === 'PAID';
         const status = isPaid ? 'PAID' : (m.cycle_tracking_status || 'NOT_PAID');
-        const notes = m.collection_notes || m.cycle_tracking_notes || (isPaid ? (isDaily ? 'Paid for today' : 'Paid for current monthly cycle') : (isDaily ? 'Default: Awaiting today installment' : 'Default: Awaiting monthly installment'));
+        const notes = m.collection_notes || m.cycle_tracking_notes || (isPaid ? (isDaily ? 'Paid for today' : 'Paid for current monthly cycle') : (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment'));
         const statusLabel = isPaid 
           ? (isDaily ? 'Paid for Today' : 'Paid for Month')
           : (isDaily ? 'Not Paid Today' : 'Not Paid This Month');

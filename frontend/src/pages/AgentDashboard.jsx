@@ -200,7 +200,7 @@ export default function AgentDashboard() {
   // Open note modal for a member who hasn't paid
   const openNoteForMember = (group, member) => {
     setSelectedMemberForNote({ group, member });
-    const existingNote = member.today_notes && member.today_notes !== 'Default: Awaiting payment'
+    const existingNote = member.today_notes && member.today_notes !== 'Awaiting payment'
       ? member.today_notes
       : '';
     setAgentNoteText(existingNote);
@@ -216,7 +216,7 @@ export default function AgentDashboard() {
     setNoteError('');
 
     try {
-      const noteToSave = agentNoteText.trim() || 'Default: Awaiting payment';
+      const noteToSave = agentNoteText.trim() || 'Awaiting payment';
       await api.post('/agent/tracking/log-activity', {
         groupId: selectedMemberForNote.group.id,
         memberId: selectedMemberForNote.member.member_id,
@@ -715,7 +715,7 @@ export default function AgentDashboard() {
                                             <span className="font-medium flex-1">
                                               Note:{' '}
                                               <ShowMoreText
-                                                text={member.cycle_notes || member.today_notes || (isDaily ? 'Default: Awaiting today installment' : 'Default: Awaiting monthly installment')}
+                                                text={member.cycle_notes || member.today_notes || (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment')}
                                                 maxChars={45}
                                               />
                                             </span>
@@ -1374,7 +1374,7 @@ export default function AgentDashboard() {
                       <AlertCircle className="w-4 h-4 text-rose-600" />
                       <span>Payment Awaiting Collection</span>
                     </div>
-                    <div>Agent Remark: <strong>{member.today_notes || 'Default: Awaiting payment'}</strong></div>
+                    <div>Agent Remark: <strong>{member.today_notes || 'Awaiting payment'}</strong></div>
                   </div>
                 )}
               </div>

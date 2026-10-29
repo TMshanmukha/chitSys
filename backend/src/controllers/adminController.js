@@ -374,7 +374,7 @@ export async function getReportsAnalytics(req, res, next) {
           expectedAmount: expected,
           paidAmount: paid,
           dueAmount: due,
-          agentNotes: m.agent_notes || (isDaily ? 'Default: Awaiting today installment' : 'Default: Awaiting monthly installment'),
+          agentNotes: m.agent_notes || (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment'),
           status: 'NOT_PAID',
         };
       });

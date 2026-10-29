@@ -15,7 +15,9 @@ import {
   Gavel,
   History,
   Sparkles,
+  Bell,
 } from 'lucide-react';
+import { useNotifications } from '../context/NotificationContext';
 
 const NAV_ITEMS = [
   {
@@ -100,6 +102,16 @@ const NAV_ITEMS = [
     hoverText: 'hover:text-blue-600 dark:hover:text-blue-400',
   },
   {
+    name: 'Notifications',
+    path: '/admin/notifications',
+    icon: Bell,
+    badgeKey: 'notifications',
+    activeGradient: 'from-amber-500 to-rose-500',
+    glowColor: 'rgba(244, 63, 94, 0.4)',
+    hoverBg: 'hover:bg-rose-50/70 dark:hover:bg-rose-950/40',
+    hoverText: 'hover:text-rose-600 dark:hover:text-rose-400',
+  },
+  {
     name: 'Logs & Audit',
     path: '/admin/audit',
     icon: History,
@@ -120,6 +132,7 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
+  const { unreadCount } = useNotifications();
   return (
     <>
       {/* Mobile Backdrop Overlay */}
@@ -190,9 +203,13 @@ export default function Sidebar({ isOpen, onClose }) {
                       }`}
                     />
                     <span className="truncate">{item.name}</span>
-                    {isActive && (
+                    {item.badgeKey === 'notifications' && unreadCount > 0 ? (
+                      <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-[0_2px_8px_rgba(244,63,94,0.6)] animate-pulse">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    ) : isActive ? (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
-                    )}
+                    ) : null}
                   </>
                 )}
               </NavLink>

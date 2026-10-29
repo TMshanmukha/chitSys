@@ -488,7 +488,7 @@ export default function AuctionsPage() {
                 <div className="p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-900/40 space-y-1">
                   <div className="font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5 font-heading">
                     <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span>Reverse Auction Prize & Admin Commission Policy</span>
+                    <span>Reverse Auction Prize & Admin Commission Calculation</span>
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
                     The reverse auction is won by the subscriber with the highest bid discount. Admin fills and pays that prize money (<strong>Total Pool − Bid Discount</strong>).

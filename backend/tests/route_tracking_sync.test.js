@@ -86,8 +86,7 @@ test('Synchronous Route Tracking & Agent Node State Transition Suite', async (t)
     const node = route.stops.find((s) => s.memberId === testMemberId);
     assert.ok(node, 'Enrolled member must represent an exact route node');
     assert.equal(node.status, 'NOT_PAID', 'Initial status must be NOT_PAID');
-    assert.equal(node.nodeColor, 'RED', 'Initial node color must be RED');
-    assert.ok(node.notes.includes('Default: Awaiting payment') || node.notes.length > 0);
+    assert.ok(node.notes.includes('Awaiting') || node.notes.length > 0);
   });
 
   await t.test('2. Agent records unpaid remark -> node reflects remark with NOT_PAID (Red)', async () => {

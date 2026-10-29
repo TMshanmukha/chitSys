@@ -15,7 +15,7 @@ export async function getNotifications(req, res) {
        FROM notifications
        WHERE (target_role = 'ALL' OR target_role = ? OR user_id = ?)
        ORDER BY created_at DESC
-       LIMIT 50`,
+       LIMIT 200`,
       [userRole, userId]
     );
 
@@ -34,16 +34,31 @@ export async function getNotifications(req, res) {
 }
 
 /**
- * Mark a specific notification as read
+ * Mark a specific notification as read or unread
  */
 export async function markAsRead(req, res) {
   try {
     const { id } = req.params;
-    await pool.query('UPDATE notifications SET is_read = 1 WHERE id = ?', [id]);
-    res.status(200).json({ success: true, message: 'Notification marked as read' });
+    const isRead = req.body?.is_read !== undefined ? (req.body.is_read ? 1 : 0) : 1;
+    await pool.query('UPDATE notifications SET is_read = ? WHERE id = ?', [isRead, id]);
+    res.status(200).json({ success: true, message: 'Notification status updated' });
   } catch (error) {
-    logger.error('Failed to mark notification as read', { error: error.message });
+    logger.error('Failed to mark notification status', { error: error.message });
     res.status(500).json({ success: false, message: 'Failed to update notification' });
+  }
+}
+
+/**
+ * Delete an individual notification
+ */
+export async function deleteNotification(req, res) {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM notifications WHERE id = ?', [id]);
+    res.status(200).json({ success: true, message: 'Notification deleted' });
+  } catch (error) {
+    logger.error('Failed to delete notification', { error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to delete notification' });
   }
 }
 

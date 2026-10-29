@@ -18,6 +18,7 @@ const TITLE_MAP = {
   '/admin/commissions': 'Admin Profile',
   '/admin/earnings': 'Admin Profile',
   '/admin/reports': 'ChitBase Reports & Analytics',
+  '/admin/notifications': 'Notification Center',
   '/admin/audit': 'Logs & Audit History',
   '/admin/logs': 'Logs & Audit History',
   '/admin/settings': 'System Settings',

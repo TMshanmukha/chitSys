@@ -240,9 +240,20 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {/* Footer */}
-          <div className="p-2.5 bg-slate-50/70 dark:bg-slate-950/60 border-t border-slate-100 dark:border-slate-800 text-center text-[11px] text-slate-400 font-medium">
-            Live Instant Updates · ChitFund Pro
+          {/* Footer with Notification Center Navigation */}
+          <div className="p-3 bg-slate-50/90 dark:bg-slate-950/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
+            <span className="text-[11px] text-slate-400 font-medium">Live Instant Feed</span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/admin/notifications');
+              }}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <span>View All in Center</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}

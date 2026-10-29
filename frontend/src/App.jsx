@@ -20,6 +20,7 @@ import {
   ReportsPage,
   SettingsPage,
 } from './pages/ModulePages';
+import NotificationsPage from './pages/NotificationsPage';
 import NotFound from './pages/NotFound';
 
 import ScrollToTop from './components/ScrollToTop';
@@ -61,6 +62,7 @@ export default function App() {
               <Route path="commissions" element={<AdminCommissionsPage />} />
               <Route path="earnings" element={<AdminCommissionsPage />} />
               <Route path="reports" element={<ReportsPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="audit" element={<AuditLogsPage />} />
               <Route path="logs" element={<AuditLogsPage />} />
               <Route path="settings" element={<SettingsPage />} />

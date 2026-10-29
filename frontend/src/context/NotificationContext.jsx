@@ -43,7 +43,7 @@ export function NotificationProvider({ children }) {
       osc1.stop(ctx.currentTime + 0.35);
       osc2.stop(ctx.currentTime + 0.35);
     } catch {
-      // Audio autoplay policy fallback
+      // Audio autoplay browser restriction fallback
     }
   }, []);
 
@@ -110,6 +110,32 @@ export function NotificationProvider({ children }) {
     }
   };
 
+  const toggleRead = async (id, shouldBeRead = true) => {
+    try {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: shouldBeRead ? 1 : 0 } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, shouldBeRead ? prev - 1 : prev + 1));
+      await api.patch(`/notifications/${id}/read`, { is_read: shouldBeRead });
+    } catch {
+      fetchNotifications(false);
+    }
+  };
+
+  const deleteNotification = async (id) => {
+    try {
+      const target = notifications.find((n) => n.id === id);
+      const wasUnread = target && !target.is_read;
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      if (wasUnread) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+      await api.delete(`/notifications/${id}`);
+    } catch {
+      fetchNotifications(false);
+    }
+  };
+
   const clearAll = async () => {
     try {
       setNotifications([]);
@@ -127,6 +153,8 @@ export function NotificationProvider({ children }) {
         unreadCount,
         loading,
         markAsRead,
+        toggleRead,
+        deleteNotification,
         markAllAsRead,
         clearAll,
         refresh: () => fetchNotifications(false),

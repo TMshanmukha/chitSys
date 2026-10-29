@@ -205,7 +205,7 @@ npm run dev
   - Daily & Monthly Collections (`/admin/collections`)
   - Financial Reports & Reconciliation (`/admin/reports`)
   - Sub-Admin & User Management (`/admin/users`)
-  - Settings & Security Policies (`/admin/settings`)
+  - Settings & Security Configuration (`/admin/settings`)
 - **Automated Test Suite**: 13 automated test assertions covering valid logins, invalid credentials, role mismatches, inactive accounts, protected routes, and session revocation.
 
 ### 📋 Reserved for Subsequent Milestones

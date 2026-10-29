@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { pool } from '../config/db.js';
 import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
+import { createNotification } from './notificationController.js';
 
 const collectionSchema = z.object({
   group_id: z.number().int().positive('Chit Group selection is required'),
@@ -128,6 +129,14 @@ export async function recordCollection(req, res, next) {
         paymentMethod: validated.payment_method,
       },
     });
+
+    createNotification({
+      targetRole: 'ADMIN',
+      title: `💰 Payment Received: ₹${Number(validated.amount).toLocaleString('en-IN')}`,
+      message: `Receipt #${receiptNumber} collected via ${validated.payment_method} for Group #${validated.group_id}.`,
+      type: 'COLLECTION',
+      link: '/admin/collections',
+    }).catch(() => {});
 
     res.status(201).json({
       success: true,

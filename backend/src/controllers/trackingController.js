@@ -188,10 +188,10 @@ export async function getRouteTrackingOverview(req, res, next) {
 
         const isPaid = Boolean(coll) || (log && log.status === 'PAID');
 
-        let status = 'NOT_PAID'; // Default is NOT PAID (Red)
+        let status = 'NOT_PAID'; // NOT PAID (Red)
         let nodeColor = 'RED'; // 'GREEN' | 'RED'
         let statusText = isDaily ? 'Not Paid (Today)' : 'Not Paid (This Month)';
-        let notes = log?.notes || (isDaily ? 'Default: Awaiting today installment' : 'Default: Awaiting monthly installment');
+        let notes = log?.notes || (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment');
         let collectionDetails = null;
 
         if (isPaid) {
@@ -217,7 +217,7 @@ export async function getRouteTrackingOverview(req, res, next) {
           status = 'NOT_PAID';
           nodeColor = 'RED';
           statusText = isDaily ? 'Not Paid (Today)' : 'Not Paid (This Month)';
-          notes = log?.notes || (isDaily ? 'Default: Awaiting today installment' : 'Default: Awaiting monthly installment');
+          notes = log?.notes || (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment');
           if (log) {
             lastActivityTime = log.last_ping_time;
           }
