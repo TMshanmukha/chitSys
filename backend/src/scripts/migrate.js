@@ -5,6 +5,7 @@ import mysql from 'mysql2/promise';
 import { env } from '../config/env.js';
 import { sslConfig } from '../config/db.js';
 import { logger } from '../utils/logger.js';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -93,12 +94,14 @@ export async function runMigrations() {
       logger.info(`✅ Successfully applied migration: ${file}`);
     }
 
-    // Step 5: Ensure default primary admin user exists (username: admin, password: admin)
-    const adminHash = '$2a$10$6zzE21xVg1NcBDd93JIFg.CE2kgm4xiCRAvXCVQuX45X0GZW4Kb1C';
+    // Step 5: Ensure default primary admin user exists and password matches BOOTSTRAP_ADMIN_PASSWORD
+    const adminPassword = env.BOOTSTRAP_ADMIN_PASSWORD || 'admin';
+    const adminHash = await bcrypt.hash(adminPassword, 10);
     await connection.query(
-      `INSERT IGNORE INTO users (full_name, username, password_hash, role, phone, is_active)
-       VALUES (?, ?, ?, 'SUPER_ADMIN', ?, 1)`,
-      ['Main Administrator', 'admin', adminHash, '9876543210']
+      `INSERT INTO users (full_name, username, password_hash, role, phone, is_active)
+       VALUES (?, ?, ?, 'SUPER_ADMIN', ?, 1)
+       ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash);`,
+      [env.BOOTSTRAP_ADMIN_FULLNAME || 'Main Administrator', env.BOOTSTRAP_ADMIN_USERNAME || 'admin', adminHash, env.BOOTSTRAP_ADMIN_PHONE || '9876543210']
     );
 
     logger.info('🎉 All database migrations executed successfully!');
