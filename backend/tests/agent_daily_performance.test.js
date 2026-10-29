@@ -133,4 +133,6 @@ test('Admin Agent Daily Performance & Cash Ledger Test Suite', async (t) => {
     assert.equal(responseData.data.filter.mode, 'ALL_TIME');
     assert.ok(responseData.data.summary.grandTotal >= 300);
   });
+
+  await pool.end();
 });

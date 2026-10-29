@@ -8,7 +8,7 @@
     "dev": "node --watch src/server.js",
     "db:migrate": "node src/scripts/migrate.js",
     "db:seed": "node src/scripts/seed.js",
-    "test": "node --test tests/auth.test.js && node --test tests/chitbase.test.js && node --test tests/user_mgmt_audit.test.js && node --test tests/route_tracking_sync.test.js && node --test tests/reports_analytics.test.js && node --test tests/friendly_errors.test.js && node --test tests/admin_commissions_profile.test.js && node --test tests/auction_dividends_and_disqualification.test.js && node --test tests/scheme_creation_and_enrolment.test.js"
+    "test": "node --test tests/auth.test.js && node --test tests/chitbase.test.js && node --test tests/user_mgmt_audit.test.js && node --test tests/route_tracking_sync.test.js && node --test tests/reports_analytics.test.js && node --test tests/friendly_errors.test.js && node --test tests/admin_commissions_profile.test.js && node --test tests/auction_dividends_and_disqualification.test.js && node --test tests/scheme_creation_and_enrolment.test.js && node --test tests/agent_daily_performance.test.js && node --test tests/daily_vs_monthly_cycles.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
