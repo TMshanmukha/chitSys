@@ -1,19 +1,9 @@
 import axios from 'axios';
 
-const isLocal =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname === '0.0.0.0');
-
-// If testing locally in browser, always use local proxy (/api) to talk to local backend.
-// In cloud production (Vercel), use configured VITE_API_BASE_URL or Back4App endpoint.
-const apiBaseUrl = isLocal
-  ? '/api'
-  : (import.meta.env.VITE_API_BASE_URL || 'https://chitsys-kaue7wrz.back4.app/api');
-
+// Both frontend and backend share the same domain on Vercel (/api/*),
+// and Vite proxies /api to http://127.0.0.1:5000 in local development.
 const api = axios.create({
-  baseURL: apiBaseUrl,
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
