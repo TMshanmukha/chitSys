@@ -44,7 +44,8 @@ import {
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
-import { smoothScrollTo } from '../utils/scrollHelper';
+import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
+import ModalPortal from '../components/ModalPortal';
 
 export default function RouteTrackingPage() {
   const [loading, setLoading] = useState(true);
@@ -219,6 +220,7 @@ export default function RouteTrackingPage() {
   const handleNodePress = (stop) => {
     setSelectedStop(stop);
     setShowMemberModal(true);
+    scrollToFormOrModal('route-member-modal');
   };
 
   // Log activity on a stop (Admin note or status override)
@@ -1626,7 +1628,10 @@ export default function RouteTrackingPage() {
                     {/* Open Member Information Form */}
                     <button
                       type="button"
-                      onClick={() => setShowMemberModal(true)}
+                      onClick={() => {
+                        setShowMemberModal(true);
+                        scrollToFormOrModal('route-member-modal');
+                      }}
                       className="px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
                     >
                       <User className="w-3.5 h-3.5" />
@@ -1639,6 +1644,7 @@ export default function RouteTrackingPage() {
                         setLoggingStatus(isPaid ? 'PAID' : 'NOT_PAID');
                         setLogNotes(selectedStop.notes && selectedStop.notes !== 'Awaiting payment' ? selectedStop.notes : '');
                         setShowLogModal(true);
+                        scrollToFormOrModal('route-log-modal');
                       }}
                       className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                     >
@@ -1782,6 +1788,7 @@ export default function RouteTrackingPage() {
                               setLoggingStatus(isPaid ? 'PAID' : 'NOT_PAID');
                               setLogNotes(stop.notes && stop.notes !== 'Awaiting payment' ? stop.notes : '');
                               setShowLogModal(true);
+                              scrollToFormOrModal('route-log-modal');
                             }}
                             className="px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
                           >
@@ -1810,9 +1817,12 @@ export default function RouteTrackingPage() {
   )}
 
       {/* Member Information Form Modal (Brought up when pressing any node) */}
-      {showMemberModal && selectedStop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
+      <ModalPortal
+        id="route-member-modal"
+        isOpen={showMemberModal && Boolean(selectedStop)}
+        onClose={() => setShowMemberModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
@@ -2103,6 +2113,7 @@ export default function RouteTrackingPage() {
                     selectedStop.notes && selectedStop.notes !== 'Awaiting payment' ? selectedStop.notes : ''
                   );
                   setShowLogModal(true);
+                  scrollToFormOrModal('route-log-modal');
                 }}
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
@@ -2119,13 +2130,15 @@ export default function RouteTrackingPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Log Activity Modal */}
-      {showLogModal && selectedStop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="route-log-modal"
+        isOpen={showLogModal && Boolean(selectedStop)}
+        onClose={() => setShowLogModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-lg font-heading">
@@ -2190,8 +2203,7 @@ export default function RouteTrackingPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
     </div>
   );
 }

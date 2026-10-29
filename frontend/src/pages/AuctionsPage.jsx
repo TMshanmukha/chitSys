@@ -33,7 +33,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
-import { smoothScrollTo } from '../utils/scrollHelper';
+import ModalPortal from '../components/ModalPortal';
+import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
 
 export default function AuctionsPage() {
   const [auctions, setAuctions] = useState([]);
@@ -347,6 +348,7 @@ export default function AuctionsPage() {
           type="button"
           onClick={() => {
             setError('');
+            scrollToFormOrModal('conduct-auction-modal');
             setShowModal(true);
           }}
           className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer font-heading"
@@ -732,6 +734,7 @@ export default function AuctionsPage() {
                         auction_type: schemeBreakdown.group.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT_DRAW' : 'AUCTION',
                       }));
                       handleGroupChange(schemeBreakdown.group.id);
+                      scrollToFormOrModal('conduct-auction-modal');
                       setShowModal(true);
                     }}
                     className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
@@ -814,7 +817,10 @@ export default function AuctionsPage() {
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setVoucherModal(auc)}
+                                onClick={() => {
+                                  setVoucherModal(auc);
+                                  scrollToFormOrModal('voucher-modal');
+                                }}
                                 className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                               >
                                 Voucher
@@ -824,6 +830,7 @@ export default function AuctionsPage() {
                                   type="button"
                                   onClick={() => {
                                     setSelectedAuctionForDisburse(auc);
+                                    scrollToFormOrModal('disburse-prize-modal');
                                     setShowDisburseModal(true);
                                   }}
                                   className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-xs transition-colors cursor-pointer"
@@ -1003,9 +1010,12 @@ export default function AuctionsPage() {
       {/* ========================================================================= */}
       {/* CONDUCT AUCTION / DRAW MODAL                                              */}
       {/* ========================================================================= */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="conduct-auction-modal"
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto sm:my-8 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -1294,13 +1304,15 @@ export default function AuctionsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Disburse Modal */}
-      {showDisburseModal && selectedAuctionForDisburse && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="disburse-prize-modal"
+        isOpen={Boolean(showDisburseModal && selectedAuctionForDisburse)}
+        onClose={() => setShowDisburseModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-7 space-y-5 my-auto sm:my-8 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
@@ -1379,13 +1391,15 @@ export default function AuctionsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Printable Auction Voucher Modal */}
-      {voucherModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="voucher-modal"
+        isOpen={Boolean(voucherModal)}
+        onClose={() => setVoucherModal(null)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-5 my-auto sm:my-8 max-h-[92vh] overflow-y-auto">
             <div className="text-center space-y-1 pb-2 border-b border-slate-100 dark:border-slate-800">
               <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center mx-auto">
                 <Gavel className="w-6 h-6" />
@@ -1468,8 +1482,7 @@ export default function AuctionsPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Confirmation Dialog for Auction Finalization */}
       <ConfirmModal

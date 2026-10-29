@@ -52,7 +52,8 @@ import ShowMoreText from '../components/ShowMoreText';
 import NotificationBell from '../components/NotificationBell';
 import AnimatedChitBackground from '../components/AnimatedChitBackground';
 import WelcomeCelebrationModal from '../components/WelcomeCelebrationModal';
-import { smoothScrollTo } from '../utils/scrollHelper';
+import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
+import ModalPortal from '../components/ModalPortal';
 
 export default function AgentDashboard() {
   const { user, logout } = useAuth();
@@ -120,6 +121,7 @@ export default function AgentDashboard() {
   const openMemberInfo = (group, member) => {
     setSelectedMemberForInfo({ group, member });
     setShowMemberInfoModal(true);
+    scrollToFormOrModal('agent-member-info-modal');
   };
 
   // Today's Tasks calculations across all assigned routes and members:
@@ -381,6 +383,7 @@ export default function AgentDashboard() {
     });
     setCollectError('');
     setShowCollectModal(true);
+    scrollToFormOrModal('agent-collect-modal');
   };
 
   // Pre-fill collection modal specifically for a single chit scheme
@@ -399,6 +402,7 @@ export default function AgentDashboard() {
     });
     setCollectError('');
     setShowCollectModal(true);
+    scrollToFormOrModal('agent-collect-modal');
   };
 
   // Group selection changes default installment amount
@@ -489,6 +493,7 @@ export default function AgentDashboard() {
     setAgentNoteText(existingNote);
     setNoteError('');
     setShowNoteModal(true);
+    scrollToFormOrModal('agent-note-modal');
   };
 
   // Save unpaid remark (reflects as NOT PAID with note in admin and agent screens synchronously)
@@ -678,6 +683,7 @@ export default function AgentDashboard() {
                 });
                 setCollectError('');
                 setShowCollectModal(true);
+                scrollToFormOrModal('agent-collect-modal');
               }}
               disabled={routesData.groups.length === 0}
               className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer disabled:cursor-not-allowed"
@@ -2367,9 +2373,12 @@ export default function AgentDashboard() {
       </main>
 
       {/* Collect Modal (Synchronous Payment Entry) */}
-      {showCollectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
+      <ModalPortal
+        id="agent-collect-modal"
+        isOpen={showCollectModal}
+        onClose={() => setShowCollectModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -2538,13 +2547,15 @@ export default function AgentDashboard() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Unpaid Remark / Note Modal (Synchronous Not-Paid Entry) */}
-      {showNoteModal && selectedMemberForNote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl p-5 space-y-4 my-auto max-h-[90vh] overflow-y-auto">
+      <ModalPortal
+        id="agent-note-modal"
+        isOpen={showNoteModal && Boolean(selectedMemberForNote)}
+        onClose={() => setShowNoteModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl p-5 space-y-4 my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-rose-500" />
@@ -2664,13 +2675,15 @@ export default function AgentDashboard() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Printable Receipt Modal with Final Success Animation */}
-      {receiptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-confirmScale">
+      <ModalPortal
+        id="agent-receipt-modal"
+        isOpen={Boolean(receiptModal)}
+        onClose={() => setReceiptModal(null)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-confirmScale">
             <div className="text-center space-y-1">
               <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto animate-successPop shadow-md shadow-emerald-500/20">
                 <CheckCircle2 className="w-7 h-7" />
@@ -2726,8 +2739,7 @@ export default function AgentDashboard() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Member Information Form Modal */}
       {showMemberInfoModal && selectedMemberForInfo && (() => {
@@ -2735,7 +2747,11 @@ export default function AgentDashboard() {
         const isPaid = member.is_paid || member.today_status === 'PAID';
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <ModalPortal
+            id="agent-member-info-modal"
+            isOpen={showMemberInfoModal && Boolean(selectedMemberForInfo)}
+            onClose={() => setShowMemberInfoModal(false)}
+          >
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
               {/* Modal Header */}
               <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
@@ -2938,7 +2954,7 @@ export default function AgentDashboard() {
                 </button>
               </div>
             </div>
-          </div>
+          </ModalPortal>
         );
       })()}
 

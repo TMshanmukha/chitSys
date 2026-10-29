@@ -236,16 +236,14 @@ html.dark .floating-glass-bar {
 @keyframes pageSlideIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .animate-pageSlideIn {
-  animation: pageSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pageSlideIn 0.2s ease-out forwards;
 }
 
 @keyframes selectPop {

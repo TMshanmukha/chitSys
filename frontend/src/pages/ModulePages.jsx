@@ -39,7 +39,8 @@ import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import ChitHistoryModal from '../components/ChitHistoryModal';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
-import { smoothScrollTo } from '../utils/scrollHelper';
+import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
+import ModalPortal from '../components/ModalPortal';
 
 
 /* =========================================================================
@@ -400,6 +401,7 @@ export function ChitGroupsPage() {
             setShowModal(true);
             setWizardStep(1);
             setError('');
+            scrollToFormOrModal('chit-scheme-modal');
           }}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
         >
@@ -541,6 +543,7 @@ export function ChitGroupsPage() {
                 onClick={() => {
                   setSelectedHistoryGroupId(g.id);
                   setShowHistoryModal(true);
+                  scrollToFormOrModal('chit-history-modal');
                 }}
                 className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-4 hover:border-blue-500 hover:shadow-md dark:hover:border-blue-500 transition-all cursor-pointer group active:scale-[0.99]"
               >
@@ -629,9 +632,12 @@ export function ChitGroupsPage() {
       {/* =========================================================================
          MULTI-STEP CREATION WIZARD: Step 1 (Config) -> Step 2 (Members) -> Step 3 (Review & Confirm)
          ========================================================================= */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-4xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[94vh] overflow-y-auto transition-all animate-confirmScale">
+      <ModalPortal
+        id="chit-scheme-modal"
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+      >
+        <div className="w-full max-w-4xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[94vh] overflow-y-auto transition-all animate-confirmScale">
             
             {/* Wizard Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -873,6 +879,7 @@ export function ChitGroupsPage() {
                         onClick={() => {
                           setQuickAgentError('');
                           setShowQuickAgentModal(true);
+                          scrollToFormOrModal('quick-agent-modal');
                         }}
                         className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
                       >
@@ -1125,6 +1132,7 @@ export function ChitGroupsPage() {
                       onClick={() => {
                         setQuickMemberError('');
                         setShowQuickMemberModal(true);
+                        scrollToFormOrModal('quick-member-modal');
                       }}
                       className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
@@ -1142,7 +1150,10 @@ export function ChitGroupsPage() {
                       <p className="text-sm font-semibold">No registered members found in the system</p>
                       <button
                         type="button"
-                        onClick={() => setShowQuickMemberModal(true)}
+                        onClick={() => {
+                          setShowQuickMemberModal(true);
+                          scrollToFormOrModal('quick-member-modal');
+                        }}
                         className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
                       >
                         + Register First Subscriber Now
@@ -1281,7 +1292,10 @@ export function ChitGroupsPage() {
                               Or click{' '}
                               <button
                                 type="button"
-                                onClick={() => setShowQuickMemberModal(true)}
+                                onClick={() => {
+                                  setShowQuickMemberModal(true);
+                                  scrollToFormOrModal('quick-member-modal');
+                                }}
                                 className="font-bold text-emerald-600 dark:text-emerald-400 underline cursor-pointer"
                               >
                                 + Quick Add Member
@@ -1498,15 +1512,17 @@ export function ChitGroupsPage() {
               </div>
             )}
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* =========================================================================
          INLINE MODAL: QUICK ADD COLLECTION AGENT (Zero Navigation Loss)
          ========================================================================= */}
-      {showQuickAgentModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-confirmScale">
+      <ModalPortal
+        id="quick-agent-modal"
+        isOpen={showQuickAgentModal}
+        onClose={() => setShowQuickAgentModal(false)}
+      >
+        <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-confirmScale">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
@@ -1607,15 +1623,17 @@ export function ChitGroupsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* =========================================================================
          INLINE MODAL: QUICK REGISTER MEMBER / SUBSCRIBER (Zero Navigation Loss)
          ========================================================================= */}
-      {showQuickMemberModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-confirmScale">
+      <ModalPortal
+        id="quick-member-modal"
+        isOpen={showQuickMemberModal}
+        onClose={() => setShowQuickMemberModal(false)}
+      >
+        <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-confirmScale">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
@@ -1701,8 +1719,7 @@ export function ChitGroupsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Modal: Chit Group Complete History & Audit Dossier */}
       <ChitHistoryModal
@@ -1824,6 +1841,7 @@ export function AgentsPage() {
           onClick={() => {
             setShowCreateModal(true);
             setError('');
+            scrollToFormOrModal('create-agent-modal');
           }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
         >
@@ -1902,6 +1920,7 @@ export function AgentsPage() {
                             setSelectedAgent(ag);
                             setShowAssignModal(true);
                             setError('');
+                            scrollToFormOrModal('assign-agent-modal');
                           }}
                           className="px-2.5 py-1 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 font-semibold cursor-pointer"
                         >
@@ -1932,10 +1951,12 @@ export function AgentsPage() {
       </div>
 
       {/* Modal: Create Agent */}
-      {/* Modal: Create Agent */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="create-agent-modal"
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      >
+        <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -2043,13 +2064,15 @@ export function AgentsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Modal: Assign Agent to Route */}
-      {showAssignModal && selectedAgent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="assign-agent-modal"
+        isOpen={showAssignModal && Boolean(selectedAgent)}
+        onClose={() => setShowAssignModal(false)}
+      >
+        <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -2109,8 +2132,7 @@ export function AgentsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
     </div>
   );
 }
@@ -2177,6 +2199,7 @@ export function MembersPage() {
     setSelectedMember(member);
     setLoadingPassbook(true);
     setShowPassbookModal(true);
+    scrollToFormOrModal('member-passbook-modal');
     try {
       const res = await api.get(`/admin/members/${member.id}/passbook`);
       if (res.data?.success) {
@@ -2248,6 +2271,7 @@ export function MembersPage() {
           onClick={() => {
             setShowRegisterModal(true);
             setError('');
+            scrollToFormOrModal('member-register-modal');
           }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
         >
@@ -2336,6 +2360,7 @@ export function MembersPage() {
                             setSelectedMember(m);
                             setShowEnrollModal(true);
                             setError('');
+                            scrollToFormOrModal('member-enroll-modal');
                           }}
                           className="px-2.5 py-1 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 font-semibold cursor-pointer"
                         >
@@ -2362,9 +2387,12 @@ export function MembersPage() {
       </div>
 
       {/* Modal: Register Member */}
-      {showRegisterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="w-full max-w-3xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="member-register-modal"
+        isOpen={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+      >
+        <div className="w-full max-w-3xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -2515,13 +2543,15 @@ export function MembersPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Modal: Enroll in Group */}
-      {showEnrollModal && selectedMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="member-enroll-modal"
+        isOpen={showEnrollModal && Boolean(selectedMember)}
+        onClose={() => setShowEnrollModal(false)}
+      >
+        <div className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -2581,13 +2611,15 @@ export function MembersPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Modal: ChitBase Member Passbook / Statement of Account */}
-      {showPassbookModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+      <ModalPortal
+        id="member-passbook-modal"
+        isOpen={showPassbookModal}
+        onClose={() => setShowPassbookModal(false)}
+      >
+        <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
             {/* Passbook Header */}
             <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
@@ -2790,8 +2822,7 @@ export function MembersPage() {
               </div>
             ) : null}
           </div>
-        </div>
-      )}
+      </ModalPortal>
     </div>
   );
 }
@@ -2896,6 +2927,7 @@ export function CollectionsPage() {
           onClick={() => {
             setShowModal(true);
             setError('');
+            scrollToFormOrModal('record-payment-modal');
           }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
         >
@@ -3007,9 +3039,12 @@ export function CollectionsPage() {
       </div>
 
       {/* Modal: Record Collection */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="record-payment-modal"
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+      >
+        <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -3155,8 +3190,7 @@ export function CollectionsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
     </div>
   );
 }

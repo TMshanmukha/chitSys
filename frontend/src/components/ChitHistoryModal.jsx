@@ -20,6 +20,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
+import ModalPortal from './ModalPortal';
 
 export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
   const [loading, setLoading] = useState(true);
@@ -82,8 +83,15 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
     window.print();
   };
 
+  const isModalOpen = isOpen !== undefined ? isOpen : Boolean(groupId);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:fixed print:inset-0">
+    <ModalPortal
+      isOpen={isModalOpen}
+      onClose={onClose}
+      id="chit-history-modal"
+      className="print:p-0 print:bg-white print:fixed print:inset-0"
+    >
       <div className="relative w-full max-w-5xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto print:max-h-none print:shadow-none print:border-none">
         
         {/* Modal Header */}
@@ -685,6 +693,6 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
         </div>
 
       </div>
-    </div>
+    </ModalPortal>
   );
 }

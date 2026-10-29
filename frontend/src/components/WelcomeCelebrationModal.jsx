@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, CheckCircle2, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
+import ModalPortal from './ModalPortal';
 
 export default function WelcomeCelebrationModal() {
   const [welcomeData, setWelcomeData] = useState(null);
@@ -42,7 +43,12 @@ export default function WelcomeCelebrationModal() {
   if (!isVisible || !welcomeData) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+    <ModalPortal
+      isOpen={isVisible && Boolean(welcomeData)}
+      onClose={handleDismiss}
+      id="welcome-celebration-modal"
+      className="p-4 bg-slate-950/70 backdrop-blur-md"
+    >
       {/* Confetti & Golden Sparkles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-amber-400 rounded-full animate-ping opacity-80" />
@@ -134,6 +140,6 @@ export default function WelcomeCelebrationModal() {
           <div className="h-full bg-gradient-to-r from-amber-400 to-blue-500 animate-shrinkWidth" />
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

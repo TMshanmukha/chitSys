@@ -25,7 +25,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
-import { smoothScrollTo } from '../utils/scrollHelper';
+import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
+import ModalPortal from '../components/ModalPortal';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -111,6 +112,7 @@ export default function UsersPage() {
     });
     setError('');
     setShowEditModal(true);
+    scrollToFormOrModal('user-edit-modal');
   };
 
   // Create Agent / User
@@ -260,6 +262,7 @@ export default function UsersPage() {
             onClick={() => {
               setShowCreateModal(true);
               setError('');
+              scrollToFormOrModal('user-create-modal');
             }}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
           >
@@ -528,6 +531,7 @@ export default function UsersPage() {
                               setSelectedGroupId('');
                               setShowAssignModal(true);
                               setError('');
+                              scrollToFormOrModal('user-assign-modal');
                             }}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 font-semibold transition-colors cursor-pointer"
                           >
@@ -557,9 +561,12 @@ export default function UsersPage() {
       </div>
 
       {/* CREATE AGENT / USER MODAL */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="user-create-modal"
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -675,13 +682,15 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* EDIT / UPDATE USER MODAL */}
-      {showEditModal && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="user-edit-modal"
+        isOpen={showEditModal && Boolean(selectedUser)}
+        onClose={() => setShowEditModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -803,13 +812,15 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* ASSIGN ROUTE MODAL */}
-      {showAssignModal && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      <ModalPortal
+        id="user-assign-modal"
+        isOpen={showAssignModal && Boolean(selectedUser)}
+        onClose={() => setShowAssignModal(false)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -873,8 +884,7 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* Confirmation Dialog for Agent Status Toggle */}
       <ConfirmModal

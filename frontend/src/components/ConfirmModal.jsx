@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { scrollToFormOrModal } from '../utils/scrollHelper';
 import {
   AlertTriangle,
   LogOut,
@@ -29,7 +31,7 @@ export default function ConfirmModal({
   isLoading = false,
   subtext,
 }) {
-  // Close on Escape key
+  // Close on Escape key and move window smoothly to dialog
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isOpen && !isLoading) {
@@ -37,6 +39,7 @@ export default function ConfirmModal({
       }
     };
     if (isOpen) {
+      scrollToFormOrModal();
       window.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     }
@@ -75,12 +78,12 @@ export default function ConfirmModal({
   const currentVariant = variantStyles[variant] || variantStyles.danger;
   const IconComponent = CustomIcon || currentVariant.defaultIcon || HelpCircle;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn"
       onClick={() => {
         if (!isLoading) onClose();
       }}
@@ -157,6 +160,7 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

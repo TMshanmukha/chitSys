@@ -32,7 +32,8 @@ import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
-import { smoothScrollTo } from '../utils/scrollHelper';
+import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
+import ModalPortal from '../components/ModalPortal';
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -296,6 +297,7 @@ export default function ReportsPage() {
   // Open Passbook for a member
   const handleOpenMemberPassbook = async (memberId, memberName) => {
     setSelectedMemberPassbook({ id: memberId, name: memberName });
+    scrollToFormOrModal('report-member-passbook-modal');
     setLoadingPassbook(true);
     try {
       const res = await api.get(`/admin/members/${memberId}/passbook`);
@@ -928,7 +930,10 @@ export default function ReportsPage() {
                       <td className="py-3 px-4 text-right">
                         <button
                           type="button"
-                          onClick={() => setSelectedAuctionVoucher(auc)}
+                          onClick={() => {
+                            setSelectedAuctionVoucher(auc);
+                            scrollToFormOrModal('report-auction-voucher-modal');
+                          }}
                           className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-semibold"
                         >
                           Voucher
@@ -1041,9 +1046,12 @@ export default function ReportsPage() {
       {/* =========================================================================
           MODAL: AUCTION VOUCHER & DIVIDEND BREAKDOWN
           ========================================================================= */}
-      {selectedAuctionVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl p-6 space-y-4 my-8">
+      <ModalPortal
+        id="report-auction-voucher-modal"
+        isOpen={Boolean(selectedAuctionVoucher)}
+        onClose={() => setSelectedAuctionVoucher(null)}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl p-6 space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
@@ -1121,15 +1129,20 @@ export default function ReportsPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </ModalPortal>
 
       {/* =========================================================================
           MODAL: MEMBER PASSBOOK STATEMENT (CHITBASE PASSBOOK & INSTALLMENT LEDGER)
           ========================================================================= */}
-      {selectedMemberPassbook && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto">
+      <ModalPortal
+        id="report-member-passbook-modal"
+        isOpen={Boolean(selectedMemberPassbook)}
+        onClose={() => {
+          setSelectedMemberPassbook(null);
+          setMemberPassbookData(null);
+        }}
+      >
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
@@ -1290,8 +1303,7 @@ export default function ReportsPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </ModalPortal>
     </div>
   );
 }
