@@ -221,7 +221,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 text-xs text-slate-500 dark:text-slate-400 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md">
           <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 font-heading">
             <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-            <span>ChitFund Management</span>
+            <span>ChitFund Pro</span>
           </div>
           <p className="text-[11px] mt-0.5 text-slate-400 dark:text-slate-500">
             Internal Financial Operations

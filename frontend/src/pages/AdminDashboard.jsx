@@ -112,7 +112,7 @@ export default function AdminDashboard() {
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-              ChitFund Management System
+              ChitFund Pro Management System
             </span>
             <span className="text-slate-300 dark:text-slate-700">·</span>
             <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
