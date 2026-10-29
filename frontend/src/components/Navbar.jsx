@@ -103,3 +103,7 @@ export default function Navbar({ onToggleSidebar, pageTitle }) {
   );
 }
 
+Navbar.defaultProps = {
+  onToggleSidebar: () => {},
+};
+
