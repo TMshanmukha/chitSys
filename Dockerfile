@@ -12,6 +12,6 @@ COPY backend/ ./
 ENV PORT=5000
 ENV NODE_ENV=production
 
-EXPOSE 5000
+EXPOSE 5000 80 8080
 
 CMD ["npm", "start"]

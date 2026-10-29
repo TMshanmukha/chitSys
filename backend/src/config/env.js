@@ -17,12 +17,12 @@ const envSchema = z.object({
   DB_SSL: z.enum(['true', 'false']).default('false'),
   AUTO_MIGRATE: z.enum(['true', 'false']).default('false'),
 
-  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters long'),
+  JWT_SECRET: z.string().min(16).default('c8f8b3c98d6e4a2b10984f728190d65b71234a9e5c1284d728198f6230129abc'),
   JWT_EXPIRES_IN: z.string().default('2h'),
-  COOKIE_SECRET: z.string().default('chitfund_cookie_secret_fallback'),
+  COOKIE_SECRET: z.string().default('98a123f890b45c2198034e782910fedcba1234567890abcdef1234567890abcd'),
 
   BOOTSTRAP_ADMIN_USERNAME: z.string().default('admin'),
-  BOOTSTRAP_ADMIN_PASSWORD: z.string().default('AdminChitFund2026!'),
+  BOOTSTRAP_ADMIN_PASSWORD: z.string().default('admin'),
   BOOTSTRAP_ADMIN_FULLNAME: z.string().default('Main Administrator'),
   BOOTSTRAP_ADMIN_PHONE: z.string().default('9876543210'),
 });

@@ -136,6 +136,21 @@ async function startServer() {
     logger.info(`🌐 Health check available at: http://0.0.0.0:${env.PORT}/`);
   });
 
+  // Also bind to port 80 and 8080 if permitted so any cloud platform port setting works
+  const alternatePorts = [80, 8080].filter((p) => p !== env.PORT);
+  for (const altPort of alternatePorts) {
+    try {
+      const altServer = app.listen(altPort, '0.0.0.0', () => {
+        logger.info(`✨ Cloud health probe listener active on http://0.0.0.0:${altPort}/`);
+      });
+      altServer.on('error', () => {
+        // Silently skip if alternate port cannot be bound (e.g. non-root on local dev)
+      });
+    } catch (_) {
+      // Silently ignore
+    }
+  }
+
   // Handle server-level errors such as port collisions gracefully
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
