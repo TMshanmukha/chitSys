@@ -2,12 +2,18 @@ import axios from 'axios';
 
 const isLocal =
   typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  (window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '0.0.0.0');
 
-const defaultBaseUrl = isLocal ? '/api' : 'https://chitsys-pugafvj4.back4.app/api';
+// If testing locally in browser, always use local proxy (/api) to talk to local backend.
+// In cloud production (Vercel), use configured VITE_API_BASE_URL or Back4App endpoint.
+const apiBaseUrl = isLocal
+  ? '/api'
+  : (import.meta.env.VITE_API_BASE_URL || 'https://chitsys-pugafvj4.back4.app/api');
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || defaultBaseUrl,
+  baseURL: apiBaseUrl,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
