@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy backend package manifests
+COPY backend/package*.json ./
+RUN npm ci --omit=dev
+
+# Copy backend source code
+COPY backend/ ./
+
+ENV PORT=5000
+ENV NODE_ENV=production
+
+EXPOSE 5000
+
+CMD ["npm", "start"]
