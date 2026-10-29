@@ -1851,7 +1851,7 @@ export default function AgentDashboard() {
       {/* Printable Receipt Modal with Final Success Animation */}
       {receiptModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/60 dark:border-slate-800/80 rounded-3xl max-w-sm w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-confirmScale">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-confirmScale">
             <div className="text-center space-y-1">
               <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto animate-successPop shadow-md shadow-emerald-500/20">
                 <CheckCircle2 className="w-7 h-7" />

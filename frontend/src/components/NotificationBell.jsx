@@ -107,20 +107,20 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* Popover Dropdown Drawer */}
+      {/* Popover Dropdown Drawer - 100% Solid Opaque Background */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-3xl border border-white/60 dark:border-slate-800/90 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.35),0_0_35px_rgba(59,130,246,0.15)] z-50 overflow-hidden animate-fadeIn">
+        <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl z-50 overflow-hidden animate-fadeIn">
           {/* Header */}
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-xl bg-blue-500/10 dark:bg-blue-400/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <div className="w-7 h-7 rounded-xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400">
                 <Sparkles className="w-4 h-4" />
               </div>
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
                 Live Notifications
               </h3>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                   {unreadCount} new
                 </span>
               )}
@@ -132,7 +132,7 @@ export default function NotificationBell() {
                   type="button"
                   onClick={markAllAsRead}
                   title="Mark all as read"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs font-semibold flex items-center gap-1"
+                  className="p-1.5 rounded-lg text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <CheckCheck className="w-3.5 h-3.5" />
                   <span className="text-[11px] hidden sm:inline">Mark read</span>
@@ -143,7 +143,7 @@ export default function NotificationBell() {
                   type="button"
                   onClick={clearAll}
                   title="Clear all notifications"
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -152,14 +152,14 @@ export default function NotificationBell() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex items-center gap-1 px-4 pt-2.5 pb-1 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 text-xs">
+          <div className="flex items-center gap-1 px-4 pt-2.5 pb-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-xs">
             <button
               type="button"
               onClick={() => setFilter('ALL')}
               className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
                 filter === 'ALL'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
               }`}
             >
               All ({notifications.length})
@@ -169,8 +169,8 @@ export default function NotificationBell() {
               onClick={() => setFilter('UNREAD')}
               className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
                 filter === 'UNREAD'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
               }`}
             >
               Unread ({unreadCount})
@@ -178,9 +178,9 @@ export default function NotificationBell() {
           </div>
 
           {/* Notifications List */}
-          <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/70">
+          <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
             {filteredList.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 dark:text-slate-500">
+              <div className="p-8 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900">
                 <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p className="text-xs font-semibold">
                   {filter === 'UNREAD' ? 'No unread notifications' : 'No notifications yet'}
@@ -194,10 +194,10 @@ export default function NotificationBell() {
                 <div
                   key={item.id}
                   onClick={() => handleItemClick(item)}
-                  className={`p-3.5 flex items-start gap-3 transition-colors cursor-pointer group hover:bg-blue-50/50 dark:hover:bg-slate-800/60 ${
+                  className={`p-3.5 flex items-start gap-3 transition-colors cursor-pointer group hover:bg-slate-50 dark:hover:bg-slate-800 ${
                     !item.is_read
-                      ? 'bg-blue-50/30 dark:bg-blue-950/20'
-                      : 'bg-transparent'
+                      ? 'bg-blue-50 dark:bg-blue-950/60'
+                      : 'bg-white dark:bg-slate-900'
                   }`}
                 >
                   <div
@@ -241,7 +241,7 @@ export default function NotificationBell() {
           </div>
 
           {/* Footer with Notification Center Navigation */}
-          <div className="p-3 bg-slate-50/90 dark:bg-slate-950/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
+          <div className="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
             <span className="text-[11px] text-slate-400 font-medium">Live Instant Feed</span>
             <button
               type="button"

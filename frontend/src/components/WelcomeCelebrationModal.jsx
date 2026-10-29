@@ -51,8 +51,8 @@ export default function WelcomeCelebrationModal() {
         <div className="absolute top-1/2 right-1/3 w-2 h-2 bg-rose-400 rounded-full animate-ping opacity-80" />
       </div>
 
-      {/* Main Glass Celebration Slab */}
-      <div className="relative w-full max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-3xl rounded-[2.5rem] border border-white/80 dark:border-slate-800 shadow-[0_30px_90px_-20px_rgba(37,99,235,0.4),0_0_60px_rgba(245,158,11,0.25)] p-7 sm:p-8 text-center overflow-hidden transform animate-scaleUp">
+      {/* Main Celebration Slab - 100% Solid Opaque Background */}
+      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl p-7 sm:p-8 text-center overflow-hidden transform animate-scaleUp">
         {/* Animated Celebration Ribbon Strip */}
         <div className="relative mx-auto w-24 h-24 mb-4 flex items-center justify-center">
           {/* Animated Ribbon Loops */}

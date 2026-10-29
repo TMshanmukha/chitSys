@@ -86,7 +86,7 @@ export default function ConfirmModal({
       }}
     >
       <div
-        className="w-full max-w-md bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl rounded-3xl border border-white/60 dark:border-slate-800/80 shadow-2xl overflow-hidden transition-all transform animate-confirmScale"
+        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-all transform animate-confirmScale"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
@@ -108,7 +108,7 @@ export default function ConfirmModal({
                   onClick={onClose}
                   disabled={isLoading}
                   aria-label="Close dialog"
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -119,7 +119,7 @@ export default function ConfirmModal({
               </p>
 
               {subtext && (
-                <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-500 dark:text-slate-400">
+                <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400">
                   {subtext}
                 </div>
               )}
@@ -128,13 +128,13 @@ export default function ConfirmModal({
         </div>
 
         {/* Modal Action Buttons */}
-        <div className="px-6 py-4 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
           <button
             type="button"
             id="confirm-modal-cancel-btn"
             onClick={onClose}
             disabled={isLoading}
-            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/80 transition-all active:scale-95 cursor-pointer"
+            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer"
           >
             {cancelLabel}
           </button>

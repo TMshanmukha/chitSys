@@ -339,7 +339,7 @@ export default function RouteTrackingPage() {
       </div>
 
       {/* Smart Chit Scheme Fast Finder & Grid (No more endless horizontal scrolling) */}
-      <div id="route-scheme-switcher" className="p-4 sm:p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 scroll-mt-6">
+      <div id="route-scheme-switcher" className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 scroll-mt-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Compass className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -407,7 +407,7 @@ export default function RouteTrackingPage() {
                     className={`p-3 rounded-xl text-left transition-all cursor-pointer card-interactive-elevate border ${
                       isSelected
                         ? 'bg-blue-50/90 dark:bg-blue-950/50 border-blue-500 text-blue-950 dark:text-blue-100 shadow-[0_8px_20px_-4px_rgba(37,99,235,0.25)] ring-1 ring-blue-500'
-                        : 'bg-white/70 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 hover:border-blue-400 text-slate-800 dark:text-slate-200'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-400 text-slate-800 dark:text-slate-200'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">

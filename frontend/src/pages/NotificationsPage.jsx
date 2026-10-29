@@ -237,7 +237,7 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-[0_8px_16px_-4px_rgba(59,130,246,0.4)]">
             <Bell className="w-6 h-6 animate-pulse" />
@@ -301,7 +301,7 @@ export default function NotificationsPage() {
 
       {/* KPI Overview Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-xs">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Feed</span>
           <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
             {stats.total}
@@ -309,7 +309,7 @@ export default function NotificationsPage() {
           <span className="text-[10px] text-slate-400">All alerts recorded</span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-xs">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[11px] font-bold text-rose-500 uppercase tracking-wider block">Unread Alerts</span>
           <div className="text-xl font-black text-rose-600 dark:text-rose-400 mt-1">
             {stats.unread}
@@ -317,7 +317,7 @@ export default function NotificationsPage() {
           <span className="text-[10px] text-slate-400">Requires attention</span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-xs">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider block">Auctions</span>
           <div className="text-xl font-black text-amber-600 dark:text-amber-400 mt-1">
             {stats.auctionCount}
@@ -325,7 +325,7 @@ export default function NotificationsPage() {
           <span className="text-[10px] text-slate-400">Prize & dividends</span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-xs">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider block">Collections</span>
           <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
             {stats.collectionCount}
@@ -333,7 +333,7 @@ export default function NotificationsPage() {
           <span className="text-[10px] text-slate-400">Payment receipts</span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-xs">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[11px] font-bold text-cyan-500 uppercase tracking-wider block">Route Pings</span>
           <div className="text-xl font-black text-cyan-600 dark:text-cyan-400 mt-1">
             {stats.routeCount}
@@ -341,7 +341,7 @@ export default function NotificationsPage() {
           <span className="text-[10px] text-slate-400">Agent route logs</span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-xs">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider block">Chit Schemes</span>
           <div className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
             {stats.schemeCount}
@@ -351,7 +351,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* Filter Tabs & Search Bar */}
-      <div className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-xs space-y-3">
+      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Category Filter Pills */}
           <div className="flex items-center gap-1.5 flex-wrap overflow-x-auto pb-1 text-xs">
@@ -454,7 +454,7 @@ export default function NotificationsPage() {
       {/* Main Notifications Feed List */}
       <div className="space-y-3.5">
         {filteredNotifications.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-slate-800/80 shadow-xs">
+          <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/40 text-blue-500 mx-auto flex items-center justify-center mb-3">
               <CheckCircle2 className="w-8 h-8 opacity-60" />
             </div>
@@ -485,10 +485,10 @@ export default function NotificationsPage() {
             return (
               <div
                 key={item.id}
-                className={`p-4 sm:p-5 rounded-3xl backdrop-blur-xl border transition-all duration-200 group hover:shadow-[0_12px_35px_-10px_rgba(0,0,0,0.08)] ${
+                className={`p-4 sm:p-5 rounded-3xl border transition-all duration-200 group hover:shadow-[0_12px_35px_-10px_rgba(0,0,0,0.08)] ${
                   isUnread
-                    ? 'bg-blue-50/40 dark:bg-slate-900/80 border-blue-300 dark:border-blue-900/60 shadow-[0_0_20px_rgba(59,130,246,0.06)]'
-                    : 'bg-white/75 dark:bg-slate-900/65 border-white/60 dark:border-slate-800/80'
+                    ? 'bg-blue-50/80 dark:bg-slate-900 border-blue-300 dark:border-blue-900 shadow-[0_0_20px_rgba(59,130,246,0.06)]'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
                 }`}
               >
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -571,8 +571,8 @@ export default function NotificationsPage() {
                 </div>
 
                 {/* Detailed Explanation Context Box */}
-                <div className="mt-3.5 pt-3.5 border-t border-slate-100 dark:border-slate-800/80">
-                  <div className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 flex items-start gap-2.5">
+                <div className="mt-3.5 pt-3.5 border-t border-slate-200 dark:border-slate-800">
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-start gap-2.5">
                     <div className="w-5 h-5 rounded-lg bg-blue-500/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
                       <Sparkles className="w-3 h-3" />
                     </div>
