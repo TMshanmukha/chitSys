@@ -37,16 +37,32 @@ SET @col_prized_exists := (
 
 SET @sql_prized := IF(@col_prized_exists = 0, 
   'ALTER TABLE group_memberships 
-     ADD COLUMN is_prized TINYINT(1) NOT NULL DEFAULT 0 AFTER status,
-     ADD COLUMN prized_period INT NULL AFTER is_prized,
-     ADD COLUMN prized_auction_id INT NULL AFTER prized_period,
-     ADD INDEX idx_gm_prized (group_id, is_prized)', 
+     ADD COLUMN is_prized TINYINT(1) NOT NULL DEFAULT 0,
+     ADD COLUMN prized_period INT NULL,
+     ADD COLUMN prized_auction_id INT NULL', 
   'SELECT 1'
 );
 
 PREPARE stmt_prized FROM @sql_prized;
 EXECUTE stmt_prized;
 DEALLOCATE PREPARE stmt_prized;
+
+SET @idx_prized_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'group_memberships'
+    AND INDEX_NAME = 'idx_gm_prized'
+);
+
+SET @sql_idx_prized := IF(@idx_prized_exists = 0,
+  'ALTER TABLE group_memberships ADD INDEX idx_gm_prized (group_id, is_prized)',
+  'SELECT 1'
+);
+
+PREPARE stmt_idx_prized FROM @sql_idx_prized;
+EXECUTE stmt_idx_prized;
+DEALLOCATE PREPARE stmt_idx_prized;
 
 -- 3. Add double_chit_reserve to auctions table
 SET @col_dcr_exists := (
@@ -59,7 +75,7 @@ SET @col_dcr_exists := (
 
 SET @sql_dcr := IF(@col_dcr_exists = 0, 
   'ALTER TABLE auctions 
-     ADD COLUMN double_chit_reserve DECIMAL(14, 2) NOT NULL DEFAULT 0.00 AFTER total_dividend', 
+     ADD COLUMN double_chit_reserve DECIMAL(14, 2) NOT NULL DEFAULT 0.00', 
   'SELECT 1'
 );
 

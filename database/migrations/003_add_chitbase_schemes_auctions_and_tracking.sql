@@ -3,11 +3,13 @@
 
 -- 1. Upgrade chit_groups table with ChitBase route classifications and scheme modes
 ALTER TABLE chit_groups
-  ADD COLUMN chit_type ENUM('DAILY_CHIT', 'AUCTION_CHIT', 'DOUBLE_CHIT') NOT NULL DEFAULT 'DAILY_CHIT' AFTER group_name,
-  ADD COLUMN route_category ENUM('DAILY_ROUTE', 'MONTHLY_ROUTE') NOT NULL DEFAULT 'DAILY_ROUTE' AFTER frequency,
-  ADD COLUMN foreman_commission_percent DECIMAL(5, 2) NOT NULL DEFAULT 5.00 AFTER total_members_limit,
-  ADD COLUMN max_bid_percent DECIMAL(5, 2) NOT NULL DEFAULT 35.00 AFTER foreman_commission_percent,
-  ADD COLUMN route_waypoints_json TEXT NULL AFTER max_bid_percent,
+  ADD COLUMN chit_type ENUM('DAILY_CHIT', 'AUCTION_CHIT', 'DOUBLE_CHIT') NOT NULL DEFAULT 'DAILY_CHIT',
+  ADD COLUMN route_category ENUM('DAILY_ROUTE', 'MONTHLY_ROUTE') NOT NULL DEFAULT 'DAILY_ROUTE',
+  ADD COLUMN foreman_commission_percent DECIMAL(5, 2) NOT NULL DEFAULT 5.00,
+  ADD COLUMN max_bid_percent DECIMAL(5, 2) NOT NULL DEFAULT 35.00,
+  ADD COLUMN route_waypoints_json TEXT NULL;
+
+ALTER TABLE chit_groups
   ADD INDEX idx_groups_chit_type (chit_type),
   ADD INDEX idx_groups_route_cat (route_category);
 

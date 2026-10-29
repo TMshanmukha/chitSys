@@ -24,6 +24,13 @@ export async function runMigrations() {
   });
 
   try {
+    // Enable TiDB Cloud multi-statement session mode if connected to TiDB
+    try {
+      await connection.query("SET SESSION tidb_multi_statement_mode='ON';");
+    } catch (_) {
+      // Standard MySQL does not require this
+    }
+
     // Step 2: Ensure database exists
     logger.info(`Ensuring database '${env.DB_NAME}' exists...`);
     try {

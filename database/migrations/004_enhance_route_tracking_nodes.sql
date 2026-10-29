@@ -14,10 +14,27 @@ SET @col_exists := (
 );
 
 SET @sql := IF(@col_exists = 0, 
-  'ALTER TABLE agent_tracking_logs ADD COLUMN member_id INT NULL AFTER stop_id, ADD INDEX idx_atl_member (member_id)', 
+  'ALTER TABLE agent_tracking_logs ADD COLUMN member_id INT NULL', 
   'SELECT 1'
 );
 
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'agent_tracking_logs'
+    AND INDEX_NAME = 'idx_atl_member'
+);
+
+SET @sql_idx := IF(@idx_exists = 0,
+  'ALTER TABLE agent_tracking_logs ADD INDEX idx_atl_member (member_id)',
+  'SELECT 1'
+);
+
+PREPARE stmt_idx FROM @sql_idx;
+EXECUTE stmt_idx;
+DEALLOCATE PREPARE stmt_idx;
