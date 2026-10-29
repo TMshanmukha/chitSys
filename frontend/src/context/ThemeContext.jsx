@@ -8,8 +8,8 @@ export function ThemeProvider({ children }) {
       const saved = localStorage.getItem('chitfund_theme');
       if (saved === 'dark' || saved === 'light') return saved;
     } catch (e) {}
-    // Default to light mode for clean white styling
-    return 'light';
+    // Default to dark mode for rich luxury dark gold aesthetic
+    return 'dark';
   });
 
   useEffect(() => {

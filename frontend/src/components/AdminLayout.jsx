@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import AnimatedChitBackground from './AnimatedChitBackground';
 import WelcomeCelebrationModal from './WelcomeCelebrationModal';
+import ErrorBoundary from './ErrorBoundary';
 
 const TITLE_MAP = {
   '/admin/dashboard': 'Operations Overview',
@@ -49,9 +50,11 @@ export default function AdminLayout() {
           pageTitle={currentTitle}
         />
 
-        {/* Page Content Outlet - Distinct Body Page Container */}
+        {/* Page Content Outlet - Distinct Body Page Container with Crash Protection */}
         <main className="flex-1 px-3 sm:px-6 lg:px-6 pb-8 max-w-7xl w-full mx-auto relative z-10 animate-pageSlideIn">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

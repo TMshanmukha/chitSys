@@ -24,16 +24,18 @@ import NotificationsPage from './pages/NotificationsPage';
 import NotFound from './pages/NotFound';
 
 import ScrollToTop from './components/ScrollToTop';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <BrowserRouter>
-            {/* Automatic smooth window move to top on every page transition */}
-            <ScrollToTop />
-            <Routes>
+          <ErrorBoundary>
+            <BrowserRouter>
+              {/* Automatic smooth window move to top on every page transition */}
+              <ScrollToTop />
+              <Routes>
             {/* Default entry redirect */}
             <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -82,6 +84,7 @@ export default function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+          </ErrorBoundary>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
