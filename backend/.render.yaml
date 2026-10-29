@@ -1,0 +1,20 @@
+# Render configuration for the Chit Fund Management backend
+services:
+  - type: web
+    name: chitfund-backend
+    env: node
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      NODE_ENV: production
+      FRONTEND_ORIGIN: https://<YOUR_FRONTEND_URL>
+      DB_HOST: gateway01.ap-southeast-1.prod.aws.tidbcloud.com
+      DB_PORT: 4000
+      DB_USER: 2KCEmq73dsQ6pbZ.root
+      DB_PASSWORD: LIqvh0Rojs2HVK61
+      DB_NAME: chitfund_db
+      DB_CONNECTION_LIMIT: 10
+      DB_SSL: true
+      DB_SSL_CA_PATH: ./certs/isrgrootx1 (3).pem
+      AUTO_MIGRATE: true
