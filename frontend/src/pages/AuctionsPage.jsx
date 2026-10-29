@@ -178,7 +178,7 @@ export default function AuctionsPage() {
 
   // Selected group object in modal form
   const selectedGroup = groups.find((g) => String(g.id) === String(form.group_id));
-  const isDoubleChitScheme = selectedGroup?.chit_type === 'DOUBLE_CHIT' || form.auction_type === 'DOUBLE_CHIT_DRAW';
+  const isDoubleChitScheme = selectedGroup?.chit_type === 'DOUBLE_CHIT';
   const isDraw1 = String(form.draw_number) === '1';
 
   // Live Calculations in Modal
@@ -188,16 +188,18 @@ export default function AuctionsPage() {
   const commissionPercent = selectedGroup ? parseFloat(selectedGroup.foreman_commission_percent || 5) : 5;
 
   const bidDiscount = parseFloat(form.bid_discount || 0);
-  // Foreman Commission: Applied strictly to total pool / winner amount. 0% commission on dividend!
-  const foremanCommission = parseFloat(((poolAmount * commissionPercent) / 100).toFixed(2));
+  // Admin Commission: 5% of the winning auction discount amount (e.g. ₹4,000 * 5% = ₹200)
+  const foremanCommission = parseFloat(((bidDiscount * commissionPercent) / 100).toFixed(2));
   const netPayablePrize = Math.max(0, parseFloat((poolAmount - bidDiscount).toFixed(2)));
   const netRemainingSurplus = Math.max(0, parseFloat((bidDiscount - foremanCommission).toFixed(2)));
 
-  // In Double Chit Draw #1, surplus is retained in chit pool reserve for Draw #2 / remaining persons:
-  const modalDoubleChitReserve = isDoubleChitScheme && isDraw1 ? netRemainingSurplus : 0;
-  const modalTotalDividend = isDoubleChitScheme && isDraw1 ? 0 : netRemainingSurplus;
-  const modalDividendPerMember = totalMembers > 0 ? parseFloat((modalTotalDividend / totalMembers).toFixed(2)) : 0;
-  const modalNextInstallment = Math.max(0, parseFloat((baseInstallment - modalDividendPerMember).toFixed(2)));
+  // Financial routing:
+  // - AUCTION_CHIT: Surplus is divided equally among members and credited to passbook
+  // - DOUBLE_CHIT: Surplus is NOT divided (0 dividend, 0 passbook entry); retained in this chitti reserve pool so eligible members can win it!
+  const modalDoubleChitReserve = isDoubleChitScheme ? netRemainingSurplus : 0;
+  const modalTotalDividend = isDoubleChitScheme ? 0 : netRemainingSurplus;
+  const modalDividendPerMember = (!isDoubleChitScheme && totalMembers > 0) ? parseFloat((modalTotalDividend / totalMembers).toFixed(2)) : 0;
+  const modalNextInstallment = isDoubleChitScheme ? baseInstallment : Math.max(0, parseFloat((baseInstallment - modalDividendPerMember).toFixed(2)));
 
   const filteredAuctions = auctions.filter((auc) => {
     if (!searchQuery.trim()) return true;
@@ -493,9 +495,9 @@ export default function AuctionsPage() {
                     <span>Reverse Auction Prize & Admin Commission Calculation</span>
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
-                    The reverse auction is won by the subscriber with the highest bid discount. Admin fills and pays that prize money (<strong>Total Pool − Bid Discount</strong>).
-                    Foreman commission ({schemeBreakdown.group.foreman_commission_percent}%) applies <strong>only</strong> to the winner amount / total pool.
-                    <strong> 0% commission is charged on distributed dividends</strong>; the remaining discount is credited to subscribers without any deduction.
+                    The reverse auction is won by the subscriber with the highest bid discount. Winner receives (<strong>Total Pool − Bid Discount</strong>).
+                    Admin receives <strong>5% commission on the auction discount amount</strong> (e.g. ₹4,000 discount yields ₹200 admin commission).
+                    For Auction Chits, the remaining surplus (₹3,800) is distributed equally among members and credited directly to subscriber passbooks.
                   </p>
                 </div>
 
@@ -515,7 +517,7 @@ export default function AuctionsPage() {
                   <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
                     {schemeBreakdown.group.chit_type === 'DOUBLE_CHIT' ? (
                       <>
-                        In Double Chit, the remaining amount from Draw #1 is <strong>saved in the chit pool reserve</strong> rather than distributed equally, so it can be auctioned again for remaining persons in Draw #2.
+                        In Double Chit, the remaining amount is <strong>kept in this chitti reserve pool</strong> rather than divided among members (0 passbook dividend), so eligible unprized subscribers can win that amount in upcoming draws!
                         Any member who has won an auction in this chit is <strong>strictly disqualified from participating in subsequent auctions</strong>.
                       </>
                     ) : (
@@ -1114,19 +1116,35 @@ export default function AuctionsPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5 font-heading">
-                    Draw / Slot Type *
-                  </label>
-                  <select
-                    value={form.draw_number}
-                    onChange={(e) => setForm({ ...form, draw_number: e.target.value })}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                  >
-                    <option value="1">Draw #1 (Auction Round / Primary Draw)</option>
-                    <option value="2">Draw #2 (Double Chit Slot / Secondary Draw)</option>
-                  </select>
-                </div>
+                {isDoubleChitScheme ? (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5 font-heading">
+                      Draw / Slot Type *
+                    </label>
+                    <select
+                      value={form.draw_number}
+                      onChange={(e) => setForm({ ...form, draw_number: e.target.value })}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    >
+                      <option value="1">Draw #1 (Primary Lucky Draw)</option>
+                      <option value="2">Draw #2 (Double Chit Slot / Auction Draw)</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5 font-heading">
+                      Auction Format
+                    </label>
+                    <div className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold">
+                        <span>🔨</span> Standard Reverse Auction
+                      </span>
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold">
+                        Fixed 1 Draw / Cycle
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Winner Selection (Strict Disqualification of Previous Winners) */}
@@ -1207,16 +1225,16 @@ export default function AuctionsPage() {
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-blue-900 dark:text-blue-300 uppercase tracking-wider text-xs flex items-center gap-2 font-heading">
                     <Sparkles className="w-4 h-4 text-blue-600" />
-                    Live Reverse Auction Financial Breakdown
+                    {isDoubleChitScheme ? 'Double Chit Financial Distribution Preview' : 'Auction Chit Financial Breakdown'}
                   </span>
-                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 font-heading">
-                    0% Commission on Dividends
+                  <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 font-heading">
+                    Admin Commission: {commissionPercent}% of Bid Discount
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
                   <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                    <span className="text-slate-500 block text-xs font-medium">Net Prize (Filled by Admin)</span>
+                    <span className="text-slate-500 block text-xs font-medium">Net Prize (To Winner)</span>
                     <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 font-heading">
                       ₹{netPayablePrize.toLocaleString('en-IN')}
                     </span>
@@ -1224,42 +1242,42 @@ export default function AuctionsPage() {
                   </div>
 
                   <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                    <span className="text-slate-500 block text-xs font-medium">Foreman Commission</span>
-                    <span className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-200 font-heading">
+                    <span className="text-slate-500 block text-xs font-medium">Admin Commission (5%)</span>
+                    <span className="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400 font-heading">
                       ₹{foremanCommission.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">{commissionPercent}% on winner pool only</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">{commissionPercent}% of ₹{bidDiscount.toLocaleString('en-IN')}</span>
                   </div>
 
-                  {isDoubleChitScheme && isDraw1 ? (
+                  {isDoubleChitScheme ? (
                     <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-purple-200/80 dark:border-purple-800/60">
                       <span className="text-purple-600 dark:text-purple-400 block text-xs font-bold font-heading">
-                        Retained in Chit Pool Reserve
+                        Chit Pool Reserve (Kept in Chitti)
                       </span>
                       <span className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 font-heading">
                         ₹{modalDoubleChitReserve.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[10px] text-purple-500 block mt-0.5">Held for Draw #2</span>
+                      <span className="text-[10px] text-purple-500 block mt-0.5">Eligible members can win in upcoming rounds (0 passbook dividend)</span>
                     </div>
                   ) : (
-                    <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-emerald-200/80 dark:border-emerald-800/60">
                       <span className="text-slate-500 block text-xs font-medium">Dividend / Member</span>
                       <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-heading">
                         ₹{modalDividendPerMember.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[10px] text-slate-400 block mt-0.5">Equal split (0% commission)</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5">₹{modalTotalDividend.toLocaleString('en-IN')} ÷ {totalMembers} members (Sent to Passbook)</span>
                     </div>
                   )}
 
                   <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
                     <span className="text-slate-500 block text-xs font-medium">
-                      {selectedGroup?.frequency === 'DAILY' ? 'Next Day Installment' : 'Next Month Installment'}
+                      {selectedGroup?.frequency === 'DAILY' ? 'Next Day Due' : 'Next Month Due'}
                     </span>
                     <span className="text-lg font-black text-slate-900 dark:text-white font-heading">
                       ₹{modalNextInstallment.toLocaleString('en-IN')}
                     </span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
-                      {isDoubleChitScheme && isDraw1 ? 'Full base installment' : 'Base − Dividend'}
+                      {isDoubleChitScheme ? 'Full base installment' : 'Base Installment − Dividend'}
                     </span>
                   </div>
                 </div>

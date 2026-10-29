@@ -80,14 +80,14 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     await pool.end();
   });
 
-  await t.test('1. Conducts Reverse Auction: 5% Commission on pool only, 0% on dividend, persists to member_dividends', async () => {
+  await t.test('1. Conducts Reverse Auction: 5% Commission on auction amount, distributes surplus to passbook', async () => {
     // Bid discount = ₹25,000
     // Pool = ₹1,00,000
     // Winner Net Prize = Pool - Bid Discount = ₹75,000
-    // Foreman Commission (5% of 1,00,000) = ₹5,000
-    // Total Dividend = Bid Discount - Foreman Commission = 25,000 - 5,000 = ₹20,000
-    // Dividend per member (20 members) = 20,000 / 20 = ₹1,000
-    // Next Installment Due = 5,000 - 1,000 = ₹4,000
+    // Foreman Commission (5% of 25,000) = ₹1,250
+    // Total Dividend = Bid Discount - Foreman Commission = 25,000 - 1,250 = ₹23,750
+    // Dividend per member (20 members) = 23,750 / 20 = ₹1,187.50
+    // Next Installment Due = 5,000 - 1,187.50 = ₹3,812.50
 
     let capturedStatus;
     let capturedJson;
@@ -125,12 +125,12 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     assert.equal(capturedStatus, 201);
     assert.equal(capturedJson.success, true);
     assert.equal(capturedJson.data.netPayableAmount, 75000);
-    assert.equal(capturedJson.data.foremanCommission, 5000);
-    assert.equal(capturedJson.data.totalDividend, 20000);
-    assert.equal(capturedJson.data.dividendPerMember, 1000);
-    assert.equal(capturedJson.data.nextInstallmentPayable, 4000);
+    assert.equal(capturedJson.data.foremanCommission, 1250);
+    assert.equal(capturedJson.data.totalDividend, 23750);
+    assert.equal(capturedJson.data.dividendPerMember, 1187.50);
+    assert.equal(capturedJson.data.nextInstallmentPayable, 3812.50);
 
-    // Verify member_dividends rows created for all enrolled members
+    // Verify member_dividends rows created for all enrolled members in Auction Chit
     const [divRows] = await pool.execute(
       'SELECT * FROM member_dividends WHERE group_id = ? AND period_number = 1',
       [testGroupId]
@@ -139,14 +139,14 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
 
     const m1Div = divRows.find((d) => d.member_id === testMember1Id);
     assert.ok(m1Div);
-    assert.equal(parseFloat(m1Div.dividend_amount), 1000);
-    assert.equal(parseFloat(m1Div.net_installment_due), 4000);
+    assert.equal(parseFloat(m1Div.dividend_amount), 1187.50);
+    assert.equal(parseFloat(m1Div.net_installment_due), 3812.50);
     assert.equal(m1Div.is_prized, 1);
 
     const m2Div = divRows.find((d) => d.member_id === testMember2Id);
     assert.ok(m2Div);
-    assert.equal(parseFloat(m2Div.dividend_amount), 1000);
-    assert.equal(parseFloat(m2Div.net_installment_due), 4000);
+    assert.equal(parseFloat(m2Div.dividend_amount), 1187.50);
+    assert.equal(parseFloat(m2Div.net_installment_due), 3812.50);
   });
 
   await t.test('2. Disqualifies previous winner from bidding again in the same chit scheme', async () => {
@@ -238,10 +238,14 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     assert.equal(capturedStatus, 201);
     assert.equal(capturedJson.success, true);
     assert.equal(capturedJson.data.netPayableAmount, 160000); // 200,000 - 40,000
-    assert.equal(capturedJson.data.foremanCommission, 10000);
-    assert.equal(capturedJson.data.doubleChitReserve, 30000); // RETAINED IN CHIT POOL
-    assert.equal(capturedJson.data.totalDividend, 0); // NOT DISTRIBUTED YET
+    assert.equal(capturedJson.data.foremanCommission, 2000); // 5% of 40,000
+    assert.equal(capturedJson.data.doubleChitReserve, 38000); // RETAINED IN CHIT POOL RESERVE
+    assert.equal(capturedJson.data.totalDividend, 0); // NOT DIVIDED AMONG MEMBERS
     assert.equal(capturedJson.data.dividendPerMember, 0);
+
+    // Verify Double Chit does NOT insert passbook dividend rows
+    const [dblDivs] = await pool.execute('SELECT * FROM member_dividends WHERE group_id = ?', [dblGroupId]);
+    assert.equal(dblDivs.length, 0);
 
     // Clean up double chit
     await pool.execute('DELETE FROM member_dividends WHERE group_id = ?', [dblGroupId]);
@@ -283,6 +287,6 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
 
     const winnerSub = capturedJson.data.subscribers.find((s) => s.member_id === testMember1Id);
     assert.equal(winnerSub.is_prized, 1);
-    assert.equal(parseFloat(winnerSub.total_dividend_credited), 1000);
+    assert.equal(parseFloat(winnerSub.total_dividend_credited), 1187.50);
   });
 });

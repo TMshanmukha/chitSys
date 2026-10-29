@@ -253,7 +253,7 @@ export async function getMemberPassbook(req, res, next) {
        FROM member_dividends md
        JOIN chit_groups g ON md.group_id = g.id
        JOIN auctions a ON md.auction_id = a.id
-       WHERE md.member_id = ?
+       WHERE md.member_id = ? AND g.chit_type = 'AUCTION_CHIT' AND md.dividend_amount > 0
        ORDER BY md.credited_date DESC, md.period_number DESC`,
       [id]
     );

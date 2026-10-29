@@ -133,37 +133,54 @@ export async function conductAuction(req, res, next) {
       });
     }
 
-    // 4. Calculate ChitBase Financials:
-    // Foreman Commission = Total Pool Amount * (Foreman Commission % / 100)
-    // CRITICAL: Commission is applied strictly to the total pool / winner amount. 0% commission is taken from distributed dividends!
+    // 4. Calculate ChitBase Financials according to business rules:
+    // User Specification:
+    // Admin gets 5% commission on the auction discount amount (e.g., if winner discount is ₹4,000, admin gets 5% = ₹200).
+    // Remaining surplus (₹3,800) is handled based on chit mechanism:
+    // - AUCTION_CHIT: Remaining surplus is divided equally among members (₹3,800 / totalMembers) and credited to passbook (reducing next installment).
+    // - DOUBLE_CHIT: Remaining surplus is NOT divided (0 dividend, 0 passbook records); it is kept in that respective chitti pool reserve (doubleChitReserve) so eligible unprized members can win it in subsequent draws!
     const poolAmount = parseFloat(group.total_pool_amount);
+    const bidDiscount = parseFloat(validated.bid_discount || 0);
     const commissionPercent = parseFloat(group.foreman_commission_percent || 5);
-    const foremanCommission = parseFloat(((poolAmount * commissionPercent) / 100).toFixed(2));
+
+    // Admin Commission: 5% applied directly to the auction discount amount
+    const foremanCommission = parseFloat(((bidDiscount * commissionPercent) / 100).toFixed(2));
 
     // Net prize money payable to winning subscriber = Total Pool Amount - Bid Discount
-    const netPayableAmount = Math.max(0, parseFloat((poolAmount - validated.bid_discount).toFixed(2)));
+    const netPayableAmount = Math.max(0, parseFloat((poolAmount - bidDiscount).toFixed(2)));
+
+    // Remaining surplus after 5% admin commission
+    const netRemainingSurplus = Math.max(0, parseFloat((bidDiscount - foremanCommission).toFixed(2)));
 
     // Total members in group (denominator for dividend share)
     const totalMembers = parseInt(group.total_members_limit || 20, 10);
 
-    // Double Chit vs Standard Auction Handling:
-    // In Monthly or Daily Double Chit, Draw #1 remaining amount is saved/retained in the chit pool reserve for Draw #2 / remaining subscribers.
+    // Strictly two types: AUCTION_CHIT vs DOUBLE_CHIT
     const isDoubleChit = group.chit_type === 'DOUBLE_CHIT' || validated.auction_type === 'DOUBLE_CHIT_DRAW';
+
+    let finalDrawNumber = validated.draw_number;
+    let finalAuctionType = validated.auction_type;
     let totalDividend = 0.00;
     let doubleChitReserve = 0.00;
     let dividendPerMember = 0.00;
     let nextInstallmentPayable = parseFloat(group.installment_amount);
 
-    const netRemainingSurplus = Math.max(0, parseFloat((validated.bid_discount - foremanCommission).toFixed(2)));
-
-    if (isDoubleChit && validated.draw_number === 1) {
-      // Draw #1: Retain in chit pool reserve for remaining subscribers (Draw #2)
+    if (isDoubleChit) {
+      // DOUBLE CHIT:
+      // Do NOT divide the remaining amount among members! Total dividend = 0.
+      // Retain full surplus in this chitti reserve pool so eligible unprized members can win it!
       doubleChitReserve = netRemainingSurplus;
       totalDividend = 0.00;
       dividendPerMember = 0.00;
       nextInstallmentPayable = parseFloat(group.installment_amount);
+      if (!finalAuctionType || finalAuctionType === 'AUCTION') {
+        finalAuctionType = 'DOUBLE_CHIT_DRAW';
+      }
     } else {
-      // Standard Reverse Auction or Double Chit Draw #2: Distribute dividend equally to all subscribers
+      // AUCTION CHIT:
+      // Single auction round per period (no Draw #1 / Draw #2 choice)
+      finalDrawNumber = 1;
+      finalAuctionType = 'AUCTION';
       doubleChitReserve = 0.00;
       totalDividend = netRemainingSurplus;
       dividendPerMember = totalMembers > 0 ? parseFloat((totalDividend / totalMembers).toFixed(2)) : 0.00;
@@ -180,8 +197,8 @@ export async function conductAuction(req, res, next) {
       [
         validated.group_id,
         validated.period_number,
-        validated.draw_number,
-        validated.auction_type,
+        finalDrawNumber,
+        finalAuctionType,
         validated.winning_member_id,
         validated.winning_ticket_number,
         validated.bid_discount,
@@ -205,41 +222,43 @@ export async function conductAuction(req, res, next) {
       [validated.period_number, auctionId, validated.group_id, validated.winning_member_id]
     );
 
-    // 7. Persist distributed dividend into EVERY member's personal information (member_dividends table)
-    const [enrolledMembers] = await pool.execute(
-      'SELECT member_id, ticket_number, is_prized FROM group_memberships WHERE group_id = ?',
-      [validated.group_id]
-    );
-
-    for (const mem of enrolledMembers) {
-      const isWinner = mem.member_id === validated.winning_member_id;
-      const alreadyPrized = isWinner || mem.is_prized === 1;
-
-      await pool.execute(
-        `INSERT INTO member_dividends
-          (auction_id, group_id, member_id, ticket_number, period_number, draw_number,
-           dividend_amount, net_installment_due, credited_date, is_prized, status, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREDITED', ?)
-         ON DUPLICATE KEY UPDATE 
-           dividend_amount = VALUES(dividend_amount),
-           net_installment_due = VALUES(net_installment_due),
-           is_prized = VALUES(is_prized)`,
-        [
-          auctionId,
-          validated.group_id,
-          mem.member_id,
-          mem.ticket_number,
-          validated.period_number,
-          validated.draw_number,
-          dividendPerMember,
-          nextInstallmentPayable,
-          validated.auction_date,
-          alreadyPrized ? 1 : 0,
-          isDoubleChit && validated.draw_number === 1
-            ? 'Double Chit Draw #1 - Remaining discount retained in Chit Pool Reserve for Draw #2'
-            : (isWinner ? 'Prize Winner in this Round' : 'Subscriber Dividend Credited Equally'),
-        ]
+    // 7. Persist distributed dividend into subscriber passbook (member_dividends table)
+    // STRICT RULE: Record goes to passbook ONLY IF IT IS AN AUCTION CHIT with dividend > 0
+    // Double Chit never creates passbook dividend records.
+    if (!isDoubleChit && totalDividend > 0) {
+      const [enrolledMembers] = await pool.execute(
+        'SELECT member_id, ticket_number, is_prized FROM group_memberships WHERE group_id = ?',
+        [validated.group_id]
       );
+
+      for (const mem of enrolledMembers) {
+        const isWinner = mem.member_id === validated.winning_member_id;
+        const alreadyPrized = isWinner || mem.is_prized === 1;
+
+        await pool.execute(
+          `INSERT INTO member_dividends
+            (auction_id, group_id, member_id, ticket_number, period_number, draw_number,
+             dividend_amount, net_installment_due, credited_date, is_prized, status, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREDITED', ?)
+           ON DUPLICATE KEY UPDATE 
+             dividend_amount = VALUES(dividend_amount),
+             net_installment_due = VALUES(net_installment_due),
+             is_prized = VALUES(is_prized)`,
+          [
+            auctionId,
+            validated.group_id,
+            mem.member_id,
+            mem.ticket_number,
+            validated.period_number,
+            finalDrawNumber,
+            dividendPerMember,
+            nextInstallmentPayable,
+            validated.auction_date,
+            alreadyPrized ? 1 : 0,
+            isWinner ? 'Prize Winner in this Round' : 'Subscriber Dividend Credited Equally',
+          ]
+        );
+      }
     }
 
     // 8. Generate payout voucher record for the winning member
@@ -261,7 +280,7 @@ export async function conductAuction(req, res, next) {
         netPayableAmount,
         validated.auction_date,
         req.user.id,
-        `Auction Month ${validated.period_number} Draw ${validated.draw_number} (${validated.auction_type})`,
+        `Auction Month ${validated.period_number} Draw ${finalDrawNumber} (${finalAuctionType})`,
       ]
     );
 
@@ -273,10 +292,11 @@ export async function conductAuction(req, res, next) {
         auctionId,
         groupId: validated.group_id,
         period: validated.period_number,
-        draw: validated.draw_number,
-        type: validated.auction_type,
+        draw: finalDrawNumber,
+        type: finalAuctionType,
         winnerId: validated.winning_member_id,
         netPayable: netPayableAmount,
+        foremanCommission,
         dividendPerMember,
         doubleChitReserve,
       },
@@ -285,16 +305,16 @@ export async function conductAuction(req, res, next) {
     await createNotification({
       targetRole: 'ALL',
       title: `🏆 Auction Won: ${group.group_name || group.name || 'Chit Scheme'}`,
-      message: `Winner: ${winnerName} · Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')}${dividendPerMember > 0 ? ` · Dividend: ₹${dividendPerMember}/member` : ''}`,
+      message: `Winner: ${winnerName} · Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')}${dividendPerMember > 0 ? ` · Dividend: ₹${dividendPerMember}/member (Credited to Passbook)` : ` · Surplus: ₹${doubleChitReserve.toLocaleString('en-IN')} retained in Chit Pool Reserve`}`,
       type: 'AUCTION',
       link: '/admin/auctions',
     });
 
     res.status(201).json({
       success: true,
-      message: isDoubleChit && validated.draw_number === 1
-        ? `Double Chit Round #${validated.period_number} Draw #1 conducted successfully. Remaining surplus of ₹${doubleChitReserve.toLocaleString('en-IN')} retained in Chit Pool Reserve for Draw #2.`
-        : `Auction for Round #${validated.period_number} conducted successfully. Dividend of ₹${dividendPerMember}/member credited to all enrolled subscribers.`,
+      message: isDoubleChit
+        ? `Double Chit Round #${validated.period_number} Draw #${finalDrawNumber} conducted successfully. 5% admin commission (₹${foremanCommission.toLocaleString('en-IN')}) taken, remaining surplus of ₹${doubleChitReserve.toLocaleString('en-IN')} retained in this chitti reserve pool for eligible unprized members.`
+        : `Auction for Round #${validated.period_number} conducted successfully. 5% admin commission of ₹${foremanCommission.toLocaleString('en-IN')} deducted from auction discount, remaining ₹${totalDividend.toLocaleString('en-IN')} divided equally among all ${totalMembers} members (₹${dividendPerMember}/member) and credited to their passbooks.`,
       data: {
         auctionId,
         payoutNumber,

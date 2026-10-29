@@ -80,17 +80,17 @@ export async function listGroups(req, res, next) {
 
 export async function createGroup(req, res, next) {
   try {
-    // Derive frequency & route_category - Supports Daily Auction Chit, Daily Double Chit, Daily Standard Chit, and Monthly counterparts
+    // Strictly two chit types: AUCTION_CHIT and DOUBLE_CHIT for both Daily and Monthly cycles
+    const normalizedChitType = req.body.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT' : 'AUCTION_CHIT';
+
     let derivedFrequency = req.body.frequency;
     let derivedRouteCategory = req.body.route_category;
 
     if (!derivedFrequency) {
       if (derivedRouteCategory === 'MONTHLY_ROUTE') {
         derivedFrequency = 'MONTHLY';
-      } else if (derivedRouteCategory === 'DAILY_ROUTE') {
-        derivedFrequency = 'DAILY';
       } else {
-        derivedFrequency = req.body.chit_type === 'DAILY_CHIT' ? 'DAILY' : 'MONTHLY';
+        derivedFrequency = 'DAILY';
       }
     }
 
@@ -100,6 +100,7 @@ export async function createGroup(req, res, next) {
 
     const validated = groupSchema.parse({
       ...req.body,
+      chit_type: normalizedChitType,
       route_category: derivedRouteCategory,
       frequency: derivedFrequency,
       installment_amount: parseFloat(req.body.installment_amount),
@@ -114,7 +115,7 @@ export async function createGroup(req, res, next) {
     let finalGroupCode = validated.group_code;
     if (!finalGroupCode || finalGroupCode.trim() === '') {
       const isDaily = validated.frequency === 'DAILY' || validated.route_category === 'DAILY_ROUTE';
-      const typeCode = validated.chit_type === 'DOUBLE_CHIT' ? 'DBL' : validated.chit_type === 'AUCTION_CHIT' ? 'AUC' : 'STD';
+      const typeCode = validated.chit_type === 'DOUBLE_CHIT' ? 'DBL' : 'AUC';
       const prefix = isDaily ? `DLY-${typeCode}` : `MTH-${typeCode}`;
       finalGroupCode = `${prefix}-${Math.floor(100 + Math.random() * 900)}`;
     }

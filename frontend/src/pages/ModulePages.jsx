@@ -779,10 +779,10 @@ export function ChitGroupsPage() {
                 <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Select Scheme Mechanism (Enabled for {form.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Cycle'}) *
+                      Select Scheme Mechanism (Strictly 2 Types · Selection is Final Once Created) *
                     </label>
                     <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold font-mono">
-                      {form.frequency === 'DAILY' ? 'Daily Collection' : 'Monthly Collection'}
+                      {form.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Cycle'}
                     </span>
                   </div>
 
@@ -796,12 +796,17 @@ export function ChitGroupsPage() {
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      <div className="font-bold text-sm sm:text-base flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                        <span>🔨</span>
-                        <span>Auction Chit</span>
+                      <div className="font-bold text-sm sm:text-base flex items-center justify-between text-emerald-700 dark:text-emerald-300">
+                        <div className="flex items-center gap-2">
+                          <span>🔨</span>
+                          <span>Auction Chit</span>
+                        </div>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
+                          Single Draw
+                        </span>
                       </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        Competitive reverse bidding auction every cycle with 5% foreman commission & dividend distributed equally to all enrolled subscribers
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                        Reverse auction every cycle. Admin gets 5% of bid discount; remaining surplus is divided equally among members and credited directly to subscriber passbooks (reduces next installment).
                       </div>
                     </button>
 
@@ -814,12 +819,17 @@ export function ChitGroupsPage() {
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      <div className="font-bold text-sm sm:text-base flex items-center gap-2 text-purple-700 dark:text-purple-300">
-                        <span>⚡</span>
-                        <span>Double Chit</span>
+                      <div className="font-bold text-sm sm:text-base flex items-center justify-between text-purple-700 dark:text-purple-300">
+                        <div className="flex items-center gap-2">
+                          <span>⚡</span>
+                          <span>Double Chit</span>
+                        </div>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300">
+                          Dual Draw Slot
+                        </span>
                       </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        Dual winner auctions per cycle with auction discount retained in the scheme pool for accelerated second-tier bidding rounds
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                        Dual draws per cycle. Admin gets 5% of bid discount. Remaining surplus is retained in this chitti reserve pool so eligible persons can win it in upcoming draws (0 passbook dividend).
                       </div>
                     </button>
                   </div>
