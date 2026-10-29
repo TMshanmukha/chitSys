@@ -38,6 +38,11 @@ import {
   ExternalLink,
   FileText,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Coins,
+  Users,
+  Filter,
 } from 'lucide-react';
 import { formatDate, formatTime } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
@@ -70,6 +75,11 @@ export default function AgentDashboard() {
 
   // Separation of Daily vs Monthly Chits
   const [routeCategoryFilter, setRouteCategoryFilter] = useState('ALL'); // 'ALL' | 'DAILY_CHIT' | 'MONTHLY_CHIT'
+
+  // Per-Chit Separation States (Ensures every chit differs and is never mixed)
+  const [taskChitFilter, setTaskChitFilter] = useState('ALL'); // 'ALL' | groupId
+  const [profileChitFilter, setProfileChitFilter] = useState('ALL'); // 'ALL' | 'DAILY' | 'AUCTION' | 'DOUBLE'
+  const [expandedProfileChitId, setExpandedProfileChitId] = useState(null);
 
   // Monthly Chit 1st-of-Month Schedule Logic:
   // "make sure the montly chits is only collected only one time in a month on 1st of every month , if 1st then the chitt should appear on agent profile other wise it should not kk naa, every day tasks it should come thats it kk naa"
@@ -190,6 +200,7 @@ export default function AgentDashboard() {
   const filteredTasks = useMemo(() => {
     return tasksList.filter((t) => {
       if (taskFrequencyFilter !== 'ALL' && t.frequency !== taskFrequencyFilter) return false;
+      if (taskChitFilter !== 'ALL' && String(t.groupId) !== String(taskChitFilter)) return false;
       if (taskFilter === 'PENDING' && t.isPaid) return false;
       if (taskFilter === 'COMPLETED' && !t.isPaid) return false;
       if (taskFilter === 'REMARKS' && !t.hasCustomRemark) return false;
@@ -208,7 +219,111 @@ export default function AgentDashboard() {
 
       return true;
     });
-  }, [tasksList, taskFilter, taskFrequencyFilter, taskSearch]);
+  }, [tasksList, taskFilter, taskFrequencyFilter, taskChitFilter, taskSearch]);
+
+  // Group tasks strictly by Chit Scheme so the agent never gets confused
+  const tasksByGroup = useMemo(() => {
+    const groupsMap = {};
+    (routesData.groups || []).forEach((g) => {
+      const isDaily = g.frequency === 'DAILY';
+      if (!isDaily && !isCollectionDayForMonthly) return;
+
+      groupsMap[g.id] = {
+        group: g,
+        tasks: [],
+      };
+    });
+
+    filteredTasks.forEach((t) => {
+      if (groupsMap[t.groupId]) {
+        groupsMap[t.groupId].tasks.push(t);
+      }
+    });
+
+    return Object.values(groupsMap).filter((item) => {
+      if (taskChitFilter !== 'ALL' && String(item.group.id) !== String(taskChitFilter)) {
+        return false;
+      }
+      return item.tasks.length > 0;
+    });
+  }, [routesData.groups, filteredTasks, taskChitFilter, isCollectionDayForMonthly]);
+
+  // Calculate distinct financial stats for any single chit scheme
+  const getGroupStats = (group) => {
+    const groupMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
+    const paidMembers = groupMembers.filter((m) => m.is_paid || m.today_status === 'PAID');
+    const unpaidMembers = groupMembers.filter((m) => !m.is_paid && m.today_status !== 'PAID');
+    const isDaily = group.frequency === 'DAILY';
+    const isDue = isDaily || isCollectionDayForMonthly;
+
+    const installmentAmt = Number(group.installment_amount || 0);
+    const targetExpected = isDue ? groupMembers.length * installmentAmt : 0;
+
+    const cashCollected = paidMembers
+      .filter((m) => m.payment_method === 'CASH')
+      .reduce((sum, m) => sum + Number(m.collected_amount || installmentAmt), 0);
+
+    const onlineCollected = paidMembers
+      .filter((m) => m.payment_method !== 'CASH')
+      .reduce((sum, m) => sum + Number(m.collected_amount || installmentAmt), 0);
+
+    const totalCollected = cashCollected + onlineCollected;
+    const pendingAmount = Math.max(0, targetExpected - totalCollected);
+    const progressPercent = targetExpected > 0 ? Math.round((totalCollected / targetExpected) * 100) : (totalCollected > 0 ? 100 : 0);
+
+    const isAuction = group.frequency === 'MONTHLY' && group.chit_type !== 'DOUBLE_CHIT';
+    const isDouble = group.chit_type === 'DOUBLE_CHIT' || (group.frequency === 'MONTHLY' && (group.group_name || '').toLowerCase().includes('double'));
+
+    return {
+      groupMembers,
+      paidMembers,
+      unpaidMembers,
+      isDaily,
+      isAuction,
+      isDouble,
+      isDue,
+      targetExpected,
+      cashCollected,
+      onlineCollected,
+      totalCollected,
+      pendingAmount,
+      progressPercent,
+    };
+  };
+
+  const dailyChitsList = useMemo(() => {
+    return (routesData.groups || []).filter((g) => g.frequency === 'DAILY');
+  }, [routesData.groups]);
+
+  const monthlyAuctionChitsList = useMemo(() => {
+    return (routesData.groups || []).filter((g) => g.frequency === 'MONTHLY' && g.chit_type !== 'DOUBLE_CHIT' && !(g.group_name || '').toLowerCase().includes('double'));
+  }, [routesData.groups]);
+
+  const monthlyDoubleChitsList = useMemo(() => {
+    return (routesData.groups || []).filter((g) => g.chit_type === 'DOUBLE_CHIT' || (g.frequency === 'MONTHLY' && (g.group_name || '').toLowerCase().includes('double')));
+  }, [routesData.groups]);
+
+  // Differentiated Chit filter for Agent Profile (Never mix different chits together)
+  const displayedProfileRoutes = useMemo(() => {
+    return activeProfileRoutes.filter((group) => {
+      if (profileChitFilter === 'ALL') return true;
+      if (profileChitFilter === 'DAILY') return group.frequency === 'DAILY';
+      if (profileChitFilter === 'AUCTION') {
+        return (
+          group.frequency === 'MONTHLY' &&
+          group.chit_type !== 'DOUBLE_CHIT' &&
+          !(group.group_name || '').toLowerCase().includes('double')
+        );
+      }
+      if (profileChitFilter === 'DOUBLE') {
+        return (
+          group.chit_type === 'DOUBLE_CHIT' ||
+          (group.frequency === 'MONTHLY' && (group.group_name || '').toLowerCase().includes('double'))
+        );
+      }
+      return true;
+    });
+  }, [activeProfileRoutes, profileChitFilter]);
 
   const loadAgentData = async () => {
     try {
@@ -260,6 +375,24 @@ export default function AgentDashboard() {
       group_id: String(groupId),
       member_id: String(memberId),
       amount: String(defaultAmount || ''),
+      payment_method: 'CASH',
+      payment_reference: '',
+      notes: '',
+    });
+    setCollectError('');
+    setShowCollectModal(true);
+  };
+
+  // Pre-fill collection modal specifically for a single chit scheme
+  const openCollectForChitScheme = (group) => {
+    if (group?.frequency === 'MONTHLY' && !isCollectionDayForMonthly) {
+      alert('Monthly chits are scheduled to be collected strictly on the 1st of every month. Next collection cycle opens on the 1st.');
+      return;
+    }
+    setCollectForm({
+      group_id: String(group.id),
+      member_id: '',
+      amount: String(group.installment_amount || ''),
       payment_method: 'CASH',
       payment_reference: '',
       notes: '',
@@ -863,8 +996,52 @@ export default function AgentDashboard() {
               </div>
             </div>
 
-            {/* Task Items List */}
-            {filteredTasks.length === 0 ? (
+            {/* Per-Chit Scheme Filter Pills so agent never confuses stops */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                <Layers className="w-3.5 h-3.5" /> Chit Scheme:
+              </span>
+              <button
+                type="button"
+                onClick={() => setTaskChitFilter('ALL')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  taskChitFilter === 'ALL'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                All Schemes ({routesData.groups.length})
+              </button>
+              {routesData.groups.map((grp) => {
+                const isDaily = grp.frequency === 'DAILY';
+                const isDouble = grp.chit_type === 'DOUBLE_CHIT' || (grp.group_name || '').toLowerCase().includes('double');
+                const isSelected = String(taskChitFilter) === String(grp.id);
+
+                return (
+                  <button
+                    key={grp.id}
+                    type="button"
+                    onClick={() => setTaskChitFilter(isSelected ? 'ALL' : String(grp.id))}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      isSelected
+                        ? isDaily
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                          : isDouble
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                          : 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                    }`}
+                  >
+                    <span>{isDaily ? '🚚' : isDouble ? '💎' : '🏛️'}</span>
+                    <span>{grp.group_name}</span>
+                    <span className="text-[10px] opacity-75 font-mono">({grp.group_code})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Task Items List Partitioned Strictly by Chit Scheme */}
+            {tasksByGroup.length === 0 ? (
               <div className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">
@@ -881,140 +1058,257 @@ export default function AgentDashboard() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredTasks.map((task) => (
-                  <div
-                    key={`${task.groupId}-${task.memberId}`}
-                    className={`p-4 rounded-2xl border transition-all duration-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                      task.isPaid
-                        ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40'
-                        : task.hasCustomRemark
-                        ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-900'
-                    }`}
-                  >
-                    {/* Left: Stop #, Subscriber Info & Contact */}
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="space-y-6">
+                {tasksByGroup.map(({ group, tasks: groupTasks }) => {
+                  const isDaily = group.frequency === 'DAILY';
+                  const isDouble =
+                    group.chit_type === 'DOUBLE_CHIT' ||
+                    (group.group_name || '').toLowerCase().includes('double');
+                  const groupPaidCount = groupTasks.filter((t) => t.isPaid).length;
+                  const groupTotalCount = groupTasks.length;
+                  const groupPercent =
+                    groupTotalCount > 0 ? Math.round((groupPaidCount / groupTotalCount) * 100) : 0;
+                  const groupCollectedAmt = groupTasks
+                    .filter((t) => t.isPaid)
+                    .reduce((sum, t) => sum + (t.rawMember?.collected_amount || t.expectedAmount), 0);
+                  const groupTargetAmt = groupTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
+
+                  return (
+                    <div
+                      key={group.id}
+                      className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden"
+                    >
+                      {/* Distinct Chit Scheme Header Bar */}
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-xs ${
-                          task.isPaid
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        className={`p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          isDaily
+                            ? 'bg-gradient-to-r from-emerald-50/80 to-teal-50/40 dark:from-emerald-950/30 dark:to-teal-950/10 border-emerald-200/80 dark:border-emerald-900/40'
+                            : isDouble
+                            ? 'bg-gradient-to-r from-purple-50/80 to-pink-50/40 dark:from-purple-950/30 dark:to-pink-950/10 border-purple-200/80 dark:border-purple-900/40'
+                            : 'bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:from-blue-950/30 dark:to-indigo-950/10 border-blue-200/80 dark:border-blue-900/40'
                         }`}
                       >
-                        {task.isPaid ? '✓' : `#${task.ticketNumber}`}
-                      </div>
-
-                      <div className="space-y-1 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
-                            {task.fullName}
-                          </span>
-                          <span className="font-mono text-xs text-slate-400">({task.memberCode})</span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              task.frequency === 'DAILY'
-                                ? 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300'
-                                : 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-black shrink-0 shadow-xs ${
+                              isDaily
+                                ? 'bg-emerald-600 text-white'
+                                : isDouble
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-blue-600 text-white'
                             }`}
                           >
-                            {task.groupName} · {task.frequency === 'DAILY' ? 'Daily Chit' : 'Monthly Chit'}
-                          </span>
+                            {isDaily ? '🚚' : isDouble ? '💎' : '🏛️'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                                {group.group_name}
+                              </h4>
+                              <span className="font-mono text-xs text-slate-500 font-semibold">
+                                ({group.group_code})
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                                  isDaily
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                                    : isDouble
+                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+                                }`}
+                              >
+                                {isDaily
+                                  ? '🚚 Daily Chit Scheme'
+                                  : isDouble
+                                  ? '💎 Monthly Double Scheme'
+                                  : '🏛️ Monthly Auction Scheme'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
+                              <span>
+                                Installment:{' '}
+                                <strong className="text-slate-700 dark:text-slate-200">
+                                  ₹{Number(group.installment_amount).toLocaleString('en-IN')}
+                                </strong>
+                              </span>
+                              <span>·</span>
+                              <span>Area: {group.location_name || 'Assigned Territory'}</span>
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Address & Phone */}
-                        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-                          {task.address && (
-                            <span className="flex items-center gap-1 truncate max-w-xs">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate">{task.address}</span>
+                        {/* Chit specific mini progress */}
+                        <div className="flex items-center gap-4 self-end sm:self-center">
+                          <div className="text-right">
+                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                              Collected:{' '}
+                              <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                                ₹{groupCollectedAmt.toLocaleString('en-IN')}
+                              </span>{' '}
+                              / ₹{groupTargetAmt.toLocaleString('en-IN')}
                             </span>
-                          )}
-
-                          {task.phone && (
-                            <a
-                              href={`tel:${task.phone}`}
-                              className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                            >
-                              <PhoneCall className="w-3 h-3 shrink-0" />
-                              <span>{task.phone}</span>
-                            </a>
-                          )}
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {groupPaidCount} of {groupTotalCount} stops ({groupPercent}%)
+                            </span>
+                          </div>
+                          <div className="w-16 bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-2 rounded-full ${
+                                isDaily ? 'bg-emerald-500' : isDouble ? 'bg-purple-500' : 'bg-blue-500'
+                              }`}
+                              style={{ width: `${groupPercent}%` }}
+                            />
+                          </div>
                         </div>
-
-                        {/* Status / Remark banner */}
-                        {task.isPaid ? (
-                          <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1 mt-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>Paid Today · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod})</span>
-                          </div>
-                        ) : task.hasCustomRemark ? (
-                          <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1 mt-1 bg-amber-100/60 dark:bg-amber-950/40 p-1.5 rounded-lg border border-amber-200 dark:border-amber-900/50">
-                            <MessageSquare className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span>Remark: <strong>{task.notes}</strong></span>
-                          </div>
-                        ) : (
-                          <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1 mt-1">
-                            <Clock className="w-3.5 h-3.5 shrink-0" />
-                            <span>Awaiting installment payment</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right: Due Amount & Action Buttons */}
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Due Amount</span>
-                        <span className="text-base font-extrabold text-blue-600 dark:text-blue-400">
-                          ₹{task.expectedAmount.toLocaleString('en-IN')}
-                        </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        {task.isPaid ? (
-                          <button
-                            type="button"
-                            onClick={() => openReceiptForPaidMember(task.rawGroup, task.rawMember)}
-                            className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                      {/* Stops under this Chit */}
+                      <div className="p-3 sm:p-4 space-y-2.5">
+                        {groupTasks.map((task) => (
+                          <div
+                            key={`${task.groupId}-${task.memberId}`}
+                            className={`p-4 rounded-2xl border transition-all duration-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                              task.isPaid
+                                ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40'
+                                : task.hasCustomRemark
+                                ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40'
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-900'
+                            }`}
                           >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Receipt</span>
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => openNoteForMember(task.rawGroup, task.rawMember)}
-                              className="px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold cursor-pointer transition-colors"
-                              title="Add or update visit note"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                            </button>
+                            {/* Left: Stop #, Subscriber Info & Contact */}
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div
+                                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-xs ${
+                                  task.isPaid
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                {task.isPaid ? '✓' : `#${task.ticketNumber}`}
+                              </div>
 
-                            <button
-                              type="button"
-                              onClick={() => openCollectForMember(task.groupId, task.memberId, task.expectedAmount)}
-                              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Collect</span>
-                            </button>
-                          </>
-                        )}
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
+                                    {task.fullName}
+                                  </span>
+                                  <span className="font-mono text-xs text-slate-400">({task.memberCode})</span>
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                      task.frequency === 'DAILY'
+                                        ? 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300'
+                                        : 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                                    }`}
+                                  >
+                                    Ticket #{task.ticketNumber} · {task.groupCode}
+                                  </span>
+                                </div>
 
-                        <button
-                          type="button"
-                          onClick={() => openMemberInfo(task.rawGroup, task.rawMember)}
-                          className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-semibold cursor-pointer transition-colors"
-                          title="View customer profile"
-                        >
-                          <User className="w-3.5 h-3.5" />
-                        </button>
+                                {/* Address & Phone */}
+                                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                                  {task.address && (
+                                    <span className="flex items-center gap-1 truncate max-w-xs">
+                                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                      <span className="truncate">{task.address}</span>
+                                    </span>
+                                  )}
+
+                                  {task.phone && (
+                                    <a
+                                      href={`tel:${task.phone}`}
+                                      className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                                    >
+                                      <PhoneCall className="w-3 h-3 shrink-0" />
+                                      <span>{task.phone}</span>
+                                    </a>
+                                  )}
+                                </div>
+
+                                {/* Status / Remark banner */}
+                                {task.isPaid ? (
+                                  <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1 mt-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                    <span>
+                                      Paid Today · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod})
+                                    </span>
+                                  </div>
+                                ) : task.hasCustomRemark ? (
+                                  <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1 mt-1 bg-amber-100/60 dark:bg-amber-950/40 p-1.5 rounded-lg border border-amber-200 dark:border-amber-900/50">
+                                    <MessageSquare className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                    <span>
+                                      Remark: <strong>{task.notes}</strong>
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1 mt-1">
+                                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Awaiting installment payment</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Right: Due Amount & Action Buttons */}
+                            <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
+                              <div className="text-right">
+                                <span className="text-[10px] text-slate-400 block uppercase font-bold">
+                                  Due Amount
+                                </span>
+                                <span className="text-base font-extrabold text-blue-600 dark:text-blue-400">
+                                  ₹{task.expectedAmount.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                {task.isPaid ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openReceiptForPaidMember(task.rawGroup, task.rawMember)}
+                                    className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Receipt</span>
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => openNoteForMember(task.rawGroup, task.rawMember)}
+                                      className="px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold cursor-pointer transition-colors"
+                                      title="Add or update visit note"
+                                    >
+                                      <MessageSquare className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openCollectForMember(task.groupId, task.memberId, task.expectedAmount)
+                                      }
+                                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-colors"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>Collect</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => openMemberInfo(task.rawGroup, task.rawMember)}
+                                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-semibold cursor-pointer transition-colors"
+                                  title="View customer profile"
+                                >
+                                  <User className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -1397,7 +1691,7 @@ export default function AgentDashboard() {
                   <span className="text-lg font-black text-blue-600 dark:text-blue-400">{routesData.members.length} Members</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Cash on Hand</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Cash on Hand</span>
                   <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
@@ -1405,16 +1699,140 @@ export default function AgentDashboard() {
                   <span className="text-lg font-black text-purple-600 dark:text-purple-400">{routesData.summary?.totalCollectionsCount || 0} Issued</span>
                 </div>
               </div>
+
+              {/* Per-Chit Cash & Inflow Ledger (Separated so funds and dues are never mixed) */}
+              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <div>
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                      <Coins className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Today's Per-Chit Cash & Inflow Ledger (Separated Ledgers)</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Clear accounting breakdown per chit — physical cash, online inflows, and pending balances are tracked individually so chits never mix.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {activeProfileRoutes.map((group) => {
+                    const stats = getGroupStats(group);
+                    return (
+                      <div
+                        key={group.id}
+                        className={`p-3.5 rounded-2xl border transition-all space-y-2.5 ${
+                          stats.isDaily
+                            ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
+                            : stats.isDouble
+                            ? 'bg-purple-50/30 dark:bg-purple-950/20 border-purple-200 dark:border-purple-900/50'
+                            : 'bg-blue-50/30 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base">{stats.isDaily ? '🚚' : stats.isDouble ? '💎' : '🏛️'}</span>
+                              <span className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
+                                {group.group_name}
+                              </span>
+                              <span className="font-mono text-[10px] text-slate-400">({group.group_code})</span>
+                            </div>
+                            <span className={`inline-block px-2 py-0.5 mt-1 rounded text-[10px] font-bold ${
+                              stats.isDaily
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                                : stats.isDouble
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+                            }`}>
+                              {stats.isDaily ? 'Daily Chit' : stats.isDouble ? 'Double Chit' : 'Monthly Auction'} · ₹{Number(group.installment_amount).toLocaleString('en-IN')}/sub
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Financial Ledger Tiles */}
+                        <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                          <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-400 block font-semibold">Expected Target</span>
+                            <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                              ₹{stats.targetExpected.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800">
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 block font-bold">Cash on Hand</span>
+                            <span className="font-black text-emerald-700 dark:text-emerald-300">
+                              ₹{stats.cashCollected.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-400 block font-semibold">Digital / Online</span>
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                              ₹{stats.onlineCollected.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-400 block font-semibold">Pending Amount</span>
+                            <span className="font-extrabold text-rose-600 dark:text-rose-400">
+                              ₹{stats.pendingAmount.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-1 pt-1">
+                          <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                            <span>Progress</span>
+                            <span>{stats.paidMembers.length}/{stats.groupMembers.length} Paid ({stats.progressPercent}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-1.5 rounded-full ${stats.isDaily ? 'bg-emerald-500' : stats.isDouble ? 'bg-purple-500' : 'bg-blue-500'}`}
+                              style={{ width: `${stats.progressPercent}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Quick actions for this Chit */}
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExpandedProfileChitId(expandedProfileChitId === group.id ? null : group.id);
+                              smoothScrollTo(`chit-scheme-card-${group.id}`, { offset: 32, behavior: 'smooth' });
+                            }}
+                            className="flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Users className="w-3 h-3 text-blue-500" />
+                            <span>{expandedProfileChitId === group.id ? 'Hide Roster' : `Subscribers (${stats.groupMembers.length})`}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openCollectForChitScheme(group)}
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                          >
+                            <PlusCircle className="w-3 h-3" />
+                            <span>Collect</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            {/* 2. Route Directory: How Many Routes Are There */}
+            {/* 2. Assigned Chit Schemes Directory & Subscriber Management */}
             <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <Compass className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                    Assigned Routes Directory ({activeProfileRoutes.length} Active Today)
-                  </h3>
+                  <div>
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                      Assigned Chit Schemes Directory ({activeProfileRoutes.length} Active Today)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Every chit scheme operates under its own distinct financial cycle and rules. View schedules, financial specifications, and manage subscribers per chit.
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 font-semibold">
@@ -1462,89 +1880,363 @@ export default function AgentDashboard() {
                 </button>
               </div>
 
-              {activeProfileRoutes.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-xs">
-                  No active collection routes scheduled for today.
+              {/* Chit Scheme Category Filter Tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                  <Filter className="w-3.5 h-3.5" /> Chit Category:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setProfileChitFilter('ALL')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                    profileChitFilter === 'ALL'
+                      ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  All Active Chits ({activeProfileRoutes.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileChitFilter('DAILY')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    profileChitFilter === 'DAILY'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+                  }`}
+                >
+                  <span>🚚 Daily Chits</span>
+                  <span className="text-[10px] opacity-80">({dailyChitsList.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileChitFilter('AUCTION')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    profileChitFilter === 'AUCTION'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                  }`}
+                >
+                  <span>🏛️ Monthly Auction Chits</span>
+                  <span className="text-[10px] opacity-80">({monthlyAuctionChitsList.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileChitFilter('DOUBLE')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    profileChitFilter === 'DOUBLE'
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                  }`}
+                >
+                  <span>💎 Monthly Double Chits</span>
+                  <span className="text-[10px] opacity-80">({monthlyDoubleChitsList.length})</span>
+                </button>
+              </div>
+
+              {/* Differentiated Chit Scheme Cards */}
+              {displayedProfileRoutes.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                  No chit schemes found for the selected category.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  {activeProfileRoutes.map((group) => {
-                    const groupMembers = routesData.members.filter((m) => m.group_id === group.id);
-                    const paidCount = groupMembers.filter((m) => m.is_paid).length;
-                    const percent = groupMembers.length > 0 ? Math.round((paidCount / groupMembers.length) * 100) : 0;
+                <div className="space-y-4">
+                  {displayedProfileRoutes.map((group) => {
+                    const stats = getGroupStats(group);
+                    const isExpanded = expandedProfileChitId === group.id;
 
                     return (
                       <div
+                        id={`chit-scheme-card-${group.id}`}
                         key={group.id}
-                        className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-all space-y-3"
+                        className={`rounded-3xl border transition-all duration-200 shadow-xs overflow-hidden scroll-mt-6 ${
+                          stats.isDaily
+                            ? 'bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/60'
+                            : stats.isDouble
+                            ? 'bg-white dark:bg-slate-900 border-purple-200 dark:border-purple-900/60'
+                            : 'bg-white dark:bg-slate-900 border-blue-200 dark:border-blue-900/60'
+                        }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm text-slate-900 dark:text-white">
-                                {group.group_name}
+                        {/* Scheme Card Header with Unique Identity Branding */}
+                        <div className={`p-4 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                          stats.isDaily
+                            ? 'bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-950/40 dark:to-teal-950/20 border-emerald-100 dark:border-emerald-900/50'
+                            : stats.isDouble
+                            ? 'bg-gradient-to-r from-purple-50 to-pink-50/50 dark:from-purple-950/40 dark:to-pink-950/20 border-purple-100 dark:border-purple-900/50'
+                            : 'bg-gradient-to-r from-blue-50 to-indigo-50/50 dark:from-blue-950/40 dark:to-indigo-950/20 border-blue-100 dark:border-blue-900/50'
+                        }`}>
+                          <div className="flex items-center gap-3.5">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-black shrink-0 shadow-sm ${
+                              stats.isDaily
+                                ? 'bg-emerald-600 text-white'
+                                : stats.isDouble
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-blue-600 text-white'
+                            }`}>
+                              {stats.isDaily ? '🚚' : stats.isDouble ? '💎' : '🏛️'}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">
+                                  {group.group_name}
+                                </h4>
+                                <span className="font-mono text-xs text-slate-500 font-semibold">({group.group_code})</span>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                  stats.isDaily
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300'
+                                    : stats.isDouble
+                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border border-purple-300'
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 border border-blue-300'
+                                }`}>
+                                  {stats.isDaily
+                                    ? '🚚 DAILY CHIT SCHEME · EVERYDAY COLLECTION'
+                                    : stats.isDouble
+                                    ? '💎 MONTHLY DOUBLE SCHEME · 1st OF MONTH'
+                                    : '🏛️ MONTHLY AUCTION SCHEME · 1st OF MONTH'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                {stats.isDaily
+                                  ? 'Daily installment collected day-by-day during route field rounds'
+                                  : stats.isDouble
+                                  ? 'Bimonthly dual draw surplus reserve scheme collected on 1st of month'
+                                  : 'ChitBase reverse auction scheme collected once a month on 1st'} · Area: <strong>{group.location_name || 'Assigned Territory'}</strong>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end md:self-center flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => openCollectForChitScheme(group)}
+                              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                            >
+                              <PlusCircle className="w-3.5 h-3.5" />
+                              <span>Record Collection</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveTab('routes');
+                                smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+                              }}
+                              className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <span>2D Map</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Granular Financial Ledger (6-Metric Strip for this specific Chit) */}
+                        <div className="p-4 sm:p-5 space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
+                            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Installment</span>
+                              <span className="font-extrabold text-sm text-slate-900 dark:text-white">
+                                ₹{Number(group.installment_amount).toLocaleString('en-IN')}
                               </span>
-                              <span className="font-mono text-xs text-slate-400">({group.group_code})</span>
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                              <MapPin className="w-3 h-3 text-slate-400" />
-                              <span>{group.location_name || 'Standard Coverage Area'}</span>
+                            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Pool</span>
+                              <span className="font-extrabold text-sm text-blue-600 dark:text-blue-400">
+                                ₹{Number(group.total_pool_amount).toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Subscribers</span>
+                              <span className="font-extrabold text-sm text-slate-900 dark:text-white">
+                                {stats.groupMembers.length} Members
+                              </span>
+                            </div>
+                            <div className="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 space-y-1">
+                              <span className="text-[10px] text-emerald-800 dark:text-emerald-300 font-bold uppercase tracking-wider block">Cash Collected</span>
+                              <span className="font-black text-sm text-emerald-700 dark:text-emerald-300">
+                                ₹{stats.cashCollected.toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Online Collected</span>
+                              <span className="font-extrabold text-sm text-purple-600 dark:text-purple-400">
+                                ₹{stats.onlineCollected.toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                            <div className="p-3 rounded-2xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 space-y-1">
+                              <span className="text-[10px] text-rose-800 dark:text-rose-300 font-bold uppercase tracking-wider block">Pending Amount</span>
+                              <span className="font-black text-sm text-rose-600 dark:text-rose-400">
+                                ₹{stats.pendingAmount.toLocaleString('en-IN')}
+                              </span>
                             </div>
                           </div>
 
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                              group.frequency === 'DAILY'
-                                ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300'
-                                : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                            }`}
-                          >
-                            {group.frequency === 'DAILY' ? '🚚 Daily Chit (Everyday Task)' : '📅 Monthly Chit (1st of Month Only)'}
-                          </span>
-                        </div>
+                          {/* Progress Bar & Toggle Accordion */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                            <div className="flex-1 space-y-1.5">
+                              <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                <span>Cycle Collection Progress</span>
+                                <span>
+                                  <strong>{stats.paidMembers.length}</strong> of {stats.groupMembers.length} Subscribers Paid ({stats.progressPercent}%) · Total Collected: <strong>₹{stats.totalCollected.toLocaleString('en-IN')}</strong>
+                                </span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={`h-2 rounded-full transition-all duration-300 ${
+                                    stats.isDaily ? 'bg-emerald-500' : stats.isDouble ? 'bg-purple-500' : 'bg-blue-500'
+                                  }`}
+                                  style={{ width: `${stats.progressPercent}%` }}
+                                />
+                              </div>
+                            </div>
 
-                        {/* Financial specs */}
-                        <div className="grid grid-cols-3 gap-2 text-xs py-2 border-y border-slate-200/50 dark:border-slate-700/50">
-                          <div>
-                            <span className="text-[10px] text-slate-400 block">Installment</span>
-                            <span className="font-bold text-slate-900 dark:text-white">₹{Number(group.installment_amount).toLocaleString('en-IN')}</span>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedProfileChitId(isExpanded ? null : group.id)}
+                              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                            >
+                              <Users className="w-4 h-4 text-blue-500" />
+                              <span>{isExpanded ? 'Hide Subscribers Roster' : `View Enrolled Subscribers (${stats.groupMembers.length})`}</span>
+                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
                           </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 block">Subscribers</span>
-                            <span className="font-bold text-slate-900 dark:text-white">{groupMembers.length} Members</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 block">Total Pool</span>
-                            <span className="font-bold text-blue-600 dark:text-blue-400">₹{Number(group.total_pool_amount).toLocaleString('en-IN')}</span>
-                          </div>
-                        </div>
 
-                        {/* Progress */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] font-medium text-slate-500">
-                            <span>Cycle Progress</span>
-                            <span>{paidCount} of {groupMembers.length} Collected ({percent}%)</span>
-                          </div>
-                          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="bg-blue-600 h-1.5 rounded-full"
-                              style={{ width: `${percent}%` }}
-                            />
-                          </div>
-                        </div>
+                          {/* Expandable Enrolled Subscribers Roster for this Chit */}
+                          {isExpanded && (
+                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <h5 className="font-extrabold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                                  <span>👥</span>
+                                  <span>Enrolled Subscribers Roster for {group.group_name}</span>
+                                </h5>
+                                <span className="text-[11px] text-slate-400">
+                                  {stats.paidMembers.length} Collected · {stats.unpaidMembers.length} Pending
+                                </span>
+                              </div>
 
-                        {/* Switch to 2D trajectory view */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveTab('routes');
-                            smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
-                          }}
-                          className="w-full py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        >
-                          <span>Open in 2D Route Trajectory</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+                              <div className="space-y-2">
+                                {stats.groupMembers.map((member) => {
+                                  const isPaid = Boolean(member.is_paid || member.today_status === 'PAID');
+
+                                  return (
+                                    <div
+                                      key={`${group.id}-${member.member_id}`}
+                                      className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                                        isPaid
+                                          ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40'
+                                          : 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
+                                      }`}
+                                    >
+                                      {/* Left: Member info */}
+                                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                                        <div
+                                          className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 ${
+                                            isPaid
+                                              ? 'bg-emerald-600 text-white'
+                                              : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                          }`}
+                                        >
+                                          {isPaid ? '✓' : `#${member.ticket_number}`}
+                                        </div>
+
+                                        <div className="space-y-0.5 flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
+                                              {member.full_name}
+                                            </span>
+                                            <span className="font-mono text-[11px] text-slate-400">
+                                              ({member.member_code})
+                                            </span>
+                                            <span className="font-semibold text-[10px] text-slate-500">
+                                              Ticket #{member.ticket_number}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                                            {member.phone && (
+                                              <a
+                                                href={`tel:${member.phone}`}
+                                                className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                                              >
+                                                <PhoneCall className="w-3 h-3" />
+                                                <span>{member.phone}</span>
+                                              </a>
+                                            )}
+                                            {member.address && (
+                                              <span className="truncate max-w-xs">
+                                                📍 {member.address}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          {/* Status Banner */}
+                                          {isPaid ? (
+                                            <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1 pt-0.5">
+                                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                              <span>
+                                                Paid Today · ₹{Number(member.collected_amount || group.installment_amount).toLocaleString('en-IN')} ({member.payment_method}) · Receipt #{member.receipt_number || 'REC-ISSUED'}{member.collection_time ? ` · ${formatTime(member.collection_time)}` : ''}
+                                              </span>
+                                            </div>
+                                          ) : (
+                                            <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1 pt-0.5">
+                                              <Clock className="w-3.5 h-3.5 shrink-0" />
+                                              <span>
+                                                Pending · {member.cycle_notes || member.today_notes || (stats.isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment')}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Right: Actions */}
+                                      <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => openMemberInfo(group, member)}
+                                          className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-semibold cursor-pointer transition-colors"
+                                          title="View customer profile"
+                                        >
+                                          <User className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        {isPaid ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => openReceiptForPaidMember(group, member)}
+                                            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                                          >
+                                            <Printer className="w-3.5 h-3.5" />
+                                            <span>Receipt</span>
+                                          </button>
+                                        ) : (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => openNoteForMember(group, member)}
+                                              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold cursor-pointer transition-colors"
+                                              title="Add or update visit note"
+                                            >
+                                              <MessageSquare className="w-3.5 h-3.5" />
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                openCollectForMember(group.id, member.member_id, group.installment_amount)
+                                              }
+                                              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-colors"
+                                            >
+                                              <CheckCircle2 className="w-3.5 h-3.5" />
+                                              <span>Collect</span>
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
