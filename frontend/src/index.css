@@ -18,7 +18,10 @@
 
   body {
     font-family: var(--font-sans);
-    @apply bg-slate-50 text-slate-800 min-h-screen transition-colors duration-200;
+    background-color: transparent;
+    color: #1e293b;
+    min-height: 100vh;
+    transition: color 0.2s ease;
   }
 
   h1, h2, h3, h4, h5, h6, .font-heading {
@@ -32,8 +35,13 @@
   }
 
   /* Dark mode root styles */
+  html.dark {
+    background-color: #020617;
+  }
+
   html.dark body {
-    @apply bg-slate-950 text-slate-100;
+    background-color: transparent;
+    color: #f1f5f9;
   }
 
   #root {
@@ -183,6 +191,29 @@ html.dark .glass-box {
   background: rgba(15, 23, 42, 0.74);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.45);
+}
+
+/* Universal transparent glass styling for cards, panels, and tables */
+.rounded-xl.bg-white,
+.rounded-2xl.bg-white,
+.rounded-3xl.bg-white,
+div[class*="rounded-2xl bg-white"],
+div[class*="rounded-xl bg-white"],
+div[class*="rounded-3xl bg-white"] {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+html.dark .rounded-xl.bg-slate-900,
+html.dark .rounded-2xl.bg-slate-900,
+html.dark .rounded-3xl.bg-slate-900,
+html.dark div[class*="rounded-2xl bg-slate-900"],
+html.dark div[class*="rounded-xl bg-slate-900"],
+html.dark div[class*="rounded-3xl bg-slate-900"] {
+  background-color: rgba(15, 23, 42, 0.78) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
 }
 
 /* Floating separate dock/bar (Navbar & Sidebar separation from body page) */

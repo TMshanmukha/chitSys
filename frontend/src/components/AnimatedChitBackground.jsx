@@ -13,15 +13,18 @@ export default function AnimatedChitBackground() {
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none" aria-hidden="true">
       {/* 1. Static Photorealistic Chit Fund & Currency Wallpaper Base Layer */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 opacity-[0.24] dark:opacity-[0.16] scale-105"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 opacity-[0.52] dark:opacity-[0.38] scale-[1.02]"
         style={{
           backgroundImage: `url(${chitBgImage})`,
-          filter: 'contrast(1.06) saturate(1.12)',
+          filter: 'contrast(1.12) saturate(1.18) brightness(1.02)',
         }}
       />
 
-      {/* 2. Soft Light Gradient Mesh & Tint Overlays */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50/85 via-white/70 to-blue-50/80 dark:from-slate-950/92 dark:via-slate-900/88 dark:to-blue-950/88 transition-colors backdrop-blur-[1px]" />
+      {/* 2. Sheer Light Gradient Mesh & Tint Overlays */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-slate-50/45 to-blue-50/50 dark:from-slate-950/75 dark:via-slate-900/70 dark:to-blue-950/70 transition-colors backdrop-blur-[0.5px]" />
+      
+      {/* 3. Subtle Warm Vignette around edges to frame the workspace */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(15,23,42,0.18)_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(2,6,23,0.65)_100%)]" />
       
       {/* 3. Soft Luminous Color Nebulas */}
       <div className="absolute -top-32 -left-32 w-[650px] h-[650px] bg-gradient-to-br from-blue-400/12 to-indigo-500/10 dark:from-blue-600/10 dark:to-indigo-600/8 rounded-full blur-[140px] animate-pulse" />

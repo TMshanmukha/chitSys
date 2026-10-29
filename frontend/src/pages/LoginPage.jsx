@@ -15,6 +15,7 @@ import {
   Building2,
   KeyRound,
   Sun,
+  Moon,
   ArrowRight,
 } from 'lucide-react';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
