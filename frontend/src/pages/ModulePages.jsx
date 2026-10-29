@@ -39,6 +39,7 @@ import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import ChitHistoryModal from '../components/ChitHistoryModal';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 
 /* =========================================================================
@@ -414,12 +415,15 @@ export function ChitGroupsPage() {
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+      {/* Filter Tabs with Automatic Window Move */}
+      <div id="chit-groups-list" className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold scroll-mt-6">
         <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1 shrink-0">Scheme View:</span>
         <button
           type="button"
-          onClick={() => setSchemeTab('ALL')}
+          onClick={() => {
+            setSchemeTab('ALL');
+            smoothScrollTo('chit-groups-list', { offset: 32, behavior: 'smooth' });
+          }}
           className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
             schemeTab === 'ALL'
               ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -430,7 +434,10 @@ export function ChitGroupsPage() {
         </button>
         <button
           type="button"
-          onClick={() => setSchemeTab('DAILY_ALL')}
+          onClick={() => {
+            setSchemeTab('DAILY_ALL');
+            smoothScrollTo('chit-groups-list', { offset: 32, behavior: 'smooth' });
+          }}
           className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
             schemeTab === 'DAILY_ALL'
               ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -441,7 +448,10 @@ export function ChitGroupsPage() {
         </button>
         <button
           type="button"
-          onClick={() => setSchemeTab('DAILY_AUC')}
+          onClick={() => {
+            setSchemeTab('DAILY_AUC');
+            smoothScrollTo('chit-groups-list', { offset: 32, behavior: 'smooth' });
+          }}
           className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
             schemeTab === 'DAILY_AUC'
               ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
@@ -452,7 +462,10 @@ export function ChitGroupsPage() {
         </button>
         <button
           type="button"
-          onClick={() => setSchemeTab('DAILY_DBL')}
+          onClick={() => {
+            setSchemeTab('DAILY_DBL');
+            smoothScrollTo('chit-groups-list', { offset: 32, behavior: 'smooth' });
+          }}
           className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
             schemeTab === 'DAILY_DBL'
               ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
@@ -463,7 +476,10 @@ export function ChitGroupsPage() {
         </button>
         <button
           type="button"
-          onClick={() => setSchemeTab('MONTHLY_AUC')}
+          onClick={() => {
+            setSchemeTab('MONTHLY_AUC');
+            smoothScrollTo('chit-groups-list', { offset: 32, behavior: 'smooth' });
+          }}
           className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
             schemeTab === 'MONTHLY_AUC'
               ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
@@ -474,7 +490,10 @@ export function ChitGroupsPage() {
         </button>
         <button
           type="button"
-          onClick={() => setSchemeTab('MONTHLY_DBL')}
+          onClick={() => {
+            setSchemeTab('MONTHLY_DBL');
+            smoothScrollTo('chit-groups-list', { offset: 32, behavior: 'smooth' });
+          }}
           className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
             schemeTab === 'MONTHLY_DBL'
               ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
@@ -597,7 +616,10 @@ export function ChitGroupsPage() {
             currentPage={groupsPage}
             totalItems={filteredGroups.length}
             pageSize={groupsPageSize}
-            onPageChange={setGroupsPage}
+            onPageChange={(page) => {
+              setGroupsPage(page);
+              smoothScrollTo('chit-groups-list', { offset: 32, behavior: 'smooth' });
+            }}
             onPageSizeChange={setGroupsPageSize}
             pageSizeOptions={[6, 9, 12, 24]}
           />
@@ -2253,8 +2275,8 @@ export function MembersPage() {
         />
       </div>
 
-      {/* Members Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      {/* Members Table with Automatic Window Move */}
+      <div id="members-table-container" className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden scroll-mt-6">
         <div className="overflow-x-auto overflow-y-auto max-h-[460px]">
           <table className="w-full text-left text-xs">
             <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
@@ -2331,7 +2353,10 @@ export function MembersPage() {
           currentPage={membersPage}
           totalItems={members.length}
           pageSize={membersPageSize}
-          onPageChange={setMembersPage}
+          onPageChange={(page) => {
+            setMembersPage(page);
+            smoothScrollTo('members-table-container', { offset: 32, behavior: 'smooth' });
+          }}
           onPageSizeChange={setMembersPageSize}
         />
       </div>
@@ -2902,8 +2927,8 @@ export function CollectionsPage() {
         </div>
       )}
 
-      {/* Collections Ledger Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      {/* Collections Ledger Table with Automatic Window Move */}
+      <div id="collections-table-container" className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden scroll-mt-6">
         <div className="overflow-x-auto overflow-y-auto max-h-[460px]">
           <table className="w-full text-left text-xs">
             <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
@@ -2973,7 +2998,10 @@ export function CollectionsPage() {
           currentPage={collectionsPage}
           totalItems={collections.length}
           pageSize={collectionsPageSize}
-          onPageChange={setCollectionsPage}
+          onPageChange={(page) => {
+            setCollectionsPage(page);
+            smoothScrollTo('collections-table-container', { offset: 32, behavior: 'smooth' });
+          }}
           onPageSizeChange={setCollectionsPageSize}
         />
       </div>

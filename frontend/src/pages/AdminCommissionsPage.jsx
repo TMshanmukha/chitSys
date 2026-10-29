@@ -33,6 +33,7 @@ import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 export default function AdminCommissionsPage() {
   const [loading, setLoading] = useState(true);
@@ -391,11 +392,14 @@ export default function AdminCommissionsPage() {
         </div>
       </div>
 
-      {/* Navigation Tabs for Profile Information */}
-      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-800">
+      {/* Navigation Tabs for Profile Information with Automatic Window Move */}
+      <div id="admin-profile-details" className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-800 scroll-mt-6">
         <button
           type="button"
-          onClick={() => setActiveSection('overview')}
+          onClick={() => {
+            setActiveSection('overview');
+            smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
+          }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
             activeSection === 'overview'
               ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
@@ -408,7 +412,10 @@ export default function AdminCommissionsPage() {
 
         <button
           type="button"
-          onClick={() => setActiveSection('firm')}
+          onClick={() => {
+            setActiveSection('firm');
+            smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
+          }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
             activeSection === 'firm'
               ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
@@ -421,7 +428,10 @@ export default function AdminCommissionsPage() {
 
         <button
           type="button"
-          onClick={() => setActiveSection('auctions')}
+          onClick={() => {
+            setActiveSection('auctions');
+            smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
+          }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
             activeSection === 'auctions'
               ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
@@ -434,7 +444,10 @@ export default function AdminCommissionsPage() {
 
         <button
           type="button"
-          onClick={() => setActiveSection('collections')}
+          onClick={() => {
+            setActiveSection('collections');
+            smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
+          }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
             activeSection === 'collections'
               ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'

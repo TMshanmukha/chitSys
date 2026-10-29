@@ -25,6 +25,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -337,12 +338,15 @@ export default function UsersPage() {
 
       {/* Filter Tabs and Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Role Tabs */}
+        {/* Role Tabs with Automatic Window Move */}
         <div className="flex items-center gap-2 overflow-x-auto text-xs font-semibold">
           <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1 shrink-0">Filter Staff:</span>
           <button
             type="button"
-            onClick={() => setRoleFilter('ALL')}
+            onClick={() => {
+              setRoleFilter('ALL');
+              smoothScrollTo('users-table-container', { offset: 32, behavior: 'smooth' });
+            }}
             className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
               roleFilter === 'ALL'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -353,7 +357,10 @@ export default function UsersPage() {
           </button>
           <button
             type="button"
-            onClick={() => setRoleFilter('COLLECTION_AGENT')}
+            onClick={() => {
+              setRoleFilter('COLLECTION_AGENT');
+              smoothScrollTo('users-table-container', { offset: 32, behavior: 'smooth' });
+            }}
             className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
               roleFilter === 'COLLECTION_AGENT'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -364,7 +371,10 @@ export default function UsersPage() {
           </button>
           <button
             type="button"
-            onClick={() => setRoleFilter('ADMIN')}
+            onClick={() => {
+              setRoleFilter('ADMIN');
+              smoothScrollTo('users-table-container', { offset: 32, behavior: 'smooth' });
+            }}
             className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
               roleFilter === 'ADMIN'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -388,8 +398,8 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Users & Agents Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      {/* Users & Agents Table with Automatic Window Move */}
+      <div id="users-table-container" className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden scroll-mt-6">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
           <span className="font-semibold text-slate-800 dark:text-slate-200">
             Registered Users ({filteredUsers.length})
@@ -538,7 +548,10 @@ export default function UsersPage() {
           currentPage={currentPage}
           totalItems={filteredUsers.length}
           pageSize={pageSize}
-          onPageChange={setCurrentPage}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            smoothScrollTo('users-table-container', { offset: 32, behavior: 'smooth' });
+          }}
           onPageSizeChange={setPageSize}
         />
       </div>

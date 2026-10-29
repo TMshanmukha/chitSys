@@ -22,13 +22,17 @@ import {
 } from './pages/ModulePages';
 import NotFound from './pages/NotFound';
 
+import ScrollToTop from './components/ScrollToTop';
+
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
           <BrowserRouter>
-          <Routes>
+            {/* Automatic smooth window move to top on every page transition */}
+            <ScrollToTop />
+            <Routes>
             {/* Default entry redirect */}
             <Route path="/" element={<Navigate to="/login" replace />} />
 

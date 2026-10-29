@@ -36,6 +36,7 @@ import ShowMoreText from '../components/ShowMoreText';
 import NotificationBell from '../components/NotificationBell';
 import AnimatedChitBackground from '../components/AnimatedChitBackground';
 import WelcomeCelebrationModal from '../components/WelcomeCelebrationModal';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 export default function AgentDashboard() {
   const { user, logout } = useAuth();
@@ -438,11 +439,14 @@ export default function AgentDashboard() {
           </div>
         </div>
 
-        {/* View Switcher Tabs (Routes vs History) */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-semibold">
+        {/* View Switcher Tabs (Routes vs History) with Automatic Window Move */}
+        <div id="agent-view-content" className="flex border-b border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-semibold scroll-mt-6">
           <button
             type="button"
-            onClick={() => setActiveTab('routes')}
+            onClick={() => {
+              setActiveTab('routes');
+              smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+            }}
             className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'routes'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -453,7 +457,10 @@ export default function AgentDashboard() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('history')}
+            onClick={() => {
+              setActiveTab('history');
+              smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+            }}
             className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'history'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -484,12 +491,15 @@ export default function AgentDashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Daily vs Monthly Category Filter Pill Buttons */}
-              <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-2 flex-wrap">
+              {/* Daily vs Monthly Category Filter Pill Buttons with Automatic Window Move */}
+              <div id="agent-routes-list" className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-2 flex-wrap scroll-mt-6">
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">Chit Type:</span>
                 <button
                   type="button"
-                  onClick={() => setRouteCategoryFilter('ALL')}
+                  onClick={() => {
+                    setRouteCategoryFilter('ALL');
+                    smoothScrollTo('agent-routes-list', { offset: 32, behavior: 'smooth' });
+                  }}
                   className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                     routeCategoryFilter === 'ALL'
                       ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -500,7 +510,10 @@ export default function AgentDashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRouteCategoryFilter('DAILY_CHIT')}
+                  onClick={() => {
+                    setRouteCategoryFilter('DAILY_CHIT');
+                    smoothScrollTo('agent-routes-list', { offset: 32, behavior: 'smooth' });
+                  }}
                   className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                     routeCategoryFilter === 'DAILY_CHIT'
                       ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -511,7 +524,10 @@ export default function AgentDashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRouteCategoryFilter('MONTHLY_CHIT')}
+                  onClick={() => {
+                    setRouteCategoryFilter('MONTHLY_CHIT');
+                    smoothScrollTo('agent-routes-list', { offset: 32, behavior: 'smooth' });
+                  }}
                   className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                     routeCategoryFilter === 'MONTHLY_CHIT'
                       ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -832,7 +848,10 @@ export default function AgentDashboard() {
                 currentPage={historyPage}
                 totalItems={recentCollections.length}
                 pageSize={historyPageSize}
-                onPageChange={setHistoryPage}
+                onPageChange={(page) => {
+                  setHistoryPage(page);
+                  smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+                }}
                 onPageSizeChange={setHistoryPageSize}
                 pageSizeOptions={[5, 10, 20, 50]}
               />

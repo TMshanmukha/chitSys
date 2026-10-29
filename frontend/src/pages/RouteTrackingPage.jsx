@@ -33,6 +33,7 @@ import {
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 export default function RouteTrackingPage() {
   const [loading, setLoading] = useState(true);
@@ -197,12 +198,7 @@ export default function RouteTrackingPage() {
   // Handle clicking a chit scheme: selects route and automatically scrolls to the 2D route map
   const handleSelectRoute = (routeId) => {
     setSelectedRouteId(routeId);
-    setTimeout(() => {
-      const el = document.getElementById('route-trajectory-map');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 120);
+    smoothScrollTo('route-trajectory-map', { offset: 32, behavior: 'smooth', delay: 100 });
   };
 
   return (
@@ -233,7 +229,10 @@ export default function RouteTrackingPage() {
           <div className="flex items-center gap-1.5 flex-wrap text-xs font-semibold">
             <button
               type="button"
-              onClick={() => setRouteCategoryFilter('ALL')}
+              onClick={() => {
+                setRouteCategoryFilter('ALL');
+                smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
+              }}
               className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
                 routeCategoryFilter === 'ALL'
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -244,7 +243,10 @@ export default function RouteTrackingPage() {
             </button>
             <button
               type="button"
-              onClick={() => setRouteCategoryFilter('DAILY_ROUTE')}
+              onClick={() => {
+                setRouteCategoryFilter('DAILY_ROUTE');
+                smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
+              }}
               className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
                 routeCategoryFilter === 'DAILY_ROUTE'
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -255,7 +257,10 @@ export default function RouteTrackingPage() {
             </button>
             <button
               type="button"
-              onClick={() => setRouteCategoryFilter('MONTHLY_ROUTE')}
+              onClick={() => {
+                setRouteCategoryFilter('MONTHLY_ROUTE');
+                smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
+              }}
               className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
                 routeCategoryFilter === 'MONTHLY_ROUTE'
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -334,7 +339,7 @@ export default function RouteTrackingPage() {
       </div>
 
       {/* Smart Chit Scheme Fast Finder & Grid (No more endless horizontal scrolling) */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+      <div id="route-scheme-switcher" className="p-4 sm:p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 scroll-mt-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Compass className="w-4 h-4 text-blue-600 dark:text-blue-400" />

@@ -33,6 +33,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 export default function AuctionsPage() {
   const [auctions, setAuctions] = useState([]);
@@ -145,12 +146,7 @@ export default function AuctionsPage() {
   useEffect(() => {
     if (selectedSchemeId) {
       loadSchemeBreakdown(selectedSchemeId);
-      setTimeout(() => {
-        document.getElementById('scheme-breakdown-details')?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        });
-      }, 150);
+      smoothScrollTo('scheme-breakdown-details', { offset: 32, behavior: 'smooth', delay: 120 });
     }
   }, [selectedSchemeId]);
 

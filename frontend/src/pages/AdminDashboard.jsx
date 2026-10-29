@@ -26,6 +26,7 @@ import { Link } from 'react-router-dom';
 import { formatDate, formatTime } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -657,8 +658,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Active Groups Overview Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      {/* Active Groups Overview Table with Automatic Window Move */}
+      <div id="dashboard-schemes-table" className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden scroll-mt-6">
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-base">
@@ -751,14 +752,17 @@ export default function AdminDashboard() {
           currentPage={groupsPage}
           totalItems={groupsList.length}
           pageSize={groupsPageSize}
-          onPageChange={setGroupsPage}
+          onPageChange={(page) => {
+            setGroupsPage(page);
+            smoothScrollTo('dashboard-schemes-table', { offset: 32, behavior: 'smooth' });
+          }}
           onPageSizeChange={setGroupsPageSize}
           pageSizeOptions={[5, 10, 20]}
         />
       </div>
 
-      {/* Recent Collections Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      {/* Recent Collections Table with Automatic Window Move */}
+      <div id="dashboard-collections-table" className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden scroll-mt-6">
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-base">
@@ -840,7 +844,10 @@ export default function AdminDashboard() {
           currentPage={recentCollPage}
           totalItems={recentCollections.length}
           pageSize={recentCollPageSize}
-          onPageChange={setRecentCollPage}
+          onPageChange={(page) => {
+            setRecentCollPage(page);
+            smoothScrollTo('dashboard-collections-table', { offset: 32, behavior: 'smooth' });
+          }}
           onPageSizeChange={setRecentCollPageSize}
           pageSizeOptions={[5, 10, 20]}
         />

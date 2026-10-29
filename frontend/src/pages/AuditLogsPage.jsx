@@ -20,6 +20,7 @@ import {
 import { formatDate, formatDateTime } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
@@ -145,12 +146,15 @@ export default function AuditLogsPage() {
 
       {/* Filter Tabs and Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        {/* Category Tabs */}
+        {/* Category Tabs with Automatic Window Move */}
         <div className="flex items-center gap-2 overflow-x-auto text-xs font-semibold">
           <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1 shrink-0">Filter Logs:</span>
           <button
             type="button"
-            onClick={() => setActiveTab('LOGINS')}
+            onClick={() => {
+              setActiveTab('LOGINS');
+              smoothScrollTo('audit-logs-table-container', { offset: 32, behavior: 'smooth' });
+            }}
             className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
               activeTab === 'LOGINS'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -161,7 +165,10 @@ export default function AuditLogsPage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('ALL')}
+            onClick={() => {
+              setActiveTab('ALL');
+              smoothScrollTo('audit-logs-table-container', { offset: 32, behavior: 'smooth' });
+            }}
             className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
               activeTab === 'ALL'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -172,7 +179,10 @@ export default function AuditLogsPage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('OPERATIONS')}
+            onClick={() => {
+              setActiveTab('OPERATIONS');
+              smoothScrollTo('audit-logs-table-container', { offset: 32, behavior: 'smooth' });
+            }}
             className={`px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium shrink-0 ${
               activeTab === 'OPERATIONS'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
@@ -196,8 +206,8 @@ export default function AuditLogsPage() {
         </div>
       </div>
 
-      {/* Audit Logs Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      {/* Audit Logs Table with Automatic Window Move */}
+      <div id="audit-logs-table-container" className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden scroll-mt-6">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <span className="font-semibold text-slate-800 dark:text-slate-200">
             Audit Records ({filteredLogs.length})
@@ -338,7 +348,10 @@ export default function AuditLogsPage() {
           currentPage={currentPage}
           totalItems={filteredLogs.length}
           pageSize={pageSize}
-          onPageChange={setCurrentPage}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            smoothScrollTo('audit-logs-table-container', { offset: 32, behavior: 'smooth' });
+          }}
           onPageSizeChange={setPageSize}
         />
       </div>

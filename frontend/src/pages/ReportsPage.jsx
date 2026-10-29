@@ -32,6 +32,7 @@ import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
+import { smoothScrollTo } from '../utils/scrollHelper';
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -483,7 +484,10 @@ export default function ReportsPage() {
             <Layers className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={selectedGroupId}
-              onChange={(e) => setSelectedGroupId(e.target.value)}
+              onChange={(e) => {
+                setSelectedGroupId(e.target.value);
+                smoothScrollTo('report-results-table', { offset: 32, behavior: 'smooth' });
+              }}
               className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
             >
               <option value="ALL">All Chit Schemes & Routes</option>
@@ -499,7 +503,10 @@ export default function ReportsPage() {
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={periodFilter}
-              onChange={(e) => setPeriodFilter(e.target.value)}
+              onChange={(e) => {
+                setPeriodFilter(e.target.value);
+                smoothScrollTo('report-results-table', { offset: 32, behavior: 'smooth' });
+              }}
               className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
             >
               <option value="ALL">All Collection Cycles</option>
@@ -522,12 +529,15 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* 4 Primary ChitBase Report Navigation Tabs */}
-      <div className="border-b border-slate-200 dark:border-slate-800 print:hidden">
+      {/* 4 Primary ChitBase Report Navigation Tabs with Automatic Smooth Window Move */}
+      <div id="report-results-table" className="border-b border-slate-200 dark:border-slate-800 print:hidden scroll-mt-6">
         <nav className="flex space-x-2 sm:space-x-4 overflow-x-auto text-xs font-semibold">
           <button
             type="button"
-            onClick={() => setActiveTab('collections')}
+            onClick={() => {
+              setActiveTab('collections');
+              smoothScrollTo('report-results-table', { offset: 32, behavior: 'smooth' });
+            }}
             className={`flex items-center gap-2 py-3 px-3.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'collections'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -543,7 +553,10 @@ export default function ReportsPage() {
 
           <button
             type="button"
-            onClick={() => setActiveTab('defaulters')}
+            onClick={() => {
+              setActiveTab('defaulters');
+              smoothScrollTo('report-results-table', { offset: 32, behavior: 'smooth' });
+            }}
             className={`flex items-center gap-2 py-3 px-3.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'defaulters'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
@@ -559,7 +572,10 @@ export default function ReportsPage() {
 
           <button
             type="button"
-            onClick={() => setActiveTab('auctions')}
+            onClick={() => {
+              setActiveTab('auctions');
+              smoothScrollTo('report-results-table', { offset: 32, behavior: 'smooth' });
+            }}
             className={`flex items-center gap-2 py-3 px-3.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'auctions'
                 ? 'border-purple-600 text-purple-600 dark:text-purple-400'
@@ -575,7 +591,10 @@ export default function ReportsPage() {
 
           <button
             type="button"
-            onClick={() => setActiveTab('members')}
+            onClick={() => {
+              setActiveTab('members');
+              smoothScrollTo('report-results-table', { offset: 32, behavior: 'smooth' });
+            }}
             className={`flex items-center gap-2 py-3 px-3.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'members'
                 ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
