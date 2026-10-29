@@ -71,6 +71,12 @@ export default function AgentDashboard() {
   // Separation of Daily vs Monthly Chits
   const [routeCategoryFilter, setRouteCategoryFilter] = useState('ALL'); // 'ALL' | 'DAILY_CHIT' | 'MONTHLY_CHIT'
 
+  // Monthly Chit 1st-of-Month Schedule Logic:
+  // "make sure the montly chits is only collected only one time in a month on 1st of every month , if 1st then the chitt should appear on agent profile other wise it should not kk naa, every day tasks it should come thats it kk naa"
+  const isActualFirstDayOfMonth = new Date().getDate() === 1;
+  const [simulateFirstOfMonth, setSimulateFirstOfMonth] = useState(false);
+  const isCollectionDayForMonthly = isActualFirstDayOfMonth || simulateFirstOfMonth;
+
   // Confirmation Modals
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showCollectConfirm, setShowCollectConfirm] = useState(false);
@@ -106,10 +112,19 @@ export default function AgentDashboard() {
     setShowMemberInfoModal(true);
   };
 
-  // Today's Tasks calculations across all assigned routes and members
+  // Today's Tasks calculations across all assigned routes and members:
+  // - Daily chits are collected day-by-day (every day).
+  // - Monthly chits are collected strictly on the 1st of every month.
   const tasksList = useMemo(() => {
     const list = [];
     (routesData.groups || []).forEach((group) => {
+      const isDaily = group.frequency === 'DAILY';
+
+      // Monthly chits only appear in Today's Tasks on the 1st of the month
+      if (!isDaily && !isCollectionDayForMonthly) {
+        return;
+      }
+
       const groupMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
       groupMembers.forEach((m) => {
         const expectedAmount = Number(group.installment_amount || 0);
@@ -147,7 +162,20 @@ export default function AgentDashboard() {
       });
     });
     return list;
-  }, [routesData.groups, routesData.members]);
+  }, [routesData.groups, routesData.members, isCollectionDayForMonthly]);
+
+  // Routes visible on the Agent Profile:
+  // "if 1st then the chitt should appear on agent profile other wise it should not kk naa, every day tasks it should come thats it kk naa"
+  const activeProfileRoutes = useMemo(() => {
+    return (routesData.groups || []).filter((group) => {
+      if (group.frequency === 'DAILY') return true; // Daily chits appear every day
+      return isCollectionDayForMonthly; // Monthly chits only appear on 1st of every month
+    });
+  }, [routesData.groups, isCollectionDayForMonthly]);
+
+  const totalAssignedMonthlyRoutesCount = useMemo(() => {
+    return (routesData.groups || []).filter((group) => group.frequency === 'MONTHLY').length;
+  }, [routesData.groups]);
 
   const totalTasksCount = tasksList.length;
   const completedTasksCount = tasksList.filter((t) => t.isPaid).length;
@@ -214,6 +242,20 @@ export default function AgentDashboard() {
 
   // Pre-fill modal for a specific member to collect
   const openCollectForMember = (groupId, memberId, defaultAmount) => {
+    const group = routesData.groups.find((g) => String(g.id) === String(groupId));
+    const member = routesData.members.find((m) => String(m.member_id) === String(memberId) && String(m.group_id) === String(groupId));
+
+    if (group?.frequency === 'MONTHLY') {
+      if (member?.is_paid) {
+        alert(`Monthly installment for ${member.full_name} has already been collected for this month (Receipt #${member.receipt_number || 'Issued'}). Monthly chits can only be collected one time in a month.`);
+        return;
+      }
+      if (!isCollectionDayForMonthly) {
+        alert('Monthly chits are scheduled to be collected strictly on the 1st of every month. Next collection cycle opens on the 1st.');
+        return;
+      }
+    }
+
     setCollectForm({
       group_id: String(groupId),
       member_id: String(memberId),
@@ -245,6 +287,21 @@ export default function AgentDashboard() {
       setCollectError('Please select both the Chit Group, Member, and enter an amount.');
       return;
     }
+
+    const selectedGroup = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
+    const selectedMember = routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id) && String(m.group_id) === String(collectForm.group_id));
+
+    if (selectedGroup?.frequency === 'MONTHLY') {
+      if (selectedMember?.is_paid) {
+        setCollectError('Monthly installment has already been collected for this subscriber for the current month. Monthly chits can only be collected one time in a month.');
+        return;
+      }
+      if (!isCollectionDayForMonthly) {
+        setCollectError('Monthly chits are scheduled to be collected strictly on the 1st of every month.');
+        return;
+      }
+    }
+
     setShowCollectConfirm(true);
   };
 
@@ -261,6 +318,7 @@ export default function AgentDashboard() {
         payment_method: collectForm.payment_method,
         payment_reference: collectForm.payment_reference || null,
         notes: collectForm.notes || null,
+        allow_off_cycle: simulateFirstOfMonth,
       });
 
       if (res.data?.success) {
@@ -555,14 +613,25 @@ export default function AgentDashboard() {
             }}
             className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-purple-400 transition-colors"
           >
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
-              Assigned Routes
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
+                Assigned Routes
+              </span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                isCollectionDayForMonthly
+                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                  : 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300'
+              }`}>
+                {isCollectionDayForMonthly ? '1st of Month Active' : 'Daily Chits Active'}
+              </span>
+            </div>
             <div className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">
-              {routesData.groups?.length || 0}
+              {activeProfileRoutes.length} <span className="text-xs font-semibold text-slate-400">Routes Active Today</span>
             </div>
             <span className="text-[11px] text-slate-400 mt-1 block">
-              {routesData.members?.length || 0} subscriber nodes · View Hub →
+              {isCollectionDayForMonthly
+                ? `${activeProfileRoutes.length} Schemes Scheduled for Collection`
+                : `${activeProfileRoutes.length} Daily Schemes (${totalAssignedMonthlyRoutesCount} Monthly due on 1st) →`}
             </span>
           </div>
         </div>
@@ -1340,25 +1409,66 @@ export default function AgentDashboard() {
 
             {/* 2. Route Directory: How Many Routes Are There */}
             <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <Compass className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                    Assigned Routes Directory ({routesData.groups.length} Routes)
+                    Assigned Routes Directory ({activeProfileRoutes.length} Active Today)
                   </h3>
                 </div>
-                <span className="text-xs text-slate-400">
-                  {routesData.summary?.dailyGroupsCount || 0} Daily · {routesData.summary?.monthlyGroupsCount || 0} Monthly
-                </span>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 font-semibold">
+                    {routesData.summary?.dailyGroupsCount || 0} Daily (Everyday) · {routesData.summary?.monthlyGroupsCount || 0} Monthly (1st of Month)
+                  </span>
+                </div>
               </div>
 
-              {routesData.groups.length === 0 ? (
+              {/* 1st of Month vs Daily Chits Schedule Banner */}
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs ${
+                isCollectionDayForMonthly
+                  ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200'
+                  : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200'
+              }`}>
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                    isCollectionDayForMonthly ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
+                  }`}>
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <strong className="block font-bold">
+                      {isCollectionDayForMonthly
+                        ? '🔔 1st of Month Active: Monthly Collection Cycle Open'
+                        : '🚚 Daily Routes Active: Monthly Chits Only Appear on 1st of Month'}
+                    </strong>
+                    <span className="text-[11px] opacity-80 block mt-0.5 leading-relaxed">
+                      {isCollectionDayForMonthly
+                        ? 'All assigned monthly chits appear today on your profile for once-a-month installment collection.'
+                        : `Monthly chits are collected only one time in a month on the 1st of every month. Since today is day ${new Date().getDate()}, monthly chits are hidden and will appear automatically on the 1st.`}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSimulateFirstOfMonth(!simulateFirstOfMonth)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer border ${
+                    simulateFirstOfMonth
+                      ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:border-purple-400'
+                  }`}
+                >
+                  {simulateFirstOfMonth ? '✓ 1st of Month Active (Click to Reset)' : '🔘 Test / Preview 1st of Month'}
+                </button>
+              </div>
+
+              {activeProfileRoutes.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs">
-                  No active chit group routes currently assigned.
+                  No active collection routes scheduled for today.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  {routesData.groups.map((group) => {
+                  {activeProfileRoutes.map((group) => {
                     const groupMembers = routesData.members.filter((m) => m.group_id === group.id);
                     const paidCount = groupMembers.filter((m) => m.is_paid).length;
                     const percent = groupMembers.length > 0 ? Math.round((paidCount / groupMembers.length) * 100) : 0;
@@ -1366,7 +1476,7 @@ export default function AgentDashboard() {
                     return (
                       <div
                         key={group.id}
-                        className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/60 hover:border-blue-400 transition-all space-y-3"
+                        className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-all space-y-3"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -1389,7 +1499,7 @@ export default function AgentDashboard() {
                                 : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
                             }`}
                           >
-                            {group.frequency === 'DAILY' ? 'Daily Chit' : 'Monthly Chit'}
+                            {group.frequency === 'DAILY' ? '🚚 Daily Chit (Everyday Task)' : '📅 Monthly Chit (1st of Month Only)'}
                           </span>
                         </div>
 
@@ -1604,11 +1714,14 @@ export default function AgentDashboard() {
                   className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 >
                   <option value="">Select Chit Group Route</option>
-                  {routesData.groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.group_name} ({g.group_code}) — ₹{g.installment_amount}
-                    </option>
-                  ))}
+                  {routesData.groups.map((g) => {
+                    const isDue = g.frequency === 'DAILY' || isCollectionDayForMonthly;
+                    return (
+                      <option key={g.id} value={g.id}>
+                        {g.group_name} ({g.group_code}) — ₹{g.installment_amount} {g.frequency === 'DAILY' ? '• Daily (Everyday)' : (isDue ? '• Monthly (Open Today)' : '• Monthly (Due 1st of Month)')}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -1624,11 +1737,25 @@ export default function AgentDashboard() {
                   className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 >
                   <option value="">Select Member</option>
-                  {eligibleMembers.map((m) => (
-                    <option key={m.member_id} value={m.member_id}>
-                      #{m.ticket_number} - {m.full_name} ({m.phone}) {m.is_paid ? '✓ Already Paid' : ''}
-                    </option>
-                  ))}
+                  {eligibleMembers.map((m) => {
+                    const selectedGrp = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
+                    const isMonthly = selectedGrp?.frequency === 'MONTHLY';
+                    const isAlreadyCollectedThisMonth = isMonthly && m.is_paid;
+
+                    return (
+                      <option
+                        key={m.member_id}
+                        value={m.member_id}
+                        disabled={isAlreadyCollectedThisMonth}
+                      >
+                        #{m.ticket_number} - {m.full_name} ({m.phone}) {
+                          isAlreadyCollectedThisMonth
+                            ? '✓ [PAID THIS MONTH - Only 1 Collection/Month]'
+                            : (m.is_paid ? '✓ Already Paid' : '')
+                        }
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

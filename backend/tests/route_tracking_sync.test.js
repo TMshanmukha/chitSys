@@ -10,11 +10,18 @@ test('Synchronous Route Tracking & Agent Node State Transition Suite', async (t)
   let testMemberId;
   let testAgentId;
 
-  // Setup: Find or create an active group and active member
-  const [groups] = await pool.query(
-    "SELECT id, group_code, installment_amount, chit_type, route_category FROM chit_groups WHERE status = 'ACTIVE' LIMIT 1"
+  // Setup: Find or create an active daily group and active member
+  let [groups] = await pool.query(
+    "SELECT id, group_code, installment_amount, chit_type, route_category FROM chit_groups WHERE status = 'ACTIVE' AND frequency = 'DAILY' LIMIT 1"
   );
-  assert.ok(groups.length > 0, 'Must have at least one active chit group');
+  if (groups.length === 0) {
+    const [res] = await pool.query(
+      `INSERT INTO chit_groups (group_code, group_name, frequency, chit_type, route_category, location_name, installment_amount, total_pool_amount, duration_periods, start_date, created_by)
+       VALUES ('SYNC-DAY-1', 'Daily Sync Route Scheme', 'DAILY', 'DAILY_CHIT', 'DAILY_ROUTE', 'Central Market', 500.00, 50000.00, 100, CURDATE(), 1)`
+    );
+    groups = [{ id: res.insertId }];
+  }
+  assert.ok(groups.length > 0, 'Must have at least one active daily chit group');
   testGroupId = groups[0].id;
 
   const [members] = await pool.query('SELECT id, full_name, phone FROM members LIMIT 1');

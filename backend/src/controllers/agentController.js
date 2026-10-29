@@ -248,14 +248,22 @@ export async function getMyAssignedRoutes(req, res, next) {
       [agentId]
     );
 
+    const isFirstOfMonth = new Date().getDate() === 1;
+
     const enrichedGroups = groups.map((g) => {
       const isDaily = g.frequency === 'DAILY';
+      const isDueToday = isDaily || isFirstOfMonth;
       return {
         ...g,
         cycle_type: g.frequency,
         cycle_mode: isDaily ? 'DAY_BY_DAY' : 'MONTH_BY_MONTH',
         cycle_label: isDaily ? 'Day-by-Day (Today)' : 'Month-by-Month (Current Month)',
         cycle_period_label: isDaily ? 'Daily Installment' : 'Monthly Installment',
+        is_due_today: isDueToday,
+        is_first_of_month: isFirstOfMonth,
+        collection_schedule_note: isDaily
+          ? 'Collected daily (Every day task)'
+          : 'Collected only once per month on 1st of every month',
       };
     });
 

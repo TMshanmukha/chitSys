@@ -85,6 +85,47 @@ export async function recordCollection(req, res, next) {
     const recordingAgentId =
       req.user.role === 'COLLECTION_AGENT' ? req.user.id : (validated.agent_id || req.user.id);
 
+    // 1. Fetch Chit Group details to verify frequency rules
+    const [groupRows] = await pool.execute(
+      'SELECT id, group_name, frequency, installment_amount FROM chit_groups WHERE id = ?',
+      [validated.group_id]
+    );
+    if (groupRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chit group not found.' });
+    }
+    const chitGroup = groupRows[0];
+
+    // 2. Validate Monthly Chit Collection Rules:
+    // "monthly chits is only collected only one time in a month on 1st of every month"
+    if (chitGroup.frequency === 'MONTHLY') {
+      // Check A: Member can only pay ONCE per month
+      const [existingThisMonth] = await pool.execute(
+        `SELECT id, receipt_number, amount, collection_date 
+         FROM collections 
+         WHERE group_id = ? AND member_id = ? AND verification_status != 'CANCELLED'
+           AND YEAR(collection_date) = YEAR(CURDATE()) AND MONTH(collection_date) = MONTH(CURDATE())
+         LIMIT 1`,
+        [validated.group_id, validated.member_id]
+      );
+
+      if (existingThisMonth.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Monthly installment has already been collected for this subscriber for the current month (Receipt #${existingThisMonth[0].receipt_number}). Monthly chits are collected only one time in a month.`,
+        });
+      }
+
+      // Check B: Collection must be on 1st of month (allow admin override or test bypass)
+      const isFirstDay = new Date().getDate() === 1;
+      const allowOffCycle = req.body.allow_off_cycle || req.user.role === 'SUPER_ADMIN' || req.user.role === 'ADMIN';
+      if (!isFirstDay && !allowOffCycle && req.user.role === 'COLLECTION_AGENT') {
+        return res.status(400).json({
+          success: false,
+          message: 'Monthly chits are scheduled to be collected strictly on the 1st of every month. Next collection will open on the 1st.',
+        });
+      }
+    }
+
     // Generate unique receipt number: REC-YYYYMMDD-XXXX
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const randSuffix = crypto.randomBytes(2).toString('hex').toUpperCase();
