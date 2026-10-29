@@ -1,22 +1,33 @@
 import React from 'react';
+import chitBgImage from '../assets/chit_fund_bg.jpg';
 
 /**
  * AnimatedChitBackground:
- * Renders subtle, elegant chit fund motifs (Rupee coins, chit certificates, 
- * auction gavels, wealth vaults, and dividend charts) overlaid on soft ambient 
- * light mesh gradients. Provides atmospheric depth behind transparent glass boxes.
+ * Renders an authentic high-resolution static chit fund background image 
+ * featuring Indian currency notes, auction bowl with name chits & tokens, 
+ * auction gavel and ledger records, tinted with soft ambient light gradients 
+ * and subtle floating financial motifs.
  */
 export default function AnimatedChitBackground() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none" aria-hidden="true">
-      {/* Light Gradient Mesh & Ambient Nebulas */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-slate-50/30 to-indigo-50/40 dark:from-slate-950 dark:via-blue-950/20 dark:to-slate-950 transition-colors" />
+      {/* 1. Static Photorealistic Chit Fund & Currency Wallpaper Base Layer */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 opacity-[0.24] dark:opacity-[0.16] scale-105"
+        style={{
+          backgroundImage: `url(${chitBgImage})`,
+          filter: 'contrast(1.06) saturate(1.12)',
+        }}
+      />
+
+      {/* 2. Soft Light Gradient Mesh & Tint Overlays */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50/85 via-white/70 to-blue-50/80 dark:from-slate-950/92 dark:via-slate-900/88 dark:to-blue-950/88 transition-colors backdrop-blur-[1px]" />
       
-      {/* Soft Luminous Color Orbs */}
-      <div className="absolute -top-32 -left-32 w-[650px] h-[650px] bg-gradient-to-br from-blue-400/12 to-indigo-500/10 dark:from-blue-600/12 dark:to-indigo-600/10 rounded-full blur-[140px] animate-pulse" />
-      <div className="absolute top-1/4 -right-32 w-[600px] h-[600px] bg-gradient-to-bl from-amber-400/10 via-orange-400/8 to-pink-400/8 dark:from-amber-600/10 dark:to-purple-900/10 rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '6s' }} />
-      <div className="absolute -bottom-40 left-1/4 w-[750px] h-[750px] bg-gradient-to-tr from-emerald-400/10 via-teal-400/8 to-cyan-400/10 dark:from-emerald-600/10 dark:to-cyan-900/10 rounded-full blur-[160px]" />
-      <div className="absolute top-2/3 right-1/4 w-[450px] h-[450px] bg-purple-400/8 dark:bg-purple-600/8 rounded-full blur-[130px] animate-pulse" style={{ animationDuration: '8s' }} />
+      {/* 3. Soft Luminous Color Nebulas */}
+      <div className="absolute -top-32 -left-32 w-[650px] h-[650px] bg-gradient-to-br from-blue-400/12 to-indigo-500/10 dark:from-blue-600/10 dark:to-indigo-600/8 rounded-full blur-[140px] animate-pulse" />
+      <div className="absolute top-1/4 -right-32 w-[600px] h-[600px] bg-gradient-to-bl from-amber-400/10 via-orange-400/8 to-pink-400/8 dark:from-amber-600/8 dark:to-purple-900/8 rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '6s' }} />
+      <div className="absolute -bottom-40 left-1/4 w-[750px] h-[750px] bg-gradient-to-tr from-emerald-400/10 via-teal-400/8 to-cyan-400/10 dark:from-emerald-600/8 dark:to-cyan-900/8 rounded-full blur-[160px]" />
+      <div className="absolute top-2/3 right-1/4 w-[450px] h-[450px] bg-purple-400/8 dark:bg-purple-600/6 rounded-full blur-[130px] animate-pulse" style={{ animationDuration: '8s' }} />
 
       {/* Grid Pattern Watermark for Financial Ledger Depth */}
       <div 
