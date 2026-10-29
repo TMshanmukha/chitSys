@@ -6,10 +6,16 @@ import { env } from './config/env.js';
 import { testConnection } from './config/db.js';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import agentRoutes from './routes/agentRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 const app = express();
@@ -96,8 +102,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Root & Health check endpoints for cloud platforms (Back4App, Docker, Koyeb)
-app.get(['/', '/health', '/api/health'], (req, res) => {
+// Health check endpoints for cloud monitoring
+app.get(['/health', '/api/health'], (req, res) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -113,6 +119,33 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/agent', agentRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+
+// Serve frontend static assets (Vite production build)
+const candidateDistDirs = [
+  path.resolve(process.cwd(), 'frontend/dist'),
+  path.resolve(process.cwd(), 'dist'),
+  path.resolve(__dirname, '../../../frontend/dist'),
+  path.resolve(__dirname, '../../frontend/dist'),
+  path.resolve(__dirname, '../frontend/dist'),
+];
+const distDir = candidateDistDirs.find((d) => {
+  try {
+    return fs.existsSync(d) && fs.existsSync(path.join(d, 'index.html'));
+  } catch (_) {
+    return false;
+  }
+});
+
+if (distDir) {
+  logger.info(`Serving static frontend build from: ${distDir}`);
+  app.use(express.static(distDir));
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+}
 
 // 404 Handler for undefined API routes
 app.use('/api/*', (req, res) => {
@@ -191,8 +224,7 @@ async function startServer() {
   process.on('SIGINT', shutdown);
 }
 
-// Only start when executed directly (not when imported for tests)
-import { fileURLToPath } from 'url';
+// Only start when executed directly (not when imported for tests or Vercel serverless)
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 
 if (isMain) {
