@@ -815,7 +815,7 @@ export function ChitGroupsPage() {
                         </span>
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
-                        Reverse auction every cycle. Admin commission is deducted from the winner's prize payout; the full bid discount is divided equally among members and credited directly to subscriber passbooks (reduces next installment).
+                        Reverse auction every cycle. Admin commission is deducted from the winner's prize payout; the full bid discount is divided equally among members and credited directly to subscriber passbooks (installment due remains full standard amount).
                       </div>
                     </button>
 

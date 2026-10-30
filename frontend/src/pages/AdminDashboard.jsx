@@ -200,7 +200,7 @@ export default function AdminDashboard() {
             <span className="text-xs text-slate-500 dark:text-slate-400">Reverse auction</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Monthly bidding, 5% foreman commission & dividend installment deduction
+            Monthly bidding, 5% foreman commission & dividend credited to subscriber ledger
           </p>
         </div>
 

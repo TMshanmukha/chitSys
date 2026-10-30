@@ -33,8 +33,16 @@ test('Admin Agent Daily Performance & Cash Ledger Test Suite', async (t) => {
   }
 
   // Setup: Ensure a member exists
-  const [members] = await pool.query('SELECT id FROM members LIMIT 1');
-  memberId = members[0].id;
+  let [members] = await pool.query('SELECT id FROM members LIMIT 1');
+  if (members.length === 0) {
+    const [memRes] = await pool.query(
+      `INSERT INTO members (full_name, phone, member_code, created_by)
+       VALUES ('Performance Test Member', '9876543210', 'MEM-PERF-01', 1)`
+    );
+    memberId = memRes.insertId;
+  } else {
+    memberId = members[0].id;
+  }
 
   // Enroll member in group
   await pool.query(
@@ -64,7 +72,7 @@ test('Admin Agent Daily Performance & Cash Ledger Test Suite', async (t) => {
   // Also log tracking stop activity
   await pool.query(
     `INSERT INTO agent_tracking_logs (agent_id, group_id, member_id, stop_id, tracking_date, status, last_ping_time, notes)
-     VALUES (?, ?, ?, 1, ?, 'PAID', NOW(), 'Door delivered receipt')`,
+     VALUES (?, ?, ?, NULL, ?, 'PAID', NOW(), 'Door delivered receipt')`,
     [agentId, groupId, memberId, todayStr]
   );
 

@@ -401,12 +401,21 @@ export async function logAgentStopActivity(req, res, next) {
 
     const agentId = req.user.id;
     const targetStatus = status || 'NOT_PAID';
-    const targetMemberId = memberId || stopId || null;
+    const targetMemberId = memberId || null;
+
+    // Safely verify if stopId exists in route_stops to prevent FK constraint failure
+    let validStopId = null;
+    if (stopId) {
+      const [stopRows] = await pool.query('SELECT id FROM route_stops WHERE id = ? LIMIT 1', [stopId]);
+      if (stopRows.length > 0) {
+        validStopId = stopRows[0].id;
+      }
+    }
 
     await pool.execute(
       `INSERT INTO agent_tracking_logs (agent_id, group_id, member_id, stop_id, tracking_date, status, last_ping_time, notes)
        VALUES (?, ?, ?, ?, CURDATE(), ?, CURTIME(), ?)`,
-      [agentId, groupId, targetMemberId, stopId || targetMemberId, targetStatus, notes || null]
+      [agentId, groupId, targetMemberId, validStopId, targetStatus, notes || null]
     );
 
     if (targetStatus === 'PAID') {

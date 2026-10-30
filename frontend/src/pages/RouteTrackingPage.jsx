@@ -129,14 +129,14 @@ export default function RouteTrackingPage() {
         const data = res.data.data;
         setTrackingData(data);
         setLastSyncTime(new Date());
-        if (data.routes && data.routes.length > 0) {
+        if (data?.routes && data.routes.length > 0) {
           if (!selectedRouteId) {
             setSelectedRouteId(data.routes[0].id);
           } else {
             // Keep selected stop fresh if route is currently selected
             const currentRoute = data.routes.find((r) => r.id === selectedRouteId);
             if (currentRoute && selectedStop) {
-              const updatedStop = currentRoute.stops.find((s) => s.id === selectedStop.id);
+              const updatedStop = currentRoute.stops?.find((s) => s.id === selectedStop.id);
               if (updatedStop) setSelectedStop(updatedStop);
             }
           }

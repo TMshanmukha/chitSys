@@ -149,10 +149,19 @@ export async function recordCollection(req, res, next) {
 
     // Also synchronize agent tracking log: set this member node to PAID immediately
     try {
+      let validStopId = null;
+      const [stopRows] = await pool.query(
+        'SELECT id FROM route_stops WHERE group_id = ? AND member_id = ? LIMIT 1',
+        [validated.group_id, validated.member_id]
+      );
+      if (stopRows.length > 0) {
+        validStopId = stopRows[0].id;
+      }
+
       await pool.execute(
         `INSERT INTO agent_tracking_logs (agent_id, group_id, member_id, stop_id, tracking_date, status, last_ping_time, notes)
          VALUES (?, ?, ?, ?, CURDATE(), 'PAID', CURTIME(), ?)`,
-        [recordingAgentId, validated.group_id, validated.member_id, validated.member_id, validated.notes || 'Paid in field']
+        [recordingAgentId, validated.group_id, validated.member_id, validStopId, validated.notes || 'Paid in field']
       );
     } catch (e) {
       console.error('Tracking log sync warning:', e.message);
