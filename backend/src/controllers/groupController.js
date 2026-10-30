@@ -367,11 +367,13 @@ export async function getGroupDetails(req, res, next) {
 
     let totalDividendsDistributed = 0;
     let totalPrizeDisbursed = 0;
+    let totalDoubleChitReserve = 0;
 
     for (const a of auctions) {
       const divPerMember = parseFloat(a.dividend_per_member) || 0;
       const memCount = group.total_members_limit || 20;
       totalDividendsDistributed += divPerMember * memCount;
+      totalDoubleChitReserve += parseFloat(a.double_chit_reserve) || 0;
       if (a.payout_status === 'DISBURSED') {
         totalPrizeDisbursed += parseFloat(a.net_payable_amount) || 0;
       }
@@ -391,6 +393,7 @@ export async function getGroupDetails(req, res, next) {
           totalCash,
           totalDigital,
           totalDividendsDistributed,
+          totalDoubleChitReserve,
           totalPrizeDisbursed,
           receiptsCount: collections.length,
         },

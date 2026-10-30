@@ -637,19 +637,19 @@ export function ChitGroupsPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
       >
-        <div className="w-full max-w-4xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[94vh] overflow-y-auto transition-all animate-confirmScale">
+        <div className="w-full max-w-4xl rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6 my-auto sm:my-8 max-h-[95vh] sm:max-h-[94vh] overflow-y-auto transition-all animate-confirmScale">
             
             {/* Wizard Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold shadow-xs">
-                  <PlusCircle className="w-6 h-6" />
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 sm:pb-4">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold shadow-xs shrink-0">
+                  <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-lg sm:text-xl font-heading">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-xl font-heading leading-tight truncate">
                     Chit Scheme Creation & Direct Enrolment Wizard
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                     Step {wizardStep} of 3: {wizardStep === 1 ? 'Configure Scheme Rules' : wizardStep === 2 ? 'Select Required Subscribers' : 'Pre-Flight Verification & Launch'}
                   </p>
                 </div>
@@ -657,28 +657,31 @@ export function ChitGroupsPage() {
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Stepper Progress Bar */}
-            <div className="grid grid-cols-3 gap-2">
+            {/* Stepper Progress Bar (Mobile Responsive Pills) */}
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onClick={() => setWizardStep(1)}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2 sm:p-3 rounded-xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 1
                     ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 shadow-xs'
                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${wizardStep === 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>1</span>
-                  <span className="font-bold text-xs sm:text-sm">Configuration</span>
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>1</span>
+                  <span className="font-bold text-xs sm:text-sm truncate">
+                    <span className="sm:hidden">Rules</span>
+                    <span className="hidden sm:inline">Configuration</span>
+                  </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate mt-1">Rules, Pool, Date & Agent</p>
+                <p className="hidden sm:block text-[11px] text-slate-400 truncate mt-1">Rules, Pool, Date & Agent</p>
               </button>
 
               <button
@@ -686,61 +689,67 @@ export function ChitGroupsPage() {
                 onClick={() => {
                   if (form.group_name.trim()) setWizardStep(2);
                 }}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2 sm:p-3 rounded-xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 2
                     ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 shadow-xs'
                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${wizardStep === 2 ? 'bg-blue-600 text-white' : selectedMemberIds.length === targetMembersCount ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 2 ? 'bg-blue-600 text-white' : selectedMemberIds.length === targetMembersCount ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                     {selectedMemberIds.length === targetMembersCount ? '✓' : '2'}
                   </span>
-                  <span className="font-bold text-xs sm:text-sm">Subscribers ({selectedMemberIds.length}/{targetMembersCount})</span>
+                  <span className="font-bold text-xs sm:text-sm truncate">
+                    <span className="sm:hidden">Members ({selectedMemberIds.length}/{targetMembersCount})</span>
+                    <span className="hidden sm:inline">Subscribers ({selectedMemberIds.length}/{targetMembersCount})</span>
+                  </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate mt-1">Direct Member Allocation</p>
+                <p className="hidden sm:block text-[11px] text-slate-400 truncate mt-1">Direct Member Allocation</p>
               </button>
 
               <button
                 type="button"
                 onClick={() => setWizardStep(3)}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2 sm:p-3 rounded-xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 3
                     ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 shadow-xs'
                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${wizardStep === 3 ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>3</span>
-                  <span className="font-bold text-xs sm:text-sm">Verify & Launch</span>
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 3 ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>3</span>
+                  <span className="font-bold text-xs sm:text-sm truncate">
+                    <span className="sm:hidden">Launch</span>
+                    <span className="hidden sm:inline">Verify & Launch</span>
+                  </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate mt-1">Pre-flight Diagnostics</p>
+                <p className="hidden sm:block text-[11px] text-slate-400 truncate mt-1">Pre-flight Diagnostics</p>
               </button>
             </div>
 
             {error && (
-              <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-sm flex items-start gap-3 border border-rose-200 dark:border-rose-900/50">
+              <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-start gap-2.5 sm:gap-3 border border-rose-200 dark:border-rose-900/50">
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-500" />
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 min-w-0">
                   <span className="font-bold block">Action Required</span>
-                  <span>{error}</span>
+                  <span className="break-words">{error}</span>
                 </div>
               </div>
             )}
 
             {/* STEP 1: SCHEME CONFIGURATION */}
             {wizardStep === 1 && (
-              <div className="space-y-6 animate-fadeIn">
+              <div className="space-y-4 sm:space-y-6 animate-fadeIn">
                 {/* Billing Frequency */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-3">
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-2.5 sm:space-y-3">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Select Billing Frequency & Route Track *
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                     <button
                       type="button"
                       onClick={() => handleFrequencySelect('DAILY')}
-                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                         form.frequency === 'DAILY'
                           ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-100 shadow-sm ring-2 ring-blue-600/30'
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -758,7 +767,7 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleFrequencySelect('MONTHLY')}
-                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                         form.frequency === 'MONTHLY'
                           ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-100 shadow-sm ring-2 ring-blue-600/30'
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -776,8 +785,8 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Scheme Mechanism: STRICTLY Auction Chit or Double Chit (Standard Chit Removed) */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-3">
-                  <div className="flex items-center justify-between">
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-2.5 sm:space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       Select Scheme Mechanism (Strictly 2 Types · Selection is Final Once Created) *
                     </label>
@@ -786,11 +795,11 @@ export function ChitGroupsPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                     <button
                       type="button"
                       onClick={() => handleSchemeTypeSelect('AUCTION_CHIT')}
-                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                         form.chit_type === 'AUCTION_CHIT'
                           ? 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-100 shadow-xs ring-2 ring-emerald-600/30'
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -801,19 +810,19 @@ export function ChitGroupsPage() {
                           <span>🔨</span>
                           <span>Auction Chit</span>
                         </div>
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 shrink-0">
                           Single Draw
                         </span>
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
-                        Reverse auction every cycle. Admin gets 5% of bid discount; remaining surplus is divided equally among members and credited directly to subscriber passbooks (reduces next installment).
+                        Reverse auction every cycle. Admin commission is deducted from the winner's prize payout; the full bid discount is divided equally among members and credited directly to subscriber passbooks (reduces next installment).
                       </div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleSchemeTypeSelect('DOUBLE_CHIT')}
-                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                         form.chit_type === 'DOUBLE_CHIT'
                           ? 'border-purple-600 bg-purple-50/80 dark:bg-purple-950/60 text-purple-900 dark:text-purple-100 shadow-xs ring-2 ring-purple-600/30'
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -824,19 +833,19 @@ export function ChitGroupsPage() {
                           <span>⚡</span>
                           <span>Double Chit</span>
                         </div>
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 shrink-0">
                           Dual Draw Slot
                         </span>
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
-                        Dual draws per cycle. Admin gets 5% of bid discount. Remaining surplus is retained in this chitti reserve pool so eligible persons can win it in upcoming draws (0 passbook dividend).
+                        Dual draws per cycle. Admin commission is deducted from winner prize. The full bid discount is saved in this chit's pool reserve so you have the option to auction that saved pool again in Draw #2 (0 passbook dividend).
                       </div>
                     </button>
                   </div>
                 </div>
 
                 {/* Core Information */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Scheme Code *
@@ -847,7 +856,7 @@ export function ChitGroupsPage() {
                       value={form.group_code}
                       onChange={(e) => setForm({ ...form, group_code: e.target.value.toUpperCase() })}
                       placeholder="e.g. DLY-AUC-101"
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-semibold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-semibold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
                   </div>
 
@@ -861,7 +870,7 @@ export function ChitGroupsPage() {
                       placeholder="e.g. Market Daily Auction Pool"
                       value={form.group_name}
                       onChange={(e) => setForm({ ...form, group_name: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
                   </div>
 
@@ -875,7 +884,7 @@ export function ChitGroupsPage() {
                       placeholder="e.g. Main Bazaar & Sector 4"
                       value={form.location_name}
                       onChange={(e) => setForm({ ...form, location_name: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
                   </div>
 
@@ -900,7 +909,7 @@ export function ChitGroupsPage() {
                     <select
                       value={form.assigned_agent_id}
                       onChange={(e) => setForm({ ...form, assigned_agent_id: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     >
                       <option value="">-- Assign Later --</option>
                       {agents.map((ag) => (
@@ -918,7 +927,7 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Financial Configuration with Auto-Calculated Total Pool (No Manual Typing) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Installment (₹) *
@@ -930,7 +939,7 @@ export function ChitGroupsPage() {
                       value={form.installment_amount}
                       onChange={(e) => handleFinancialFieldChange('installment_amount', e.target.value)}
                       placeholder="e.g. 500"
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
                   </div>
 
@@ -943,7 +952,7 @@ export function ChitGroupsPage() {
                       required
                       value={form.total_members_limit}
                       onChange={(e) => handleFinancialFieldChange('total_members_limit', e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
                   </div>
 
@@ -956,17 +965,17 @@ export function ChitGroupsPage() {
                       required
                       value={form.duration_periods}
                       onChange={(e) => handleFinancialFieldChange('duration_periods', e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
                   </div>
 
                   {/* AUTO CALCULATED TOTAL POOL BOX - NO MANUAL TYPING */}
                   <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/60 flex flex-col justify-between">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block font-heading">
                         Total Chit Pool (Auto)
                       </span>
-                      <div className="text-lg font-extrabold text-blue-700 dark:text-blue-300 font-mono mt-0.5">
+                      <div className="text-lg font-black text-blue-700 dark:text-blue-300 font-mono mt-0.5 font-heading">
                         ₹{parseFloat(form.total_pool_amount || '0').toLocaleString('en-IN')}
                       </div>
                     </div>
@@ -977,7 +986,7 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Auction / Double Chit Rules */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Foreman Commission (%) *
@@ -988,7 +997,7 @@ export function ChitGroupsPage() {
                       required
                       value={form.foreman_commission_percent}
                       onChange={(e) => setForm({ ...form, foreman_commission_percent: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm"
+                      className="w-full px-3.5 sm:px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm"
                     />
                     <p className="text-[11px] text-slate-400 mt-1">Standard statutory commission: 5.0%</p>
                   </div>
@@ -1003,15 +1012,15 @@ export function ChitGroupsPage() {
                       required
                       value={form.max_bid_percent}
                       onChange={(e) => setForm({ ...form, max_bid_percent: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm"
+                      className="w-full px-3.5 sm:px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm"
                     />
                     <p className="text-[11px] text-slate-400 mt-1">Cap on subscriber reverse bidding: 35.0%</p>
                   </div>
                 </div>
 
-                {/* Scheme Commencement Date - Unrestricted: Can be past, present, or future */}
+                {/* Scheme Commencement Date */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1.5 gap-1">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       Scheme Commencement Date *
                     </label>
@@ -1024,19 +1033,19 @@ export function ChitGroupsPage() {
                     required
                     value={form.start_date}
                     onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
                     Chits can be backdated for ledger import, initialized today, or scheduled for future launch.
                   </p>
                 </div>
 
-                {/* Step 1 Actions */}
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                {/* Step 1 Actions (Responsive for mobile) */}
+                <div className="pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors cursor-pointer text-center justify-center"
                   >
                     Cancel
                   </button>
@@ -1044,9 +1053,9 @@ export function ChitGroupsPage() {
                   <button
                     type="button"
                     onClick={handleStep1Next}
-                    className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Next: Select Enrolled Members ({selectedMemberIds.length}/{targetMembersCount})</span>
+                    <span>Next: Select Members ({selectedMemberIds.length}/{targetMembersCount})</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -1055,41 +1064,41 @@ export function ChitGroupsPage() {
 
             {/* STEP 2: SELECT ENROLLED MEMBERS */}
             {wizardStep === 2 && (
-              <div className="space-y-5 animate-fadeIn">
+              <div className="space-y-4 sm:space-y-5 animate-fadeIn">
                 {/* Capacity Counter & Progress Alert */}
-                <div className={`p-4 rounded-2xl border transition-all ${
+                <div className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border transition-all ${
                   selectedCount === targetMembersCount
                     ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100'
                     : selectedCount < targetMembersCount
                     ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100'
                     : 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-100'
                 }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 font-bold text-sm sm:text-base">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 font-bold text-xs sm:text-base min-w-0">
                       {selectedCount === targetMembersCount ? (
                         <>
                           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                          <span>Exact Member Capacity Met: {selectedCount} / {targetMembersCount} Enrolled</span>
+                          <span className="truncate">Exact Capacity Met: {selectedCount} / {targetMembersCount} Enrolled</span>
                         </>
                       ) : selectedCount < targetMembersCount ? (
                         <>
                           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-                          <span>Need {targetMembersCount - selectedCount} More Subscriber(s) to Fill Group ({selectedCount} / {targetMembersCount})</span>
+                          <span className="truncate">Need {targetMembersCount - selectedCount} More Subscriber(s) ({selectedCount} / {targetMembersCount})</span>
                         </>
                       ) : (
                         <>
                           <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-                          <span>{selectedCount - targetMembersCount} Extra Members Selected ({selectedCount} / {targetMembersCount})</span>
+                          <span className="truncate">{selectedCount - targetMembersCount} Extra Members Selected ({selectedCount} / {targetMembersCount})</span>
                         </>
                       )}
                     </div>
-                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-900/80 shadow-2xs">
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-900/80 shadow-2xs self-start sm:self-auto">
                       {Math.round((selectedCount / Math.max(1, targetMembersCount)) * 100)}% Filled
                     </span>
                   </div>
 
                   {/* Progress bar */}
-                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden mt-3">
+                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden mt-2.5 sm:mt-3">
                     <div
                       className={`h-full transition-all duration-300 ${
                         selectedCount === targetMembersCount
@@ -1104,8 +1113,8 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Action Bar: Search, Quick Add, Auto Select */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                  <div className="relative flex-1">
+                <div className="space-y-2.5">
+                  <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                     <input
                       type="text"
@@ -1116,25 +1125,27 @@ export function ChitGroupsPage() {
                     />
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={handleAutoSelectMembers}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
-                      title="Quickly fill first available members"
-                    >
-                      ⚡ Auto-Select {targetMembersCount}
-                    </button>
-
-                    {selectedCount > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={handleDeselectAllMembers}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                        onClick={handleAutoSelectMembers}
+                        className="px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
+                        title="Quickly fill first available members"
                       >
-                        Clear All
+                        ⚡ Auto-Select {targetMembersCount}
                       </button>
-                    )}
+
+                      {selectedCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleDeselectAllMembers}
+                          className="px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
 
                     {/* Inline Quick Add Member */}
                     <button
@@ -1144,7 +1155,7 @@ export function ChitGroupsPage() {
                         setShowQuickMemberModal(true);
                         scrollToFormOrModal('quick-member-modal');
                       }}
-                      className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer ml-auto"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
                       <span>+ Quick Add Member</span>
@@ -1153,9 +1164,9 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Members Selection List */}
-                <div className="border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden max-h-[360px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                <div className="border border-slate-200 dark:border-slate-700/80 rounded-xl sm:rounded-2xl overflow-hidden max-h-[300px] sm:max-h-[360px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                   {allMembers.length === 0 ? (
-                    <div className="p-8 text-center text-slate-400 space-y-2">
+                    <div className="p-6 sm:p-8 text-center text-slate-400 space-y-2">
                       <Users className="w-8 h-8 mx-auto text-slate-400" />
                       <p className="text-sm font-semibold">No registered members found in the system</p>
                       <button
@@ -1170,7 +1181,7 @@ export function ChitGroupsPage() {
                       </button>
                     </div>
                   ) : filteredMembersList.length === 0 ? (
-                    <div className="p-8 text-center text-slate-400">
+                    <div className="p-6 sm:p-8 text-center text-slate-400 text-xs sm:text-sm">
                       No members match "{memberSearchQuery}".
                     </div>
                   ) : (
@@ -1182,34 +1193,34 @@ export function ChitGroupsPage() {
                         <div
                           key={m.id}
                           onClick={() => toggleMemberSelection(m.id)}
-                          className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.99] rounded-xl ${
+                          className={`p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 sm:gap-3 cursor-pointer transition-all active:scale-[0.99] rounded-xl ${
                             isSelected
                               ? 'bg-blue-50/80 dark:bg-blue-950/50 hover:bg-blue-100/60 animate-selectPop border-l-4 border-blue-600 shadow-xs'
                               : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                             <input
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => {}} // handled by parent onClick
-                              className="w-4 h-4 rounded text-blue-600 cursor-pointer pointer-events-none"
+                              className="w-4 h-4 rounded text-blue-600 cursor-pointer pointer-events-none shrink-0"
                             />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-slate-900 dark:text-white">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                                   {m.full_name}
                                 </span>
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
                                   {m.member_code}
                                 </span>
                               </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                              <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 sm:gap-2 mt-0.5 truncate">
                                 <span>📞 {m.phone}</span>
                                 {m.address && (
                                   <>
                                     <span>·</span>
-                                    <span className="truncate max-w-[200px]">📍 {m.address}</span>
+                                    <span className="truncate max-w-[120px] sm:max-w-[200px]">📍 {m.address}</span>
                                   </>
                                 )}
                               </div>
@@ -1217,7 +1228,7 @@ export function ChitGroupsPage() {
                           </div>
 
                           {isSelected ? (
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-600 text-white font-mono shrink-0 shadow-2xs">
+                            <span className="text-xs font-bold px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg bg-blue-600 text-white font-mono shrink-0 shadow-2xs">
                               Ticket #{ticketIndex + 1}
                             </span>
                           ) : (
@@ -1232,14 +1243,14 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Step 2 Actions */}
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => {
                       setError('');
                       setWizardStep(1);
                     }}
-                    className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Back to Config</span>
@@ -1251,7 +1262,7 @@ export function ChitGroupsPage() {
                       setError('');
                       setWizardStep(3);
                     }}
-                    className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Next: Pre-Flight Verification & Launch</span>
                     <ChevronRight className="w-4 h-4" />
@@ -1354,9 +1365,9 @@ export function ChitGroupsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100 flex items-center gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
-                    <div className="text-sm">
+                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100 flex items-center gap-2.5 sm:gap-3">
+                    <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 shrink-0" />
+                    <div className="text-xs sm:text-sm">
                       <span className="font-bold block">✓ All Pre-Flight Validations Passed!</span>
                       <span>
                         Exactly {targetMembersCount} subscribers verified and allocated to Tickets #1 through #{targetMembersCount}. Ledger accounts and agent route stops will be initialized automatically upon confirmation.
@@ -1366,74 +1377,74 @@ export function ChitGroupsPage() {
                 )}
 
                 {/* Scheme Blueprint Summary */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
-                    <div className="flex items-center gap-2">
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2.5 sm:pb-3 gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60">
                         {form.group_code}
                       </span>
-                      <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
                         {form.group_name}
                       </h4>
                     </div>
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto">
                       {form.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Cycle'} · {form.chit_type === 'DOUBLE_CHIT' ? 'Double Chit' : 'Auction Chit'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
                     <div>
-                      <span className="text-slate-400 block">Per Period Installment</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-sm">
+                      <span className="text-slate-400 block text-[11px]">Per Period Installment</span>
+                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
                         ₹{parseFloat(form.installment_amount || '0').toLocaleString('en-IN')}
                       </strong>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block">Total Chit Pool</span>
-                      <strong className="text-blue-600 dark:text-blue-400 font-mono text-sm font-extrabold">
+                      <span className="text-slate-400 block text-[11px]">Total Chit Pool</span>
+                      <strong className="text-blue-600 dark:text-blue-400 font-mono text-xs sm:text-sm font-extrabold">
                         ₹{parseFloat(form.total_pool_amount || '0').toLocaleString('en-IN')}
                       </strong>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block">Subscribers & Tickets</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-sm">
+                      <span className="text-slate-400 block text-[11px]">Subscribers & Tickets</span>
+                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
                         {selectedCount} / {targetMembersCount} Members
                       </strong>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block">Commencement Date</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-sm">
+                      <span className="text-slate-400 block text-[11px]">Commencement Date</span>
+                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
                         {form.start_date}
                       </strong>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block">Foreman Commission</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-sm">
+                      <span className="text-slate-400 block text-[11px]">Foreman Commission</span>
+                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
                         {form.foreman_commission_percent}%
                       </strong>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block">Max Permissible Bid</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-sm">
+                      <span className="text-slate-400 block text-[11px]">Max Permissible Bid</span>
+                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
                         {form.max_bid_percent}%
                       </strong>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block">Route Location</span>
-                      <strong className="text-slate-900 dark:text-white truncate block">
+                      <span className="text-slate-400 block text-[11px]">Route Location</span>
+                      <strong className="text-slate-900 dark:text-white truncate block text-xs sm:text-sm">
                         {form.location_name}
                       </strong>
                     </div>
 
                     <div>
-                      <span className="text-slate-400 block">Assigned Agent</span>
-                      <strong className="text-slate-900 dark:text-white truncate block">
+                      <span className="text-slate-400 block text-[11px]">Assigned Agent</span>
+                      <strong className="text-slate-900 dark:text-white truncate block text-xs sm:text-sm">
                         {agents.find((a) => String(a.id) === String(form.assigned_agent_id))?.full_name || 'Unassigned'}
                       </strong>
                     </div>
@@ -1455,20 +1466,20 @@ export function ChitGroupsPage() {
                     </button>
                   </div>
 
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl max-h-[220px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl max-h-[180px] sm:max-h-[220px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                     {selectedMemberIds.map((mId, idx) => {
                       const member = allMembers.find((m) => m.id === mId);
                       return (
-                        <div key={mId} className="p-2.5 px-4 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono font-bold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
+                        <div key={mId} className="p-2 sm:p-2.5 px-3 sm:px-4 flex items-center justify-between text-xs gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <span className="font-mono font-bold px-1.5 sm:px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 shrink-0 text-[11px] sm:text-xs">
                               Ticket #{idx + 1}
                             </span>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                               {member?.full_name || `Member #${mId}`}
                             </span>
                           </div>
-                          <span className="text-slate-400 font-mono">
+                          <span className="text-slate-400 font-mono shrink-0 text-[11px] sm:text-xs">
                             {member?.phone || 'No Phone'}
                           </span>
                         </div>
@@ -1477,15 +1488,15 @@ export function ChitGroupsPage() {
                   </div>
                 </div>
 
-                {/* Step 3 Actions */}
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                {/* Step 3 Actions (Mobile Responsive) */}
+                <div className="pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => {
                       setError('');
                       setWizardStep(2);
                     }}
-                    className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Back to Select Members</span>
@@ -1495,7 +1506,7 @@ export function ChitGroupsPage() {
                     type="button"
                     disabled={isMismatch || submitting}
                     onClick={handleCreateGroup}
-                    className={`px-7 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all flex items-center gap-2 ${
+                    className={`w-full sm:w-auto px-6 sm:px-7 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all flex items-center justify-center gap-2 ${
                       isMismatch || submitting
                         ? 'bg-slate-400 cursor-not-allowed opacity-60'
                         : 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 cursor-pointer ring-2 ring-emerald-500/30'
@@ -1532,7 +1543,7 @@ export function ChitGroupsPage() {
         isOpen={showQuickAgentModal}
         onClose={() => setShowQuickAgentModal(false)}
       >
-        <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-confirmScale">
+        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
@@ -1569,7 +1580,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. Ramesh Kumar"
                   value={quickAgentForm.full_name}
                   onChange={(e) => setQuickAgentForm({ ...quickAgentForm, full_name: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
 
@@ -1583,7 +1594,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. 9876543210"
                   value={quickAgentForm.phone}
                   onChange={(e) => setQuickAgentForm({ ...quickAgentForm, phone: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
 
@@ -1597,7 +1608,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. ramesh_agent"
                   value={quickAgentForm.username}
                   onChange={(e) => setQuickAgentForm({ ...quickAgentForm, username: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
 
@@ -1611,7 +1622,7 @@ export function ChitGroupsPage() {
                   placeholder="Min 6 characters"
                   value={quickAgentForm.password}
                   onChange={(e) => setQuickAgentForm({ ...quickAgentForm, password: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
 
@@ -1619,14 +1630,14 @@ export function ChitGroupsPage() {
                 <button
                   type="button"
                   onClick={() => setShowQuickAgentModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={quickAgentSubmitting}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
                 >
                   {quickAgentSubmitting ? 'Creating...' : 'Create & Select Agent'}
                 </button>
@@ -1643,7 +1654,7 @@ export function ChitGroupsPage() {
         isOpen={showQuickMemberModal}
         onClose={() => setShowQuickMemberModal(false)}
       >
-        <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-confirmScale">
+        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
@@ -1680,7 +1691,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. Suresh Varma"
                   value={quickMemberForm.full_name}
                   onChange={(e) => setQuickMemberForm({ ...quickMemberForm, full_name: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 />
               </div>
 
@@ -1694,7 +1705,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. 9848012345"
                   value={quickMemberForm.phone}
                   onChange={(e) => setQuickMemberForm({ ...quickMemberForm, phone: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 />
               </div>
 
@@ -1707,7 +1718,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. Shop #12, Market Road"
                   value={quickMemberForm.address}
                   onChange={(e) => setQuickMemberForm({ ...quickMemberForm, address: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 />
               </div>
 
@@ -1715,7 +1726,7 @@ export function ChitGroupsPage() {
                 <button
                   type="button"
                   onClick={() => setShowQuickMemberModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold"
                 >
                   Cancel
                 </button>

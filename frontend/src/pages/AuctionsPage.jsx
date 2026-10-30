@@ -81,6 +81,8 @@ export default function AuctionsPage() {
     period_number: '1',
     draw_number: '1',
     auction_type: 'AUCTION',
+    pool_source: 'REGULAR',
+    custom_pool_amount: '',
     winning_member_id: '',
     winning_ticket_number: '',
     bid_discount: '',
@@ -89,6 +91,7 @@ export default function AuctionsPage() {
   });
 
   const [groupMembers, setGroupMembers] = useState([]);
+  const [availableReserve, setAvailableReserve] = useState(0);
 
   const loadData = async () => {
     try {
@@ -161,6 +164,8 @@ export default function AuctionsPage() {
       group_id: groupId,
       winning_member_id: '',
       winning_ticket_number: '',
+      pool_source: 'REGULAR',
+      custom_pool_amount: '',
       auction_type: groupObj?.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT_DRAW' : 'AUCTION',
     }));
 
@@ -169,37 +174,51 @@ export default function AuctionsPage() {
         const res = await api.get(`/admin/groups/${groupId}`);
         if (res.data?.success) {
           setGroupMembers(res.data.data.members || []);
+          const auctionsList = res.data.data.auctions || [];
+          const reserveSum = auctionsList.reduce((acc, a) => acc + parseFloat(a.double_chit_reserve || 0), 0);
+          setAvailableReserve(reserveSum);
         }
       } catch (err) {
         console.error(err);
       }
     } else {
       setGroupMembers([]);
+      setAvailableReserve(0);
     }
   };
 
   // Selected group object in modal form
   const selectedGroup = groups.find((g) => String(g.id) === String(form.group_id));
   const isDoubleChitScheme = selectedGroup?.chit_type === 'DOUBLE_CHIT';
+  const isAuctioningReserve = isDoubleChitScheme && form.pool_source === 'SAVED_RESERVE';
   const isDraw1 = String(form.draw_number) === '1';
 
   // Live Calculations in Modal
-  const poolAmount = selectedGroup ? parseFloat(selectedGroup.total_pool_amount) : 0;
+  const groupPoolAmount = selectedGroup ? parseFloat(selectedGroup.total_pool_amount) : 0;
   const baseInstallment = selectedGroup ? parseFloat(selectedGroup.installment_amount) : 0;
   const totalMembers = selectedGroup ? parseInt(selectedGroup.total_members_limit || 20, 10) : 20;
   const commissionPercent = selectedGroup ? parseFloat(selectedGroup.foreman_commission_percent || 5) : 5;
 
+  // Effective pool being auctioned: either standard group pool or saved chit reserve
+  const effectivePool = isAuctioningReserve
+    ? (parseFloat(form.custom_pool_amount) || availableReserve || 0)
+    : groupPoolAmount;
+
   const bidDiscount = parseFloat(form.bid_discount || 0);
-  // Admin Commission: 5% of the winning auction discount amount (e.g. ₹4,000 * 5% = ₹200)
-  const foremanCommission = parseFloat(((bidDiscount * commissionPercent) / 100).toFixed(2));
-  const netPayablePrize = Math.max(0, parseFloat((poolAmount - bidDiscount).toFixed(2)));
-  const netRemainingSurplus = Math.max(0, parseFloat((bidDiscount - foremanCommission).toFixed(2)));
+
+  // Admin Commission: percentage of effective pool amount, DEDUCTED from winner prize (NOT from bid amount)
+  const foremanCommission = parseFloat(((effectivePool * commissionPercent) / 100).toFixed(2));
+
+  // Net prize money payable to winning subscriber = Effective Pool - Bid Discount - Admin Commission
+  const netPayablePrize = Math.max(0, parseFloat((effectivePool - bidDiscount - foremanCommission).toFixed(2)));
 
   // Financial routing:
-  // - AUCTION_CHIT: Surplus is divided equally among members and credited to passbook
-  // - DOUBLE_CHIT: Surplus is NOT divided (0 dividend, 0 passbook entry); retained in this chitti reserve pool so eligible members can win it!
-  const modalDoubleChitReserve = isDoubleChitScheme ? netRemainingSurplus : 0;
-  const modalTotalDividend = isDoubleChitScheme ? 0 : netRemainingSurplus;
+  // - AUCTION_CHIT: Dividend per member comes directly from the bid amount!
+  //   modalTotalDividend = bidDiscount, modalDividendPerMember = bidDiscount / totalMembers
+  // - DOUBLE_CHIT: NO dividend distributed to members (0 dividend, full base installment).
+  //   The full bid discount is saved into this chit's pool reserve (modalDoubleChitReserve = bidDiscount) so it can be auctioned again!
+  const modalDoubleChitReserve = isDoubleChitScheme ? bidDiscount : 0;
+  const modalTotalDividend = isDoubleChitScheme ? 0 : bidDiscount;
   const modalDividendPerMember = (!isDoubleChitScheme && totalMembers > 0) ? parseFloat((modalTotalDividend / totalMembers).toFixed(2)) : 0;
   const modalNextInstallment = isDoubleChitScheme ? baseInstallment : Math.max(0, parseFloat((baseInstallment - modalDividendPerMember).toFixed(2)));
 
@@ -266,6 +285,8 @@ export default function AuctionsPage() {
         period_number: parseInt(form.period_number, 10),
         draw_number: parseInt(form.draw_number, 10),
         auction_type: form.auction_type,
+        pool_source: form.pool_source || 'REGULAR',
+        custom_pool_amount: form.custom_pool_amount ? parseFloat(form.custom_pool_amount) : null,
         winning_member_id: parseInt(form.winning_member_id, 10),
         winning_ticket_number: parseInt(form.winning_ticket_number, 10),
         bid_discount: parseFloat(form.bid_discount || 0),
@@ -281,12 +302,15 @@ export default function AuctionsPage() {
           period_number: '1',
           draw_number: '1',
           auction_type: 'AUCTION',
+          pool_source: 'REGULAR',
+          custom_pool_amount: '',
           winning_member_id: '',
           winning_ticket_number: '',
           bid_discount: '',
           auction_date: new Date().toISOString().slice(0, 10),
           notes: '',
         });
+        setAvailableReserve(0);
         await loadData();
         if (selectedSchemeId) {
           await loadSchemeBreakdown(selectedSchemeId);
@@ -497,9 +521,9 @@ export default function AuctionsPage() {
                     <span>Reverse Auction Prize & Admin Commission Calculation</span>
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
-                    The reverse auction is won by the subscriber with the highest bid discount. Winner receives (<strong>Total Pool − Bid Discount</strong>).
-                    Admin receives <strong>5% commission on the auction discount amount</strong> (e.g. ₹4,000 discount yields ₹200 admin commission).
-                    For Auction Chits, the remaining surplus (₹3,800) is distributed equally among members and credited directly to subscriber passbooks.
+                    Winner receives (<strong>Pool Amount − Bid Discount − Admin Commission</strong>).
+                    Admin receives <strong>5% commission on the chit value</strong>, which is deducted directly from the winner's prize.
+                    For Auction Chits, the full bid discount is divided equally among members and credited to their passbooks (reducing next installment).
                   </p>
                 </div>
 
@@ -512,14 +536,14 @@ export default function AuctionsPage() {
                     )}
                     <span>
                       {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT'
-                        ? 'Double Chit Pool Reserve & Winner Disqualification'
+                        ? 'Double Chit Pool Reserve & Option to Auction'
                         : 'Strict Winner Disqualification Rule'}
                     </span>
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
                     {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT' ? (
                       <>
-                        In Double Chit, the remaining amount is <strong>kept in this chitti reserve pool</strong> rather than divided among members (0 passbook dividend), so eligible unprized subscribers can win that amount in upcoming draws!
+                        In Double Chit, there is no member dividend distribution. The full bid discount is <strong>saved in this chit's pool reserve</strong>, and you have the <strong>option to auction that saved pool</strong> in Draw #2!
                         Any member who has won an auction in this chit is <strong>strictly disqualified from participating in subsequent auctions</strong>.
                       </>
                     ) : (
@@ -547,7 +571,7 @@ export default function AuctionsPage() {
                   <div className="text-lg font-black text-blue-600 dark:text-blue-400 mt-0.5 font-heading">
                     ₹{Number(schemeBreakdown?.totals?.totalForemanCommissionEarned || 0).toLocaleString('en-IN')}
                   </div>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">0% taken on dividends</span>
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">Deducted from winner prize</span>
                 </div>
 
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -555,7 +579,7 @@ export default function AuctionsPage() {
                   <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5 font-heading">
                     ₹{Number(schemeBreakdown?.totals?.totalDividendsDistributed || 0).toLocaleString('en-IN')}
                   </div>
-                  <span className="text-[10px] text-slate-400">Credited to all members</span>
+                  <span className="text-[10px] text-slate-400">Full bid amount distributed</span>
                 </div>
 
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -563,7 +587,7 @@ export default function AuctionsPage() {
                   <div className="text-lg font-black text-purple-600 dark:text-purple-400 mt-0.5 font-heading">
                     ₹{Number(schemeBreakdown?.totals?.totalDoubleChitReserve || 0).toLocaleString('en-IN')}
                   </div>
-                  <span className="text-[10px] text-slate-400">Retained for Draw #2</span>
+                  <span className="text-[10px] text-slate-400">Saved to auction again in Draw #2</span>
                 </div>
 
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 col-span-2 sm:col-span-1">
@@ -1125,11 +1149,19 @@ export default function AuctionsPage() {
                     </label>
                     <select
                       value={form.draw_number}
-                      onChange={(e) => setForm({ ...form, draw_number: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setForm({
+                          ...form,
+                          draw_number: val,
+                          pool_source: val === '2' ? 'SAVED_RESERVE' : 'REGULAR',
+                          custom_pool_amount: val === '2' ? (form.custom_pool_amount || (availableReserve > 0 ? String(availableReserve) : '0')) : '',
+                        });
+                      }}
                       className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     >
-                      <option value="1">Draw #1 (Primary Lucky Draw)</option>
-                      <option value="2">Draw #2 (Double Chit Slot / Auction Draw)</option>
+                      <option value="1">Draw #1 (Regular Scheme Chit Pool)</option>
+                      <option value="2">Draw #2 (Auction Saved Chit Pool Reserve)</option>
                     </select>
                   </div>
                 ) : (
@@ -1148,6 +1180,84 @@ export default function AuctionsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Double Chit Auction Pool Source Selection */}
+              {isDoubleChitScheme && (
+                <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-purple-900 dark:text-purple-200 flex items-center gap-1.5 font-heading">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      Double Chit Pool Mode & Saved Reserve
+                    </span>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/80 text-purple-800 dark:text-purple-200 font-mono">
+                      Accumulated Saved Chit Reserve: ₹{availableReserve.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, pool_source: 'REGULAR', draw_number: 1 }))}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        form.pool_source !== 'SAVED_RESERVE'
+                          ? 'border-purple-600 bg-white dark:bg-slate-800 shadow-xs ring-2 ring-purple-600/30'
+                          : 'border-slate-200 dark:border-slate-700 bg-purple-50/40 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1.5 font-heading">
+                        <span>🎯</span> Regular Scheme Chit Pool (Draw #1)
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        Auctioning full scheme pool of ₹{groupPoolAmount.toLocaleString('en-IN')}. Bid discount is saved to chit reserve.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({
+                        ...prev,
+                        pool_source: 'SAVED_RESERVE',
+                        draw_number: 2,
+                        custom_pool_amount: prev.custom_pool_amount || (availableReserve > 0 ? String(availableReserve) : '0'),
+                      }))}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        form.pool_source === 'SAVED_RESERVE'
+                          ? 'border-purple-600 bg-white dark:bg-slate-800 shadow-xs ring-2 ring-purple-600/30'
+                          : 'border-slate-200 dark:border-slate-700 bg-purple-50/40 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <div className="font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 flex items-center gap-1.5 font-heading">
+                        <span>⚡</span> Option to Auction Saved Chit Reserve (Draw #2)
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        Auction the accumulated saved reserve in this chit scheme.
+                      </p>
+                    </button>
+                  </div>
+
+                  {form.pool_source === 'SAVED_RESERVE' && (
+                    <div className="p-3 bg-white dark:bg-slate-800/90 rounded-xl border border-purple-200 dark:border-purple-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-purple-900 dark:text-purple-200 font-heading">
+                          Reserve Pool Amount to Auction (₹) *
+                        </label>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Specify reserve amount to put up for bidding (Defaults to total accumulated reserve)
+                        </p>
+                      </div>
+                      <input
+                        type="number"
+                        step="any"
+                        required
+                        value={form.custom_pool_amount}
+                        onChange={(e) => setForm({ ...form, custom_pool_amount: e.target.value })}
+                        placeholder={String(availableReserve)}
+                        className="w-full sm:w-56 px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl text-base font-black text-purple-700 dark:text-purple-300 focus:ring-2 focus:ring-purple-600 focus:outline-none font-heading"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Winner Selection (Strict Disqualification of Previous Winners) */}
               <div>
@@ -1230,7 +1340,7 @@ export default function AuctionsPage() {
                     {isDoubleChitScheme ? 'Double Chit Financial Distribution Preview' : 'Auction Chit Financial Breakdown'}
                   </span>
                   <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 font-heading">
-                    Admin Commission: {commissionPercent}% of Bid Discount
+                    Admin Commission: {commissionPercent}% of Pool Value (Deducted from Winner Prize)
                   </span>
                 </div>
 
@@ -1240,7 +1350,7 @@ export default function AuctionsPage() {
                     <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 font-heading">
                       ₹{netPayablePrize.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Pool − Bid Discount</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Pool − Bid Discount − Admin Comm.</span>
                   </div>
 
                   <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
@@ -1248,18 +1358,18 @@ export default function AuctionsPage() {
                     <span className="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400 font-heading">
                       ₹{foremanCommission.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">{commissionPercent}% of ₹{bidDiscount.toLocaleString('en-IN')}</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">{commissionPercent}% of ₹{effectivePool.toLocaleString('en-IN')} Pool (From Prize)</span>
                   </div>
 
                   {isDoubleChitScheme ? (
                     <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-purple-200/80 dark:border-purple-800/60">
                       <span className="text-purple-600 dark:text-purple-400 block text-xs font-bold font-heading">
-                        Chit Pool Reserve (Kept in Chitti)
+                        Chit Pool Reserve (Saved in Chitti)
                       </span>
                       <span className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 font-heading">
                         ₹{modalDoubleChitReserve.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[10px] text-purple-500 block mt-0.5">Eligible members can win in upcoming rounds (0 passbook dividend)</span>
+                      <span className="text-[10px] text-purple-500 block mt-0.5">Saved in chit (Available to auction again · 0 passbook dividend)</span>
                     </div>
                   ) : (
                     <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-emerald-200/80 dark:border-emerald-800/60">
@@ -1267,7 +1377,7 @@ export default function AuctionsPage() {
                       <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-heading">
                         ₹{modalDividendPerMember.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5">₹{modalTotalDividend.toLocaleString('en-IN')} ÷ {totalMembers} members (Sent to Passbook)</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5">Bid Discount (₹{modalTotalDividend.toLocaleString('en-IN')}) ÷ {totalMembers} mem</span>
                     </div>
                   )}
 
@@ -1461,16 +1571,16 @@ export default function AuctionsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Foreman Commission:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-medium">₹{Number(voucherModal?.foreman_commission || 0).toLocaleString('en-IN')}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">₹{Number(voucherModal?.foreman_commission || 0).toLocaleString('en-IN')} <span className="text-xs text-slate-400 font-normal">(Deducted from Prize)</span></span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Net Dividend / Member:</span>
-                <span className="font-black text-emerald-600 dark:text-emerald-400 text-base font-heading">₹{Number(voucherModal?.dividend_per_member || 0).toLocaleString('en-IN')}</span>
+                <span className="font-black text-emerald-600 dark:text-emerald-400 text-base font-heading">₹{Number(voucherModal?.dividend_per_member || 0).toLocaleString('en-IN')} <span className="text-xs text-emerald-500 font-normal">(From Bid Amount)</span></span>
               </div>
               {parseFloat(voucherModal?.double_chit_reserve || 0) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-purple-600 font-medium">Chit Pool Reserve:</span>
-                  <span className="font-black text-purple-600 dark:text-purple-400 text-base font-heading">₹{Number(voucherModal?.double_chit_reserve || 0).toLocaleString('en-IN')}</span>
+                  <span className="font-black text-purple-600 dark:text-purple-400 text-base font-heading">₹{Number(voucherModal?.double_chit_reserve || 0).toLocaleString('en-IN')} <span className="text-xs text-purple-400 font-normal">(Saved in Chit)</span></span>
                 </div>
               )}
               <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
