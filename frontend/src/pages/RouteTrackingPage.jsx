@@ -1171,7 +1171,7 @@ export default function RouteTrackingPage() {
         {/* Compact Responsive Scheme Grid */}
         {filteredRoutes.length === 0 ? (
           <div className="p-6 text-center text-xs text-slate-400">
-            No chit schemes match "{routeSearchTerm}". Try another keyword or clear search.
+            {routeSearchTerm ? `No chit schemes match "${routeSearchTerm}". Try another keyword or clear search.` : 'No chit schemes available yet. Click "Chit Schemes & Routes" to create your first scheme.'}
           </div>
         ) : (
           <div className="space-y-2 pt-1">

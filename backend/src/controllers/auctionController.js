@@ -418,6 +418,9 @@ export async function getAuctionSummary(req, res, next) {
 export async function getSchemeAuctionBreakdown(req, res, next) {
   try {
     const { groupId } = req.params;
+    if (!groupId) {
+      return res.status(400).json({ success: false, message: 'Scheme/Group ID is required.' });
+    }
 
     // 1. Fetch group details
     const [groupRows] = await pool.execute(

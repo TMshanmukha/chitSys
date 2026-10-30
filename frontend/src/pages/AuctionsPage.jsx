@@ -484,6 +484,9 @@ export default function AuctionsPage() {
               onChange={(e) => setSelectedSchemeId(e.target.value)}
               className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-xs"
             >
+              {groups.length === 0 && (
+                <option value="">-- No Chit Schemes Available --</option>
+              )}
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.group_name} ({g.group_code}) — ₹{Number(g.total_pool_amount).toLocaleString('en-IN')} [{g.frequency === 'DAILY' ? 'Daily' : 'Monthly'}]
@@ -501,9 +504,13 @@ export default function AuctionsPage() {
         ) : !schemeBreakdown || !schemeBreakdown.group ? (
           <div className="p-12 text-center border border-dashed border-blue-200 dark:border-slate-800 rounded-2xl space-y-2">
             <Layers className="w-8 h-8 text-slate-400 mx-auto" />
-            <h4 className="font-bold text-slate-900 dark:text-white text-sm">Please Select a Chit Scheme</h4>
+            <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+              {groups.length === 0 ? 'No Chit Schemes Created Yet' : 'Please Select a Chit Scheme'}
+            </h4>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Choose an active Daily or Monthly Auction Chit scheme from the dropdown above to inspect its real-time reverse auction ledger.
+              {groups.length === 0
+                ? 'Create a Chit Scheme under "Chit Schemes & Routes" to begin conducting reverse auctions and tracking dividend distributions.'
+                : 'Choose an active Daily or Monthly Auction Chit scheme from the dropdown above to inspect its real-time reverse auction ledger.'}
             </p>
           </div>
         ) : (
