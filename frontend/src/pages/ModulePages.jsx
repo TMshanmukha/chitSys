@@ -2809,7 +2809,7 @@ export function MembersPage() {
                               <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white">{div.group_name}</td>
                               <td className="py-2 px-3 font-mono">Round #{div.period_number}</td>
                               <td className="py-2 px-3 font-bold text-emerald-600 dark:text-emerald-400">₹{Number(div.dividend_amount).toLocaleString('en-IN')}</td>
-                              <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white">₹{Number(div.net_installment_due).toLocaleString('en-IN')}</td>
+                              <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white">₹{Number(div.installment_amount || div.net_installment_due).toLocaleString('en-IN')}</td>
                               <td className="py-2 px-3">
                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
                                   {div.status}

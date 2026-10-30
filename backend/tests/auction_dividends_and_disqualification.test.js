@@ -83,11 +83,11 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
   await t.test('1. Conducts Reverse Auction: 5% Commission on auction amount, distributes surplus to passbook', async () => {
     // Bid discount = ₹25,000
     // Pool = ₹1,00,000
-    // Winner Net Prize = Pool - Bid Discount = ₹75,000
-    // Foreman Commission (5% of 25,000) = ₹1,250
-    // Total Dividend = Bid Discount - Foreman Commission = 25,000 - 1,250 = ₹23,750
-    // Dividend per member (20 members) = 23,750 / 20 = ₹1,187.50
-    // Next Installment Due = 5,000 - 1,187.50 = ₹3,812.50
+    // Winner Net Prize = Pool - Bid Discount - Admin Commission = 100,000 - 25,000 - 5,000 = ₹70,000
+    // Foreman Commission (5% of 100,000) = ₹5,000
+    // Total Dividend = ₹25,000 (from full bid discount)
+    // Dividend per member (20 members) = 25,000 / 20 = ₹1,250.00
+    // Next Installment Due = Full Installment Amount = ₹5,000.00 (Dividend credited to member, NOT subtracted)
 
     let capturedStatus;
     let capturedJson;
@@ -128,7 +128,7 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     assert.equal(capturedJson.data.foremanCommission, 5000); // 5% of Pool Amount (100,000)
     assert.equal(capturedJson.data.totalDividend, 25000); // Comes directly from full bid discount
     assert.equal(capturedJson.data.dividendPerMember, 1250.00); // 25,000 / 20
-    assert.equal(capturedJson.data.nextInstallmentPayable, 3750.00); // 5,000 - 1,250
+    assert.equal(capturedJson.data.nextInstallmentPayable, 5000.00); // Always full installment amount, never reduced by dividend
 
     // Verify member_dividends rows created for all enrolled members in Auction Chit
     const [divRows] = await pool.execute(
@@ -140,13 +140,13 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     const m1Div = divRows.find((d) => d.member_id === testMember1Id);
     assert.ok(m1Div);
     assert.equal(parseFloat(m1Div.dividend_amount), 1250.00);
-    assert.equal(parseFloat(m1Div.net_installment_due), 3750.00);
+    assert.equal(parseFloat(m1Div.net_installment_due), 5000.00);
     assert.equal(m1Div.is_prized, 1);
 
     const m2Div = divRows.find((d) => d.member_id === testMember2Id);
     assert.ok(m2Div);
     assert.equal(parseFloat(m2Div.dividend_amount), 1250.00);
-    assert.equal(parseFloat(m2Div.net_installment_due), 3750.00);
+    assert.equal(parseFloat(m2Div.net_installment_due), 5000.00);
   });
 
   await t.test('2. Disqualifies previous winner from bidding again in the same chit scheme', async () => {

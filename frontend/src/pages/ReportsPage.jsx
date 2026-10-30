@@ -1107,7 +1107,7 @@ export default function ReportsPage() {
                 </div>
                 <div className="flex justify-between text-slate-800 dark:text-slate-200 font-semibold">
                   <span>Next Month Installment:</span>
-                  <span>₹{Number(selectedAuctionVoucher?.next_installment_payable || 0).toLocaleString('en-IN')}</span>
+                  <span>₹{Number(selectedAuctionVoucher?.installment_amount || selectedAuctionVoucher?.next_installment_payable || 0).toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </div>

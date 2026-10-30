@@ -220,7 +220,10 @@ export default function AuctionsPage() {
   const modalDoubleChitReserve = isDoubleChitScheme ? bidDiscount : 0;
   const modalTotalDividend = isDoubleChitScheme ? 0 : bidDiscount;
   const modalDividendPerMember = (!isDoubleChitScheme && totalMembers > 0) ? parseFloat((modalTotalDividend / totalMembers).toFixed(2)) : 0;
-  const modalNextInstallment = isDoubleChitScheme ? baseInstallment : Math.max(0, parseFloat((baseInstallment - modalDividendPerMember).toFixed(2)));
+  // CRITICAL BUSINESS RULE:
+  // Always the next installment due is the full chit installment amount (e.g. ₹500 only).
+  // Dividend is credited to the respective member, but NOT subtracted from the installment due.
+  const modalNextInstallment = baseInstallment;
 
   const filteredAuctions = auctions.filter((auc) => {
     if (!searchQuery.trim()) return true;
@@ -640,8 +643,7 @@ export default function AuctionsPage() {
                           <th className="py-2.5 px-3">Subscriber Name & Phone</th>
                           <th className="py-2.5 px-3">Auction Bidding Status</th>
                           <th className="py-2.5 px-3">Total Dividend Credited</th>
-                          <th className="py-2.5 px-3">Base Installment</th>
-                          <th className="py-2.5 px-3">Next Due Amount</th>
+                          <th className="py-2.5 px-3">Next Installment Due</th>
                           <th className="py-2.5 px-3">Payment Record</th>
                         </tr>
                       </thead>
@@ -649,8 +651,6 @@ export default function AuctionsPage() {
                         {paginatedSubscribers.map((sub) => {
                           const isPrized = sub.is_prized === 1;
                           const baseInst = parseFloat(schemeBreakdown?.group?.installment_amount || 0);
-                          const lastDiv = parseFloat(schemeBreakdown?.totals?.latestDividendPerMember || 0);
-                          const netDue = Math.max(0, baseInst - lastDiv);
 
                           return (
                             <tr
@@ -700,15 +700,11 @@ export default function AuctionsPage() {
                                 <span className="text-[10px] text-slate-400 block">Saved in member record</span>
                               </td>
 
-                              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-300">
-                                ₹{baseInst.toLocaleString('en-IN')}
-                              </td>
-
                               <td className="py-2.5 px-3">
                                 <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm font-heading">
-                                  ₹{netDue.toLocaleString('en-IN')}
+                                  ₹{baseInst.toLocaleString('en-IN')}
                                 </div>
-                                <span className="text-[10px] text-slate-400">After latest dividend split</span>
+                                <span className="text-[10px] text-slate-400">Fixed standard due</span>
                               </td>
 
                               <td className="py-2.5 px-3">
@@ -980,7 +976,7 @@ export default function AuctionsPage() {
                       </td>
 
                       <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                        ₹{Number(auc.next_installment_payable).toLocaleString('en-IN')}
+                        ₹{Number(auc.installment_amount || auc.next_installment_payable || 0).toLocaleString('en-IN')}
                       </td>
 
                       <td className="py-2.5 px-3">
@@ -1389,7 +1385,7 @@ export default function AuctionsPage() {
                       ₹{modalNextInstallment.toLocaleString('en-IN')}
                     </span>
                     <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">
-                      {isDoubleChitScheme ? 'Full base installment' : 'Base − Dividend'}
+                      Full standard installment due
                     </span>
                   </div>
                 </div>
@@ -1589,7 +1585,7 @@ export default function AuctionsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Next Due Payable:</span>
-                <span className="font-bold text-slate-900 dark:text-white">₹{Number(voucherModal?.next_installment_payable || 0).toLocaleString('en-IN')}</span>
+                <span className="font-bold text-slate-900 dark:text-white">₹{Number(voucherModal?.installment_amount || voucherModal?.next_installment_payable || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Status:</span>

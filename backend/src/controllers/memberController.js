@@ -248,7 +248,7 @@ export async function getMemberPassbook(req, res, next) {
       `SELECT md.id, md.auction_id, md.group_id, md.period_number, md.draw_number,
               md.dividend_amount, md.net_installment_due, md.credited_date, md.is_prized,
               md.status, md.notes,
-              g.group_name, g.group_code, g.chit_type, g.frequency,
+              g.group_name, g.group_code, g.chit_type, g.frequency, g.installment_amount,
               a.bid_discount, a.foreman_commission
        FROM member_dividends md
        JOIN chit_groups g ON md.group_id = g.id

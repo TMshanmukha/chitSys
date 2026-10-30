@@ -191,7 +191,10 @@ export async function conductAuction(req, res, next) {
       doubleChitReserve = 0.00;
       totalDividend = bidDiscount;
       dividendPerMember = totalMembers > 0 ? parseFloat((totalDividend / totalMembers).toFixed(2)) : 0.00;
-      nextInstallmentPayable = Math.max(0, parseFloat((parseFloat(group.installment_amount) - dividendPerMember).toFixed(2)));
+      // CRITICAL BUSINESS RULE:
+      // Always the next installment due is the full chit installment amount (e.g. ₹500 only).
+      // Dividend is credited to the respective member, but NOT subtracted from the installment due.
+      nextInstallmentPayable = parseFloat(group.installment_amount);
     }
 
     // 5. Insert into auctions table
@@ -488,9 +491,9 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
 
     const latestAuction = auctions.length > 0 ? auctions[auctions.length - 1] : null;
     const latestDividendPerMember = latestAuction ? parseFloat(latestAuction.dividend_per_member || 0) : 0;
-    const currentInstallmentDue = latestAuction
-      ? parseFloat(latestAuction.next_installment_payable || group.installment_amount)
-      : parseFloat(group.installment_amount);
+    // CRITICAL BUSINESS RULE: Always the installment due is the full chit installment amount (e.g. ₹500 only).
+    // Dividends are credited to the subscriber passbook, never reducing the base installment due.
+    const currentInstallmentDue = parseFloat(group.installment_amount);
 
     res.status(200).json({
       success: true,
