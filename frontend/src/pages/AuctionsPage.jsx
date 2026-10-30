@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  AlertTriangle,
   PlusCircle,
   Search,
   Filter,
@@ -92,6 +93,8 @@ export default function AuctionsPage() {
 
   const [groupMembers, setGroupMembers] = useState([]);
   const [availableReserve, setAvailableReserve] = useState(0);
+  const [groupTotalCollected, setGroupTotalCollected] = useState(0);
+  const [loadingGroupDetails, setLoadingGroupDetails] = useState(false);
 
   const loadData = async () => {
     try {
@@ -156,7 +159,7 @@ export default function AuctionsPage() {
     }
   }, [selectedSchemeId]);
 
-  // When group changes in Conduct Auction modal, load its enrolled members
+  // When group changes in Conduct Auction modal, load its enrolled members, reserve, and total collections
   const handleGroupChange = async (groupId) => {
     const groupObj = groups.find((g) => String(g.id) === String(groupId));
     setForm((prev) => ({
@@ -171,19 +174,24 @@ export default function AuctionsPage() {
 
     if (groupId) {
       try {
+        setLoadingGroupDetails(true);
         const res = await api.get(`/admin/groups/${groupId}`);
         if (res.data?.success) {
           setGroupMembers(res.data.data.members || []);
           const auctionsList = res.data.data.auctions || [];
           const reserveSum = auctionsList.reduce((acc, a) => acc + parseFloat(a.double_chit_reserve || 0), 0);
           setAvailableReserve(reserveSum);
+          setGroupTotalCollected(parseFloat(res.data.data.financials?.totalCollected || 0));
         }
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoadingGroupDetails(false);
       }
     } else {
       setGroupMembers([]);
       setAvailableReserve(0);
+      setGroupTotalCollected(0);
     }
   };
 
@@ -203,6 +211,13 @@ export default function AuctionsPage() {
   const effectivePool = isAuctioningReserve
     ? (parseFloat(form.custom_pool_amount) || availableReserve || 0)
     : groupPoolAmount;
+
+  // Collection Eligibility & Shortfall Validation:
+  // Standard chit rule: total money for the chit pool should be collected from members before auctioning.
+  // If not, a warning / "Not Fully Eligible" box is displayed, but Admin Override allows conducting the auction anyway.
+  const isPoolFullyCollected = effectivePool > 0 ? (groupTotalCollected >= effectivePool) : true;
+  const collectionShortfall = Math.max(0, effectivePool - groupTotalCollected);
+  const collectionPercentage = effectivePool > 0 ? Math.min(100, Math.round((groupTotalCollected / effectivePool) * 100)) : 100;
 
   const bidDiscount = parseFloat(form.bid_discount || 0);
 
@@ -314,6 +329,7 @@ export default function AuctionsPage() {
           notes: '',
         });
         setAvailableReserve(0);
+        setGroupTotalCollected(0);
         await loadData();
         if (selectedSchemeId) {
           await loadSchemeBreakdown(selectedSchemeId);
@@ -381,6 +397,10 @@ export default function AuctionsPage() {
             setError('');
             scrollToFormOrModal('conduct-auction-modal');
             setShowModal(true);
+            const targetGroupId = selectedSchemeId || (groups.length > 0 ? String(groups[0].id) : '');
+            if (targetGroupId && String(form.group_id) !== String(targetGroupId)) {
+              handleGroupChange(targetGroupId);
+            }
           }}
           className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer font-heading"
         >
@@ -505,7 +525,7 @@ export default function AuctionsPage() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 font-heading ${
                     schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT'
                       ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
@@ -513,6 +533,26 @@ export default function AuctionsPage() {
                   }`}>
                     {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT' ? '🎰 Double Chit (Dual Draw Scheme)' : '🔨 Reverse Auction Chit Scheme'}
                   </span>
+
+                  {schemeBreakdown?.totals && (
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 font-heading ${
+                      (schemeBreakdown.totals.isPoolFullyCollected ?? (Number(schemeBreakdown.totals.totalCollected || 0) >= Number(schemeBreakdown.totals.totalPoolAmount || 1)))
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                    }`}>
+                      {(schemeBreakdown.totals.isPoolFullyCollected ?? (Number(schemeBreakdown.totals.totalCollected || 0) >= Number(schemeBreakdown.totals.totalPoolAmount || 1))) ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Pool 100% Collected</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Collection Incomplete (₹{Number(schemeBreakdown.totals.collectionShortfall ?? Math.max(0, (schemeBreakdown.totals.totalPoolAmount || 0) - (schemeBreakdown.totals.totalCollected || 0))).toLocaleString('en-IN')} pending)</span>
+                        </>
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1122,6 +1162,94 @@ export default function AuctionsPage() {
                 </div>
               )}
 
+              {/* Collection Status & Eligibility Warning Box */}
+              {selectedGroup && (
+                <div className="transition-all">
+                  {loadingGroupDetails ? (
+                    <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 text-xs text-slate-500">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      <span>Verifying subscriber collection ledger for this chit scheme...</span>
+                    </div>
+                  ) : !isPoolFullyCollected ? (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 text-amber-900 dark:text-amber-200 space-y-3 shadow-xs">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 sm:p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
+                          <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h4 className="font-extrabold text-amber-950 dark:text-amber-100 text-sm sm:text-base font-heading">
+                              ⚠️ Chit Total Money Not Fully Collected (Warning / Ineligible Status)
+                            </h4>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-heading">
+                              Admin Override Active
+                            </span>
+                          </div>
+                          <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+                            Under standard chit fund rules, all subscriber installments should be collected before conducting the auction.
+                            Currently, <strong>₹{groupTotalCollected.toLocaleString('en-IN')}</strong> of <strong>₹{effectivePool.toLocaleString('en-IN')}</strong> ({collectionPercentage}%) has been collected.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Visual Collection Progress Bar & Summary */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between items-center text-xs font-bold font-heading">
+                          <span className="text-amber-900 dark:text-amber-200">Collected: {collectionPercentage}%</span>
+                          <span className="text-rose-600 dark:text-rose-400 font-mono font-black">
+                            ₹{collectionShortfall.toLocaleString('en-IN')} Deficit Pending
+                          </span>
+                        </div>
+                        <div className="w-full h-2.5 bg-amber-200/80 dark:bg-amber-900/60 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-amber-500 via-rose-400 to-rose-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.max(4, collectionPercentage)}%` }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 pt-1 text-[11px] sm:text-xs text-center font-mono">
+                          <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-amber-200 dark:border-amber-800/60">
+                            <span className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Total Chit Pool</span>
+                            <strong className="text-slate-900 dark:text-white font-extrabold font-heading">₹{effectivePool.toLocaleString('en-IN')}</strong>
+                          </div>
+                          <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-amber-200 dark:border-amber-800/60">
+                            <span className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Collected So Far</span>
+                            <strong className="text-amber-700 dark:text-amber-400 font-extrabold font-heading">₹{groupTotalCollected.toLocaleString('en-IN')}</strong>
+                          </div>
+                          <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-amber-200 dark:border-amber-800/60">
+                            <span className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Pending Deficit</span>
+                            <strong className="text-rose-600 dark:text-rose-400 font-extrabold font-heading">₹{collectionShortfall.toLocaleString('en-IN')}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-amber-100/70 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800/60 flex items-center gap-2 text-xs text-amber-900 dark:text-amber-200">
+                        <CheckCircle2 className="w-4 h-4 text-amber-700 dark:text-amber-300 shrink-0" />
+                        <span><strong>Admin Authority Notice:</strong> Even though the full pool has not yet been collected, you have full administrative permission to proceed with conducting this auction.</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 shrink-0">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-emerald-950 dark:text-emerald-100 font-heading">
+                            ✅ Chit Pool 100% Collected — Fully Eligible for Auction
+                          </div>
+                          <span className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                            All ₹{groupTotalCollected.toLocaleString('en-IN')} of ₹{effectivePool.toLocaleString('en-IN')} has been collected from enrolled subscribers.
+                          </span>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700 font-heading self-start sm:self-auto shrink-0">
+                        100% Eligible
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Month / Period & Draw Number */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -1405,6 +1533,13 @@ export default function AuctionsPage() {
                 />
               </div>
 
+              {selectedGroup && !isPoolFullyCollected && (
+                <div className="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-3.5 py-2.5 rounded-xl border border-amber-200 dark:border-amber-800/60 font-medium">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Notice: Chit total money has ₹{collectionShortfall.toLocaleString('en-IN')} pending collection. Proceeding via Admin Override.</span>
+                </div>
+              )}
+
               <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
@@ -1626,7 +1761,7 @@ export default function AuctionsPage() {
         cancelLabel="Review Bids"
         variant="primary"
         icon={Gavel}
-        subtext={`Net Prize: ₹${Number(netPayablePrize).toLocaleString('en-IN')} | Foreman Commission: ₹${Number(foremanCommission).toLocaleString('en-IN')} | Dividend/Member: ₹${Number(modalDividendPerMember).toLocaleString('en-IN')}${modalDoubleChitReserve > 0 ? ` | Chit Pool Reserve: ₹${Number(modalDoubleChitReserve).toLocaleString('en-IN')}` : ''}`}
+        subtext={`${!isPoolFullyCollected ? `⚠️ Notice: Collection incomplete (₹${groupTotalCollected.toLocaleString('en-IN')} of ₹${effectivePool.toLocaleString('en-IN')} collected, ₹${collectionShortfall.toLocaleString('en-IN')} pending) · Proceeding via Admin Override | ` : ''}Net Prize: ₹${Number(netPayablePrize).toLocaleString('en-IN')} | Foreman Commission: ₹${Number(foremanCommission).toLocaleString('en-IN')} | Dividend/Member: ₹${Number(modalDividendPerMember).toLocaleString('en-IN')}${modalDoubleChitReserve > 0 ? ` | Chit Pool Reserve: ₹${Number(modalDoubleChitReserve).toLocaleString('en-IN')}` : ''}`}
       />
 
       {/* Confirmation Dialog for Prize Disbursement */}

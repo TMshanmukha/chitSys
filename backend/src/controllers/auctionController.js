@@ -489,6 +489,12 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
     const totalForemanCommissionEarned = auctions.reduce((acc, a) => acc + parseFloat(a.foreman_commission || 0), 0);
     const totalPrizeMoneyDisbursed = auctions.reduce((acc, a) => acc + parseFloat(a.net_payable_amount || 0), 0);
 
+    const totalCollected = subscribers.reduce((acc, s) => acc + parseFloat(s.total_paid_in_group || 0), 0);
+    const poolAmount = parseFloat(group.total_pool_amount);
+    const isPoolFullyCollected = totalCollected >= poolAmount;
+    const collectionShortfall = Math.max(0, poolAmount - totalCollected);
+    const collectionPercentage = poolAmount > 0 ? Math.min(100, Math.round((totalCollected / poolAmount) * 100)) : 100;
+
     const latestAuction = auctions.length > 0 ? auctions[auctions.length - 1] : null;
     const latestDividendPerMember = latestAuction ? parseFloat(latestAuction.dividend_per_member || 0) : 0;
     // CRITICAL BUSINESS RULE: Always the installment due is the full chit installment amount (e.g. ₹500 only).
@@ -515,6 +521,10 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
           totalPrizeMoneyDisbursed,
           latestDividendPerMember,
           currentInstallmentDue,
+          totalCollected: parseFloat(totalCollected.toFixed(2)),
+          isPoolFullyCollected,
+          collectionShortfall: parseFloat(collectionShortfall.toFixed(2)),
+          collectionPercentage,
         },
       },
     });

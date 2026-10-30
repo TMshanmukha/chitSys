@@ -284,6 +284,8 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     assert.equal(capturedJson.data.auctions.length, 1);
     assert.equal(capturedJson.data.totals.totalPrizedCount, 1);
     assert.equal(capturedJson.data.subscribers.length >= 3, true);
+    assert.equal(typeof capturedJson.data.totals.isPoolFullyCollected, 'boolean');
+    assert.equal(typeof capturedJson.data.totals.totalCollected, 'number');
 
     const winnerSub = capturedJson.data.subscribers.find((s) => s.member_id === testMember1Id);
     assert.equal(winnerSub.is_prized, 1);
