@@ -202,17 +202,13 @@ html.dark .glass-box {
   box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
-/* Universal Card & Panel Styling */
-/* Light Mode: Frosted Glass */
-.rounded-xl.bg-white,
-.rounded-2xl.bg-white,
-.rounded-3xl.bg-white,
-div[class*="rounded-2xl bg-white"],
-div[class*="rounded-xl bg-white"],
-div[class*="rounded-3xl bg-white"] {
-  background-color: rgba(255, 255, 255, 0.82) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
+/* Universal Card & Panel Styling (Excluding Modals & Forms so they never bleed into muddy cement gray) */
+.rounded-xl.bg-white:not([role="dialog"] *):not(div[class*="fixed inset-0"] *),
+.rounded-2xl.bg-white:not([role="dialog"] *):not(div[class*="fixed inset-0"] *),
+.rounded-3xl.bg-white:not([role="dialog"] *):not(div[class*="fixed inset-0"] *) {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 /* Dark Mode: Solid, crisp, elegant midnight obsidian cards (NO MUDDY TRANSLUCENCY!) */
@@ -268,14 +264,29 @@ html.dark header {
   box-shadow: 0 18px 44px -8px rgba(0, 0, 0, 0.65) !important;
 }
 
-/* Modals & Dialogs (Solid, pure, prominent with sharp elevation) */
-html.dark [role="dialog"],
+/* Modals & Dialogs (Solid, pure, prominent with sharp elevation - NEVER TRANSLUCENT / MUDDY CEMENT!) */
+[role="dialog"] > div,
+.modal-content,
+.modal-card,
+div[class*="fixed inset-0"] > div[class*="rounded-2xl"],
+div[class*="fixed inset-0"] > div[class*="rounded-3xl"],
+#chit-scheme-modal > div {
+  background-color: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 25px 70px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.dark [role="dialog"] > div,
 html.dark .modal-content,
-html.dark div[class*="fixed inset-0"] div[class*="rounded-2xl"],
-html.dark div[class*="fixed inset-0"] div[class*="rounded-3xl"] {
-  background-color: #0e1628 !important;
+html.dark .modal-card,
+html.dark div[class*="fixed inset-0"] > div[class*="rounded-2xl"],
+html.dark div[class*="fixed inset-0"] > div[class*="rounded-3xl"],
+html.dark #chit-scheme-modal > div {
+  background-color: #0b1329 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(59, 130, 246, 0.2) !important;
 }
 
 /* Form Controls in Dark Mode: High-contrast, clean, responsive */

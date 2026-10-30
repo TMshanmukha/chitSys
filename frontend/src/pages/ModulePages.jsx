@@ -637,10 +637,10 @@ export function ChitGroupsPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
       >
-        <div className="w-full max-w-4xl rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0b1329] border border-blue-200/80 dark:border-blue-900/60 shadow-[0_25px_70px_rgba(30,58,138,0.25)] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 my-auto sm:my-8 max-h-[95vh] sm:max-h-[94vh] overflow-y-auto transition-all animate-confirmScale ring-1 ring-blue-500/20">
+        <div className="modal-card w-full max-w-4xl rounded-2xl sm:rounded-3xl !bg-white dark:!bg-[#0c1427] border-2 border-slate-200/90 dark:border-slate-800 shadow-[0_30px_90px_rgba(0,0,0,0.35)] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 my-auto sm:my-8 max-h-[95vh] sm:max-h-[94vh] overflow-y-auto transition-all animate-confirmScale ring-1 ring-black/5">
             
             {/* Wizard Header */}
-            <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-950 pb-3 sm:pb-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 sm:pb-4">
               <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-500/25 shrink-0 ring-2 ring-white/20">
                   <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -671,11 +671,11 @@ export function ChitGroupsPage() {
                 className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 1
                     ? 'border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/30'
-                    : 'border-slate-200/90 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-700 hover:bg-blue-50/30 text-slate-600 dark:text-slate-400'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-500 hover:bg-blue-50/40 text-slate-700 dark:text-slate-300 shadow-2xs'
                 }`}
               >
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 1 ? 'bg-white text-blue-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>1</span>
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 1 ? 'bg-white text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>1</span>
                   <span className="font-bold text-xs sm:text-sm truncate">
                     <span className="sm:hidden">Rules</span>
                     <span className="hidden sm:inline">Configuration</span>
@@ -692,11 +692,11 @@ export function ChitGroupsPage() {
                 className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 2
                     ? 'border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/30'
-                    : 'border-slate-200/90 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-700 hover:bg-blue-50/30 text-slate-600 dark:text-slate-400'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-500 hover:bg-blue-50/40 text-slate-700 dark:text-slate-300 shadow-2xs'
                 }`}
               >
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 2 ? 'bg-white text-blue-600' : selectedMemberIds.length === targetMembersCount ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 2 ? 'bg-white text-blue-600' : selectedMemberIds.length === targetMembersCount ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
                     {selectedMemberIds.length === targetMembersCount ? '✓' : '2'}
                   </span>
                   <span className="font-bold text-xs sm:text-sm truncate">
@@ -713,11 +713,11 @@ export function ChitGroupsPage() {
                 className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 3
                     ? 'border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/30'
-                    : 'border-slate-200/90 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-700 hover:bg-blue-50/30 text-slate-600 dark:text-slate-400'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-500 hover:bg-blue-50/40 text-slate-700 dark:text-slate-300 shadow-2xs'
                 }`}
               >
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 3 ? 'bg-white text-blue-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>3</span>
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 3 ? 'bg-white text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>3</span>
                   <span className="font-bold text-xs sm:text-sm truncate">
                     <span className="sm:hidden">Launch</span>
                     <span className="hidden sm:inline">Verify & Launch</span>
@@ -741,7 +741,7 @@ export function ChitGroupsPage() {
             {wizardStep === 1 && (
               <div className="space-y-4 sm:space-y-6 animate-fadeIn">
                 {/* Billing Frequency */}
-                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/40 dark:from-slate-800/60 dark:via-slate-900/40 dark:to-indigo-950/40 border border-blue-100 dark:border-slate-700/80 space-y-2.5 sm:space-y-3 shadow-xs">
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-white dark:bg-[#10192e] border-2 border-slate-100 dark:border-slate-800 space-y-2.5 sm:space-y-3 shadow-xs">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Select Billing Frequency & Route Track *
                   </label>
@@ -749,10 +749,10 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleFrequencySelect('DAILY')}
-                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all cursor-pointer ${
                         form.frequency === 'DAILY'
-                          ? 'border-amber-500 bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-amber-500/5 text-amber-950 dark:text-amber-100 shadow-md shadow-amber-500/10 ring-2 ring-amber-500/40'
-                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                          ? 'border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50/40 dark:from-amber-950/40 dark:to-slate-900 text-amber-950 dark:text-amber-100 shadow-md shadow-amber-500/10 ring-2 ring-amber-500/30'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-amber-300 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-2xs'
                       }`}
                     >
                       <div className="flex items-center gap-2 font-bold text-sm sm:text-base text-amber-700 dark:text-amber-300">
@@ -767,10 +767,10 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleFrequencySelect('MONTHLY')}
-                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all cursor-pointer ${
                         form.frequency === 'MONTHLY'
-                          ? 'border-blue-600 bg-gradient-to-br from-blue-600/15 via-indigo-600/10 to-blue-500/5 text-blue-950 dark:text-blue-100 shadow-md shadow-blue-500/10 ring-2 ring-blue-500/40'
-                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                          ? 'border-blue-600 bg-gradient-to-br from-blue-50 to-indigo-50/40 dark:from-blue-950/40 dark:to-slate-900 text-blue-950 dark:text-blue-100 shadow-md shadow-blue-500/10 ring-2 ring-blue-500/30'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-blue-300 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-2xs'
                       }`}
                     >
                       <div className="flex items-center gap-2 font-bold text-sm sm:text-base text-blue-700 dark:text-blue-300">
@@ -785,7 +785,7 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Scheme Mechanism: STRICTLY Auction Chit or Double Chit (Standard Chit Removed) */}
-                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-50/40 via-white to-purple-50/40 dark:from-slate-800/60 dark:via-slate-900/40 dark:to-purple-950/30 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5 sm:space-y-3 shadow-xs">
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-white dark:bg-[#10192e] border-2 border-slate-100 dark:border-slate-800 space-y-2.5 sm:space-y-3 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       Select Scheme Mechanism (Strictly 2 Types · Selection is Final Once Created) *
@@ -799,10 +799,10 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleSchemeTypeSelect('AUCTION_CHIT')}
-                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all cursor-pointer ${
                         form.chit_type === 'AUCTION_CHIT'
-                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-emerald-500/5 text-emerald-950 dark:text-emerald-100 shadow-md shadow-emerald-500/15 ring-2 ring-emerald-500/40'
-                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50/40 dark:from-emerald-950/40 dark:to-slate-900 text-emerald-950 dark:text-emerald-100 shadow-md shadow-emerald-500/15 ring-2 ring-emerald-500/30'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-2xs'
                       }`}
                     >
                       <div className="font-bold text-sm sm:text-base flex items-center justify-between text-emerald-700 dark:text-emerald-300">
@@ -822,10 +822,10 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleSchemeTypeSelect('DOUBLE_CHIT')}
-                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all cursor-pointer ${
                         form.chit_type === 'DOUBLE_CHIT'
-                          ? 'border-purple-500 bg-gradient-to-br from-purple-500/15 via-violet-500/10 to-purple-500/5 text-purple-950 dark:text-purple-100 shadow-md shadow-purple-500/15 ring-2 ring-purple-500/40'
-                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                          ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-violet-50/40 dark:from-purple-950/40 dark:to-slate-900 text-purple-950 dark:text-purple-100 shadow-md shadow-purple-500/15 ring-2 ring-purple-500/30'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-purple-300 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-2xs'
                       }`}
                     >
                       <div className="font-bold text-sm sm:text-base flex items-center justify-between text-purple-700 dark:text-purple-300">
@@ -845,7 +845,7 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Core Information */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-50/40 via-white to-slate-50/50 dark:from-slate-800/50 dark:via-slate-900/30 dark:to-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-white dark:bg-[#10192e] border-2 border-slate-100 dark:border-slate-800 shadow-xs">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Scheme Code *
@@ -928,7 +928,7 @@ export function ChitGroupsPage() {
 
                 {/* Financial Configuration with Auto-Calculated Total Pool (No Manual Typing) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 shadow-xs">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Installment (₹) *
                     </label>
@@ -939,11 +939,11 @@ export function ChitGroupsPage() {
                       value={form.installment_amount}
                       onChange={(e) => handleFinancialFieldChange('installment_amount', e.target.value)}
                       placeholder="e.g. 500"
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none shadow-2xs"
                     />
                   </div>
 
-                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 shadow-xs">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Subscribers Limit *
                     </label>
@@ -952,11 +952,11 @@ export function ChitGroupsPage() {
                       required
                       value={form.total_members_limit}
                       onChange={(e) => handleFinancialFieldChange('total_members_limit', e.target.value)}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none shadow-2xs"
                     />
                   </div>
 
-                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 shadow-xs">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Duration ({form.frequency === 'DAILY' ? 'Days' : 'Months'}) *
                     </label>
@@ -965,7 +965,7 @@ export function ChitGroupsPage() {
                       required
                       value={form.duration_periods}
                       onChange={(e) => handleFinancialFieldChange('duration_periods', e.target.value)}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none shadow-2xs"
                     />
                   </div>
 
@@ -986,7 +986,7 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Auction / Double Chit Rules */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-purple-50/30 via-white to-blue-50/30 dark:from-slate-800/50 dark:via-slate-900/30 dark:to-indigo-950/30 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-white dark:bg-[#10192e] border-2 border-slate-100 dark:border-slate-800 shadow-xs">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Foreman Commission (%) *
@@ -1019,7 +1019,7 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Scheme Commencement Date */}
-                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-50/30 via-white to-blue-50/30 dark:from-slate-800/50 dark:via-slate-900/30 dark:to-emerald-950/20 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-white dark:bg-[#10192e] border-2 border-slate-100 dark:border-slate-800 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1.5 gap-1">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       Scheme Commencement Date *
@@ -1544,7 +1544,7 @@ export function ChitGroupsPage() {
         isOpen={showQuickAgentModal}
         onClose={() => setShowQuickAgentModal(false)}
       >
-        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0b1329] border border-blue-200/80 dark:border-blue-900/60 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale ring-1 ring-blue-500/20">
+        <div className="modal-card w-full max-w-md rounded-2xl sm:rounded-3xl !bg-white dark:!bg-[#0c1427] border-2 border-slate-200/90 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale ring-1 ring-blue-500/20">
             <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-950 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/25">
@@ -1655,7 +1655,7 @@ export function ChitGroupsPage() {
         isOpen={showQuickMemberModal}
         onClose={() => setShowQuickMemberModal(false)}
       >
-        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0b1329] border border-emerald-200/80 dark:border-emerald-900/60 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale ring-1 ring-emerald-500/20">
+        <div className="modal-card w-full max-w-md rounded-2xl sm:rounded-3xl !bg-white dark:!bg-[#0c1427] border-2 border-slate-200/90 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale ring-1 ring-emerald-500/20">
             <div className="flex items-center justify-between border-b border-emerald-100 dark:border-emerald-950 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-500/25">
