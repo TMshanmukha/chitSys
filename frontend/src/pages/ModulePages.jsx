@@ -1276,8 +1276,8 @@ export function ChitGroupsPage() {
               <div className="space-y-6 animate-fadeIn">
                 {/* Diagnostic Check Alert Box */}
                 {isMismatch ? (
-                  <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 space-y-3">
-                    <div className="flex items-start gap-3">
+                  <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 space-y-3">
+                    <div className="flex items-start gap-2.5 sm:gap-3">
                       <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                       <div className="space-y-1">
                         <h4 className="font-bold text-amber-900 dark:text-amber-200 text-base">

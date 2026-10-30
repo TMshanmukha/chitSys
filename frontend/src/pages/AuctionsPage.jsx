@@ -1043,17 +1043,17 @@ export default function AuctionsPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
       >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto sm:my-8 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-                  <Gavel className="w-6 h-6" />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-3xl w-full shadow-2xl p-4 sm:p-7 md:p-8 space-y-4 sm:space-y-6 my-auto sm:my-8 max-h-[94vh] sm:max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 sm:pb-4">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 shrink-0">
+                  <Gavel className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-lg sm:text-xl font-heading">
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base sm:text-xl font-heading leading-tight truncate">
                     Conduct Reverse Auction / Double Chit Round
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                     Select eligible winner, calculate discount surplus, and persist dividend splits
                   </p>
                 </div>
@@ -1108,7 +1108,7 @@ export default function AuctionsPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
                     <div>
                       <span className="text-slate-500 block text-xs">Total Pool Value</span>
-                      <strong className="text-slate-900 dark:text-white font-extrabold text-base font-heading">₹{poolAmount.toLocaleString('en-IN')}</strong>
+                      <strong className="text-slate-900 dark:text-white font-extrabold text-base font-heading">₹{effectivePool.toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Base Installment</span>
@@ -1344,52 +1344,52 @@ export default function AuctionsPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
-                  <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                    <span className="text-slate-500 block text-xs font-medium">Net Prize (To Winner)</span>
-                    <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 font-heading">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 pt-1">
+                  <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-slate-500 block text-[11px] sm:text-xs font-medium">Net Prize (To Winner)</span>
+                    <span className="text-base sm:text-2xl font-black text-blue-600 dark:text-blue-400 font-heading">
                       ₹{netPayablePrize.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Pool − Bid Discount − Admin Comm.</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">Pool − Bid − Comm.</span>
                   </div>
 
-                  <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                    <span className="text-slate-500 block text-xs font-medium">Admin Commission (5%)</span>
-                    <span className="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400 font-heading">
+                  <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-slate-500 block text-[11px] sm:text-xs font-medium">Admin Commission (5%)</span>
+                    <span className="text-base sm:text-xl font-black text-amber-600 dark:text-amber-400 font-heading">
                       ₹{foremanCommission.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">{commissionPercent}% of ₹{effectivePool.toLocaleString('en-IN')} Pool (From Prize)</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">{commissionPercent}% of Pool (From Prize)</span>
                   </div>
 
                   {isDoubleChitScheme ? (
-                    <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-purple-200/80 dark:border-purple-800/60">
-                      <span className="text-purple-600 dark:text-purple-400 block text-xs font-bold font-heading">
-                        Chit Pool Reserve (Saved in Chitti)
+                    <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-purple-200/80 dark:border-purple-800/60">
+                      <span className="text-purple-600 dark:text-purple-400 block text-[11px] sm:text-xs font-bold font-heading">
+                        Chit Pool Reserve
                       </span>
-                      <span className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 font-heading">
+                      <span className="text-base sm:text-2xl font-black text-purple-600 dark:text-purple-400 font-heading">
                         ₹{modalDoubleChitReserve.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[10px] text-purple-500 block mt-0.5">Saved in chit (Available to auction again · 0 passbook dividend)</span>
+                      <span className="text-[9px] sm:text-[10px] text-purple-500 block mt-0.5">Saved in chit (Auction in Draw #2)</span>
                     </div>
                   ) : (
-                    <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-emerald-200/80 dark:border-emerald-800/60">
-                      <span className="text-slate-500 block text-xs font-medium">Dividend / Member</span>
-                      <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-heading">
+                    <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-emerald-200/80 dark:border-emerald-800/60">
+                      <span className="text-slate-500 block text-[11px] sm:text-xs font-medium">Dividend / Member</span>
+                      <span className="text-base sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-heading">
                         ₹{modalDividendPerMember.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5">Bid Discount (₹{modalTotalDividend.toLocaleString('en-IN')}) ÷ {totalMembers} mem</span>
+                      <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5">₹{modalTotalDividend.toLocaleString('en-IN')} ÷ {totalMembers} mem</span>
                     </div>
                   )}
 
-                  <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                    <span className="text-slate-500 block text-xs font-medium">
+                  <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-slate-500 block text-[11px] sm:text-xs font-medium">
                       {selectedGroup?.frequency === 'DAILY' ? 'Next Day Due' : 'Next Month Due'}
                     </span>
-                    <span className="text-lg font-black text-slate-900 dark:text-white font-heading">
+                    <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
                       ₹{modalNextInstallment.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
-                      {isDoubleChitScheme ? 'Full base installment' : 'Base Installment − Dividend'}
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">
+                      {isDoubleChitScheme ? 'Full base installment' : 'Base − Dividend'}
                     </span>
                   </div>
                 </div>
@@ -1409,18 +1409,18 @@ export default function AuctionsPage() {
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-center justify-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer font-heading"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer font-heading"
                 >
                   {submitting ? (
                     <>
