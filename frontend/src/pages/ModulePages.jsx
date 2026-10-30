@@ -637,16 +637,16 @@ export function ChitGroupsPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
       >
-        <div className="w-full max-w-4xl rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6 my-auto sm:my-8 max-h-[95vh] sm:max-h-[94vh] overflow-y-auto transition-all animate-confirmScale">
+        <div className="w-full max-w-4xl rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0b1329] border border-blue-200/80 dark:border-blue-900/60 shadow-[0_25px_70px_rgba(30,58,138,0.25)] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 my-auto sm:my-8 max-h-[95vh] sm:max-h-[94vh] overflow-y-auto transition-all animate-confirmScale ring-1 ring-blue-500/20">
             
             {/* Wizard Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 sm:pb-4">
-              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold shadow-xs shrink-0">
+            <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-950 pb-3 sm:pb-4">
+              <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-500/25 shrink-0 ring-2 ring-white/20">
                   <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-xl font-heading leading-tight truncate">
+                  <h3 className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-700 dark:from-blue-300 dark:via-indigo-200 dark:to-purple-200 text-base sm:text-xl font-heading leading-tight truncate">
                     Chit Scheme Creation & Direct Enrolment Wizard
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
@@ -657,31 +657,31 @@ export function ChitGroupsPage() {
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Stepper Progress Bar (Mobile Responsive Pills) */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
               <button
                 type="button"
                 onClick={() => setWizardStep(1)}
-                className={`p-2 sm:p-3 rounded-xl border text-center sm:text-left transition-all cursor-pointer ${
+                className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 1
-                    ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 shadow-xs'
-                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500'
+                    ? 'border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/30'
+                    : 'border-slate-200/90 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-700 hover:bg-blue-50/30 text-slate-600 dark:text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>1</span>
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 1 ? 'bg-white text-blue-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>1</span>
                   <span className="font-bold text-xs sm:text-sm truncate">
                     <span className="sm:hidden">Rules</span>
                     <span className="hidden sm:inline">Configuration</span>
                   </span>
                 </div>
-                <p className="hidden sm:block text-[11px] text-slate-400 truncate mt-1">Rules, Pool, Date & Agent</p>
+                <p className={`hidden sm:block text-[11px] truncate mt-1 ${wizardStep === 1 ? 'text-blue-100' : 'text-slate-400'}`}>Rules, Pool, Date & Agent</p>
               </button>
 
               <button
@@ -689,14 +689,14 @@ export function ChitGroupsPage() {
                 onClick={() => {
                   if (form.group_name.trim()) setWizardStep(2);
                 }}
-                className={`p-2 sm:p-3 rounded-xl border text-center sm:text-left transition-all cursor-pointer ${
+                className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 2
-                    ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 shadow-xs'
-                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500'
+                    ? 'border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/30'
+                    : 'border-slate-200/90 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-700 hover:bg-blue-50/30 text-slate-600 dark:text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 2 ? 'bg-blue-600 text-white' : selectedMemberIds.length === targetMembersCount ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 2 ? 'bg-white text-blue-600' : selectedMemberIds.length === targetMembersCount ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                     {selectedMemberIds.length === targetMembersCount ? '✓' : '2'}
                   </span>
                   <span className="font-bold text-xs sm:text-sm truncate">
@@ -704,31 +704,31 @@ export function ChitGroupsPage() {
                     <span className="hidden sm:inline">Subscribers ({selectedMemberIds.length}/{targetMembersCount})</span>
                   </span>
                 </div>
-                <p className="hidden sm:block text-[11px] text-slate-400 truncate mt-1">Direct Member Allocation</p>
+                <p className={`hidden sm:block text-[11px] truncate mt-1 ${wizardStep === 2 ? 'text-blue-100' : 'text-slate-400'}`}>Direct Member Allocation</p>
               </button>
 
               <button
                 type="button"
                 onClick={() => setWizardStep(3)}
-                className={`p-2 sm:p-3 rounded-xl border text-center sm:text-left transition-all cursor-pointer ${
+                className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl border text-center sm:text-left transition-all cursor-pointer ${
                   wizardStep === 3
-                    ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 shadow-xs'
-                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500'
+                    ? 'border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400/30'
+                    : 'border-slate-200/90 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-700 hover:bg-blue-50/30 text-slate-600 dark:text-slate-400'
                 }`}
               >
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
-                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 3 ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>3</span>
+                  <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${wizardStep === 3 ? 'bg-white text-blue-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>3</span>
                   <span className="font-bold text-xs sm:text-sm truncate">
                     <span className="sm:hidden">Launch</span>
                     <span className="hidden sm:inline">Verify & Launch</span>
                   </span>
                 </div>
-                <p className="hidden sm:block text-[11px] text-slate-400 truncate mt-1">Pre-flight Diagnostics</p>
+                <p className={`hidden sm:block text-[11px] truncate mt-1 ${wizardStep === 3 ? 'text-blue-100' : 'text-slate-400'}`}>Pre-flight Diagnostics</p>
               </button>
             </div>
 
             {error && (
-              <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-start gap-2.5 sm:gap-3 border border-rose-200 dark:border-rose-900/50">
+              <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-start gap-2.5 sm:gap-3 border border-rose-200 dark:border-rose-900/50 shadow-xs">
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-500" />
                 <div className="space-y-0.5 min-w-0">
                   <span className="font-bold block">Action Required</span>
@@ -741,7 +741,7 @@ export function ChitGroupsPage() {
             {wizardStep === 1 && (
               <div className="space-y-4 sm:space-y-6 animate-fadeIn">
                 {/* Billing Frequency */}
-                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-2.5 sm:space-y-3">
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/40 dark:from-slate-800/60 dark:via-slate-900/40 dark:to-indigo-950/40 border border-blue-100 dark:border-slate-700/80 space-y-2.5 sm:space-y-3 shadow-xs">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Select Billing Frequency & Route Track *
                   </label>
@@ -749,17 +749,17 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleFrequencySelect('DAILY')}
-                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                         form.frequency === 'DAILY'
-                          ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-100 shadow-sm ring-2 ring-blue-600/30'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          ? 'border-amber-500 bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-amber-500/5 text-amber-950 dark:text-amber-100 shadow-md shadow-amber-500/10 ring-2 ring-amber-500/40'
+                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-bold text-sm sm:text-base">
-                        <span>🚚</span>
+                      <div className="flex items-center gap-2 font-bold text-sm sm:text-base text-amber-700 dark:text-amber-300">
+                        <span className="text-lg">🚚</span>
                         <span>Daily Chit (Day-by-Day Route)</span>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                         Installments collected daily by field agents with mobile waypoint tracking
                       </p>
                     </button>
@@ -767,17 +767,17 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleFrequencySelect('MONTHLY')}
-                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                         form.frequency === 'MONTHLY'
-                          ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-100 shadow-sm ring-2 ring-blue-600/30'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          ? 'border-blue-600 bg-gradient-to-br from-blue-600/15 via-indigo-600/10 to-blue-500/5 text-blue-950 dark:text-blue-100 shadow-md shadow-blue-500/10 ring-2 ring-blue-500/40'
+                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-bold text-sm sm:text-base">
-                        <span>🗓️</span>
+                      <div className="flex items-center gap-2 font-bold text-sm sm:text-base text-blue-700 dark:text-blue-300">
+                        <span className="text-lg">🗓️</span>
                         <span>Monthly Chit (Month-by-Month)</span>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                         Installments collected monthly with formal reverse auction sessions
                       </p>
                     </button>
@@ -785,12 +785,12 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Scheme Mechanism: STRICTLY Auction Chit or Double Chit (Standard Chit Removed) */}
-                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-2.5 sm:space-y-3">
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-50/40 via-white to-purple-50/40 dark:from-slate-800/60 dark:via-slate-900/40 dark:to-purple-950/30 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5 sm:space-y-3 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       Select Scheme Mechanism (Strictly 2 Types · Selection is Final Once Created) *
                     </label>
-                    <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold font-mono">
+                    <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold font-mono px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60">
                       {form.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Cycle'}
                     </span>
                   </div>
@@ -799,10 +799,10 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleSchemeTypeSelect('AUCTION_CHIT')}
-                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                         form.chit_type === 'AUCTION_CHIT'
-                          ? 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-100 shadow-xs ring-2 ring-emerald-600/30'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-emerald-500/5 text-emerald-950 dark:text-emerald-100 shadow-md shadow-emerald-500/15 ring-2 ring-emerald-500/40'
+                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       <div className="font-bold text-sm sm:text-base flex items-center justify-between text-emerald-700 dark:text-emerald-300">
@@ -814,7 +814,7 @@ export function ChitGroupsPage() {
                           Single Draw
                         </span>
                       </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                      <div className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
                         Reverse auction every cycle. Admin commission is deducted from the winner's prize payout; the full bid discount is divided equally among members and credited directly to subscriber passbooks (installment due remains full standard amount).
                       </div>
                     </button>
@@ -822,10 +822,10 @@ export function ChitGroupsPage() {
                     <button
                       type="button"
                       onClick={() => handleSchemeTypeSelect('DOUBLE_CHIT')}
-                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                         form.chit_type === 'DOUBLE_CHIT'
-                          ? 'border-purple-600 bg-purple-50/80 dark:bg-purple-950/60 text-purple-900 dark:text-purple-100 shadow-xs ring-2 ring-purple-600/30'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          ? 'border-purple-500 bg-gradient-to-br from-purple-500/15 via-violet-500/10 to-purple-500/5 text-purple-950 dark:text-purple-100 shadow-md shadow-purple-500/15 ring-2 ring-purple-500/40'
+                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       <div className="font-bold text-sm sm:text-base flex items-center justify-between text-purple-700 dark:text-purple-300">
@@ -837,7 +837,7 @@ export function ChitGroupsPage() {
                           Dual Draw Slot
                         </span>
                       </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                      <div className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
                         Dual draws per cycle. Admin commission is deducted from winner prize. The full bid discount is saved in this chit's pool reserve so you have the option to auction that saved pool again in Draw #2 (0 passbook dividend).
                       </div>
                     </button>
@@ -845,7 +845,7 @@ export function ChitGroupsPage() {
                 </div>
 
                 {/* Core Information */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-50/40 via-white to-slate-50/50 dark:from-slate-800/50 dark:via-slate-900/30 dark:to-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Scheme Code *
@@ -856,7 +856,7 @@ export function ChitGroupsPage() {
                       value={form.group_code}
                       onChange={(e) => setForm({ ...form, group_code: e.target.value.toUpperCase() })}
                       placeholder="e.g. DLY-AUC-101"
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-semibold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-semibold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                     />
                   </div>
 
@@ -870,7 +870,7 @@ export function ChitGroupsPage() {
                       placeholder="e.g. Market Daily Auction Pool"
                       value={form.group_name}
                       onChange={(e) => setForm({ ...form, group_name: e.target.value })}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                     />
                   </div>
 
@@ -884,7 +884,7 @@ export function ChitGroupsPage() {
                       placeholder="e.g. Main Bazaar & Sector 4"
                       value={form.location_name}
                       onChange={(e) => setForm({ ...form, location_name: e.target.value })}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                     />
                   </div>
 
@@ -909,7 +909,7 @@ export function ChitGroupsPage() {
                     <select
                       value={form.assigned_agent_id}
                       onChange={(e) => setForm({ ...form, assigned_agent_id: e.target.value })}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs font-medium"
                     >
                       <option value="">-- Assign Later --</option>
                       {agents.map((ag) => (
@@ -928,7 +928,7 @@ export function ChitGroupsPage() {
 
                 {/* Financial Configuration with Auto-Calculated Total Pool (No Manual Typing) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <div>
+                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-xs">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Installment (₹) *
                     </label>
@@ -939,24 +939,24 @@ export function ChitGroupsPage() {
                       value={form.installment_amount}
                       onChange={(e) => handleFinancialFieldChange('installment_amount', e.target.value)}
                       placeholder="e.g. 500"
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                     />
                   </div>
 
-                  <div>
+                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-xs">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                      Subscribers Limit (Members) *
+                      Subscribers Limit *
                     </label>
                     <input
                       type="number"
                       required
                       value={form.total_members_limit}
                       onChange={(e) => handleFinancialFieldChange('total_members_limit', e.target.value)}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                     />
                   </div>
 
-                  <div>
+                  <div className="p-3.5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-xs">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Duration ({form.frequency === 'DAILY' ? 'Days' : 'Months'}) *
                     </label>
@@ -965,28 +965,28 @@ export function ChitGroupsPage() {
                       required
                       value={form.duration_periods}
                       onChange={(e) => handleFinancialFieldChange('duration_periods', e.target.value)}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-black text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                     />
                   </div>
 
-                  {/* AUTO CALCULATED TOTAL POOL BOX - NO MANUAL TYPING */}
-                  <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/60 flex flex-col justify-between">
+                  {/* AUTO CALCULATED TOTAL POOL BOX - VIBRANT LUXURY ACCENT */}
+                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white shadow-lg shadow-blue-500/30 flex flex-col justify-between ring-1 ring-white/20">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block font-heading">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-100 block font-heading">
                         Total Chit Pool (Auto)
                       </span>
-                      <div className="text-lg font-black text-blue-700 dark:text-blue-300 font-mono mt-0.5 font-heading">
+                      <div className="text-xl sm:text-2xl font-black text-amber-300 font-mono mt-0.5 tracking-tight drop-shadow-xs">
                         ₹{parseFloat(form.total_pool_amount || '0').toLocaleString('en-IN')}
                       </div>
                     </div>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                    <span className="text-[10px] text-blue-100/90 font-medium mt-1">
                       ₹{form.installment_amount} × {form.total_members_limit} subscribers
                     </span>
                   </div>
                 </div>
 
                 {/* Auction / Double Chit Rules */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-purple-50/30 via-white to-blue-50/30 dark:from-slate-800/50 dark:via-slate-900/30 dark:to-indigo-950/30 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                       Foreman Commission (%) *
@@ -997,9 +997,9 @@ export function ChitGroupsPage() {
                       required
                       value={form.foreman_commission_percent}
                       onChange={(e) => setForm({ ...form, foreman_commission_percent: e.target.value })}
-                      className="w-full px-3.5 sm:px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                     />
-                    <p className="text-[11px] text-slate-400 mt-1">Standard statutory commission: 5.0%</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Standard statutory commission: 5.0%</p>
                   </div>
 
                   <div>
@@ -1012,20 +1012,21 @@ export function ChitGroupsPage() {
                       required
                       value={form.max_bid_percent}
                       onChange={(e) => setForm({ ...form, max_bid_percent: e.target.value })}
-                      className="w-full px-3.5 sm:px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm"
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                     />
-                    <p className="text-[11px] text-slate-400 mt-1">Cap on subscriber reverse bidding: 35.0%</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Cap on subscriber reverse bidding: 35.0%</p>
                   </div>
                 </div>
 
                 {/* Scheme Commencement Date */}
-                <div>
+                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-50/30 via-white to-blue-50/30 dark:from-slate-800/50 dark:via-slate-900/30 dark:to-emerald-950/20 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1.5 gap-1">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       Scheme Commencement Date *
                     </label>
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                      ✓ Flexible: Any past, current, or future date allowed
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Flexible: Any past, current, or future date allowed</span>
                     </span>
                   </div>
                   <input
@@ -1033,15 +1034,15 @@ export function ChitGroupsPage() {
                     required
                     value={form.start_date}
                     onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                    className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                   />
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     Chits can be backdated for ledger import, initialized today, or scheduled for future launch.
                   </p>
                 </div>
 
                 {/* Step 1 Actions (Responsive for mobile) */}
-                <div className="pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4">
+                <div className="pt-3 sm:pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
@@ -1053,7 +1054,7 @@ export function ChitGroupsPage() {
                   <button
                     type="button"
                     onClick={handleStep1Next}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                   >
                     <span>Next: Select Members ({selectedMemberIds.length}/{targetMembersCount})</span>
                     <ChevronRight className="w-4 h-4" />
@@ -1121,7 +1122,7 @@ export function ChitGroupsPage() {
                       placeholder="Search registered members by name, phone, code..."
                       value={memberSearchQuery}
                       onChange={(e) => setMemberSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 shadow-2xs"
                     />
                   </div>
 
@@ -1376,75 +1377,75 @@ export function ChitGroupsPage() {
                   </div>
                 )}
 
-                {/* Scheme Blueprint Summary */}
-                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-3 sm:space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2.5 sm:pb-3 gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60">
+                {/* Scheme Blueprint Summary - Luxury Vibrant Glass Card */}
+                <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#0c1631] via-[#112046] to-[#070d1d] text-white border border-blue-500/30 shadow-2xl space-y-4 ring-1 ring-blue-400/20">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-blue-900/60 pb-3 gap-2">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="font-mono font-bold text-amber-300 text-xs px-2.5 py-1 rounded-lg bg-blue-950/80 border border-blue-800/80 shadow-xs">
                         {form.group_code}
                       </span>
-                      <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
+                      <h4 className="font-black text-white text-base sm:text-lg tracking-tight">
                         {form.group_name}
                       </h4>
                     </div>
-                    <span className="text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto">
+                    <span className="text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 self-start sm:self-auto shadow-xs">
                       {form.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Cycle'} · {form.chit_type === 'DOUBLE_CHIT' ? 'Double Chit' : 'Auction Chit'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Per Period Installment</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Installment</span>
+                      <strong className="text-white font-mono text-sm sm:text-base font-bold">
                         ₹{parseFloat(form.installment_amount || '0').toLocaleString('en-IN')}
                       </strong>
                     </div>
 
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Total Chit Pool</span>
-                      <strong className="text-blue-600 dark:text-blue-400 font-mono text-xs sm:text-sm font-extrabold">
+                    <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                      <span className="text-blue-200 block text-[11px] font-medium">Total Chit Pool</span>
+                      <strong className="text-amber-300 font-mono text-sm sm:text-base font-black">
                         ₹{parseFloat(form.total_pool_amount || '0').toLocaleString('en-IN')}
                       </strong>
                     </div>
 
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Subscribers & Tickets</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
-                        {selectedCount} / {targetMembersCount} Members
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Subscribers</span>
+                      <strong className="text-white font-mono text-sm sm:text-base font-bold">
+                        {selectedCount} / {targetMembersCount}
                       </strong>
                     </div>
 
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Commencement Date</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Start Date</span>
+                      <strong className="text-white font-mono text-sm sm:text-base font-bold">
                         {form.start_date}
                       </strong>
                     </div>
 
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Foreman Commission</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Commission</span>
+                      <strong className="text-emerald-300 font-mono text-sm sm:text-base font-bold">
                         {form.foreman_commission_percent}%
                       </strong>
                     </div>
 
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Max Permissible Bid</span>
-                      <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Max Bid Cap</span>
+                      <strong className="text-purple-300 font-mono text-sm sm:text-base font-bold">
                         {form.max_bid_percent}%
                       </strong>
                     </div>
 
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Route Location</span>
-                      <strong className="text-slate-900 dark:text-white truncate block text-xs sm:text-sm">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Location</span>
+                      <strong className="text-white truncate block text-xs sm:text-sm font-semibold">
                         {form.location_name}
                       </strong>
                     </div>
 
-                    <div>
-                      <span className="text-slate-400 block text-[11px]">Assigned Agent</span>
-                      <strong className="text-slate-900 dark:text-white truncate block text-xs sm:text-sm">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Field Agent</span>
+                      <strong className="text-white truncate block text-xs sm:text-sm font-semibold">
                         {agents.find((a) => String(a.id) === String(form.assigned_agent_id))?.full_name || 'Unassigned'}
                       </strong>
                     </div>
@@ -1543,33 +1544,33 @@ export function ChitGroupsPage() {
         isOpen={showQuickAgentModal}
         onClose={() => setShowQuickAgentModal(false)}
       >
-        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0b1329] border border-blue-200/80 dark:border-blue-900/60 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale ring-1 ring-blue-500/20">
+            <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-950 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/25">
                   <UserPlus className="w-4 h-4" />
                 </div>
-                <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
                   Quick Add Collection Agent
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setShowQuickAgentModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {quickAgentError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2 border border-rose-200 dark:border-rose-900">
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2 border border-rose-200 dark:border-rose-900 shadow-xs">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
                 <span>{quickAgentError}</span>
               </div>
             )}
 
-            <form onSubmit={handleQuickAddAgent} className="space-y-3">
+            <form onSubmit={handleQuickAddAgent} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
                   Full Name *
@@ -1580,7 +1581,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. Ramesh Kumar"
                   value={quickAgentForm.full_name}
                   onChange={(e) => setQuickAgentForm({ ...quickAgentForm, full_name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                 />
               </div>
 
@@ -1594,7 +1595,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. 9876543210"
                   value={quickAgentForm.phone}
                   onChange={(e) => setQuickAgentForm({ ...quickAgentForm, phone: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                 />
               </div>
 
@@ -1608,7 +1609,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. ramesh_agent"
                   value={quickAgentForm.username}
                   onChange={(e) => setQuickAgentForm({ ...quickAgentForm, username: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                 />
               </div>
 
@@ -1622,22 +1623,22 @@ export function ChitGroupsPage() {
                   placeholder="Min 6 characters"
                   value={quickAgentForm.password}
                   onChange={(e) => setQuickAgentForm({ ...quickAgentForm, password: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="pt-2 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowQuickAgentModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={quickAgentSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 cursor-pointer transition-all active:scale-95"
                 >
                   {quickAgentSubmitting ? 'Creating...' : 'Create & Select Agent'}
                 </button>
@@ -1654,33 +1655,33 @@ export function ChitGroupsPage() {
         isOpen={showQuickMemberModal}
         onClose={() => setShowQuickMemberModal(false)}
       >
-        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0b1329] border border-emerald-200/80 dark:border-emerald-900/60 shadow-2xl p-4 sm:p-6 space-y-4 my-auto sm:my-8 max-h-[92vh] overflow-y-auto animate-confirmScale ring-1 ring-emerald-500/20">
+            <div className="flex items-center justify-between border-b border-emerald-100 dark:border-emerald-950 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-500/25">
                   <UserPlus className="w-4 h-4" />
                 </div>
-                <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
                   Quick Register New Subscriber
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setShowQuickMemberModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {quickMemberError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2 border border-rose-200 dark:border-rose-900">
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2 border border-rose-200 dark:border-rose-900 shadow-xs">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
                 <span>{quickMemberError}</span>
               </div>
             )}
 
-            <form onSubmit={handleQuickAddMember} className="space-y-3">
+            <form onSubmit={handleQuickAddMember} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
                   Subscriber Full Name *
@@ -1691,7 +1692,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. Suresh Varma"
                   value={quickMemberForm.full_name}
                   onChange={(e) => setQuickMemberForm({ ...quickMemberForm, full_name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 focus:outline-none shadow-2xs"
                 />
               </div>
 
@@ -1705,7 +1706,7 @@ export function ChitGroupsPage() {
                   placeholder="e.g. 9848012345"
                   value={quickMemberForm.phone}
                   onChange={(e) => setQuickMemberForm({ ...quickMemberForm, phone: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 focus:outline-none shadow-2xs"
                 />
               </div>
 
@@ -1718,22 +1719,22 @@ export function ChitGroupsPage() {
                   placeholder="e.g. Shop #12, Market Road"
                   value={quickMemberForm.address}
                   onChange={(e) => setQuickMemberForm({ ...quickMemberForm, address: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 focus:outline-none shadow-2xs"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="pt-2 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowQuickMemberModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={quickMemberSubmitting}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer transition-all active:scale-95"
                 >
                   {quickMemberSubmitting ? 'Registering...' : 'Register & Select Member'}
                 </button>
