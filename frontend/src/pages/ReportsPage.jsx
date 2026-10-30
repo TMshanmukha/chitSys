@@ -53,6 +53,10 @@ export default function ReportsPage() {
   // Filters
   const [selectedGroupId, setSelectedGroupId] = useState('ALL');
   const [periodFilter, setPeriodFilter] = useState('ALL'); // 'ALL' | 'TODAY' | 'MONTH'
+  const [schemeTypeFilter, setSchemeTypeFilter] = useState('ALL'); // 'ALL' | 'AUCTION_CHIT' | 'DOUBLE_CHIT'
+  const [cycleFilter, setCycleFilter] = useState('ALL'); // 'ALL' | 'DAILY' | 'MONTHLY'
+  const [standingFilter, setStandingFilter] = useState('ALL'); // 'ALL' | 'PRIZED' | 'UNPRIZED' | 'PAID' | 'ZERO_PAID' | 'NET_GAIN' | 'NET_CONTRIBUTOR'
+  const [memberSort, setMemberSort] = useState('TICKET_ASC'); // 'TICKET_ASC' | 'TICKET_DESC' | 'PAID_DESC' | 'PAID_ASC' | 'RECEIVED_DESC' | 'NET_DESC' | 'NAME_ASC'
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
 
@@ -72,7 +76,7 @@ export default function ReportsPage() {
     setDefaultersPage(1);
     setAuctionsPage(1);
     setMembersPage(1);
-  }, [searchQuery, selectedGroupId, periodFilter, activeTab]);
+  }, [searchQuery, selectedGroupId, periodFilter, schemeTypeFilter, cycleFilter, standingFilter, memberSort, activeTab]);
 
   // Modals
   const [selectedAuctionVoucher, setSelectedAuctionVoucher] = useState(null);
@@ -163,15 +167,47 @@ export default function ReportsPage() {
     );
   });
 
-  // Filter member summaries by search query
+  // Filter and sort member summaries strictly per chit scheme and member standing
   const filteredMembers = memberSummaries.filter((m) => {
+    // 1. Chit Scheme filter
+    if (selectedGroupId !== 'ALL' && String(m.group_id) !== String(selectedGroupId)) return false;
+
+    // 2. Chit Type filter
+    if (schemeTypeFilter !== 'ALL' && m.chit_type !== schemeTypeFilter) return false;
+
+    // 3. Frequency filter
+    if (cycleFilter !== 'ALL' && m.frequency !== cycleFilter) return false;
+
+    // 4. Standing filter
+    if (standingFilter === 'PRIZED' && m.is_prized !== 1) return false;
+    if (standingFilter === 'UNPRIZED' && m.is_prized === 1) return false;
+    if (standingFilter === 'PAID' && parseFloat(m.total_paid_in_chit || 0) <= 0) return false;
+    if (standingFilter === 'ZERO_PAID' && parseFloat(m.total_paid_in_chit || 0) > 0) return false;
+    if (standingFilter === 'NET_GAIN' && parseFloat(m.net_position_in_chit || 0) <= 0) return false;
+    if (standingFilter === 'NET_CONTRIBUTOR' && parseFloat(m.net_position_in_chit || 0) >= 0) return false;
+
+    // 5. Search query
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
-      (m.full_name || '').toLowerCase().includes(q) ||
+      (m.member_name || m.full_name || '').toLowerCase().includes(q) ||
       (m.member_code || '').toLowerCase().includes(q) ||
-      (m.phone || '').includes(q)
+      (m.member_phone || m.phone || '').includes(q) ||
+      (m.group_name || '').toLowerCase().includes(q) ||
+      (m.group_code || '').toLowerCase().includes(q) ||
+      String(m.ticket_number || '').includes(q)
     );
+  });
+
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    if (memberSort === 'TICKET_ASC') return (parseInt(a.ticket_number, 10) || 0) - (parseInt(b.ticket_number, 10) || 0);
+    if (memberSort === 'TICKET_DESC') return (parseInt(b.ticket_number, 10) || 0) - (parseInt(a.ticket_number, 10) || 0);
+    if (memberSort === 'PAID_DESC') return (parseFloat(b.total_paid_in_chit) || 0) - (parseFloat(a.total_paid_in_chit) || 0);
+    if (memberSort === 'PAID_ASC') return (parseFloat(a.total_paid_in_chit) || 0) - (parseFloat(b.total_paid_in_chit) || 0);
+    if (memberSort === 'RECEIVED_DESC') return (parseFloat(b.total_received_in_chit) || 0) - (parseFloat(a.total_received_in_chit) || 0);
+    if (memberSort === 'NET_DESC') return (parseFloat(b.net_position_in_chit) || 0) - (parseFloat(a.net_position_in_chit) || 0);
+    if (memberSort === 'NAME_ASC') return (a.member_name || a.full_name || '').localeCompare(b.member_name || b.full_name || '');
+    return 0;
   });
 
   // Paginated slices for each report tab
@@ -190,7 +226,7 @@ export default function ReportsPage() {
     auctionsPage * auctionsPageSize
   );
 
-  const paginatedMembers = filteredMembers.slice(
+  const paginatedMembers = sortedMembers.slice(
     (membersPage - 1) * membersPageSize,
     membersPage * membersPageSize
   );
@@ -268,15 +304,39 @@ export default function ReportsPage() {
         formatDate(a.auction_date),
       ]);
     } else if (activeTab === 'members') {
-      headers = ['Member Code', 'Full Name', 'Phone Number', 'Enrolled Groups', 'Total Contributed (INR)', 'Total Dividends Earned', 'Prize Money Won'];
-      rows = filteredMembers.map((m) => [
+      headers = [
+        'Chit Scheme',
+        'Scheme Code',
+        'Frequency',
+        'Chit Type',
+        'Ticket #',
+        'Member Code',
+        'Subscriber Name',
+        'Phone Number',
+        'Bidding Status',
+        'Total Paid in Chit (INR)',
+        'Prize Won in Chit (INR)',
+        'Dividends Credited in Chit (INR)',
+        'Total Received in Chit (INR)',
+        'Net Standing in Chit (INR)',
+        'Receipts Count',
+      ];
+      rows = sortedMembers.map((m) => [
+        `"${m.group_name}"`,
+        m.group_code,
+        m.frequency,
+        m.chit_type,
+        m.ticket_number,
         m.member_code,
-        `"${m.full_name}"`,
-        m.phone,
-        m.enrolled_groups_count,
-        m.total_contributed,
-        m.total_dividends_earned,
-        m.total_prize_won,
+        `"${m.member_name || m.full_name}"`,
+        m.member_phone || m.phone,
+        m.is_prized === 1 ? `Prized (Round #${m.prized_period || '1'})` : 'Eligible Unprized',
+        m.total_paid_in_chit,
+        m.prize_won_in_chit,
+        m.dividends_credited_in_chit,
+        m.total_received_in_chit,
+        m.net_position_in_chit,
+        m.receipts_count,
       ]);
     }
 
@@ -294,13 +354,14 @@ export default function ReportsPage() {
     window.print();
   };
 
-  // Open Passbook for a member
-  const handleOpenMemberPassbook = async (memberId, memberName) => {
-    setSelectedMemberPassbook({ id: memberId, name: memberName });
+  // Open Passbook for a member (optionally strictly scoped to a single chit scheme)
+  const handleOpenMemberPassbook = async (memberId, memberName, groupId = null, groupName = null, ticketNumber = null) => {
+    setSelectedMemberPassbook({ id: memberId, name: memberName, groupId, groupName, ticketNumber });
     scrollToFormOrModal('report-member-passbook-modal');
     setLoadingPassbook(true);
     try {
-      const res = await api.get(`/admin/members/${memberId}/passbook`);
+      const url = groupId ? `/admin/members/${memberId}/passbook?groupId=${groupId}` : `/admin/members/${memberId}/passbook`;
+      const res = await api.get(url);
       if (res.data?.success) {
         setMemberPassbookData(res.data.data);
       }
@@ -957,89 +1018,294 @@ export default function ReportsPage() {
       )}
 
       {/* =========================================================================
-          TAB 4: MEMBER-WISE STATEMENTS & PASSBOOKS REPORT
+          TAB 4: PER-CHIT SUBSCRIBER LEDGER & SETTLEMENTS (ISOLATED PER SCHEME)
           ========================================================================= */}
       {activeTab === 'members' && (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-            <span className="font-semibold text-slate-800 dark:text-slate-200">
-              Subscriber Financial Ledger Dossier ({filteredMembers.length} Members)
-            </span>
-            <span className="font-mono text-[11px]">Passbook Ledger</span>
+        <div className="space-y-4">
+          {/* Dedicated Sub-Filters for Per-Chit Member Ledger */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 print:hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                  <Filter className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Per-Chit Member Filters</span>
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Each record strictly displays financial figures (Paid vs Received) for that respective chit scheme only.
+                </p>
+              </div>
+              <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
+                {sortedMembers.length} Subscriber Accounts Matching
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+              {/* Filter 1: Chit Type */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Chit Scheme Type
+                </label>
+                <select
+                  value={schemeTypeFilter}
+                  onChange={(e) => setSchemeTypeFilter(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="ALL">All Chit Types</option>
+                  <option value="AUCTION_CHIT">Reverse Auction Chit</option>
+                  <option value="DOUBLE_CHIT">Double Chit Scheme</option>
+                </select>
+              </div>
+
+              {/* Filter 2: Cycle Frequency */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Collection Cycle
+                </label>
+                <select
+                  value={cycleFilter}
+                  onChange={(e) => setCycleFilter(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="ALL">All Cycles (Daily & Monthly)</option>
+                  <option value="DAILY">Daily Route Collection</option>
+                  <option value="MONTHLY">Monthly Cycle Scheme</option>
+                </select>
+              </div>
+
+              {/* Filter 3: Member Standing */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Subscriber Standing
+                </label>
+                <select
+                  value={standingFilter}
+                  onChange={(e) => setStandingFilter(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="ALL">All Subscriber Standings</option>
+                  <option value="PRIZED">🏆 Prized Winners Only (Prize Lifted)</option>
+                  <option value="UNPRIZED">⭐ Eligible Unprized (Bidding)</option>
+                  <option value="PAID">💵 Active Payers (Paid &gt; ₹0)</option>
+                  <option value="ZERO_PAID">⚠️ Zero Payments (Pending Initial Dues)</option>
+                  <option value="NET_GAIN">📈 Net Gainers (Received &gt; Paid)</option>
+                  <option value="NET_CONTRIBUTOR">📉 Net Contributors (Paid &gt; Received)</option>
+                </select>
+              </div>
+
+              {/* Filter 4: Sorting */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Sort Entries By
+                </label>
+                <select
+                  value={memberSort}
+                  onChange={(e) => setMemberSort(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="TICKET_ASC">Ticket # (Low to High)</option>
+                  <option value="TICKET_DESC">Ticket # (High to Low)</option>
+                  <option value="PAID_DESC">Total Paid (High to Low)</option>
+                  <option value="PAID_ASC">Total Paid (Low to High)</option>
+                  <option value="RECEIVED_DESC">Total Received (High to Low)</option>
+                  <option value="NET_DESC">Net Standing (Highest Gain)</option>
+                  <option value="NAME_ASC">Member Name (A to Z)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="overflow-x-auto overflow-y-auto max-h-[460px]">
-            <table className="w-full text-left text-xs">
-              <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
-                <tr>
-                  <th className="py-3 px-4">Member Code</th>
-                  <th className="py-3 px-4">Subscriber Name</th>
-                  <th className="py-3 px-4">Phone Number</th>
-                  <th className="py-3 px-4">Chits Enrolled</th>
-                  <th className="py-3 px-4">Total Contributed</th>
-                  <th className="py-3 px-4">Dividends Received</th>
-                  <th className="py-3 px-4">Prize Lifts Won</th>
-                  <th className="py-3 px-4 text-right">Passbook Statement</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                {loading ? (
+          {/* Table Container */}
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+              <span className="font-semibold text-slate-800 dark:text-slate-200 font-heading">
+                Per-Chit Member Accounts & Financial Standing ({sortedMembers.length} Entries)
+              </span>
+              <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400">
+                Respective Chit Isolation Active
+              </span>
+            </div>
+
+            <div className="overflow-x-auto overflow-y-auto max-h-[520px]">
+              <table className="w-full text-left text-xs">
+                <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold font-heading text-[10px]">
                   <tr>
-                    <td colSpan="8" className="py-12 text-center text-slate-400">
-                      Loading subscriber accounts...
-                    </td>
+                    <th className="py-3 px-4">Chit Scheme</th>
+                    <th className="py-3 px-4">Ticket</th>
+                    <th className="py-3 px-4">Subscriber</th>
+                    <th className="py-3 px-4">Bidding Status</th>
+                    <th className="py-3 px-4">Total Paid in Chit</th>
+                    <th className="py-3 px-4">Prize Lifted</th>
+                    <th className="py-3 px-4">Dividends Credited</th>
+                    <th className="py-3 px-4">Total Received</th>
+                    <th className="py-3 px-4">Net Standing</th>
+                    <th className="py-3 px-4 text-right">Action</th>
                   </tr>
-                ) : filteredMembers.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="py-12 text-center text-slate-500">
-                      No subscriber accounts found.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedMembers.map((m) => (
-                    <tr key={m.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3 px-4 font-mono font-medium text-blue-600 dark:text-blue-400">
-                        {m.member_code}
-                      </td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                        {m.full_name}
-                      </td>
-                      <td className="py-3 px-4 font-mono">{m.phone}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                        {m.enrolled_groups_count} Schemes
-                      </td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                        ₹{Number(m.total_contributed).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
-                        ₹{Number(m.total_dividends_earned).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 px-4 font-bold text-purple-600 dark:text-purple-400">
-                        ₹{Number(m.total_prize_won).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenMemberPassbook(m.id, m.full_name)}
-                          className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold transition-colors"
-                        >
-                          View Passbook
-                        </button>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                  {loading ? (
+                    <tr>
+                      <td colSpan="10" className="py-12 text-center text-slate-400">
+                        Loading subscriber per-chit ledger from MySQL...
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : paginatedMembers.length === 0 ? (
+                    <tr>
+                      <td colSpan="10" className="py-12 text-center text-slate-500">
+                        No subscriber records match the selected chit and standing filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedMembers.map((m) => {
+                      const isPrized = m.is_prized === 1;
+                      const paid = parseFloat(m.total_paid_in_chit || 0);
+                      const prize = parseFloat(m.prize_won_in_chit || 0);
+                      const divs = parseFloat(m.dividends_credited_in_chit || 0);
+                      const received = parseFloat(m.total_received_in_chit || 0);
+                      const net = parseFloat(m.net_position_in_chit || 0);
 
-          <Pagination
-            currentPage={membersPage}
-            totalItems={filteredMembers.length}
-            pageSize={membersPageSize}
-            onPageChange={setMembersPage}
-            onPageSizeChange={setMembersPageSize}
-          />
+                      return (
+                        <tr
+                          key={`${m.group_id}-${m.member_id}-${m.ticket_number}`}
+                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
+                            isPrized ? 'bg-purple-50/15 dark:bg-purple-950/10' : ''
+                          }`}
+                        >
+                          {/* Chit Scheme */}
+                          <td className="py-3 px-4">
+                            <span className="font-bold text-slate-900 dark:text-white block font-heading">
+                              {m.group_name}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className="font-mono text-[10px] text-slate-400">{m.group_code}</span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                                {m.frequency === 'DAILY' ? '⚡ Daily' : '🏛️ Monthly'}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                {m.chit_type === 'DOUBLE_CHIT' ? 'Double Chit' : 'Auction Chit'}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Ticket # */}
+                          <td className="py-3 px-4">
+                            <span className="font-mono text-xs font-black text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900">
+                              #{String(m.ticket_number).padStart(2, '0')}
+                            </span>
+                          </td>
+
+                          {/* Subscriber Name & Phone */}
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 font-heading">
+                              {m.member_name || m.full_name}
+                              {isPrized && (
+                                <span title="Prize Winner in this scheme" className="text-purple-600">
+                                  🏆
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono">
+                              {m.member_phone || m.phone} · {m.member_code}
+                            </div>
+                          </td>
+
+                          {/* Bidding / Prized Status */}
+                          <td className="py-3 px-4">
+                            {isPrized ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-heading">
+                                <span>Prized (Round #{m.prized_period || '1'})</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-heading">
+                                <span>Eligible to Bid</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Total Paid in this Chit */}
+                          <td className="py-3 px-4">
+                            <div className="font-extrabold text-slate-900 dark:text-white text-sm font-heading">
+                              ₹{paid.toLocaleString('en-IN')}
+                            </div>
+                            <span className="text-[10px] text-slate-400 block font-mono">
+                              {m.receipts_count || 0} receipts
+                            </span>
+                          </td>
+
+                          {/* Prize Lifted in this Chit */}
+                          <td className="py-3 px-4">
+                            <span className={`font-bold text-sm font-heading ${
+                              prize > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'
+                            }`}>
+                              ₹{prize.toLocaleString('en-IN')}
+                            </span>
+                          </td>
+
+                          {/* Dividends Credited in this Chit */}
+                          <td className="py-3 px-4">
+                            <span className={`font-bold text-sm font-heading ${
+                              divs > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                            }`}>
+                              ₹{divs.toLocaleString('en-IN')}
+                            </span>
+                          </td>
+
+                          {/* Total Received in this Chit */}
+                          <td className="py-3 px-4">
+                            <div className="font-extrabold text-blue-600 dark:text-blue-400 text-sm font-heading">
+                              ₹{received.toLocaleString('en-IN')}
+                            </div>
+                            <span className="text-[10px] text-slate-400 block">Prize + Dividends</span>
+                          </td>
+
+                          {/* Net Standing in this Chit */}
+                          <td className="py-3 px-4">
+                            <span
+                              className={`inline-block px-2.5 py-1 rounded-lg text-xs font-bold font-heading ${
+                                net > 0
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                  : net < 0
+                                  ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                  : 'bg-slate-50 text-slate-400'
+                              }`}
+                            >
+                              {net > 0 ? '+' : ''}₹{net.toLocaleString('en-IN')}
+                            </span>
+                          </td>
+
+                          {/* Action Button: Isolated Chit Statement */}
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleOpenMemberPassbook(
+                                  m.member_id || m.id,
+                                  m.member_name || m.full_name,
+                                  m.group_id,
+                                  m.group_name,
+                                  m.ticket_number
+                                )
+                              }
+                              className="px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap font-heading"
+                            >
+                              Chit Statement
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <Pagination
+              currentPage={membersPage}
+              totalItems={sortedMembers.length}
+              pageSize={membersPageSize}
+              onPageChange={setMembersPage}
+              onPageSizeChange={setMembersPageSize}
+            />
+          </div>
         </div>
       )}
 
@@ -1148,12 +1414,17 @@ export default function ReportsPage() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider font-heading">
                   ChitBase Member Statement
                 </span>
-                <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                  {selectedMemberPassbook?.name || 'Member'} — Passbook & Ledger
+                <h3 className="font-bold text-slate-900 dark:text-white text-base font-heading">
+                  {selectedMemberPassbook?.name || 'Member'} — {selectedMemberPassbook?.groupName ? `${selectedMemberPassbook.groupName} Statement` : 'Passbook & Ledger'}
                 </h3>
+                {selectedMemberPassbook?.groupName && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-mono mt-0.5">
+                    Ticket #{selectedMemberPassbook.ticketNumber} · Isolated Chit Scheme Record
+                  </p>
+                )}
               </div>
               <button
                 type="button"
@@ -1167,6 +1438,15 @@ export default function ReportsPage() {
               </button>
             </div>
 
+            {selectedMemberPassbook?.groupName && (
+              <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-blue-900 dark:text-blue-200 text-xs flex items-center justify-between">
+                <span>
+                  <strong>Respective Chit Scope:</strong> Exclusively displaying installment collections, prize lifts, and dividends for <strong>{selectedMemberPassbook.groupName}</strong>. No payments or receipts from other chits are shown.
+                </span>
+                <span className="font-mono font-bold ml-2 shrink-0">Ticket #{selectedMemberPassbook.ticketNumber}</span>
+              </div>
+            )}
+
             {loadingPassbook ? (
               <div className="py-12 text-center text-slate-400 text-xs">
                 <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
@@ -1177,93 +1457,129 @@ export default function ReportsPage() {
                 {/* 4 KPI summary cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 block uppercase">Total Paid</span>
-                    <span className="text-sm font-extrabold text-slate-900 dark:text-white block mt-0.5">
+                    <span className="text-[10px] text-slate-400 block uppercase">Total Paid in Chit</span>
+                    <span className="text-sm font-extrabold text-slate-900 dark:text-white block mt-0.5 font-heading">
                       ₹{Number(memberPassbookData.summary?.totalPaid || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 block uppercase">Dividends Earned</span>
-                    <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                    <span className="text-[10px] text-slate-400 block uppercase">Dividends in Chit</span>
+                    <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 block mt-0.5 font-heading">
                       ₹{Number(memberPassbookData.summary?.totalDividendsEarned || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 block uppercase">Prize Won</span>
-                    <span className="text-sm font-extrabold text-purple-600 dark:text-purple-400 block mt-0.5">
+                    <span className="text-[10px] text-slate-400 block uppercase">Prize Won in Chit</span>
+                    <span className="text-sm font-extrabold text-purple-600 dark:text-purple-400 block mt-0.5 font-heading">
                       ₹{Number(memberPassbookData.summary?.totalPrizeMoneyWon || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 block uppercase">Net Position</span>
-                    <span className="text-sm font-extrabold text-blue-600 dark:text-blue-400 block mt-0.5">
+                    <span className="text-[10px] text-slate-400 block uppercase">Net Standing</span>
+                    <span className="text-sm font-extrabold text-blue-600 dark:text-blue-400 block mt-0.5 font-heading">
                       ₹{Number(memberPassbookData.summary?.netPosition || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
 
-                {/* Enrolled Groups */}
-                <div className="space-y-1.5">
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                    Enrolled Chit Schemes ({memberPassbookData.enrolledGroups?.length || 0})
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {memberPassbookData.enrolledGroups?.map((eg) => (
-                      <div key={eg.membership_id} className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                        <div>
-                          <span className="font-bold text-slate-900 dark:text-white block">{eg.group_name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">Ticket #{eg.ticket_number} · {eg.chit_type}</span>
+                {/* Enrolled Groups (Only shown when not already scoped to a specific chit) */}
+                {!selectedMemberPassbook?.groupId && (
+                  <div className="space-y-1.5">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                      Enrolled Chit Schemes ({memberPassbookData.enrolledGroups?.length || 0})
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {memberPassbookData.enrolledGroups?.map((eg) => (
+                        <div key={eg.membership_id} className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white block">{eg.group_name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">Ticket #{eg.ticket_number} · {eg.chit_type}</span>
+                          </div>
+                          <span className="font-extrabold text-blue-600">₹{Number(eg.installment_amount).toLocaleString('en-IN')}</span>
                         </div>
-                        <span className="font-extrabold text-blue-600">₹{Number(eg.installment_amount).toLocaleString('en-IN')}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Installments Ledger Table */}
                 <div className="space-y-1.5">
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                    Installment Payment Ledger ({memberPassbookData.collections?.length || 0} Receipts)
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center justify-between font-heading">
+                    <span>Installment Payment Receipts ({memberPassbookData.collections?.length || 0})</span>
+                    <span className="text-[10px] text-slate-400">Strictly this chit scheme</span>
                   </h4>
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 max-h-48 overflow-y-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase text-[10px] sticky top-0">
-                        <tr>
-                          <th className="py-2 px-3">Receipt #</th>
-                          <th className="py-2 px-3">Date</th>
-                          <th className="py-2 px-3">Scheme</th>
-                          <th className="py-2 px-3">Method</th>
-                          <th className="py-2 px-3 font-bold text-right">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                        {memberPassbookData.collections?.map((col) => (
-                          <tr key={col.id}>
-                            <td className="py-2 px-3 font-mono font-bold text-blue-600">{col.receipt_number}</td>
-                            <td className="py-2 px-3 font-mono text-slate-500 text-[11px]">{formatDate(col.collection_date)}</td>
-                            <td className="py-2 px-3">{col.group_name}</td>
-                            <td className="py-2 px-3">{col.payment_method}</td>
-                            <td className="py-2 px-3 font-bold text-emerald-600 text-right">₹{Number(col.amount).toLocaleString('en-IN')}</td>
+                  {memberPassbookData.collections?.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic py-2">No payment receipts recorded for this chit yet.</p>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 max-h-48 overflow-y-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase text-[10px] sticky top-0 font-heading">
+                          <tr>
+                            <th className="py-2 px-3">Receipt #</th>
+                            <th className="py-2 px-3">Date</th>
+                            <th className="py-2 px-3">Method</th>
+                            <th className="py-2 px-3 font-bold text-right">Amount</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                          {memberPassbookData.collections?.map((col) => (
+                            <tr key={col.id}>
+                              <td className="py-2 px-3 font-mono font-bold text-blue-600">{col.receipt_number}</td>
+                              <td className="py-2 px-3 font-mono text-slate-500 text-[11px]">{formatDate(col.collection_date)}</td>
+                              <td className="py-2 px-3">{col.payment_method}</td>
+                              <td className="py-2 px-3 font-bold text-emerald-600 text-right">₹{Number(col.amount).toLocaleString('en-IN')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
+
+                {/* Auctions Won in this Chit */}
+                {memberPassbookData.auctionsWon?.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center justify-between font-heading">
+                      <span>Auction Prize Lifts Won ({memberPassbookData.auctionsWon.length})</span>
+                      <span className="text-[10px] text-purple-600 font-bold">Prize Disbursed</span>
+                    </h4>
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 max-h-40 overflow-y-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase text-[10px] sticky top-0 font-heading">
+                          <tr>
+                            <th className="py-2 px-3">Date</th>
+                            <th className="py-2 px-3">Round</th>
+                            <th className="py-2 px-3">Bid Discount</th>
+                            <th className="py-2 px-3 text-right">Net Prize Lifted</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                          {memberPassbookData.auctionsWon.map((auc) => (
+                            <tr key={auc.id}>
+                              <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{formatDate(auc.auction_date)}</td>
+                              <td className="py-2 px-3 font-mono">Round #{auc.period_number}</td>
+                              <td className="py-2 px-3 font-semibold text-rose-600">₹{Number(auc.bid_discount).toLocaleString('en-IN')}</td>
+                              <td className="py-2 px-3 font-bold text-purple-600 dark:text-purple-400 text-right">₹{Number(auc.net_payable_amount).toLocaleString('en-IN')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
                 {/* Individual Dividends Credited Ledger */}
                 {memberPassbookData.dividendsLedger?.length > 0 && (
                   <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center justify-between">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center justify-between font-heading">
                       <span>Dividends Credited ({memberPassbookData.dividendsLedger.length})</span>
-                      <span className="text-[10px] text-emerald-600 font-bold">0% Admin Fee</span>
+                      <span className="text-[10px] text-emerald-600 font-bold">0% Admin Fee Taken</span>
                     </h4>
                     <div className="rounded-xl border border-slate-200 dark:border-slate-800 max-h-40 overflow-y-auto">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase text-[10px] sticky top-0">
+                        <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase text-[10px] sticky top-0 font-heading">
                           <tr>
                             <th className="py-2 px-3">Date</th>
-                            <th className="py-2 px-3">Scheme</th>
                             <th className="py-2 px-3">Round</th>
                             <th className="py-2 px-3 text-right">Dividend Credited</th>
                           </tr>
@@ -1272,7 +1588,6 @@ export default function ReportsPage() {
                           {memberPassbookData.dividendsLedger.map((div) => (
                             <tr key={div.id}>
                               <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{formatDate(div.credited_date)}</td>
-                              <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white">{div.group_name}</td>
                               <td className="py-2 px-3 font-mono">Round #{div.period_number}</td>
                               <td className="py-2 px-3 font-bold text-emerald-600 text-right">₹{Number(div.dividend_amount).toLocaleString('en-IN')}</td>
                             </tr>

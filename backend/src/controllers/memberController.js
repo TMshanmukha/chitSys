@@ -194,6 +194,7 @@ export async function enrollMemberInGroup(req, res, next) {
 export async function getMemberPassbook(req, res, next) {
   try {
     const { id } = req.params;
+    const { groupId } = req.query;
 
     // 1. Member profile
     const [memberRows] = await pool.execute(
@@ -207,56 +208,76 @@ export async function getMemberPassbook(req, res, next) {
 
     const member = memberRows[0];
 
-    // 2. Enrolled groups
-    const [enrolledGroups] = await pool.execute(
-      `SELECT gm.id as membership_id, gm.ticket_number, gm.joined_date, gm.status as membership_status,
-              g.id as group_id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
-              g.location_name, g.installment_amount, g.total_pool_amount, g.duration_periods
-       FROM group_memberships gm
-       JOIN chit_groups g ON gm.group_id = g.id
-       WHERE gm.member_id = ?
-       ORDER BY gm.joined_date DESC`,
-      [id]
-    );
+    // 2. Enrolled groups (filtered by groupId if specified)
+    let groupsQuery = `
+      SELECT gm.id as membership_id, gm.ticket_number, gm.joined_date, gm.status as membership_status,
+             g.id as group_id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
+             g.location_name, g.installment_amount, g.total_pool_amount, g.duration_periods
+      FROM group_memberships gm
+      JOIN chit_groups g ON gm.group_id = g.id
+      WHERE gm.member_id = ?
+    `;
+    const groupsParams = [id];
+    if (groupId && groupId !== 'ALL') {
+      groupsQuery += ' AND gm.group_id = ?';
+      groupsParams.push(groupId);
+    }
+    groupsQuery += ' ORDER BY gm.joined_date DESC';
+    const [enrolledGroups] = await pool.execute(groupsQuery, groupsParams);
 
-    // 3. Collections Ledger (Payments Made)
-    const [collections] = await pool.execute(
-      `SELECT c.id, c.receipt_number, c.amount, c.payment_method, c.payment_reference,
-              c.collection_date, c.collection_time, c.verification_status, c.notes,
-              g.group_name, g.group_code, g.chit_type,
-              u.full_name as agent_name
-       FROM collections c
-       JOIN chit_groups g ON c.group_id = g.id
-       JOIN users u ON c.agent_id = u.id
-       WHERE c.member_id = ? AND c.verification_status != 'CANCELLED'
-       ORDER BY c.collection_date DESC, c.collection_time DESC`,
-      [id]
-    );
+    // 3. Collections Ledger (Payments Made - strictly isolated to groupId if requested)
+    let colQuery = `
+      SELECT c.id, c.receipt_number, c.amount, c.payment_method, c.payment_reference,
+             c.collection_date, c.collection_time, c.verification_status, c.notes,
+             g.group_name, g.group_code, g.chit_type,
+             u.full_name as agent_name
+      FROM collections c
+      JOIN chit_groups g ON c.group_id = g.id
+      JOIN users u ON c.agent_id = u.id
+      WHERE c.member_id = ? AND c.verification_status != 'CANCELLED'
+    `;
+    const colParams = [id];
+    if (groupId && groupId !== 'ALL') {
+      colQuery += ' AND c.group_id = ?';
+      colParams.push(groupId);
+    }
+    colQuery += ' ORDER BY c.collection_date DESC, c.collection_time DESC';
+    const [collections] = await pool.execute(colQuery, colParams);
 
-    // 4. Auctions Won / Prize Money Lifted
-    const [auctionsWon] = await pool.execute(
-      `SELECT a.*, g.group_name, g.group_code, g.total_pool_amount
-       FROM auctions a
-       JOIN chit_groups g ON a.group_id = g.id
-       WHERE a.winning_member_id = ?
-       ORDER BY a.auction_date DESC`,
-      [id]
-    );
+    // 4. Auctions Won / Prize Money Lifted (strictly isolated to groupId if requested)
+    let aucQuery = `
+      SELECT a.*, g.group_name, g.group_code, g.total_pool_amount
+      FROM auctions a
+      JOIN chit_groups g ON a.group_id = g.id
+      WHERE a.winning_member_id = ?
+    `;
+    const aucParams = [id];
+    if (groupId && groupId !== 'ALL') {
+      aucQuery += ' AND a.group_id = ?';
+      aucParams.push(groupId);
+    }
+    aucQuery += ' ORDER BY a.auction_date DESC';
+    const [auctionsWon] = await pool.execute(aucQuery, aucParams);
 
-    // 5. Member Individual Dividends Ledger (Saved per-member records)
-    const [dividendsLedger] = await pool.execute(
-      `SELECT md.id, md.auction_id, md.group_id, md.period_number, md.draw_number,
-              md.dividend_amount, md.net_installment_due, md.credited_date, md.is_prized,
-              md.status, md.notes,
-              g.group_name, g.group_code, g.chit_type, g.frequency, g.installment_amount,
-              a.bid_discount, a.foreman_commission
-       FROM member_dividends md
-       JOIN chit_groups g ON md.group_id = g.id
-       JOIN auctions a ON md.auction_id = a.id
-       WHERE md.member_id = ? AND g.chit_type = 'AUCTION_CHIT' AND md.dividend_amount > 0
-       ORDER BY md.credited_date DESC, md.period_number DESC`,
-      [id]
-    );
+    // 5. Member Individual Dividends Ledger (Saved per-member records - strictly isolated to groupId if requested)
+    let divQuery = `
+      SELECT md.id, md.auction_id, md.group_id, md.period_number, md.draw_number,
+             md.dividend_amount, md.net_installment_due, md.credited_date, md.is_prized,
+             md.status, md.notes,
+             g.group_name, g.group_code, g.chit_type, g.frequency, g.installment_amount,
+             a.bid_discount, a.foreman_commission
+      FROM member_dividends md
+      JOIN chit_groups g ON md.group_id = g.id
+      JOIN auctions a ON md.auction_id = a.id
+      WHERE md.member_id = ? AND g.chit_type = 'AUCTION_CHIT' AND md.dividend_amount > 0
+    `;
+    const divParams = [id];
+    if (groupId && groupId !== 'ALL') {
+      divQuery += ' AND md.group_id = ?';
+      divParams.push(groupId);
+    }
+    divQuery += ' ORDER BY md.credited_date DESC, md.period_number DESC';
+    const [dividendsLedger] = await pool.execute(divQuery, divParams);
 
     const totalDividendsEarned = dividendsLedger.reduce(
       (acc, d) => acc + parseFloat(d.dividend_amount || 0),
@@ -266,6 +287,8 @@ export async function getMemberPassbook(req, res, next) {
     // Totals
     const totalPaid = collections.reduce((acc, c) => acc + parseFloat(c.amount), 0);
     const totalPrizeMoneyWon = auctionsWon.reduce((acc, a) => acc + parseFloat(a.net_payable_amount), 0);
+    const totalReceived = totalPrizeMoneyWon + totalDividendsEarned;
+    const netPosition = totalReceived - totalPaid;
 
     res.status(200).json({
       success: true,
@@ -275,12 +298,14 @@ export async function getMemberPassbook(req, res, next) {
         collections,
         auctionsWon,
         dividendsLedger,
+        scopedGroupId: (groupId && groupId !== 'ALL') ? groupId : null,
         summary: {
           totalPaid,
           totalDividendsEarned,
           totalPrizeMoneyWon,
+          totalReceived,
           totalReceiptsCount: collections.length,
-          netPosition: totalPrizeMoneyWon - totalPaid,
+          netPosition,
         },
       },
     });

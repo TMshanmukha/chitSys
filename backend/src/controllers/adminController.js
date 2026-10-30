@@ -412,30 +412,107 @@ export async function getReportsAnalytics(req, res, next) {
     const totalDividendsDistributed = auctions.reduce((s, a) => s + parseFloat(a.total_dividend || 0), 0);
     const totalPrizeDisbursed = auctions.reduce((s, a) => s + parseFloat(a.net_payable_amount || 0), 0);
 
-    // 4. Member-Wise Passbooks Summary
-    const [memberSummaries] = await pool.query(`
+    // 4. Per-Chit Member Accounts & Financial Standing Ledger
+    // Strictly isolates payments, prize lifts, and dividends to the respective chit scheme.
+    let memWhere = "gm.status = 'ACTIVE' AND g.status = 'ACTIVE' AND m.is_active = 1";
+    const memParams = [];
+    if (groupId && groupId !== 'ALL') {
+      memWhere += " AND gm.group_id = ?";
+      memParams.push(groupId);
+    }
+
+    const [memberSummariesRaw] = await pool.query(`
       SELECT 
-        m.id, m.member_code, m.full_name, m.phone, m.address,
-        COUNT(DISTINCT gm.group_id) as enrolled_groups_count,
+        gm.id as membership_id,
+        gm.group_id,
+        gm.member_id as id,
+        gm.member_id,
+        gm.ticket_number,
+        gm.joined_date,
+        gm.status as membership_status,
+        gm.is_prized,
+        gm.prized_period,
+        g.group_name,
+        g.group_code,
+        g.chit_type,
+        g.frequency,
+        g.route_category,
+        g.installment_amount,
+        g.total_pool_amount,
+        g.duration_periods,
+        m.full_name,
+        m.full_name as member_name,
+        m.phone,
+        m.phone as member_phone,
+        m.member_code,
+        m.address,
+        -- Total amount paid strictly in this respective chit
         COALESCE((
           SELECT SUM(c.amount) FROM collections c 
-          WHERE c.member_id = m.id AND c.verification_status != 'CANCELLED'
+          WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
         ), 0) as total_contributed,
         COALESCE((
-          SELECT SUM(a.net_payable_amount) FROM auctions a 
-          WHERE a.winning_member_id = m.id
+          SELECT SUM(c.amount) FROM collections c 
+          WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
+        ), 0) as total_paid_in_chit,
+        -- Receipts count strictly in this respective chit
+        COALESCE((
+          SELECT COUNT(c.id) FROM collections c 
+          WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
+        ), 0) as receipts_count,
+        -- Prize money won strictly in this respective chit
+        COALESCE((
+          SELECT a.net_payable_amount FROM auctions a 
+          WHERE a.group_id = gm.group_id AND a.winning_member_id = gm.member_id 
+          LIMIT 1
         ), 0) as total_prize_won,
         COALESCE((
-          SELECT SUM(a2.dividend_per_member) FROM auctions a2
-          JOIN group_memberships gm2 ON a2.group_id = gm2.group_id
-          WHERE gm2.member_id = m.id AND gm2.status = 'ACTIVE'
-        ), 0) as total_dividends_earned
-      FROM members m
-      LEFT JOIN group_memberships gm ON m.id = gm.member_id AND gm.status = 'ACTIVE'
-      WHERE m.is_active = 1
-      GROUP BY m.id
-      ORDER BY m.full_name ASC
-    `);
+          SELECT a.net_payable_amount FROM auctions a 
+          WHERE a.group_id = gm.group_id AND a.winning_member_id = gm.member_id 
+          LIMIT 1
+        ), 0) as prize_won_in_chit,
+        -- Dividends credited strictly in this respective chit
+        COALESCE((
+          SELECT SUM(md.dividend_amount) FROM member_dividends md 
+          WHERE md.group_id = gm.group_id AND md.member_id = gm.member_id
+        ), 0) as total_dividends_earned,
+        COALESCE((
+          SELECT SUM(md.dividend_amount) FROM member_dividends md 
+          WHERE md.group_id = gm.group_id AND md.member_id = gm.member_id
+        ), 0) as dividends_credited_in_chit,
+        -- Last payment date in this respective chit
+        (
+          SELECT MAX(c.collection_date) FROM collections c 
+          WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
+        ) as last_payment_date
+      FROM group_memberships gm
+      JOIN chit_groups g ON gm.group_id = g.id
+      JOIN members m ON gm.member_id = m.id
+      WHERE ${memWhere}
+      ORDER BY g.group_name ASC, gm.ticket_number ASC
+    `, memParams);
+
+    const memberSummaries = memberSummariesRaw.map((row) => {
+      const paid = parseFloat(row.total_paid_in_chit || 0);
+      const prize = parseFloat(row.prize_won_in_chit || 0);
+      const dividends = parseFloat(row.dividends_credited_in_chit || 0);
+      const totalReceived = prize + dividends;
+      const netPosition = totalReceived - paid;
+
+      return {
+        ...row,
+        total_paid_in_chit: paid,
+        total_contributed: paid,
+        prize_won_in_chit: prize,
+        total_prize_won: prize,
+        dividends_credited_in_chit: dividends,
+        total_dividends_earned: dividends,
+        total_received_in_chit: totalReceived,
+        total_received: totalReceived,
+        net_position_in_chit: netPosition,
+        netPosition: netPosition,
+      };
+    });
 
     // 5. Active Groups List for Filter Dropdown
     const [groupsList] = await pool.query(`

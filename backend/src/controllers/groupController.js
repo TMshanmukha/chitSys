@@ -290,21 +290,53 @@ export async function getGroupDetails(req, res, next) {
 
     const group = groupRows[0];
 
-    // Enrolled members with cumulative collections per member in this group
-    const [members] = await pool.execute(
+    // Enrolled members with cumulative collections, prize lifts, and dividends strictly in this chit group
+    const [membersRows] = await pool.execute(
       `SELECT gm.id as membership_id, gm.ticket_number, gm.joined_date, gm.status,
               gm.is_prized, gm.prized_period,
               m.id as member_id, m.member_code, m.full_name, m.phone, m.kyc_type, m.kyc_number,
-              COALESCE(SUM(c.amount), 0) as total_paid_in_group,
-              COUNT(c.id) as receipts_count
+              COALESCE((
+                SELECT SUM(c.amount) FROM collections c 
+                WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
+              ), 0) as total_paid_in_group,
+              COALESCE((
+                SELECT COUNT(c.id) FROM collections c 
+                WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
+              ), 0) as receipts_count,
+              COALESCE((
+                SELECT a.net_payable_amount FROM auctions a 
+                WHERE a.group_id = gm.group_id AND a.winning_member_id = gm.member_id 
+                LIMIT 1
+              ), 0) as prize_won_in_group,
+              COALESCE((
+                SELECT SUM(md.dividend_amount) FROM member_dividends md 
+                WHERE md.group_id = gm.group_id AND md.member_id = gm.member_id
+              ), 0) as dividends_credited_in_group,
+              (
+                SELECT MAX(c.collection_date) FROM collections c 
+                WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
+              ) as last_payment_date
        FROM group_memberships gm
        JOIN members m ON gm.member_id = m.id
-       LEFT JOIN collections c ON c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
        WHERE gm.group_id = ?
-       GROUP BY gm.id, m.id
        ORDER BY gm.ticket_number ASC`,
       [id]
     );
+
+    const members = membersRows.map((m) => {
+      const paid = parseFloat(m.total_paid_in_group || 0);
+      const prize = parseFloat(m.prize_won_in_group || 0);
+      const dividends = parseFloat(m.dividends_credited_in_group || 0);
+      const totalReceived = prize + dividends;
+      return {
+        ...m,
+        total_paid_in_group: paid,
+        prize_won_in_group: prize,
+        dividends_credited_in_group: dividends,
+        total_received_in_group: totalReceived,
+        net_balance_in_group: totalReceived - paid,
+      };
+    });
 
     // Assigned Agents
     const [agents] = await pool.execute(
