@@ -2077,12 +2077,13 @@ export function AgentsPage() {
       </ModalPortal>
 
       {/* Modal: Assign Agent to Route */}
-      <ModalPortal
-        id="assign-agent-modal"
-        isOpen={showAssignModal && Boolean(selectedAgent)}
-        onClose={() => setShowAssignModal(false)}
-      >
-        <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+      {selectedAgent && (
+        <ModalPortal
+          id="assign-agent-modal"
+          isOpen={showAssignModal && Boolean(selectedAgent)}
+          onClose={() => setShowAssignModal(false)}
+        >
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -2092,7 +2093,7 @@ export function AgentsPage() {
                   <h3 className="font-extrabold text-slate-900 dark:text-white text-base sm:text-lg font-heading">
                     Assign Agent to Route
                   </h3>
-                  <p className="text-xs text-slate-500">{selectedAgent.full_name}</p>
+                  <p className="text-xs text-slate-500">{selectedAgent?.full_name || 'Agent'}</p>
                 </div>
               </div>
               <button
@@ -2142,7 +2143,8 @@ export function AgentsPage() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
     </div>
   );
 }
@@ -2556,12 +2558,13 @@ export function MembersPage() {
       </ModalPortal>
 
       {/* Modal: Enroll in Group */}
-      <ModalPortal
-        id="member-enroll-modal"
-        isOpen={showEnrollModal && Boolean(selectedMember)}
-        onClose={() => setShowEnrollModal(false)}
-      >
-        <div className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+      {selectedMember && (
+        <ModalPortal
+          id="member-enroll-modal"
+          isOpen={showEnrollModal && Boolean(selectedMember)}
+          onClose={() => setShowEnrollModal(false)}
+        >
+          <div className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -2571,7 +2574,7 @@ export function MembersPage() {
                   <h3 className="font-extrabold text-slate-900 dark:text-white text-base sm:text-lg font-heading">
                     Enroll Subscriber into Chit Scheme
                   </h3>
-                  <p className="text-xs text-slate-500">{selectedMember.full_name} ({selectedMember.phone})</p>
+                  <p className="text-xs text-slate-500">{selectedMember?.full_name || 'Subscriber'} ({selectedMember?.phone || 'No phone'})</p>
                 </div>
               </div>
               <button
@@ -2621,15 +2624,17 @@ export function MembersPage() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* Modal: ChitBase Member Passbook / Statement of Account */}
-      <ModalPortal
-        id="member-passbook-modal"
-        isOpen={showPassbookModal}
-        onClose={() => setShowPassbookModal(false)}
-      >
-        <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+      {selectedMember && (
+        <ModalPortal
+          id="member-passbook-modal"
+          isOpen={showPassbookModal && Boolean(selectedMember)}
+          onClose={() => setShowPassbookModal(false)}
+        >
+          <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
             {/* Passbook Header */}
             <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
@@ -2832,7 +2837,8 @@ export function MembersPage() {
               </div>
             ) : null}
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
     </div>
   );
 }
@@ -3200,7 +3206,7 @@ export function CollectionsPage() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
     </div>
   );
 }

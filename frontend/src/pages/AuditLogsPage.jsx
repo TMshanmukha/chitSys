@@ -361,12 +361,13 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Inspect Log Modal */}
-      <ModalPortal
-        id="audit-log-modal"
-        isOpen={Boolean(selectedLog)}
-        onClose={() => setSelectedLog(null)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl p-6 space-y-4">
+      {selectedLog && (
+        <ModalPortal
+          id="audit-log-modal"
+          isOpen={Boolean(selectedLog)}
+          onClose={() => setSelectedLog(null)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-blue-600" />
@@ -387,11 +388,11 @@ export default function AuditLogsPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60">
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Action</span>
-                  <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{selectedLog.action}</span>
+                  <span className="font-bold font-mono text-blue-600 dark:text-blue-400">{selectedLog?.action || 'N/A'}</span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60">
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Status</span>
-                  <span className="font-bold text-emerald-600">{selectedLog.status}</span>
+                  <span className="font-bold text-emerald-600">{selectedLog?.status || 'N/A'}</span>
                 </div>
               </div>
 
@@ -399,38 +400,38 @@ export default function AuditLogsPage() {
                 <div className="flex justify-between">
                   <span className="text-slate-400">Timestamp (DD/MM/YYYY):</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-white">
-                    {formatDateTime(selectedLog.created_at, true)}
+                    {selectedLog?.created_at ? formatDateTime(selectedLog.created_at, true) : 'N/A'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">User / Account:</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {selectedLog.full_name || selectedLog.username || 'System'}
+                    {selectedLog?.full_name || selectedLog?.username || 'System'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Role:</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300">{selectedLog.role || 'N/A'}</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">{selectedLog?.role || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">IP Address:</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300">{selectedLog.ip_address || '127.0.0.1'}</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">{selectedLog?.ip_address || '127.0.0.1'}</span>
                 </div>
               </div>
 
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Raw Payload / Parameters</span>
                 <pre className="p-3 rounded-xl bg-slate-950 text-slate-300 font-mono text-[11px] overflow-x-auto max-h-40">
-                  {typeof selectedLog.details === 'string'
+                  {typeof selectedLog?.details === 'string'
                     ? selectedLog.details
-                    : JSON.stringify(selectedLog.details, null, 2) || 'None'}
+                    : JSON.stringify(selectedLog?.details, null, 2) || 'None'}
                 </pre>
               </div>
 
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">User Agent (Client Device)</span>
                 <p className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 font-mono text-[11px] text-slate-600 dark:text-slate-400 break-words">
-                  {selectedLog.user_agent || 'Standard Desktop / Mobile Browser'}
+                  {selectedLog?.user_agent || 'Standard Desktop / Mobile Browser'}
                 </p>
               </div>
             </div>
@@ -445,7 +446,8 @@ export default function AuditLogsPage() {
               </button>
             </div>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
     </div>
   );
 }

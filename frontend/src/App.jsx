@@ -75,7 +75,9 @@ export default function App() {
               path="/agent/dashboard"
               element={
                 <ProtectedRoute allowedRoles={['COLLECTION_AGENT']}>
-                  <AgentDashboard />
+                  <ErrorBoundary>
+                    <AgentDashboard />
+                  </ErrorBoundary>
                 </ProtectedRoute>
               }
             />

@@ -1497,9 +1497,9 @@ export default function RouteTrackingPage() {
                 })}
 
                 {/* 3. Agent Real-Time Pin & Radar Wave */}
-                {activeRoute.agent && (
+                {activeRoute?.agent && activeRoute?.agentPosition && (
                   <g
-                    transform={`translate(${activeRoute.agentPosition.x}, ${activeRoute.agentPosition.y})`}
+                    transform={`translate(${activeRoute.agentPosition?.x || 0}, ${activeRoute.agentPosition?.y || 0})`}
                     className="cursor-pointer"
                   >
                     {/* Animated Radar Pulse */}
@@ -1817,30 +1817,31 @@ export default function RouteTrackingPage() {
   )}
 
       {/* Member Information Form Modal (Brought up when pressing any node) */}
-      <ModalPortal
-        id="route-member-modal"
-        isOpen={showMemberModal && Boolean(selectedStop)}
-        onClose={() => setShowMemberModal(false)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
+      {showMemberModal && selectedStop && (
+        <ModalPortal
+          id="route-member-modal"
+          isOpen={showMemberModal && Boolean(selectedStop)}
+          onClose={() => setShowMemberModal(false)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div
                   className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white text-base shadow-xs ${
-                    selectedStop.status === 'PAID' || selectedStop.nodeColor === 'GREEN'
+                    selectedStop?.status === 'PAID' || selectedStop?.nodeColor === 'GREEN'
                       ? 'bg-emerald-600'
                       : 'bg-rose-600'
                   }`}
                 >
-                  #{selectedStop.stopOrder}
+                  #{selectedStop?.stopOrder || ''}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">
                       Member Information & Node Form
                     </h3>
-                    {selectedStop.status === 'PAID' || selectedStop.nodeColor === 'GREEN' ? (
+                    {selectedStop?.status === 'PAID' || selectedStop?.nodeColor === 'GREEN' ? (
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         <span>PAID</span>
@@ -1853,7 +1854,7 @@ export default function RouteTrackingPage() {
                     )}
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Chit Route Node #{selectedStop.stopOrder} · {activeRoute.groupName} ({activeRoute.groupCode})
+                    Chit Route Node #{selectedStop?.stopOrder || ''} · {activeRoute?.groupName || 'Chit Scheme'} ({activeRoute?.groupCode || ''})
                   </p>
                 </div>
               </div>
@@ -2130,22 +2131,24 @@ export default function RouteTrackingPage() {
               </button>
             </div>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* Log Activity Modal */}
-      <ModalPortal
-        id="route-log-modal"
-        isOpen={showLogModal && Boolean(selectedStop)}
-        onClose={() => setShowLogModal(false)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+      {showLogModal && selectedStop && (
+        <ModalPortal
+          id="route-log-modal"
+          isOpen={showLogModal && Boolean(selectedStop)}
+          onClose={() => setShowLogModal(false)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-lg font-heading">
-                  Update Waypoint #{selectedStop.stopOrder} Status
+                  Update Waypoint #{selectedStop?.stopOrder || ''} Status
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Ticket #{selectedStop.stopOrder} · {selectedStop.memberName} ({activeRoute.groupCode})
+                  Ticket #{selectedStop?.stopOrder || ''} · {selectedStop?.memberName || 'Member'} ({activeRoute?.groupCode || ''})
                 </p>
               </div>
               <button
@@ -2203,7 +2206,8 @@ export default function RouteTrackingPage() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
     </div>
   );
 }

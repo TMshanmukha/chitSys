@@ -23,9 +23,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor with automatic retry for transient network hiccups or proxy cold-starts
+// Response interceptor with HTML catch and automatic retry for transient network hiccups or proxy cold-starts
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // If Vercel SPA rewrite or misconfigured proxy returned index.html instead of JSON data
+    if (
+      typeof response.data === 'string' &&
+      (response.data.trim().startsWith('<!doctype') ||
+        response.data.trim().startsWith('<html') ||
+        response.data.trim().startsWith('<!DOCTYPE'))
+    ) {
+      return Promise.reject(
+        new Error(
+          'API returned HTML instead of JSON. Please verify that VITE_API_BASE_URL points to the deployed backend server.'
+        )
+      );
+    }
+    return response;
+  },
   async (error) => {
     const config = error.config;
     

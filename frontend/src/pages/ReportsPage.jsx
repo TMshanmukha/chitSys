@@ -1046,19 +1046,20 @@ export default function ReportsPage() {
       {/* =========================================================================
           MODAL: AUCTION VOUCHER & DIVIDEND BREAKDOWN
           ========================================================================= */}
-      <ModalPortal
-        id="report-auction-voucher-modal"
-        isOpen={Boolean(selectedAuctionVoucher)}
-        onClose={() => setSelectedAuctionVoucher(null)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl p-6 space-y-4 my-8">
+      {selectedAuctionVoucher && (
+        <ModalPortal
+          id="report-auction-voucher-modal"
+          isOpen={Boolean(selectedAuctionVoucher)}
+          onClose={() => setSelectedAuctionVoucher(null)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl p-6 space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
                   Official Auction Lift Voucher
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {selectedAuctionVoucher.group_name} ({selectedAuctionVoucher.group_code}) · Month #{selectedAuctionVoucher.period_number}
+                  {selectedAuctionVoucher?.group_name || 'Chit Scheme'} ({selectedAuctionVoucher?.group_code || ''}) · Month #{selectedAuctionVoucher?.period_number || ''}
                 </p>
               </div>
               <button
@@ -1074,39 +1075,39 @@ export default function ReportsPage() {
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Winning Subscriber:</span>
-                  <strong className="text-slate-900 dark:text-white">{selectedAuctionVoucher.winner_name} (Ticket #{selectedAuctionVoucher.winning_ticket_number})</strong>
+                  <strong className="text-slate-900 dark:text-white">{selectedAuctionVoucher?.winner_name || 'Subscriber'} (Ticket #{selectedAuctionVoucher?.winning_ticket_number || ''})</strong>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Auction Conducted Date:</span>
-                  <span className="font-mono">{formatDate(selectedAuctionVoucher.auction_date)}</span>
+                  <span className="font-mono">{formatDate(selectedAuctionVoucher?.auction_date)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Gross Pool Amount:</span>
-                  <span className="font-semibold">₹{Number(selectedAuctionVoucher.total_pool_amount).toLocaleString('en-IN')}</span>
+                  <span className="font-semibold">₹{Number(selectedAuctionVoucher?.total_pool_amount || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-rose-600 dark:text-rose-400 font-semibold">
                   <span>Winning Bid Discount:</span>
-                  <span>- ₹{Number(selectedAuctionVoucher.bid_discount).toLocaleString('en-IN')}</span>
+                  <span>- ₹{Number(selectedAuctionVoucher?.bid_discount || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-purple-600 dark:text-purple-400 font-semibold border-t border-slate-200 dark:border-slate-700 pt-1.5">
                   <span>Foreman Commission (5%):</span>
-                  <span>₹{Number(selectedAuctionVoucher.foreman_commission).toLocaleString('en-IN')}</span>
+                  <span>₹{Number(selectedAuctionVoucher?.foreman_commission || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
                   <span>Total Dividend Distributed:</span>
-                  <span>₹{Number(selectedAuctionVoucher.total_dividend).toLocaleString('en-IN')}</span>
+                  <span>₹{Number(selectedAuctionVoucher?.total_dividend || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
                   <span>Dividend Per Member:</span>
-                  <span>₹{Number(selectedAuctionVoucher.dividend_per_member).toLocaleString('en-IN')}</span>
+                  <span>₹{Number(selectedAuctionVoucher?.dividend_per_member || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-base font-extrabold text-blue-600 dark:text-blue-400 border-t border-slate-200 dark:border-slate-700 pt-2">
                   <span>Net Prize Money Disbursed:</span>
-                  <span>₹{Number(selectedAuctionVoucher.net_payable_amount).toLocaleString('en-IN')}</span>
+                  <span>₹{Number(selectedAuctionVoucher?.net_payable_amount || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-slate-800 dark:text-slate-200 font-semibold">
                   <span>Next Month Installment:</span>
-                  <span>₹{Number(selectedAuctionVoucher.next_installment_payable).toLocaleString('en-IN')}</span>
+                  <span>₹{Number(selectedAuctionVoucher?.next_installment_payable || 0).toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </div>
@@ -1129,27 +1130,29 @@ export default function ReportsPage() {
               </button>
             </div>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* =========================================================================
           MODAL: MEMBER PASSBOOK STATEMENT (CHITBASE PASSBOOK & INSTALLMENT LEDGER)
           ========================================================================= */}
-      <ModalPortal
-        id="report-member-passbook-modal"
-        isOpen={Boolean(selectedMemberPassbook)}
-        onClose={() => {
-          setSelectedMemberPassbook(null);
-          setMemberPassbookData(null);
-        }}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto">
+      {selectedMemberPassbook && (
+        <ModalPortal
+          id="report-member-passbook-modal"
+          isOpen={Boolean(selectedMemberPassbook)}
+          onClose={() => {
+            setSelectedMemberPassbook(null);
+            setMemberPassbookData(null);
+          }}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
                   ChitBase Member Statement
                 </span>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                  {selectedMemberPassbook.name} — Passbook & Ledger
+                  {selectedMemberPassbook?.name || 'Member'} — Passbook & Ledger
                 </h3>
               </div>
               <button
@@ -1303,7 +1306,8 @@ export default function ReportsPage() {
               </button>
             </div>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
     </div>
   );
 }

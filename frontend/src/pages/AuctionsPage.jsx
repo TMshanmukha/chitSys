@@ -133,8 +133,10 @@ export default function AuctionsPage() {
     try {
       setSchemeLoading(true);
       const res = await api.get(`/admin/auctions/scheme/${groupId}/breakdown`);
-      if (res.data?.success) {
+      if (res.data?.success && res.data.data?.group) {
         setSchemeBreakdown(res.data.data);
+      } else {
+        setSchemeBreakdown(null);
       }
     } catch (err) {
       console.error('Failed to load scheme breakdown:', err);
@@ -449,7 +451,7 @@ export default function AuctionsPage() {
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2" />
             <p className="text-xs sm:text-sm text-slate-500 font-medium">Loading scheme distribution breakdown & member ledgers...</p>
           </div>
-        ) : !schemeBreakdown ? (
+        ) : !schemeBreakdown || !schemeBreakdown.group ? (
           <div className="p-12 text-center border border-dashed border-blue-200 dark:border-slate-800 rounded-2xl space-y-2">
             <Layers className="w-8 h-8 text-slate-400 mx-auto" />
             <h4 className="font-bold text-slate-900 dark:text-white text-sm">Please Select a Chit Scheme</h4>
@@ -465,24 +467,24 @@ export default function AuctionsPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
-                      {schemeBreakdown.group.group_name}
+                      {schemeBreakdown?.group?.group_name || 'Chit Scheme'}
                     </h4>
                     <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold">
-                      {schemeBreakdown.group.group_code}
+                      {schemeBreakdown?.group?.group_code || ''}
                     </span>
                   </div>
                   <span className="text-xs text-slate-500">
-                    Location: {schemeBreakdown.group.location_name || 'Branch'} · Frequency: {schemeBreakdown.group.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Reverse Auction'} · Duration: {schemeBreakdown.group.duration_periods} Periods
+                    Location: {schemeBreakdown?.group?.location_name || 'Branch'} · Frequency: {schemeBreakdown?.group?.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Reverse Auction'} · Duration: {schemeBreakdown?.group?.duration_periods || 0} Periods
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 font-heading ${
-                    schemeBreakdown.group.chit_type === 'DOUBLE_CHIT'
+                    schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT'
                       ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
                       : 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300'
                   }`}>
-                    {schemeBreakdown.group.chit_type === 'DOUBLE_CHIT' ? '🎰 Double Chit (Dual Draw Scheme)' : '🔨 Reverse Auction Chit Scheme'}
+                    {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT' ? '🎰 Double Chit (Dual Draw Scheme)' : '🔨 Reverse Auction Chit Scheme'}
                   </span>
                 </div>
               </div>
@@ -503,19 +505,19 @@ export default function AuctionsPage() {
 
                 <div className="p-3.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-900/40 space-y-1">
                   <div className="font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5 font-heading">
-                    {schemeBreakdown.group.chit_type === 'DOUBLE_CHIT' ? (
+                    {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT' ? (
                       <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
                     ) : (
                       <Lock className="w-4 h-4 text-purple-600 shrink-0" />
                     )}
                     <span>
-                      {schemeBreakdown.group.chit_type === 'DOUBLE_CHIT'
+                      {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT'
                         ? 'Double Chit Pool Reserve & Winner Disqualification'
                         : 'Strict Winner Disqualification Rule'}
                     </span>
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
-                    {schemeBreakdown.group.chit_type === 'DOUBLE_CHIT' ? (
+                    {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT' ? (
                       <>
                         In Double Chit, the remaining amount is <strong>kept in this chitti reserve pool</strong> rather than divided among members (0 passbook dividend), so eligible unprized subscribers can win that amount in upcoming draws!
                         Any member who has won an auction in this chit is <strong>strictly disqualified from participating in subsequent auctions</strong>.
@@ -535,15 +537,15 @@ export default function AuctionsPage() {
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-heading">Total Chit Pool</span>
                   <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 font-heading">
-                    ₹{Number(schemeBreakdown.totals.totalPoolAmount).toLocaleString('en-IN')}
+                    ₹{Number(schemeBreakdown?.totals?.totalPoolAmount || 0).toLocaleString('en-IN')}
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">₹{Number(schemeBreakdown.totals.baseInstallmentAmount).toLocaleString('en-IN')} × {schemeBreakdown.totals.totalMembersLimit} mem</span>
+                  <span className="text-[10px] text-slate-400 font-mono">₹{Number(schemeBreakdown?.totals?.baseInstallmentAmount || 0).toLocaleString('en-IN')} × {schemeBreakdown?.totals?.totalMembersLimit || 0} mem</span>
                 </div>
 
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-heading">Foreman Comm. Earned</span>
                   <div className="text-lg font-black text-blue-600 dark:text-blue-400 mt-0.5 font-heading">
-                    ₹{Number(schemeBreakdown.totals.totalForemanCommissionEarned).toLocaleString('en-IN')}
+                    ₹{Number(schemeBreakdown?.totals?.totalForemanCommissionEarned || 0).toLocaleString('en-IN')}
                   </div>
                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">0% taken on dividends</span>
                 </div>
@@ -551,7 +553,7 @@ export default function AuctionsPage() {
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-heading">Dividends Distributed</span>
                   <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5 font-heading">
-                    ₹{Number(schemeBreakdown.totals.totalDividendsDistributed).toLocaleString('en-IN')}
+                    ₹{Number(schemeBreakdown?.totals?.totalDividendsDistributed || 0).toLocaleString('en-IN')}
                   </div>
                   <span className="text-[10px] text-slate-400">Credited to all members</span>
                 </div>
@@ -559,7 +561,7 @@ export default function AuctionsPage() {
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-heading">Chit Pool Reserve</span>
                   <div className="text-lg font-black text-purple-600 dark:text-purple-400 mt-0.5 font-heading">
-                    ₹{Number(schemeBreakdown.totals.totalDoubleChitReserve).toLocaleString('en-IN')}
+                    ₹{Number(schemeBreakdown?.totals?.totalDoubleChitReserve || 0).toLocaleString('en-IN')}
                   </div>
                   <span className="text-[10px] text-slate-400">Retained for Draw #2</span>
                 </div>
@@ -567,9 +569,9 @@ export default function AuctionsPage() {
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 col-span-2 sm:col-span-1">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-heading">Subscribers Status</span>
                   <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 font-heading">
-                    {schemeBreakdown.totals.totalPrizedCount} <span className="text-xs font-normal text-slate-400">Prized /</span> {schemeBreakdown.totals.totalEligibleCount} <span className="text-xs font-normal text-emerald-600 font-bold">Eligible</span>
+                    {schemeBreakdown?.totals?.totalPrizedCount || 0} <span className="text-xs font-normal text-slate-400">Prized /</span> {schemeBreakdown?.totals?.totalEligibleCount || 0} <span className="text-xs font-normal text-emerald-600 font-bold">Eligible</span>
                   </div>
-                  <span className="text-[10px] text-slate-400">{schemeBreakdown.totals.enrolledCount} enrolled subscribers</span>
+                  <span className="text-[10px] text-slate-400">{schemeBreakdown?.totals?.enrolledCount || 0} enrolled subscribers</span>
                 </div>
               </div>
             </div>
@@ -580,7 +582,7 @@ export default function AuctionsPage() {
                 <div>
                   <h4 className="font-extrabold text-slate-900 dark:text-white text-base font-heading flex items-center gap-2">
                     <Users className="w-4 h-4 text-blue-600" />
-                    <span>Subscriber Dividend Distribution Ledger ({schemeBreakdown.subscribers.length} Members)</span>
+                    <span>Subscriber Dividend Distribution Ledger ({schemeBreakdown?.subscribers?.length || 0} Members)</span>
                   </h4>
                   <span className="text-xs text-slate-500">
                     Individual breakdown showing where payments were distributed, credited dividend totals, and eligibility to bid
@@ -622,8 +624,8 @@ export default function AuctionsPage() {
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {paginatedSubscribers.map((sub) => {
                           const isPrized = sub.is_prized === 1;
-                          const baseInst = parseFloat(schemeBreakdown.group.installment_amount);
-                          const lastDiv = parseFloat(schemeBreakdown.totals.latestDividendPerMember || 0);
+                          const baseInst = parseFloat(schemeBreakdown?.group?.installment_amount || 0);
+                          const lastDiv = parseFloat(schemeBreakdown?.totals?.latestDividendPerMember || 0);
                           const netDue = Math.max(0, baseInst - lastDiv);
 
                           return (
@@ -715,7 +717,7 @@ export default function AuctionsPage() {
                 <div>
                   <h4 className="font-extrabold text-slate-900 dark:text-white text-base font-heading flex items-center gap-2">
                     <Gavel className="w-4 h-4 text-blue-600" />
-                    <span>Conducted Rounds & Prize Settlements for this Scheme ({schemeBreakdown.auctions.length})</span>
+                    <span>Conducted Rounds & Prize Settlements for this Scheme ({schemeBreakdown?.auctions?.length || 0})</span>
                   </h4>
                   <span className="text-xs text-slate-500">
                     Chronological history of winning bids, discounts, and payouts
@@ -723,7 +725,7 @@ export default function AuctionsPage() {
                 </div>
               </div>
 
-              {schemeBreakdown.auctions.length === 0 ? (
+              {(schemeBreakdown?.auctions || []).length === 0 ? (
                 <div className="p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
                   <Gavel className="w-6 h-6 text-slate-400 mx-auto" />
                   <p className="text-xs text-slate-500">No auctions conducted for this scheme yet.</p>
@@ -732,10 +734,10 @@ export default function AuctionsPage() {
                     onClick={() => {
                       setForm((prev) => ({
                         ...prev,
-                        group_id: String(schemeBreakdown.group.id),
-                        auction_type: schemeBreakdown.group.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT_DRAW' : 'AUCTION',
+                        group_id: String(schemeBreakdown?.group?.id || ''),
+                        auction_type: schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT_DRAW' : 'AUCTION',
                       }));
-                      handleGroupChange(schemeBreakdown.group.id);
+                      handleGroupChange(schemeBreakdown?.group?.id);
                       scrollToFormOrModal('conduct-auction-modal');
                       setShowModal(true);
                     }}
@@ -762,7 +764,7 @@ export default function AuctionsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {schemeBreakdown.auctions.map((auc) => (
+                      {(schemeBreakdown?.auctions || []).map((auc) => (
                         <tr key={auc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                           <td className="py-2.5 px-3">
                             <div className="font-bold text-slate-900 dark:text-white font-heading">
@@ -1325,12 +1327,13 @@ export default function AuctionsPage() {
       </ModalPortal>
 
       {/* Disburse Modal */}
-      <ModalPortal
-        id="disburse-prize-modal"
-        isOpen={Boolean(showDisburseModal && selectedAuctionForDisburse)}
-        onClose={() => setShowDisburseModal(false)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-7 space-y-5 my-auto sm:my-8 max-h-[92vh] overflow-y-auto">
+      {Boolean(showDisburseModal && selectedAuctionForDisburse) && (
+        <ModalPortal
+          id="disburse-prize-modal"
+          isOpen={Boolean(showDisburseModal && selectedAuctionForDisburse)}
+          onClose={() => setShowDisburseModal(false)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-7 space-y-5 my-auto sm:my-8 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
@@ -1355,10 +1358,10 @@ export default function AuctionsPage() {
             <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider font-heading">Net Amount Payable to Winner</span>
               <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 font-heading">
-                ₹{Number(selectedAuctionForDisburse.net_payable_amount).toLocaleString('en-IN')}
+                ₹{Number(selectedAuctionForDisburse?.net_payable_amount || 0).toLocaleString('en-IN')}
               </div>
               <div className="text-sm font-bold text-slate-900 dark:text-white mt-1 font-heading">
-                {selectedAuctionForDisburse.winner_name} <span className="text-xs font-normal text-slate-500">(Ticket #{selectedAuctionForDisburse.winning_ticket_number})</span>
+                {selectedAuctionForDisburse?.winner_name || 'Winning Subscriber'} <span className="text-xs font-normal text-slate-500">(Ticket #{selectedAuctionForDisburse?.winning_ticket_number || ''})</span>
               </div>
             </div>
 
@@ -1409,15 +1412,17 @@ export default function AuctionsPage() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* Printable Auction Voucher Modal */}
-      <ModalPortal
-        id="voucher-modal"
-        isOpen={Boolean(voucherModal)}
-        onClose={() => setVoucherModal(null)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-5 my-auto sm:my-8 max-h-[92vh] overflow-y-auto">
+      {Boolean(voucherModal) && (
+        <ModalPortal
+          id="voucher-modal"
+          isOpen={Boolean(voucherModal)}
+          onClose={() => setVoucherModal(null)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-5 my-auto sm:my-8 max-h-[92vh] overflow-y-auto">
             <div className="text-center space-y-1 pb-2 border-b border-slate-100 dark:border-slate-800">
               <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center mx-auto">
                 <Gavel className="w-6 h-6" />
@@ -1426,59 +1431,59 @@ export default function AuctionsPage() {
                 Auction Dividend Voucher
               </h3>
               <p className="text-xs text-slate-400 font-mono">
-                {voucherModal.group_name} · {voucherModal.frequency === 'DAILY' ? 'Day' : 'Period'} #{voucherModal.period_number} (Draw #{voucherModal.draw_number})
+                {voucherModal?.group_name || 'Chit Scheme'} · {voucherModal?.frequency === 'DAILY' ? 'Day' : 'Period'} #{voucherModal?.period_number} (Draw #{voucherModal?.draw_number})
               </p>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Auction Date:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">{formatDate(voucherModal.auction_date)}</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">{formatDate(voucherModal?.auction_date)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Prize Winner:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{voucherModal.winner_name} (Ticket #{voucherModal.winning_ticket_number})</span>
+                <span className="font-bold text-slate-900 dark:text-white">{voucherModal?.winner_name} (Ticket #{voucherModal?.winning_ticket_number})</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Scheme Type:</span>
                 <span className="font-semibold text-blue-600 dark:text-blue-400">
-                  {voucherModal.frequency === 'DAILY' ? 'Daily' : 'Monthly'}{' '}
-                  {voucherModal.chit_type === 'DOUBLE_CHIT' ? 'Double Chit Scheme' : 'Standard Reverse Auction'}
+                  {voucherModal?.frequency === 'DAILY' ? 'Daily' : 'Monthly'}{' '}
+                  {voucherModal?.chit_type === 'DOUBLE_CHIT' ? 'Double Chit Scheme' : 'Standard Reverse Auction'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Total Pool Value:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">₹{Number(voucherModal.total_pool_amount).toLocaleString('en-IN')}</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">₹{Number(voucherModal?.total_pool_amount || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Winning Bid Discount:</span>
-                <span className="font-bold text-rose-600 dark:text-rose-400">₹{Number(voucherModal.bid_discount).toLocaleString('en-IN')}</span>
+                <span className="font-bold text-rose-600 dark:text-rose-400">₹{Number(voucherModal?.bid_discount || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Foreman Commission:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-medium">₹{Number(voucherModal.foreman_commission).toLocaleString('en-IN')}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">₹{Number(voucherModal?.foreman_commission || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Net Dividend / Member:</span>
-                <span className="font-black text-emerald-600 dark:text-emerald-400 text-base font-heading">₹{Number(voucherModal.dividend_per_member).toLocaleString('en-IN')}</span>
+                <span className="font-black text-emerald-600 dark:text-emerald-400 text-base font-heading">₹{Number(voucherModal?.dividend_per_member || 0).toLocaleString('en-IN')}</span>
               </div>
-              {parseFloat(voucherModal.double_chit_reserve || 0) > 0 && (
+              {parseFloat(voucherModal?.double_chit_reserve || 0) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-purple-600 font-medium">Chit Pool Reserve:</span>
-                  <span className="font-black text-purple-600 dark:text-purple-400 text-base font-heading">₹{Number(voucherModal.double_chit_reserve).toLocaleString('en-IN')}</span>
+                  <span className="font-black text-purple-600 dark:text-purple-400 text-base font-heading">₹{Number(voucherModal?.double_chit_reserve || 0).toLocaleString('en-IN')}</span>
                 </div>
               )}
               <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
                 <span className="text-slate-900 dark:text-white font-extrabold text-base font-heading">Net Prize Money:</span>
-                <span className="font-black text-blue-600 dark:text-blue-400 text-xl font-heading">₹{Number(voucherModal.net_payable_amount).toLocaleString('en-IN')}</span>
+                <span className="font-black text-blue-600 dark:text-blue-400 text-xl font-heading">₹{Number(voucherModal?.net_payable_amount || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Next Due Payable:</span>
-                <span className="font-bold text-slate-900 dark:text-white">₹{Number(voucherModal.next_installment_payable).toLocaleString('en-IN')}</span>
+                <span className="font-bold text-slate-900 dark:text-white">₹{Number(voucherModal?.next_installment_payable || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Status:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{voucherModal.payout_status}</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{voucherModal?.payout_status}</span>
               </div>
             </div>
 
@@ -1500,7 +1505,8 @@ export default function AuctionsPage() {
               </button>
             </div>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* Confirmation Dialog for Auction Finalization */}
       <ConfirmModal

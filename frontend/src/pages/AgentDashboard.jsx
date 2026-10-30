@@ -243,10 +243,10 @@ export default function AgentDashboard() {
     });
 
     return Object.values(groupsMap).filter((item) => {
-      if (taskChitFilter !== 'ALL' && String(item.group.id) !== String(taskChitFilter)) {
+      if (taskChitFilter !== 'ALL' && String(item?.group?.id || '') !== String(taskChitFilter)) {
         return false;
       }
-      return item.tasks.length > 0;
+      return (item?.tasks?.length || 0) > 0;
     });
   }, [routesData.groups, filteredTasks, taskChitFilter, isCollectionDayForMonthly]);
 
@@ -334,11 +334,15 @@ export default function AgentDashboard() {
         api.get('/agent/collections'),
       ]);
 
-      if (routesRes.data?.success) {
-        setRoutesData(routesRes.data.data);
+      if (routesRes.data?.success && routesRes.data.data) {
+        setRoutesData({
+          groups: Array.isArray(routesRes.data.data.groups) ? routesRes.data.data.groups : [],
+          members: Array.isArray(routesRes.data.data.members) ? routesRes.data.data.members : [],
+          summary: routesRes.data.data.summary || {},
+        });
       }
       if (collRes.data?.success) {
-        setRecentCollections(collRes.data.data || []);
+        setRecentCollections(Array.isArray(collRes.data.data) ? collRes.data.data : []);
       }
     } catch (err) {
       console.error('Failed to load agent route data:', err);
@@ -506,9 +510,9 @@ export default function AgentDashboard() {
     try {
       const noteToSave = agentNoteText.trim() || 'Awaiting payment';
       await api.post('/agent/tracking/log-activity', {
-        groupId: selectedMemberForNote.group.id,
-        memberId: selectedMemberForNote.member.member_id,
-        stopId: selectedMemberForNote.member.ticket_number,
+        groupId: selectedMemberForNote?.group?.id,
+        memberId: selectedMemberForNote?.member?.member_id,
+        stopId: selectedMemberForNote?.member?.ticket_number,
         status: 'NOT_PAID',
         notes: noteToSave,
       });
@@ -542,18 +546,18 @@ export default function AgentDashboard() {
 
   // Filter members belonging to selected group in modal
   const eligibleMembers = collectForm.group_id
-    ? routesData.members.filter((m) => String(m.group_id) === String(collectForm.group_id))
-    : routesData.members;
+    ? (routesData.members || []).filter((m) => String(m.group_id) === String(collectForm.group_id))
+    : (routesData.members || []);
 
   // Separate Groups by Daily Chit vs Monthly Chit Schemes
-  const dailyGroups = routesData.groups.filter(
+  const dailyGroups = (routesData.groups || []).filter(
     (g) => g.chit_type === 'DAILY_CHIT' || g.route_category === 'DAILY_ROUTE'
   );
-  const monthlyGroups = routesData.groups.filter(
+  const monthlyGroups = (routesData.groups || []).filter(
     (g) => g.chit_type === 'AUCTION_CHIT' || g.chit_type === 'DOUBLE_CHIT' || g.route_category === 'MONTHLY_ROUTE'
   );
 
-  const displayedGroups = routesData.groups.filter((g) => {
+  const displayedGroups = (routesData.groups || []).filter((g) => {
     if (routeCategoryFilter === 'ALL') return true;
     if (routeCategoryFilter === 'DAILY_CHIT') {
       return g.chit_type === 'DAILY_CHIT' || g.route_category === 'DAILY_ROUTE';
@@ -2550,12 +2554,13 @@ export default function AgentDashboard() {
       </ModalPortal>
 
       {/* Unpaid Remark / Note Modal (Synchronous Not-Paid Entry) */}
-      <ModalPortal
-        id="agent-note-modal"
-        isOpen={showNoteModal && Boolean(selectedMemberForNote)}
-        onClose={() => setShowNoteModal(false)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl p-5 space-y-4 my-auto max-h-[90vh] overflow-y-auto">
+      {showNoteModal && selectedMemberForNote && (
+        <ModalPortal
+          id="agent-note-modal"
+          isOpen={showNoteModal && Boolean(selectedMemberForNote)}
+          onClose={() => setShowNoteModal(false)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl p-5 space-y-4 my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-rose-500" />
@@ -2581,19 +2586,19 @@ export default function AgentDashboard() {
               <div className="flex justify-between">
                 <span className="text-slate-400">Chit Group:</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {selectedMemberForNote.group.group_name} ({selectedMemberForNote.group.group_code})
+                  {selectedMemberForNote?.group?.group_name || 'Chit Scheme'} ({selectedMemberForNote?.group?.group_code || ''})
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Subscriber Member:</span>
                 <span className="font-bold text-slate-900 dark:text-white">
-                  #{selectedMemberForNote.member.ticket_number} - {selectedMemberForNote.member.full_name}
+                  #{selectedMemberForNote?.member?.ticket_number || ''} - {selectedMemberForNote?.member?.full_name || ''}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Installment Due:</span>
                 <span className="font-bold text-blue-600 dark:text-blue-400">
-                  ₹{Number(selectedMemberForNote.group.installment_amount).toLocaleString('en-IN')}
+                  ₹{Number(selectedMemberForNote?.group?.installment_amount || 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
@@ -2675,49 +2680,51 @@ export default function AgentDashboard() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* Printable Receipt Modal with Final Success Animation */}
-      <ModalPortal
-        id="agent-receipt-modal"
-        isOpen={Boolean(receiptModal)}
-        onClose={() => setReceiptModal(null)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-confirmScale">
+      {receiptModal && (
+        <ModalPortal
+          id="agent-receipt-modal"
+          isOpen={Boolean(receiptModal)}
+          onClose={() => setReceiptModal(null)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-confirmScale">
             <div className="text-center space-y-1">
               <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto animate-successPop shadow-md shadow-emerald-500/20">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
               <h3 className="font-extrabold text-slate-900 dark:text-white text-lg">Payment Receipt</h3>
-              <p className="text-xs text-slate-400 font-mono">{receiptModal.receiptNumber}</p>
+              <p className="text-xs text-slate-400 font-mono">{receiptModal?.receiptNumber}</p>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-500">Member:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{receiptModal.memberName}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{receiptModal?.memberName}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Group:</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">{receiptModal.groupName}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">{receiptModal?.groupName}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Amount Paid:</span>
                 <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
-                  ₹{Number(receiptModal.amount).toLocaleString('en-IN')}
+                  ₹{Number(receiptModal?.amount || 0).toLocaleString('en-IN')}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Mode:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{receiptModal.paymentMethod}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{receiptModal?.paymentMethod}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Agent:</span>
-                <span className="text-slate-700 dark:text-slate-300">{receiptModal.agentName}</span>
+                <span className="text-slate-700 dark:text-slate-300">{receiptModal?.agentName}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Date:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-mono">{receiptModal.date}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-mono">{receiptModal?.date}</span>
               </div>
             </div>
 
@@ -2739,12 +2746,14 @@ export default function AgentDashboard() {
               </button>
             </div>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* Member Information Form Modal */}
       {showMemberInfoModal && selectedMemberForInfo && (() => {
-        const { group, member } = selectedMemberForInfo;
-        const isPaid = member.is_paid || member.today_status === 'PAID';
+        const group = selectedMemberForInfo?.group || {};
+        const member = selectedMemberForInfo?.member || {};
+        const isPaid = member?.is_paid || member?.today_status === 'PAID';
 
         return (
           <ModalPortal
@@ -2781,7 +2790,7 @@ export default function AgentDashboard() {
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Ticket #{member.ticket_number} · {group.group_name} ({group.group_code})
+                      Ticket #{member?.ticket_number || ''} · {group?.group_name || 'Chit Scheme'} ({group?.group_code || ''})
                     </p>
                   </div>
                 </div>
@@ -2805,7 +2814,7 @@ export default function AgentDashboard() {
                     <input
                       type="text"
                       readOnly
-                      value={member.full_name}
+                      value={member?.full_name || ''}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                     />
                   </div>
@@ -2817,7 +2826,7 @@ export default function AgentDashboard() {
                     <input
                       type="text"
                       readOnly
-                      value={member.member_code || `MEM-${member.member_id}`}
+                      value={member?.member_code || (member?.member_id ? `MEM-${member.member_id}` : '')}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-semibold text-blue-600 dark:text-blue-400"
                     />
                   </div>
@@ -2830,10 +2839,10 @@ export default function AgentDashboard() {
                       <input
                         type="text"
                         readOnly
-                        value={member.phone || 'None'}
+                        value={member?.phone || 'None'}
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white"
                       />
-                      {member.phone && (
+                      {member?.phone && (
                         <a
                           href={`tel:${member.phone}`}
                           className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors shrink-0"
@@ -2851,7 +2860,7 @@ export default function AgentDashboard() {
                     <input
                       type="text"
                       readOnly
-                      value={member.alternate_phone || 'None Registered'}
+                      value={member?.alternate_phone || 'None Registered'}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300"
                     />
                   </div>
@@ -2863,7 +2872,7 @@ export default function AgentDashboard() {
                     <input
                       type="text"
                       readOnly
-                      value={member.address || `${group.location_name} (Route Stop #${member.ticket_number})`}
+                      value={member?.address || `${group?.location_name || 'Field Route'} (Route Stop #${member?.ticket_number || ''})`}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300"
                     />
                   </div>
@@ -2875,7 +2884,7 @@ export default function AgentDashboard() {
                     <input
                       type="text"
                       readOnly
-                      value={`${member.kyc_type || 'Aadhaar Card'}: ${member.kyc_number || 'Verified'}`}
+                      value={`${member?.kyc_type || 'Aadhaar Card'}: ${member?.kyc_number || 'Verified'}`}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300"
                     />
                   </div>
@@ -2887,7 +2896,7 @@ export default function AgentDashboard() {
                     <input
                       type="text"
                       readOnly
-                      value={`₹${Number(group.installment_amount).toLocaleString('en-IN')}`}
+                      value={`₹${Number(group?.installment_amount || 0).toLocaleString('en-IN')}`}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400"
                     />
                   </div>
@@ -2901,10 +2910,10 @@ export default function AgentDashboard() {
                       <span>Payment Collected & Reconciled</span>
                     </div>
                     <div className="font-mono text-[11px]">
-                      Receipt: <strong>{member.receipt_number || 'REC-TODAY'}</strong> · ₹
-                      {Number(member.collected_amount || group.installment_amount).toLocaleString('en-IN')} (
-                      {member.payment_method || 'CASH'})
-                      {member.collection_time && ` at ${formatTime(member.collection_time)}`}
+                      Receipt: <strong>{member?.receipt_number || 'REC-TODAY'}</strong> · ₹
+                      {Number(member?.collected_amount || group?.installment_amount || 0).toLocaleString('en-IN')} (
+                      {member?.payment_method || 'CASH'})
+                      {member?.collection_time && ` at ${formatTime(member.collection_time)}`}
                     </div>
                   </div>
                 ) : (
@@ -2913,7 +2922,7 @@ export default function AgentDashboard() {
                       <AlertCircle className="w-4 h-4 text-rose-600" />
                       <span>Payment Awaiting Collection</span>
                     </div>
-                    <div>Agent Remark: <strong>{member.today_notes || 'Awaiting payment'}</strong></div>
+                    <div>Agent Remark: <strong>{member?.today_notes || 'Awaiting payment'}</strong></div>
                   </div>
                 )}
               </div>
@@ -2980,7 +2989,7 @@ export default function AgentDashboard() {
         isLoading={submitting}
         title="Confirm Payment Collection"
         message={`Are you sure you want to record ₹${Number(collectForm.amount || 0).toLocaleString('en-IN')} via ${collectForm.payment_method} for ${
-          routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id))?.full_name || 'the selected subscriber'
+          (routesData.members || []).find((m) => String(m.member_id) === String(collectForm.member_id))?.full_name || 'the selected subscriber'
         }?`}
         confirmLabel="Confirm & Issue Receipt"
         cancelLabel="Review Details"

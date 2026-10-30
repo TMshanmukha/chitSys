@@ -682,15 +682,16 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
 
       {/* EDIT / UPDATE USER MODAL */}
-      <ModalPortal
-        id="user-edit-modal"
-        isOpen={showEditModal && Boolean(selectedUser)}
-        onClose={() => setShowEditModal(false)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      {selectedUser && (
+        <ModalPortal
+          id="user-edit-modal"
+          isOpen={showEditModal && Boolean(selectedUser)}
+          onClose={() => setShowEditModal(false)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -700,7 +701,7 @@ export default function UsersPage() {
                   <h3 className="font-extrabold text-slate-900 dark:text-white text-lg sm:text-xl font-heading">
                     Edit User Profile & Credentials
                   </h3>
-                  <p className="text-xs text-slate-500">{selectedUser.full_name} (@{selectedUser.username})</p>
+                  <p className="text-xs text-slate-500">{selectedUser?.full_name || 'User'} (@{selectedUser?.username || ''})</p>
                 </div>
               </div>
               <button
@@ -812,15 +813,17 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* ASSIGN ROUTE MODAL */}
-      <ModalPortal
-        id="user-assign-modal"
-        isOpen={showAssignModal && Boolean(selectedUser)}
-        onClose={() => setShowAssignModal(false)}
-      >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+      {selectedUser && (
+        <ModalPortal
+          id="user-assign-modal"
+          isOpen={showAssignModal && Boolean(selectedUser)}
+          onClose={() => setShowAssignModal(false)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
@@ -830,7 +833,7 @@ export default function UsersPage() {
                   <h3 className="font-extrabold text-slate-900 dark:text-white text-lg font-heading">
                     Assign Agent to Chit Route
                   </h3>
-                  <p className="text-xs text-slate-500">{selectedUser.full_name} (@{selectedUser.username})</p>
+                  <p className="text-xs text-slate-500">{selectedUser?.full_name || 'User'} (@{selectedUser?.username || ''})</p>
                 </div>
               </div>
               <button
@@ -843,7 +846,7 @@ export default function UsersPage() {
             </div>
 
             <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-900/50">
-              Assigning Agent: <span className="font-bold">{selectedUser.full_name}</span> (@{selectedUser.username})
+              Assigning Agent: <span className="font-bold">{selectedUser?.full_name || 'User'}</span> (@{selectedUser?.username || ''})
             </div>
 
             <form onSubmit={handleAssignSubmit} className="space-y-4">
@@ -884,7 +887,8 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-      </ModalPortal>
+        </ModalPortal>
+      )}
 
       {/* Confirmation Dialog for Agent Status Toggle */}
       <ConfirmModal
