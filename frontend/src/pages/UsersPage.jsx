@@ -19,6 +19,7 @@ import {
   UserPlus,
   RefreshCw,
   Building2,
+  X,
 } from 'lucide-react';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
