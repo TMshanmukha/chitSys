@@ -1,6 +1,13 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Always ensure backend/.env is loaded regardless of current working directory
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config();
 
 const envSchema = z.object({
@@ -10,9 +17,9 @@ const envSchema = z.object({
 
   DB_HOST: z.string().default('gateway01.ap-southeast-1.prod.aws.tidbcloud.com'),
   DB_PORT: z.string().default('4000').transform((val) => parseInt(val, 10)),
-  DB_NAME: z.string().default('chitsys'),
-  DB_USER: z.string().default('2LuZwBwHrygVbiF.root'),
-  DB_PASSWORD: z.string().default('G4AeaVfuumT41J0F'),
+  DB_NAME: z.string().default('chitfund_db'),
+  DB_USER: z.string().default('2KCEmq73dsQ6pbZ.root'),
+  DB_PASSWORD: z.string().default('LIqvh0Rojs2HVK61'),
   DB_CONNECTION_LIMIT: z.string().default('10').transform((val) => parseInt(val, 10)),
   DB_SSL: z.enum(['true', 'false']).default('true'),
   DB_SSL_CA_PATH: z.string().default('./certs/isrgrootx1 (3).pem'),
