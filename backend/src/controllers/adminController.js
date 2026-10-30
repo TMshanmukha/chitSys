@@ -153,7 +153,7 @@ export async function getDashboardOverview(req, res, next) {
         g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
         g.location_name, g.installment_amount, g.total_pool_amount, g.status,
         COUNT(DISTINCT gm.id) as enrolled_members,
-        GROUP_CONCAT(DISTINCT u.full_name SEPARATOR ', ') as assigned_agents
+        CAST(GROUP_CONCAT(DISTINCT u.full_name SEPARATOR ', ') AS CHAR) as assigned_agents
       FROM chit_groups g
       LEFT JOIN group_memberships gm ON g.id = gm.group_id
       LEFT JOIN agent_group_assignments aga ON g.id = aga.group_id AND aga.is_active = 1

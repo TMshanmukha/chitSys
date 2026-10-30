@@ -13,12 +13,34 @@ export default function ShowMoreText({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!text) return null;
-  if (text.length <= maxChars) {
-    return <span className={className}>{text}</span>;
+  // Safely normalize any input (string, Buffer, array, number) to clean string
+  let safeText = '';
+  if (typeof text === 'string') {
+    safeText = text;
+  } else if (text && typeof text === 'object') {
+    if (text.type === 'Buffer' && Array.isArray(text.data)) {
+      try {
+        safeText = new TextDecoder().decode(new Uint8Array(text.data));
+      } catch {
+        safeText = String.fromCharCode(...text.data);
+      }
+    } else if (Array.isArray(text)) {
+      safeText = text.filter(Boolean).join(', ');
+    } else {
+      safeText = String(text);
+    }
+  } else if (text !== null && text !== undefined) {
+    safeText = String(text);
   }
 
-  const displayText = expanded ? text : `${text.slice(0, maxChars)}...`;
+  safeText = safeText.trim();
+  if (!safeText) return null;
+
+  if (safeText.length <= maxChars) {
+    return <span className={className}>{safeText}</span>;
+  }
+
+  const displayText = expanded ? safeText : `${safeText.slice(0, maxChars)}...`;
 
   return (
     <span className={`${asBlock ? 'block' : 'inline'} ${className}`}>

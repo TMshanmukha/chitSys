@@ -12,12 +12,8 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log sanitized diagnostic details for developers without leaking in prod UI
-    if (import.meta.env?.DEV) {
-      console.error('[ErrorBoundary] Caught render error:', error, errorInfo);
-    } else {
-      console.error('[ErrorBoundary] Page rendering error caught safely. Fallback displayed.');
-    }
+    // Always log the full diagnostic exception to browser console for developer inspection
+    console.error('[ErrorBoundary] Caught render error:', error, errorInfo);
     this.setState({ errorInfo });
   }
 

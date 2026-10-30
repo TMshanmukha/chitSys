@@ -17,7 +17,7 @@ export async function listAgents(req, res, next) {
       SELECT 
         u.id, u.full_name, u.username, u.role, u.phone, u.is_active, u.last_login_at, u.created_at,
         COUNT(DISTINCT aga.id) as assigned_groups_count,
-        GROUP_CONCAT(DISTINCT g.group_name SEPARATOR ', ') as assigned_group_names
+        CAST(GROUP_CONCAT(DISTINCT g.group_name SEPARATOR ', ') AS CHAR) as assigned_group_names
       FROM users u
       LEFT JOIN agent_group_assignments aga ON u.id = aga.agent_id AND aga.is_active = 1
       LEFT JOIN chit_groups g ON aga.group_id = g.id

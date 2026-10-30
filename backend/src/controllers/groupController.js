@@ -33,8 +33,8 @@ export async function listGroups(req, res, next) {
         g.start_date, g.end_date, g.status, g.created_at,
         COUNT(DISTINCT gm.id) as enrolled_members,
         COUNT(DISTINCT rs.id) as route_stops_count,
-        GROUP_CONCAT(DISTINCT u.full_name SEPARATOR ', ') as assigned_agents,
-        GROUP_CONCAT(DISTINCT u.id SEPARATOR ', ') as assigned_agent_ids
+        CAST(GROUP_CONCAT(DISTINCT u.full_name SEPARATOR ', ') AS CHAR) as assigned_agents,
+        CAST(GROUP_CONCAT(DISTINCT u.id SEPARATOR ', ') AS CHAR) as assigned_agent_ids
       FROM chit_groups g
       LEFT JOIN group_memberships gm ON g.id = gm.group_id
       LEFT JOIN route_stops rs ON g.id = rs.group_id

@@ -212,7 +212,11 @@ export default function UsersPage() {
   };
 
   // Filter users by role and search query
-  const filteredUsers = users.filter((u) => {
+  const safeUsers = Array.isArray(users) ? users.filter(Boolean) : [];
+  const safeGroups = Array.isArray(groups) ? groups.filter(Boolean) : [];
+
+  const filteredUsers = safeUsers.filter((u) => {
+    if (!u) return false;
     if (roleFilter === 'COLLECTION_AGENT' && u.role !== 'COLLECTION_AGENT') return false;
     if (roleFilter === 'ADMIN' && u.role !== 'ADMIN' && u.role !== 'SUPER_ADMIN') return false;
 
@@ -226,9 +230,9 @@ export default function UsersPage() {
 
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const totalAgentsCount = users.filter((u) => u.role === 'COLLECTION_AGENT').length;
-  const activeAgentsCount = users.filter((u) => u.role === 'COLLECTION_AGENT' && u.is_active).length;
-  const adminCount = users.filter((u) => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length;
+  const totalAgentsCount = safeUsers.filter((u) => u?.role === 'COLLECTION_AGENT').length;
+  const activeAgentsCount = safeUsers.filter((u) => u?.role === 'COLLECTION_AGENT' && Boolean(u?.is_active)).length;
+  const adminCount = safeUsers.filter((u) => u?.role === 'ADMIN' || u?.role === 'SUPER_ADMIN').length;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -438,111 +442,114 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                paginatedUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    {/* Full Name & Creation Date */}
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 dark:text-white">
-                        {u.full_name}
-                      </div>
-                      <span className="text-[11px] text-slate-400 font-mono">
-                        Added: {formatDate(u.created_at)}
-                      </span>
-                    </td>
+                paginatedUsers.map((u) => {
+                  if (!u) return null;
+                  return (
+                    <tr key={u.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      {/* Full Name & Creation Date */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900 dark:text-white">
+                          {u.full_name || 'Unnamed User'}
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          Added: {formatDate(u.created_at)}
+                        </span>
+                      </td>
 
-                    {/* Username */}
-                    <td className="py-3.5 px-4 font-mono font-medium text-blue-600 dark:text-blue-400">
-                      @{u.username}
-                    </td>
+                      {/* Username */}
+                      <td className="py-3.5 px-4 font-mono font-medium text-blue-600 dark:text-blue-400">
+                        @{u.username || 'user'}
+                      </td>
 
-                    {/* Role Badge */}
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                          u.role === 'SUPER_ADMIN' || u.role === 'ADMIN'
-                            ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                            : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                        }`}
-                      >
-                        {u.role === 'COLLECTION_AGENT' ? 'Route Agent' : u.role}
-                      </span>
-                    </td>
+                      {/* Role Badge */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                            u.role === 'SUPER_ADMIN' || u.role === 'ADMIN'
+                              ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                              : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                          }`}
+                        >
+                          {u.role === 'COLLECTION_AGENT' ? 'Route Agent' : (u.role || 'USER')}
+                        </span>
+                      </td>
 
-                    {/* Contact Phone */}
-                    <td className="py-3.5 px-4 font-mono">
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{u.phone || 'No phone'}</span>
-                      </div>
-                    </td>
+                      {/* Contact Phone */}
+                      <td className="py-3.5 px-4 font-mono">
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{u.phone || 'No phone'}</span>
+                        </div>
+                      </td>
 
-                    {/* Assigned Routes / Groups */}
-                    <td className="py-3.5 px-4 max-w-xs">
-                      {u.role === 'COLLECTION_AGENT' ? (
-                        u.assigned_group_names ? (
-                          <ShowMoreText text={u.assigned_group_names} maxChars={32} />
+                      {/* Assigned Routes / Groups */}
+                      <td className="py-3.5 px-4 max-w-xs">
+                        {u.role === 'COLLECTION_AGENT' ? (
+                          u.assigned_group_names ? (
+                            <ShowMoreText text={u.assigned_group_names} maxChars={32} />
+                          ) : (
+                            <span className="text-slate-400 italic">Unassigned</span>
+                          )
                         ) : (
-                          <span className="text-slate-400 italic">Unassigned</span>
-                        )
-                      ) : (
-                        <span className="text-slate-400">All Schemes Access</span>
-                      )}
-                    </td>
+                          <span className="text-slate-400">All Schemes Access</span>
+                        )}
+                      </td>
 
-                    {/* Last Login Time in DD/MM/YYYY format */}
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                      {u.last_login_at ? formatDateTime(u.last_login_at) : 'Never logged in'}
-                    </td>
+                      {/* Last Login Time in DD/MM/YYYY format */}
+                      <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                        {u.last_login_at ? formatDateTime(u.last_login_at) : 'Never logged in'}
+                      </td>
 
-                    {/* Status */}
-                    <td className="py-3.5 px-4">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(u)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
-                          u.is_active
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 hover:bg-emerald-100'
-                            : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 hover:bg-rose-100'
-                        }`}
-                        title="Click to toggle account status"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                        <span>{u.is_active ? 'Active' : 'Disabled'}</span>
-                      </button>
-                    </td>
-
-                    {/* Actions: Edit & Assign */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      {/* Status */}
+                      <td className="py-3.5 px-4">
                         <button
                           type="button"
-                          onClick={() => handleOpenEdit(u)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition-colors cursor-pointer"
+                          onClick={() => handleToggleStatus(u)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                            u.is_active
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 hover:bg-emerald-100'
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 hover:bg-rose-100'
+                          }`}
+                          title="Click to toggle account status"
                         >
-                          <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Edit</span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                          <span>{u.is_active ? 'Active' : 'Disabled'}</span>
                         </button>
+                      </td>
 
-                        {u.role === 'COLLECTION_AGENT' && (
+                      {/* Actions: Edit & Assign */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => {
-                              setSelectedUser(u);
-                              setSelectedGroupId('');
-                              setShowAssignModal(true);
-                              setError('');
-                              scrollToFormOrModal('user-assign-modal');
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 font-semibold transition-colors cursor-pointer"
+                            onClick={() => handleOpenEdit(u)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition-colors cursor-pointer"
                           >
-                            <Layers className="w-3.5 h-3.5" />
-                            <span>Assign</span>
+                            <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Edit</span>
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+
+                          {u.role === 'COLLECTION_AGENT' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedUser(u);
+                                setSelectedGroupId('');
+                                setShowAssignModal(true);
+                                setError('');
+                                scrollToFormOrModal('user-assign-modal');
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 font-semibold transition-colors cursor-pointer"
+                            >
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>Assign</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -861,11 +868,14 @@ export default function UsersPage() {
                   className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 >
                   <option value="">-- Choose Chit Group Route --</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.group_name} ({g.group_code}) [{g.frequency}] · {g.chit_type?.replace(/_/g, ' ')} · {g.location_name}
-                    </option>
-                  ))}
+                  {safeGroups.map((g) => {
+                    if (!g) return null;
+                    return (
+                      <option key={g.id} value={g.id}>
+                        {g.group_name} ({g.group_code}) [{g.frequency}] · {g.chit_type?.replace(/_/g, ' ')} · {g.location_name}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

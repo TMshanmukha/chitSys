@@ -63,37 +63,37 @@ export default function AdminDashboard() {
     fetchDashboard(false);
   }, []);
 
-  const totalGroups = data?.totalGroups || 0;
-  const dailyChitGroups = data?.dailyChitGroups || 0;
-  const auctionChitGroups = data?.auctionChitGroups || 0;
-  const doubleChitGroups = data?.doubleChitGroups || 0;
-  const totalMembers = data?.totalMembers || 0;
-  const totalAgents = data?.totalAgents || 0;
-  const todayCash = parseFloat(data?.todayCash || 0);
-  const todayOnline = parseFloat(data?.todayOnline || 0);
-  const todayTotal = parseFloat(data?.todayTotal || 0);
-  const expectedTarget = parseFloat(data?.expectedDailyTarget || 0);
+  const totalGroups = Number(data?.totalGroups) || 0;
+  const dailyChitGroups = Number(data?.dailyChitGroups) || 0;
+  const auctionChitGroups = Number(data?.auctionChitGroups) || 0;
+  const doubleChitGroups = Number(data?.doubleChitGroups) || 0;
+  const totalMembers = Number(data?.totalMembers) || 0;
+  const totalAgents = Number(data?.totalAgents) || 0;
+  const todayCash = parseFloat(data?.todayCash || 0) || 0;
+  const todayOnline = parseFloat(data?.todayOnline || 0) || 0;
+  const todayTotal = parseFloat(data?.todayTotal || 0) || 0;
+  const expectedTarget = parseFloat(data?.expectedDailyTarget || 0) || 0;
   const progressPercent = expectedTarget > 0 ? Math.min(Math.round((todayTotal / expectedTarget) * 100), 100) : 0;
-  const dailyOverview = data?.dailyOverview || {
-    target: expectedTarget,
-    cash: todayCash,
-    online: todayOnline,
-    total: todayTotal,
-    progressPercent,
+  const dailyOverview = {
+    target: parseFloat(data?.dailyOverview?.target ?? expectedTarget) || 0,
+    cash: parseFloat(data?.dailyOverview?.cash ?? todayCash) || 0,
+    online: parseFloat(data?.dailyOverview?.online ?? todayOnline) || 0,
+    total: parseFloat(data?.dailyOverview?.total ?? todayTotal) || 0,
+    progressPercent: Number(data?.dailyOverview?.progressPercent ?? progressPercent) || 0,
   };
-  const monthlyOverview = data?.monthlyOverview || {
-    target: parseFloat(data?.expectedMonthlyTarget || 0),
-    cash: 0,
-    online: 0,
-    total: 0,
-    progressPercent: 0,
+  const monthlyOverview = {
+    target: parseFloat(data?.monthlyOverview?.target ?? data?.expectedMonthlyTarget ?? 0) || 0,
+    cash: parseFloat(data?.monthlyOverview?.cash ?? 0) || 0,
+    online: parseFloat(data?.monthlyOverview?.online ?? 0) || 0,
+    total: parseFloat(data?.monthlyOverview?.total ?? 0) || 0,
+    progressPercent: Number(data?.monthlyOverview?.progressPercent ?? 0) || 0,
   };
-  const totalAuctionsCount = data?.totalAuctionsCount || 0;
-  const totalDividendsGenerated = parseFloat(data?.totalDividendsGenerated || 0);
-  const totalPrizeMoneyDisbursed = parseFloat(data?.totalPrizeMoneyDisbursed || 0);
-  const recentCollections = data?.recentCollections || [];
-  const groupsList = data?.groupsList || [];
-  const agentsSummary = data?.agentsSummary || [];
+  const totalAuctionsCount = Number(data?.totalAuctionsCount) || 0;
+  const totalDividendsGenerated = parseFloat(data?.totalDividendsGenerated || 0) || 0;
+  const totalPrizeMoneyDisbursed = parseFloat(data?.totalPrizeMoneyDisbursed || 0) || 0;
+  const recentCollections = Array.isArray(data?.recentCollections) ? data.recentCollections.filter(Boolean) : [];
+  const groupsList = Array.isArray(data?.groupsList) ? data.groupsList.filter(Boolean) : [];
+  const agentsSummary = Array.isArray(data?.agentsSummary) ? data.agentsSummary.filter(Boolean) : [];
 
   const paginatedGroups = groupsList.slice(
     (groupsPage - 1) * groupsPageSize,
@@ -700,49 +700,52 @@ export default function AdminDashboard() {
                   </td>
                 </tr>
               ) : (
-                paginatedGroups.map((group) => (
-                  <tr key={group.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3 px-4 font-semibold text-blue-600 dark:text-blue-400 font-mono">
-                      {group.group_code}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
-                      {group.group_name}
-                    </td>
-                    <td className="py-3 px-4">
-                      {group.chit_type === 'DAILY_CHIT' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
-                          Daily Chit
+                paginatedGroups.map((group) => {
+                  if (!group) return null;
+                  return (
+                    <tr key={group.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-blue-600 dark:text-blue-400 font-mono">
+                        {group.group_code || '-'}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                        {group.group_name || 'Unnamed Chit Scheme'}
+                      </td>
+                      <td className="py-3 px-4">
+                        {group.chit_type === 'DAILY_CHIT' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                            Daily Chit
+                          </span>
+                        ) : group.chit_type === 'DOUBLE_CHIT' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                            Double Chit
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                            Auction Chit
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                          {group.route_category === 'DAILY_ROUTE' ? 'Daily Route' : 'Monthly Route'}
                         </span>
-                      ) : group.chit_type === 'DOUBLE_CHIT' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                          Double Chit
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
-                          Auction Chit
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        {group.route_category === 'DAILY_ROUTE' ? 'Daily Route' : 'Monthly Route'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span>{group.location_name}</span>
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
-                      ₹{parseFloat(group.installment_amount).toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
-                      {group.enrolled_members} Members
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                      <ShowMoreText text={group.assigned_agents || 'Unassigned'} maxChars={22} />
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{group.location_name || '-'}</span>
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                        ₹{(parseFloat(group.installment_amount) || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
+                        {group.enrolled_members || 0} Members
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                        <ShowMoreText text={group.assigned_agents || 'Unassigned'} maxChars={22} />
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -802,39 +805,42 @@ export default function AdminDashboard() {
                   </td>
                 </tr>
               ) : (
-                paginatedCollections.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3 px-4 font-mono font-medium text-blue-600 dark:text-blue-400">
-                      {c.receipt_number}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
-                      {c.member_name}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                      {c.group_name} ({c.group_code})
-                    </td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                      ₹{parseFloat(c.amount).toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                          c.payment_method === 'CASH'
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                        }`}
-                      >
-                        {c.payment_method}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                      {c.agent_name}
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 font-mono whitespace-nowrap">
-                      {formatDate(c.created_at)} {c.collection_time ? `· ${formatTime(c.collection_time)}` : ''}
-                    </td>
-                  </tr>
-                ))
+                paginatedCollections.map((c) => {
+                  if (!c) return null;
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4 font-mono font-medium text-blue-600 dark:text-blue-400">
+                        {c.receipt_number || '-'}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                        {c.member_name || 'Subscriber'}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                        {c.group_name || 'Scheme'} {c.group_code ? `(${c.group_code})` : ''}
+                      </td>
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                        ₹{(parseFloat(c.amount) || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                            c.payment_method === 'CASH'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                          }`}
+                        >
+                          {c.payment_method || 'CASH'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                        {c.agent_name || 'Admin'}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 font-mono whitespace-nowrap">
+                        {formatDate(c.created_at)} {c.collection_time ? `· ${formatTime(c.collection_time)}` : ''}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -10,8 +10,18 @@ const isCloudDb =
   env.DB_PORT === 4000 ||
   (env.DB_HOST && !['localhost', '127.0.0.1'].includes(env.DB_HOST));
 
-const caPath = env.DB_SSL_CA_PATH ? path.resolve(process.cwd(), env.DB_SSL_CA_PATH) : undefined;
-export const sslConfig = isCloudDb && caPath ? { ca: fs.readFileSync(caPath), rejectUnauthorized: false, minVersion: 'TLSv1.2' } : undefined;
+let resolvedCaPath = undefined;
+if (env.DB_SSL_CA_PATH) {
+  const directPath = path.resolve(process.cwd(), env.DB_SSL_CA_PATH);
+  const backendSubPath = path.resolve(process.cwd(), 'backend', env.DB_SSL_CA_PATH);
+  if (fs.existsSync(directPath)) {
+    resolvedCaPath = directPath;
+  } else if (fs.existsSync(backendSubPath)) {
+    resolvedCaPath = backendSubPath;
+  }
+}
+
+export const sslConfig = isCloudDb && resolvedCaPath ? { ca: fs.readFileSync(resolvedCaPath), rejectUnauthorized: false, minVersion: 'TLSv1.2' } : undefined;
 
 export const pool = mysql.createPool({
   host: env.DB_HOST,
