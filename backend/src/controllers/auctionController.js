@@ -15,6 +15,13 @@ const auctionSchema = z.object({
   auction_date: z.string().min(8, 'Auction date is required'),
   pool_source: z.enum(['REGULAR', 'SAVED_RESERVE']).optional().default('REGULAR'),
   custom_pool_amount: z.number().min(0).optional().nullable(),
+  custom_commission_percent: z.number().min(0).max(100).optional().nullable(),
+  custom_foreman_commission: z.number().min(0).optional().nullable(),
+  custom_net_payable: z.number().min(0).optional().nullable(),
+  custom_total_dividend: z.number().min(0).optional().nullable(),
+  custom_dividend_per_member: z.number().min(0).optional().nullable(),
+  custom_next_installment: z.number().min(0).optional().nullable(),
+  custom_double_chit_reserve: z.number().min(0).optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 
@@ -77,7 +84,14 @@ export async function conductAuction(req, res, next) {
       bid_discount: parseFloat(req.body.bid_discount ?? req.body.bid_discount_amount ?? req.body.bidDiscountAmount ?? 0),
       auction_date: req.body.auction_date ?? req.body.auctionDate ?? new Date().toISOString().slice(0, 10),
       pool_source: req.body.pool_source || 'REGULAR',
-      custom_pool_amount: req.body.custom_pool_amount ? parseFloat(req.body.custom_pool_amount) : null,
+      custom_pool_amount: req.body.custom_pool_amount !== undefined && req.body.custom_pool_amount !== null && req.body.custom_pool_amount !== '' ? parseFloat(req.body.custom_pool_amount) : null,
+      custom_commission_percent: req.body.custom_commission_percent !== undefined && req.body.custom_commission_percent !== null && req.body.custom_commission_percent !== '' ? parseFloat(req.body.custom_commission_percent) : null,
+      custom_foreman_commission: req.body.custom_foreman_commission !== undefined && req.body.custom_foreman_commission !== null && req.body.custom_foreman_commission !== '' ? parseFloat(req.body.custom_foreman_commission) : null,
+      custom_net_payable: req.body.custom_net_payable !== undefined && req.body.custom_net_payable !== null && req.body.custom_net_payable !== '' ? parseFloat(req.body.custom_net_payable) : null,
+      custom_total_dividend: req.body.custom_total_dividend !== undefined && req.body.custom_total_dividend !== null && req.body.custom_total_dividend !== '' ? parseFloat(req.body.custom_total_dividend) : null,
+      custom_dividend_per_member: req.body.custom_dividend_per_member !== undefined && req.body.custom_dividend_per_member !== null && req.body.custom_dividend_per_member !== '' ? parseFloat(req.body.custom_dividend_per_member) : null,
+      custom_next_installment: req.body.custom_next_installment !== undefined && req.body.custom_next_installment !== null && req.body.custom_next_installment !== '' ? parseFloat(req.body.custom_next_installment) : null,
+      custom_double_chit_reserve: req.body.custom_double_chit_reserve !== undefined && req.body.custom_double_chit_reserve !== null && req.body.custom_double_chit_reserve !== '' ? parseFloat(req.body.custom_double_chit_reserve) : null,
     });
 
     // 1. Fetch group details
@@ -139,10 +153,12 @@ export async function conductAuction(req, res, next) {
 
     // 4. Calculate ChitBase Financials according to updated business rules:
     // Specification:
-    // - Admin Commission is deducted from the WINNER'S PRIZE, NOT from the bid amount.
-    // - In AUCTION CHIT: The entire winning bid discount is distributed as dividend among all members (credited to passbook).
+    // - Admin Commission is deducted from the WINNER'S PRIZE AMOUNT (Gross Winner Prize = Pool - Bid Discount),
+    //   NOT from the entire chit pool amount.
+    // - Admin has full authority to modify/override any commission, net prize, or dividend value in the auction form.
+    // - In AUCTION CHIT: The winning bid discount is distributed as dividend among all members (credited to passbook).
     // - In DOUBLE CHIT: Admin gets commission from winner prize as usual. No dividend/member distribution (totalDividend = 0).
-    //   The entire winning bid discount is saved in that chit's pool reserve (doubleChitReserve) so it can be auctioned in Draw #2.
+    //   The winning bid discount is saved in that chit's pool reserve (doubleChitReserve) so it can be auctioned in Draw #2.
     // - Option to auction the saved reserve: If auctioning saved reserve, effective pool amount is the specified reserve amount.
     const isDoubleChit = group.chit_type === 'DOUBLE_CHIT' || validated.auction_type === 'DOUBLE_CHIT_DRAW';
     const groupPoolAmount = parseFloat(group.total_pool_amount);
@@ -153,13 +169,26 @@ export async function conductAuction(req, res, next) {
     }
 
     const bidDiscount = parseFloat(validated.bid_discount || 0);
-    const commissionPercent = parseFloat(group.foreman_commission_percent || 5);
 
-    // Admin Commission: percentage of pool amount, deducted from the winner prize
-    const foremanCommission = parseFloat(((effectivePoolAmount * commissionPercent) / 100).toFixed(2));
+    // Gross Winner Prize = Effective Pool - Bid Discount (Prize before Admin commission deduction)
+    const grossWinnerPrize = Math.max(0, parseFloat((effectivePoolAmount - bidDiscount).toFixed(2)));
 
-    // Net prize money payable to winning subscriber = Pool Amount - Bid Discount - Admin Commission
-    const netPayableAmount = Math.max(0, parseFloat((effectivePoolAmount - bidDiscount - foremanCommission).toFixed(2)));
+    // Commission Percentage: Admin custom override or group standard setting
+    const commissionPercent = validated.custom_commission_percent !== null && validated.custom_commission_percent !== undefined
+      ? parseFloat(validated.custom_commission_percent)
+      : parseFloat(group.foreman_commission_percent || 5);
+
+    // Admin Commission: percentage of GROSS WINNER PRIZE (deducted from Winner Prize), with Admin override support
+    const defaultForemanCommission = parseFloat(((grossWinnerPrize * commissionPercent) / 100).toFixed(2));
+    const foremanCommission = validated.custom_foreman_commission !== null && validated.custom_foreman_commission !== undefined
+      ? parseFloat(validated.custom_foreman_commission)
+      : defaultForemanCommission;
+
+    // Net prize money payable to winning subscriber = Gross Winner Prize - Admin Commission, with Admin override support
+    const defaultNetPayable = Math.max(0, parseFloat((grossWinnerPrize - foremanCommission).toFixed(2)));
+    const netPayableAmount = validated.custom_net_payable !== null && validated.custom_net_payable !== undefined
+      ? parseFloat(validated.custom_net_payable)
+      : defaultNetPayable;
 
     // Total members in group (denominator for dividend share)
     const totalMembers = parseInt(group.total_members_limit || 20, 10);
@@ -169,32 +198,38 @@ export async function conductAuction(req, res, next) {
     let totalDividend = 0.00;
     let doubleChitReserve = 0.00;
     let dividendPerMember = 0.00;
-    let nextInstallmentPayable = parseFloat(group.installment_amount);
+    let nextInstallmentPayable = validated.custom_next_installment !== null && validated.custom_next_installment !== undefined
+      ? parseFloat(validated.custom_next_installment)
+      : parseFloat(group.installment_amount);
 
     if (isDoubleChit) {
       // DOUBLE CHIT:
       // No dividend distribution to members (totalDividend = 0, dividendPerMember = 0).
-      // The full bid amount is saved into this chit's pool reserve (doubleChitReserve) and can be auctioned again!
-      doubleChitReserve = bidDiscount;
+      // The bid amount is saved into this chit's pool reserve (doubleChitReserve) and can be auctioned again!
+      doubleChitReserve = validated.custom_double_chit_reserve !== null && validated.custom_double_chit_reserve !== undefined
+        ? parseFloat(validated.custom_double_chit_reserve)
+        : bidDiscount;
       totalDividend = 0.00;
       dividendPerMember = 0.00;
-      nextInstallmentPayable = parseFloat(group.installment_amount);
       if (!finalAuctionType || finalAuctionType === 'AUCTION') {
         finalAuctionType = 'DOUBLE_CHIT_DRAW';
       }
     } else {
       // AUCTION CHIT:
       // Single auction round per period (no Draw #1 / Draw #2 choice)
-      // Dividend per member comes directly from the full bid discount!
+      // Dividend per member comes directly from the bid discount (or Admin override)!
       finalDrawNumber = 1;
       finalAuctionType = 'AUCTION';
       doubleChitReserve = 0.00;
-      totalDividend = bidDiscount;
-      dividendPerMember = totalMembers > 0 ? parseFloat((totalDividend / totalMembers).toFixed(2)) : 0.00;
+      totalDividend = validated.custom_total_dividend !== null && validated.custom_total_dividend !== undefined
+        ? parseFloat(validated.custom_total_dividend)
+        : bidDiscount;
+      dividendPerMember = validated.custom_dividend_per_member !== null && validated.custom_dividend_per_member !== undefined
+        ? parseFloat(validated.custom_dividend_per_member)
+        : (totalMembers > 0 ? parseFloat((totalDividend / totalMembers).toFixed(2)) : 0.00);
       // CRITICAL BUSINESS RULE:
-      // Always the next installment due is the full chit installment amount (e.g. ₹500 only).
+      // Always the next installment due is the full chit installment amount (e.g. ₹500 only) unless overridden.
       // Dividend is credited to the respective member, but NOT subtracted from the installment due.
-      nextInstallmentPayable = parseFloat(group.installment_amount);
     }
 
     // 5. Insert into auctions table
@@ -306,9 +341,11 @@ export async function conductAuction(req, res, next) {
         type: finalAuctionType,
         poolSource: validated.pool_source,
         effectivePoolAmount,
+        grossWinnerPrize,
         winnerId: validated.winning_member_id,
         netPayable: netPayableAmount,
         foremanCommission,
+        commissionPercent,
         dividendPerMember,
         doubleChitReserve,
       },
@@ -317,7 +354,7 @@ export async function conductAuction(req, res, next) {
     await createNotification({
       targetRole: 'ALL',
       title: `🏆 Auction Won: ${group.group_name || group.name || 'Chit Scheme'}`,
-      message: `Winner: ${winnerName} · Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')} (Admin Comm: ₹${foremanCommission.toLocaleString('en-IN')} from Prize)${dividendPerMember > 0 ? ` · Dividend: ₹${dividendPerMember}/member (from Bid Amount)` : ` · Saved Chit Reserve: ₹${doubleChitReserve.toLocaleString('en-IN')}`}`,
+      message: `Winner: ${winnerName} · Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')} (Admin Comm: ₹${foremanCommission.toLocaleString('en-IN')} from Winner Prize)${dividendPerMember > 0 ? ` · Dividend: ₹${dividendPerMember}/member (from Bid Amount)` : ` · Saved Chit Reserve: ₹${doubleChitReserve.toLocaleString('en-IN')}`}`,
       type: 'AUCTION',
       link: '/admin/auctions',
     });
@@ -331,8 +368,10 @@ export async function conductAuction(req, res, next) {
         auctionId,
         payoutNumber,
         effectivePoolAmount,
+        grossWinnerPrize,
         netPayableAmount,
         foremanCommission,
+        commissionPercent,
         totalDividend,
         doubleChitReserve,
         dividendPerMember,

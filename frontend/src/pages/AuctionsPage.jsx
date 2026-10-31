@@ -28,6 +28,9 @@ import {
   HelpCircle,
   Check,
   ChevronRight,
+  Sliders,
+  RotateCcw,
+  Edit3,
 } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
@@ -88,6 +91,18 @@ export default function AuctionsPage() {
     winning_ticket_number: '',
     bid_discount: '',
     auction_date: new Date().toISOString().slice(0, 10),
+    commission_percent: '5.0',
+    custom_foreman_commission: '',
+    custom_net_payable: '',
+    custom_total_dividend: '',
+    custom_dividend_per_member: '',
+    custom_double_chit_reserve: '',
+    custom_next_installment: '',
+    is_custom_commission_enabled: false,
+    is_custom_net_payable_enabled: false,
+    is_custom_dividend_enabled: false,
+    is_custom_reserve_enabled: false,
+    is_custom_due_enabled: false,
     notes: '',
   });
 
@@ -169,6 +184,18 @@ export default function AuctionsPage() {
       winning_ticket_number: '',
       pool_source: 'REGULAR',
       custom_pool_amount: '',
+      commission_percent: String(groupObj?.foreman_commission_percent || '5.0'),
+      custom_foreman_commission: '',
+      custom_net_payable: '',
+      custom_total_dividend: '',
+      custom_dividend_per_member: '',
+      custom_double_chit_reserve: '',
+      custom_next_installment: '',
+      is_custom_commission_enabled: false,
+      is_custom_net_payable_enabled: false,
+      is_custom_dividend_enabled: false,
+      is_custom_reserve_enabled: false,
+      is_custom_due_enabled: false,
       auction_type: groupObj?.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT_DRAW' : 'AUCTION',
     }));
 
@@ -205,7 +232,6 @@ export default function AuctionsPage() {
   const groupPoolAmount = selectedGroup ? parseFloat(selectedGroup.total_pool_amount) : 0;
   const baseInstallment = selectedGroup ? parseFloat(selectedGroup.installment_amount) : 0;
   const totalMembers = selectedGroup ? parseInt(selectedGroup.total_members_limit || 20, 10) : 20;
-  const commissionPercent = selectedGroup ? parseFloat(selectedGroup.foreman_commission_percent || 5) : 5;
 
   // Effective pool being auctioned: either standard group pool or saved chit reserve
   const effectivePool = isAuctioningReserve
@@ -213,32 +239,83 @@ export default function AuctionsPage() {
     : groupPoolAmount;
 
   // Collection Eligibility & Shortfall Validation:
-  // Standard chit rule: total money for the chit pool should be collected from members before auctioning.
-  // If not, a warning / "Not Fully Eligible" box is displayed, but Admin Override allows conducting the auction anyway.
   const isPoolFullyCollected = effectivePool > 0 ? (groupTotalCollected >= effectivePool) : true;
   const collectionShortfall = Math.max(0, effectivePool - groupTotalCollected);
   const collectionPercentage = effectivePool > 0 ? Math.min(100, Math.round((groupTotalCollected / effectivePool) * 100)) : 100;
 
   const bidDiscount = parseFloat(form.bid_discount || 0);
 
-  // Admin Commission: percentage of effective pool amount, DEDUCTED from winner prize (NOT from bid amount)
-  const foremanCommission = parseFloat(((effectivePool * commissionPercent) / 100).toFixed(2));
+  // 1. Gross Winner Prize = Effective Pool - Bid Discount (Prize before Admin commission deduction)
+  const grossWinnerPrize = Math.max(0, parseFloat((effectivePool - bidDiscount).toFixed(2)));
 
-  // Net prize money payable to winning subscriber = Effective Pool - Bid Discount - Admin Commission
-  const netPayablePrize = Math.max(0, parseFloat((effectivePool - bidDiscount - foremanCommission).toFixed(2)));
+  // 2. Active Commission Percentage (can be edited by Admin directly)
+  const activeCommissionPercent = form.commission_percent !== ''
+    ? parseFloat(form.commission_percent)
+    : (selectedGroup ? parseFloat(selectedGroup.foreman_commission_percent || 5) : 5);
 
-  // Financial routing:
-  // - AUCTION_CHIT: Dividend per member comes directly from the bid amount!
-  //   modalTotalDividend = bidDiscount, modalDividendPerMember = bidDiscount / totalMembers
-  // - DOUBLE_CHIT: NO dividend distributed to members (0 dividend, full base installment).
-  //   The full bid discount is saved into this chit's pool reserve (modalDoubleChitReserve = bidDiscount) so it can be auctioned again!
-  const modalDoubleChitReserve = isDoubleChitScheme ? bidDiscount : 0;
-  const modalTotalDividend = isDoubleChitScheme ? 0 : bidDiscount;
-  const modalDividendPerMember = (!isDoubleChitScheme && totalMembers > 0) ? parseFloat((modalTotalDividend / totalMembers).toFixed(2)) : 0;
-  // CRITICAL BUSINESS RULE:
-  // Always the next installment due is the full chit installment amount (e.g. ₹500 only).
-  // Dividend is credited to the respective member, but NOT subtracted from the installment due.
-  const modalNextInstallment = baseInstallment;
+  // 3. Admin Commission: calculated strictly from GROSS WINNER PRIZE (not from full pool!)
+  const autoForemanCommission = grossWinnerPrize > 0
+    ? parseFloat(((grossWinnerPrize * activeCommissionPercent) / 100).toFixed(2))
+    : 0;
+  const effectiveForemanCommission = (form.is_custom_commission_enabled && form.custom_foreman_commission !== '')
+    ? parseFloat(form.custom_foreman_commission)
+    : autoForemanCommission;
+
+  // 4. Net Prize Money Payable to Winning Subscriber = Gross Winner Prize - Admin Commission
+  const autoNetPayablePrize = Math.max(0, parseFloat((grossWinnerPrize - effectiveForemanCommission).toFixed(2)));
+  const effectiveNetPayablePrize = (form.is_custom_net_payable_enabled && form.custom_net_payable !== '')
+    ? parseFloat(form.custom_net_payable)
+    : autoNetPayablePrize;
+
+  // 5. Total Dividend & Dividend per member (or Double Chit Reserve)
+  const autoDoubleChitReserve = isDoubleChitScheme ? bidDiscount : 0;
+  const effectiveDoubleChitReserve = isDoubleChitScheme
+    ? ((form.is_custom_reserve_enabled && form.custom_double_chit_reserve !== '') ? parseFloat(form.custom_double_chit_reserve) : autoDoubleChitReserve)
+    : 0;
+
+  const autoTotalDividend = isDoubleChitScheme ? 0 : bidDiscount;
+  const effectiveTotalDividend = isDoubleChitScheme
+    ? 0
+    : ((form.is_custom_dividend_enabled && form.custom_total_dividend !== '') ? parseFloat(form.custom_total_dividend) : autoTotalDividend);
+
+  const autoDividendPerMember = (!isDoubleChitScheme && totalMembers > 0)
+    ? parseFloat((effectiveTotalDividend / totalMembers).toFixed(2))
+    : 0;
+  const effectiveDividendPerMember = isDoubleChitScheme
+    ? 0
+    : ((form.is_custom_dividend_enabled && form.custom_dividend_per_member !== '') ? parseFloat(form.custom_dividend_per_member) : autoDividendPerMember);
+
+  // 6. Next Installment Payable
+  const autoNextInstallment = baseInstallment;
+  const effectiveNextInstallment = (form.is_custom_due_enabled && form.custom_next_installment !== '')
+    ? parseFloat(form.custom_next_installment)
+    : autoNextInstallment;
+
+  // Has any custom override been applied?
+  const hasCustomCommission = form.is_custom_commission_enabled || (selectedGroup && String(form.commission_percent) !== String(selectedGroup.foreman_commission_percent));
+  const hasCustomNetPrize = form.is_custom_net_payable_enabled;
+  const hasCustomDividend = form.is_custom_dividend_enabled;
+  const hasCustomReserve = form.is_custom_reserve_enabled;
+  const hasCustomDue = form.is_custom_due_enabled;
+  const hasAnyOverrides = hasCustomCommission || hasCustomNetPrize || hasCustomDividend || hasCustomReserve || hasCustomDue;
+
+  const handleResetCalculations = () => {
+    setForm((prev) => ({
+      ...prev,
+      commission_percent: String(selectedGroup?.foreman_commission_percent || '5.0'),
+      custom_foreman_commission: '',
+      custom_net_payable: '',
+      custom_total_dividend: '',
+      custom_dividend_per_member: '',
+      custom_double_chit_reserve: '',
+      custom_next_installment: '',
+      is_custom_commission_enabled: false,
+      is_custom_net_payable_enabled: false,
+      is_custom_dividend_enabled: false,
+      is_custom_reserve_enabled: false,
+      is_custom_due_enabled: false,
+    }));
+  };
 
   const filteredAuctions = auctions.filter((auc) => {
     if (!searchQuery.trim()) return true;
@@ -309,6 +386,13 @@ export default function AuctionsPage() {
         winning_ticket_number: parseInt(form.winning_ticket_number, 10),
         bid_discount: parseFloat(form.bid_discount || 0),
         auction_date: form.auction_date,
+        custom_commission_percent: form.commission_percent !== '' ? parseFloat(form.commission_percent) : null,
+        custom_foreman_commission: effectiveForemanCommission,
+        custom_net_payable: effectiveNetPayablePrize,
+        custom_total_dividend: isDoubleChitScheme ? 0 : effectiveTotalDividend,
+        custom_dividend_per_member: isDoubleChitScheme ? 0 : effectiveDividendPerMember,
+        custom_next_installment: effectiveNextInstallment,
+        custom_double_chit_reserve: isDoubleChitScheme ? effectiveDoubleChitReserve : 0,
         notes: form.notes || null,
       });
 
@@ -326,6 +410,18 @@ export default function AuctionsPage() {
           winning_ticket_number: '',
           bid_discount: '',
           auction_date: new Date().toISOString().slice(0, 10),
+          commission_percent: '5.0',
+          custom_foreman_commission: '',
+          custom_net_payable: '',
+          custom_total_dividend: '',
+          custom_dividend_per_member: '',
+          custom_double_chit_reserve: '',
+          custom_next_installment: '',
+          is_custom_commission_enabled: false,
+          is_custom_net_payable_enabled: false,
+          is_custom_dividend_enabled: false,
+          is_custom_reserve_enabled: false,
+          is_custom_due_enabled: false,
           notes: '',
         });
         setAvailableReserve(0);
@@ -1159,7 +1255,7 @@ export default function AuctionsPage() {
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Foreman Comm.</span>
-                      <strong className="text-slate-900 dark:text-white font-extrabold text-base font-heading">{commissionPercent}% <span className="text-xs font-normal text-slate-400">(₹{foremanCommission.toLocaleString('en-IN')})</span></strong>
+                      <strong className="text-slate-900 dark:text-white font-extrabold text-base font-heading">{selectedGroup?.foreman_commission_percent || 5}% <span className="text-xs font-normal text-slate-400">on Prize</span></strong>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Subscribers</span>
@@ -1463,15 +1559,356 @@ export default function AuctionsPage() {
                 </div>
               </div>
 
+              {/* Admin Financial Controls & Commission Modifications */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border-2 border-blue-200 dark:border-blue-900/60 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/80 dark:border-slate-700/80">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400">
+                      <Sliders className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base font-heading">
+                        Admin Financial Controls & Live Modifications
+                      </h4>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Modify commission %, commission in ₹, winner prize money, or dividends directly
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    {hasAnyOverrides && (
+                      <button
+                        type="button"
+                        onClick={handleResetCalculations}
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/80 hover:bg-amber-200 transition-colors flex items-center gap-1 cursor-pointer font-heading"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Reset to Auto</span>
+                      </button>
+                    )}
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800 font-heading">
+                      Admin Authority
+                    </span>
+                  </div>
+                </div>
+
+                {/* Formula Explanation Callout */}
+                <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <strong className="font-heading block">Business Calculation Rule:</strong>
+                    <p className="text-[11px] leading-relaxed text-blue-800 dark:text-blue-300">
+                      Admin Commission is calculated strictly from the <strong>Winner Prize Amount</strong> (Total Pool ₹{effectivePool.toLocaleString('en-IN')} − Bid Discount ₹{bidDiscount.toLocaleString('en-IN')} = <strong>₹{grossWinnerPrize.toLocaleString('en-IN')}</strong>), NOT from the full chit pool amount.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Grid of Editable Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  {/* Gross Winner Prize Display */}
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider font-heading">
+                      Gross Winner Prize (Pool − Bid)
+                    </span>
+                    <div className="text-xl font-black text-slate-900 dark:text-white mt-1 font-heading">
+                      ₹{grossWinnerPrize.toLocaleString('en-IN')}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      ₹{effectivePool.toLocaleString('en-IN')} Pool − ₹{bidDiscount.toLocaleString('en-IN')} Bid Discount
+                    </p>
+                  </div>
+
+                  {/* Editable Commission Rate (%) */}
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 font-heading">
+                        Foreman Commission Rate (%) *
+                      </label>
+                      <span className="text-[10px] text-slate-400">Default: {selectedGroup?.foreman_commission_percent || 5}%</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={form.commission_percent}
+                        onChange={(e) => setForm({ ...form, commission_percent: e.target.value })}
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-base font-bold text-amber-600 dark:text-amber-400 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      />
+                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">%</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Percentage of Winner Prize (₹{grossWinnerPrize.toLocaleString('en-IN')})
+                    </p>
+                  </div>
+
+                  {/* Admin Commission Amount (₹) with Override toggle */}
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 font-heading">
+                        Admin Commission (₹)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({
+                          ...prev,
+                          is_custom_commission_enabled: !prev.is_custom_commission_enabled,
+                          custom_foreman_commission: !prev.is_custom_commission_enabled ? String(autoForemanCommission) : '',
+                        }))}
+                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-heading"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>{form.is_custom_commission_enabled ? 'Revert to Auto' : 'Custom ₹'}</span>
+                      </button>
+                    </div>
+
+                    {form.is_custom_commission_enabled ? (
+                      <div className="space-y-1">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={form.custom_foreman_commission}
+                          onChange={(e) => setForm({ ...form, custom_foreman_commission: e.target.value })}
+                          placeholder={String(autoForemanCommission)}
+                          className="w-full px-3.5 py-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-lg text-base font-bold text-amber-700 dark:text-amber-300 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block">
+                          Custom override active (Auto was ₹{autoForemanCommission.toLocaleString('en-IN')})
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="text-lg font-black text-amber-600 dark:text-amber-400 font-heading">
+                          ₹{autoForemanCommission.toLocaleString('en-IN')}
+                        </div>
+                        <span className="text-[10px] text-slate-400 block">
+                          {activeCommissionPercent}% of Winner Prize (₹{grossWinnerPrize.toLocaleString('en-IN')})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Net Prize Money Payable (₹) with Override toggle */}
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 font-heading">
+                        Net Prize to Winner (₹)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({
+                          ...prev,
+                          is_custom_net_payable_enabled: !prev.is_custom_net_payable_enabled,
+                          custom_net_payable: !prev.is_custom_net_payable_enabled ? String(autoNetPayablePrize) : '',
+                        }))}
+                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-heading"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>{form.is_custom_net_payable_enabled ? 'Revert to Auto' : 'Custom Net Prize'}</span>
+                      </button>
+                    </div>
+
+                    {form.is_custom_net_payable_enabled ? (
+                      <div className="space-y-1">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={form.custom_net_payable}
+                          onChange={(e) => setForm({ ...form, custom_net_payable: e.target.value })}
+                          placeholder={String(autoNetPayablePrize)}
+                          className="w-full px-3.5 py-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-700 rounded-lg text-base font-bold text-blue-700 dark:text-blue-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium block">
+                          Custom net payout override active
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="text-lg font-black text-blue-600 dark:text-blue-400 font-heading">
+                          ₹{autoNetPayablePrize.toLocaleString('en-IN')}
+                        </div>
+                        <span className="text-[10px] text-slate-400 block">
+                          Gross Prize (₹{grossWinnerPrize.toLocaleString('en-IN')}) − Comm. (₹{effectiveForemanCommission.toLocaleString('en-IN')})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* If Auction Chit: Total Dividend & Dividend per Member */}
+                  {!isDoubleChitScheme && (
+                    <>
+                      <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-800 dark:text-slate-200 font-heading">
+                            Total Dividend Distributed (₹)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setForm((prev) => ({
+                              ...prev,
+                              is_custom_dividend_enabled: !prev.is_custom_dividend_enabled,
+                              custom_total_dividend: !prev.is_custom_dividend_enabled ? String(autoTotalDividend) : '',
+                              custom_dividend_per_member: !prev.is_custom_dividend_enabled ? String(autoDividendPerMember) : '',
+                            }))}
+                            className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer font-heading"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>{form.is_custom_dividend_enabled ? 'Revert to Auto' : 'Custom Dividend'}</span>
+                          </button>
+                        </div>
+
+                        {form.is_custom_dividend_enabled ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={form.custom_total_dividend}
+                            onChange={(e) => {
+                              const total = e.target.value;
+                              const perMember = total !== '' && totalMembers > 0 ? (parseFloat(total) / totalMembers).toFixed(2) : '';
+                              setForm({ ...form, custom_total_dividend: total, custom_dividend_per_member: String(perMember) });
+                            }}
+                            placeholder={String(autoTotalDividend)}
+                            className="w-full px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 rounded-lg text-base font-bold text-emerald-700 dark:text-emerald-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
+                        ) : (
+                          <div>
+                            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 font-heading">
+                              ₹{autoTotalDividend.toLocaleString('en-IN')}
+                            </div>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Full bid discount credited across subscribers
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-800 dark:text-slate-200 font-heading">
+                            Dividend / Member (₹)
+                          </label>
+                          <span className="text-[10px] text-slate-400">{totalMembers} Members</span>
+                        </div>
+
+                        {form.is_custom_dividend_enabled ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={form.custom_dividend_per_member}
+                            onChange={(e) => setForm({ ...form, custom_dividend_per_member: e.target.value })}
+                            placeholder={String(autoDividendPerMember)}
+                            className="w-full px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 rounded-lg text-base font-bold text-emerald-700 dark:text-emerald-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
+                        ) : (
+                          <div>
+                            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 font-heading">
+                              ₹{autoDividendPerMember.toLocaleString('en-IN')} <span className="text-xs font-normal text-slate-400">/ member</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Credited equally into passbook
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* If Double Chit: Chit Pool Reserve */}
+                  {isDoubleChitScheme && (
+                    <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-purple-900 dark:text-purple-200 font-heading">
+                          Chit Pool Reserve (₹)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setForm((prev) => ({
+                            ...prev,
+                            is_custom_reserve_enabled: !prev.is_custom_reserve_enabled,
+                            custom_double_chit_reserve: !prev.is_custom_reserve_enabled ? String(autoDoubleChitReserve) : '',
+                          }))}
+                          className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer font-heading"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>{form.is_custom_reserve_enabled ? 'Revert to Auto' : 'Custom Reserve'}</span>
+                        </button>
+                      </div>
+
+                      {form.is_custom_reserve_enabled ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={form.custom_double_chit_reserve}
+                          onChange={(e) => setForm({ ...form, custom_double_chit_reserve: e.target.value })}
+                          placeholder={String(autoDoubleChitReserve)}
+                          className="w-full px-3.5 py-2 bg-purple-50 dark:bg-purple-950/40 border border-purple-300 dark:border-purple-700 rounded-lg text-base font-bold text-purple-700 dark:text-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                        />
+                      ) : (
+                        <div>
+                          <div className="text-lg font-black text-purple-600 dark:text-purple-400 font-heading">
+                            ₹{autoDoubleChitReserve.toLocaleString('en-IN')}
+                          </div>
+                          <span className="text-[10px] text-purple-500 block mt-0.5">
+                            Saved in chit pool reserve (Available to auction in Draw #2)
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Next Installment Due (₹) */}
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 font-heading">
+                        {selectedGroup?.frequency === 'DAILY' ? 'Next Day Due (₹)' : 'Next Month Due (₹)'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({
+                          ...prev,
+                          is_custom_due_enabled: !prev.is_custom_due_enabled,
+                          custom_next_installment: !prev.is_custom_due_enabled ? String(autoNextInstallment) : '',
+                        }))}
+                        className="text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:underline flex items-center gap-1 cursor-pointer font-heading"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>{form.is_custom_due_enabled ? 'Revert to Auto' : 'Custom Due'}</span>
+                      </button>
+                    </div>
+
+                    {form.is_custom_due_enabled ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={form.custom_next_installment}
+                        onChange={(e) => setForm({ ...form, custom_next_installment: e.target.value })}
+                        placeholder={String(autoNextInstallment)}
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-base font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    ) : (
+                      <div>
+                        <div className="text-lg font-black text-slate-900 dark:text-white font-heading">
+                          ₹{autoNextInstallment.toLocaleString('en-IN')}
+                        </div>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                          Full standard chit installment due
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* ChitBase Real-Time Financial Calculations Preview */}
               <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50/60 to-slate-50 dark:from-slate-800/90 dark:to-slate-900 border border-blue-200/80 dark:border-slate-700 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <span className="font-extrabold text-blue-900 dark:text-blue-300 uppercase tracking-wider text-xs flex items-center gap-2 font-heading">
                     <Sparkles className="w-4 h-4 text-blue-600" />
-                    {isDoubleChitScheme ? 'Double Chit Financial Distribution Preview' : 'Auction Chit Financial Breakdown'}
+                    {isDoubleChitScheme ? 'Double Chit Final Distribution Summary' : 'Auction Chit Final Financial Summary'}
                   </span>
                   <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 font-heading">
-                    Admin Commission: {commissionPercent}% of Pool Value (Deducted from Winner Prize)
+                    Admin Commission: {activeCommissionPercent}% on Winner Prize (₹{grossWinnerPrize.toLocaleString('en-IN')})
                   </span>
                 </div>
 
@@ -1479,17 +1916,17 @@ export default function AuctionsPage() {
                   <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
                     <span className="text-slate-500 block text-[11px] sm:text-xs font-medium">Net Prize (To Winner)</span>
                     <span className="text-base sm:text-2xl font-black text-blue-600 dark:text-blue-400 font-heading">
-                      ₹{netPayablePrize.toLocaleString('en-IN')}
+                      ₹{effectiveNetPayablePrize.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">Pool − Bid − Comm.</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">Gross Prize − Comm.</span>
                   </div>
 
                   <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                    <span className="text-slate-500 block text-[11px] sm:text-xs font-medium">Admin Commission (5%)</span>
+                    <span className="text-slate-500 block text-[11px] sm:text-xs font-medium">Admin Commission</span>
                     <span className="text-base sm:text-xl font-black text-amber-600 dark:text-amber-400 font-heading">
-                      ₹{foremanCommission.toLocaleString('en-IN')}
+                      ₹{effectiveForemanCommission.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">{commissionPercent}% of Pool (From Prize)</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">{activeCommissionPercent}% on Prize</span>
                   </div>
 
                   {isDoubleChitScheme ? (
@@ -1498,17 +1935,17 @@ export default function AuctionsPage() {
                         Chit Pool Reserve
                       </span>
                       <span className="text-base sm:text-2xl font-black text-purple-600 dark:text-purple-400 font-heading">
-                        ₹{modalDoubleChitReserve.toLocaleString('en-IN')}
+                        ₹{effectiveDoubleChitReserve.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-purple-500 block mt-0.5">Saved in chit (Auction in Draw #2)</span>
+                      <span className="text-[9px] sm:text-[10px] text-purple-500 block mt-0.5">Saved in chit (Draw #2)</span>
                     </div>
                   ) : (
                     <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-emerald-200/80 dark:border-emerald-800/60">
                       <span className="text-slate-500 block text-[11px] sm:text-xs font-medium">Dividend / Member</span>
                       <span className="text-base sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-heading">
-                        ₹{modalDividendPerMember.toLocaleString('en-IN')}
+                        ₹{effectiveDividendPerMember.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5">₹{modalTotalDividend.toLocaleString('en-IN')} ÷ {totalMembers} mem</span>
+                      <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5">₹{effectiveTotalDividend.toLocaleString('en-IN')} ÷ {totalMembers} mem</span>
                     </div>
                   )}
 
@@ -1517,10 +1954,10 @@ export default function AuctionsPage() {
                       {selectedGroup?.frequency === 'DAILY' ? 'Next Day Due' : 'Next Month Due'}
                     </span>
                     <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
-                      ₹{modalNextInstallment.toLocaleString('en-IN')}
+                      ₹{effectiveNextInstallment.toLocaleString('en-IN')}
                     </span>
                     <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">
-                      Full standard installment due
+                      Full installment due
                     </span>
                   </div>
                 </div>
@@ -1709,7 +2146,7 @@ export default function AuctionsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Foreman Commission:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-medium">₹{Number(voucherModal?.foreman_commission || 0).toLocaleString('en-IN')} <span className="text-xs text-slate-400 font-normal">(Deducted from Prize)</span></span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">₹{Number(voucherModal?.foreman_commission || 0).toLocaleString('en-IN')} <span className="text-xs text-slate-400 font-normal">(Deducted from Winner Prize)</span></span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Net Dividend / Member:</span>
@@ -1768,7 +2205,7 @@ export default function AuctionsPage() {
         cancelLabel="Review Bids"
         variant="primary"
         icon={Gavel}
-        subtext={`${!isPoolFullyCollected ? `⚠️ Notice: Collection incomplete (₹${groupTotalCollected.toLocaleString('en-IN')} of ₹${effectivePool.toLocaleString('en-IN')} collected, ₹${collectionShortfall.toLocaleString('en-IN')} pending) · Proceeding via Admin Override | ` : ''}Net Prize: ₹${Number(netPayablePrize).toLocaleString('en-IN')} | Foreman Commission: ₹${Number(foremanCommission).toLocaleString('en-IN')} | Dividend/Member: ₹${Number(modalDividendPerMember).toLocaleString('en-IN')}${modalDoubleChitReserve > 0 ? ` | Chit Pool Reserve: ₹${Number(modalDoubleChitReserve).toLocaleString('en-IN')}` : ''}`}
+        subtext={`${!isPoolFullyCollected ? `⚠️ Notice: Collection incomplete (₹${groupTotalCollected.toLocaleString('en-IN')} of ₹${effectivePool.toLocaleString('en-IN')} collected, ₹${collectionShortfall.toLocaleString('en-IN')} pending) · Proceeding via Admin Override | ` : ''}Net Prize: ₹${Number(effectiveNetPayablePrize).toLocaleString('en-IN')} | Foreman Commission: ₹${Number(effectiveForemanCommission).toLocaleString('en-IN')} (from Winner Prize) | Dividend/Member: ₹${Number(effectiveDividendPerMember).toLocaleString('en-IN')}${effectiveDoubleChitReserve > 0 ? ` | Chit Pool Reserve: ₹${Number(effectiveDoubleChitReserve).toLocaleString('en-IN')}` : ''}`}
       />
 
       {/* Confirmation Dialog for Prize Disbursement */}

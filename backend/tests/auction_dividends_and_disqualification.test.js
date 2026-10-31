@@ -80,11 +80,12 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     await pool.end();
   });
 
-  await t.test('1. Conducts Reverse Auction: 5% Commission on auction amount, distributes surplus to passbook', async () => {
+  await t.test('1. Conducts Reverse Auction: 5% Commission on Winner Prize Amount, distributes surplus to passbook', async () => {
     // Bid discount = ₹25,000
     // Pool = ₹1,00,000
-    // Winner Net Prize = Pool - Bid Discount - Admin Commission = 100,000 - 25,000 - 5,000 = ₹70,000
-    // Foreman Commission (5% of 100,000) = ₹5,000
+    // Gross Winner Prize = Pool - Bid Discount = 100,000 - 25,000 = ₹75,000
+    // Foreman Commission (5% of Winner Prize 75,000) = ₹3,750.00
+    // Winner Net Prize = Gross Winner Prize - Admin Commission = 75,000 - 3,750 = ₹71,250.00
     // Total Dividend = ₹25,000 (from full bid discount)
     // Dividend per member (20 members) = 25,000 / 20 = ₹1,250.00
     // Next Installment Due = Full Installment Amount = ₹5,000.00 (Dividend credited to member, NOT subtracted)
@@ -124,8 +125,8 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
 
     assert.equal(capturedStatus, 201);
     assert.equal(capturedJson.success, true);
-    assert.equal(capturedJson.data.netPayableAmount, 70000); // 100,000 - 25,000 - 5,000
-    assert.equal(capturedJson.data.foremanCommission, 5000); // 5% of Pool Amount (100,000)
+    assert.equal(capturedJson.data.netPayableAmount, 71250); // 75,000 - 3,750
+    assert.equal(capturedJson.data.foremanCommission, 3750); // 5% of Winner Prize Amount (75,000)
     assert.equal(capturedJson.data.totalDividend, 25000); // Comes directly from full bid discount
     assert.equal(capturedJson.data.dividendPerMember, 1250.00); // 25,000 / 20
     assert.equal(capturedJson.data.nextInstallmentPayable, 5000.00); // Always full installment amount, never reduced by dividend
@@ -214,7 +215,7 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
         auction_type: 'DOUBLE_CHIT_DRAW',
         winning_member_id: testMember2Id,
         winning_ticket_number: 1,
-        bid_discount: 40000, // Surplus: 40,000 - 10,000 (5% of 2L) = 30,000
+        bid_discount: 40000,
         auction_date: new Date().toISOString().slice(0, 10),
       },
       user: { id: adminUserId },
@@ -237,8 +238,11 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
 
     assert.equal(capturedStatus, 201);
     assert.equal(capturedJson.success, true);
-    assert.equal(capturedJson.data.netPayableAmount, 150000); // 200,000 - 40,000 - 10,000 (commission from prize)
-    assert.equal(capturedJson.data.foremanCommission, 10000); // 5% of 200,000 pool
+    // Gross Winner Prize = 200,000 - 40,000 = 160,000
+    // Foreman Commission (5% of Winner Prize 160,000) = 8,000
+    // Winner Net Prize = 160,000 - 8,000 = 152,000
+    assert.equal(capturedJson.data.netPayableAmount, 152000);
+    assert.equal(capturedJson.data.foremanCommission, 8000);
     assert.equal(capturedJson.data.doubleChitReserve, 40000); // FULL BID DISCOUNT SAVED IN CHIT POOL RESERVE
     assert.equal(capturedJson.data.totalDividend, 0); // 0 DIVIDEND DISTRIBUTION
     assert.equal(capturedJson.data.dividendPerMember, 0);
@@ -346,10 +350,11 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     assert.equal(capturedStatus, 201);
     assert.equal(capturedJson.success, true);
     // Effective Pool = 20,000
-    // Admin Commission = 5% of 20,000 = 1,000 (deducted from Winner Prize)
-    // Winner Net Prize = 20,000 - 4,000 - 1,000 = 15,000
-    assert.equal(capturedJson.data.netPayableAmount, 15000);
-    assert.equal(capturedJson.data.foremanCommission, 1000);
+    // Gross Winner Prize = 20,000 - 4,000 = 16,000
+    // Admin Commission = 5% of Winner Prize 16,000 = 800 (deducted from Winner Prize)
+    // Winner Net Prize = 16,000 - 800 = 15,200
+    assert.equal(capturedJson.data.netPayableAmount, 15200);
+    assert.equal(capturedJson.data.foremanCommission, 800);
     assert.equal(capturedJson.data.doubleChitReserve, 4000);
     assert.equal(capturedJson.data.totalDividend, 0);
 
@@ -358,5 +363,56 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     await pool.execute('DELETE FROM auctions WHERE group_id = ?', [d2GroupId]);
     await pool.execute('DELETE FROM group_memberships WHERE group_id = ?', [d2GroupId]);
     await pool.execute('DELETE FROM chit_groups WHERE id = ?', [d2GroupId]);
+  });
+
+  await t.test('6. Admin Custom Overrides: allows modifying commission, net payable, dividends and dues directly', async () => {
+    // Test custom financial overrides provided by Admin
+    let capturedStatus;
+    let capturedJson;
+
+    const mockReq = {
+      body: {
+        group_id: testGroupId,
+        period_number: 2, // Period 2
+        draw_number: 1,
+        auction_type: 'AUCTION',
+        winning_member_id: testMember2Id, // Member 2 is eligible
+        winning_ticket_number: 2,
+        bid_discount: 20000,
+        auction_date: new Date().toISOString().slice(0, 10),
+        custom_commission_percent: 4.0, // Admin custom 4% commission rate
+        custom_foreman_commission: 3000, // Admin custom flat commission override
+        custom_net_payable: 77000, // Admin custom net prize money
+        custom_total_dividend: 20000,
+        custom_dividend_per_member: 1000,
+        custom_next_installment: 5000,
+        notes: 'Admin customized commission and net payable override',
+      },
+      user: { id: adminUserId },
+    };
+
+    const mockRes = {
+      status(s) {
+        capturedStatus = s;
+        return this;
+      },
+      json(d) {
+        capturedJson = d;
+        return this;
+      },
+    };
+
+    await conductAuction(mockReq, mockRes, (err) => {
+      if (err) throw err;
+    });
+
+    assert.equal(capturedStatus, 201);
+    assert.equal(capturedJson.success, true);
+    assert.equal(capturedJson.data.commissionPercent, 4.0);
+    assert.equal(capturedJson.data.foremanCommission, 3000); // Admin custom commission applied
+    assert.equal(capturedJson.data.netPayableAmount, 77000); // Admin custom net payable applied
+    assert.equal(capturedJson.data.totalDividend, 20000);
+    assert.equal(capturedJson.data.dividendPerMember, 1000);
+    assert.equal(capturedJson.data.nextInstallmentPayable, 5000);
   });
 });
