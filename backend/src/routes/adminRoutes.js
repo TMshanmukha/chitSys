@@ -18,6 +18,7 @@ import { listAgents, createAgent, updateAgent, toggleAgentStatus, assignAgentToG
 import { listCollections, recordCollection, getCollectionSummary } from '../controllers/collectionController.js';
 import { listAuctions, conductAuction, updateAuctionPayout, getAuctionSummary, getSchemeAuctionBreakdown } from '../controllers/auctionController.js';
 import { getRouteTrackingOverview, logAgentStopActivity, populateRouteStopsFromMembers } from '../controllers/trackingController.js';
+import { listDaySubmissionsForAdmin, approveAndCloseDaySubmission } from '../controllers/daySubmissionController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 
@@ -90,5 +91,9 @@ router.get('/tracking/agents-daily', getAgentsDailyPerformance);
 router.get('/agents/daily-performance', getAgentsDailyPerformance);
 router.post('/tracking/populate', populateRouteStopsFromMembers);
 router.post('/tracking/log-activity', logAgentStopActivity);
+
+// Agent Day Submissions, Cash Counting & Day Closing Approvals
+router.get('/day-submissions', listDaySubmissionsForAdmin);
+router.post('/day-submissions/:id/approve', approveAndCloseDaySubmission);
 
 export default router;

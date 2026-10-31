@@ -45,8 +45,11 @@ import {
   Filter,
   CreditCard,
   QrCode,
+  PackageCheck,
+  Send,
+  Banknote,
 } from 'lucide-react';
-import { formatDate, formatTime } from '../utils/dateUtils';
+import { formatDate, formatTime, formatDateTime } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
@@ -66,6 +69,17 @@ export default function AgentDashboard() {
   const [routesData, setRoutesData] = useState({ groups: [], members: [], summary: {} });
   const [recentCollections, setRecentCollections] = useState([]);
   const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'routes' | 'profile' | 'history'
+
+  // Day Submit & Shift Closing Handover State
+  const [showDaySubmitModal, setShowDaySubmitModal] = useState(false);
+  const [daySubmitDate, setDaySubmitDate] = useState(new Date().toISOString().slice(0, 10));
+  const [daySubmitNotes, setDaySubmitNotes] = useState('');
+  const [submittingDayWork, setSubmittingDayWork] = useState(false);
+  const [daySubmitSuccess, setDaySubmitSuccess] = useState('');
+  const [daySubmitError, setDaySubmitError] = useState('');
+  const [currentDaySubmission, setCurrentDaySubmission] = useState(null);
+  const [loadingDaySubmission, setLoadingDaySubmission] = useState(false);
+  const [expandedChitSubmitId, setExpandedChitSubmitId] = useState(null);
 
   // Task Planner State (Ensures agent never forgets a collection stop)
   const [taskFilter, setTaskFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'COMPLETED' | 'REMARKS'
@@ -351,11 +365,54 @@ export default function AgentDashboard() {
       if (collRes.data?.success) {
         setRecentCollections(Array.isArray(collRes.data.data) ? collRes.data.data : []);
       }
+      fetchDaySubmissionStatus(daySubmitDate);
     } catch (err) {
       console.error('Failed to load agent route data:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchDaySubmissionStatus = async (date) => {
+    try {
+      setLoadingDaySubmission(true);
+      const targetDate = date || daySubmitDate;
+      const res = await api.get(`/agent/day-submissions?date=${targetDate}`);
+      if (res.data?.success && Array.isArray(res.data?.data) && res.data.data.length > 0) {
+        setCurrentDaySubmission(res.data.data[0]);
+        if (res.data.data[0]?.agent_notes) {
+          setDaySubmitNotes(res.data.data[0].agent_notes);
+        }
+      } else {
+        setCurrentDaySubmission(null);
+      }
+    } catch (_) {
+      setCurrentDaySubmission(null);
+    } finally {
+      setLoadingDaySubmission(false);
+    }
+  };
+
+  const handleSubmitDayWork = async (e) => {
+    e.preventDefault();
+    setSubmittingDayWork(true);
+    setDaySubmitError('');
+    setDaySubmitSuccess('');
+    try {
+      const res = await api.post('/agent/day-submit', {
+        work_date: daySubmitDate,
+        agent_notes: daySubmitNotes,
+      });
+      if (res.data?.success) {
+        setDaySubmitSuccess(res.data.message || 'Day work submitted successfully for Admin counting and closing.');
+        await fetchDaySubmissionStatus(daySubmitDate);
+        loadAgentData();
+      }
+    } catch (err) {
+      setDaySubmitError(getFriendlyErrorMessage(err, 'Failed to submit day work. Please try again.'));
+    } finally {
+      setSubmittingDayWork(false);
     }
   };
 
@@ -669,6 +726,31 @@ export default function AgentDashboard() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                setShowDaySubmitModal(true);
+                fetchDaySubmissionStatus(daySubmitDate);
+                scrollToFormOrModal('agent-day-submit-modal');
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                currentDaySubmission?.status === 'APPROVED'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                  : currentDaySubmission?.status === 'PENDING_APPROVAL'
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs'
+              }`}
+            >
+              <PackageCheck className="w-4 h-4" />
+              <span>
+                {currentDaySubmission?.status === 'APPROVED'
+                  ? '✓ Day Approved & Closed'
+                  : currentDaySubmission?.status === 'PENDING_APPROVAL'
+                  ? '📦 Day Submitted (Awaiting Count)'
+                  : '📦 Day Submit & Cash Handover'}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -2333,6 +2415,53 @@ export default function AgentDashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Day Submit & Cash Handover Action Card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <PackageCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                      Field Day Submission & Cash Handover to Admin
+                    </h4>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      currentDaySubmission?.status === 'APPROVED'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300'
+                        : currentDaySubmission?.status === 'PENDING_APPROVAL'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300'
+                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                    }`}>
+                      {currentDaySubmission?.status === 'APPROVED'
+                        ? '✓ Day Approved & Closed'
+                        : currentDaySubmission?.status === 'PENDING_APPROVAL'
+                        ? 'Awaiting Admin Count'
+                        : 'Shift Active'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Submit your total collections (Cash: <strong>₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}</strong>, UPI: <strong>₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}</strong>) and chit-by-chit breakdown so Admin can physically count the cash and approve day closing.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDaySubmitModal(true);
+                    fetchDaySubmissionStatus(daySubmitDate);
+                    scrollToFormOrModal('agent-day-submit-modal');
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shrink-0 flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                >
+                  <PackageCheck className="w-4 h-4" />
+                  <span>
+                    {currentDaySubmission?.status === 'APPROVED'
+                      ? 'View Approved Handover'
+                      : currentDaySubmission?.status === 'PENDING_APPROVAL'
+                      ? 'View Submitted Handover'
+                      : 'Submit Day Work to Admin'}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -3021,6 +3150,520 @@ export default function AgentDashboard() {
           </ModalPortal>
         );
       })()}
+
+      {/* Field Day Submission & Cash Handover Modal */}
+      {showDaySubmitModal && (
+        <ModalPortal id="agent-day-submit-modal">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-4xl w-full p-6 sm:p-8 max-h-[92vh] overflow-y-auto space-y-6">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                  <PackageCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Field Day Submission & Cash Handover</span>
+                    {currentDaySubmission?.status === 'APPROVED' ? (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                        ✓ APPROVED & CLOSED
+                      </span>
+                    ) : currentDaySubmission?.status === 'PENDING_APPROVAL' ? (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                        ⏳ AWAITING ADMIN COUNT
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+                        OPEN / READY TO SUBMIT
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Submit today's collected cash & UPI breakdown to Admin for physical cash counting and formal day closing.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDaySubmitModal(false)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Date Selector Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-500" />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Collection Work Date:
+                </span>
+                <input
+                  type="date"
+                  value={daySubmitDate}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setDaySubmitDate(newDate);
+                    fetchDaySubmissionStatus(newDate);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-hidden"
+                />
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                Agent: <span className="font-semibold text-slate-800 dark:text-slate-200">{user?.full_name || user?.name || 'Agent'}</span> (ID: #{user?.id})
+              </div>
+            </div>
+
+            {/* Status Alert Banner */}
+            {currentDaySubmission?.status === 'APPROVED' ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-emerald-900 dark:text-emerald-200">
+                    Day Closed & Formally Approved by Admin
+                  </p>
+                  <p className="text-emerald-800 dark:text-emerald-300">
+                    Approved by <span className="font-bold">{currentDaySubmission.approved_by_name || 'Admin'}</span> on{' '}
+                    <span className="font-bold">{formatDateTime(currentDaySubmission.approved_at || currentDaySubmission.approval_date)}</span>.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 mt-1.5 pt-1.5 border-t border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 font-semibold">
+                    <span>Verified Cash Counted: ₹{Number(currentDaySubmission.verified_cash_amount || 0).toLocaleString('en-IN')}</span>
+                    <span>•</span>
+                    <span>Verified UPI: ₹{Number(currentDaySubmission.verified_upi_amount || 0).toLocaleString('en-IN')}</span>
+                    {currentDaySubmission.admin_notes && (
+                      <span className="w-full text-slate-600 dark:text-slate-300 font-normal italic">
+                        Admin Note: "{currentDaySubmission.admin_notes}"
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : currentDaySubmission?.status === 'PENDING_APPROVAL' ? (
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
+                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-amber-900 dark:text-amber-200">
+                    Submitted to Admin — Awaiting Physical Cash Count & Approval
+                  </p>
+                  <p className="text-amber-800 dark:text-amber-300">
+                    Your collection report was submitted on <span className="font-semibold">{formatDateTime(currentDaySubmission.submitted_at)}</span>.
+                    Please hand over ₹{Number(currentDaySubmission.cash_collected || 0).toLocaleString('en-IN')} in physical cash to Admin.
+                  </p>
+                  <p className="text-amber-700 dark:text-amber-400">
+                    Admin can count and approve your day closing at any time or any subsequent day. You may re-submit notes if cash denominations change.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-start gap-3">
+                <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-indigo-900 dark:text-indigo-200">
+                    Daily Shift Closing & Handover Preview
+                  </p>
+                  <p className="text-indigo-800 dark:text-indigo-300">
+                    Review your collected amounts, chit-by-chit distribution, and subscriber pending dues. When you are done with your rounds, click "Submit Day Work to Admin" to transfer cash responsibility.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* KPI Summary Cards */}
+            {(() => {
+              const liveCash = (routesData.members || [])
+                .filter((m) => (m.is_paid || m.today_status === 'PAID') && m.payment_method === 'CASH')
+                .reduce((s, m) => s + Number(m.collected_amount || 0), 0);
+              const liveUpi = (routesData.members || [])
+                .filter((m) => (m.is_paid || m.today_status === 'PAID') && m.payment_method !== 'CASH')
+                .reduce((s, m) => s + Number(m.collected_amount || 0), 0);
+              const liveTotal = liveCash + liveUpi;
+              const liveReceipts = (routesData.members || []).filter((m) => m.is_paid || m.today_status === 'PAID').length;
+
+              const totalCol = currentDaySubmission ? Number(currentDaySubmission.total_collected || 0) : liveTotal;
+              const cashCol = currentDaySubmission ? Number(currentDaySubmission.cash_collected || 0) : liveCash;
+              const upiCol = currentDaySubmission ? Number(currentDaySubmission.upi_collected || 0) : liveUpi;
+              const recCount = currentDaySubmission ? Number(currentDaySubmission.total_receipts || 0) : liveReceipts;
+              const visitedStops = currentDaySubmission ? Number(currentDaySubmission.total_stops_visited || 0) : completedTasksCount;
+              const pendingStops = currentDaySubmission ? Number(currentDaySubmission.total_stops_pending || 0) : pendingTasksCount;
+
+              const cashPct = totalCol > 0 ? Math.round((cashCol / totalCol) * 100) : 0;
+              const upiPct = totalCol > 0 ? 100 - cashPct : 0;
+
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Total Collected</div>
+                      <div className="text-xl font-black text-indigo-700 dark:text-indigo-300 mt-1">
+                        ₹{totalCol.toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {recCount} receipts issued
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <Banknote className="w-3 h-3" />
+                        <span>Cash Handover</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-1">
+                        ₹{cashCol.toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                        Physical Cash to Admin
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                        <QrCode className="w-3 h-3" />
+                        <span>UPI / Online</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-700 dark:text-purple-300 mt-1">
+                        ₹{upiCol.toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[11px] text-purple-600 dark:text-purple-400 font-medium mt-0.5">
+                        Bank Verified UPI
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Route Progress</div>
+                      <div className="text-xl font-black text-amber-700 dark:text-amber-300 mt-1">
+                        {visitedStops} / {visitedStops + pendingStops}
+                      </div>
+                      <div className="text-[11px] text-amber-700 dark:text-amber-400 font-medium mt-0.5">
+                        {pendingStops} stops remaining
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cash vs UPI Analysis Graph Bar */}
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                        Payment Split & Route Analysis
+                      </span>
+                      <span>Total: ₹{totalCol.toLocaleString('en-IN')}</span>
+                    </div>
+
+                    <div className="w-full h-3 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex">
+                      <div
+                        className="bg-emerald-500 h-full transition-all duration-500"
+                        style={{ width: `${cashPct}%` }}
+                        title={`Cash: ₹${cashCol.toLocaleString('en-IN')} (${cashPct}%)`}
+                      />
+                      <div
+                        className="bg-purple-500 h-full transition-all duration-500"
+                        style={{ width: `${upiPct}%` }}
+                        title={`UPI: ₹${upiCol.toLocaleString('en-IN')} (${upiPct}%)`}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                        Cash: ₹{cashCol.toLocaleString('en-IN')} ({cashPct}%)
+                      </span>
+                      <span className="flex items-center gap-1.5 text-purple-700 dark:text-purple-400 font-semibold">
+                        <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block" />
+                        UPI: ₹{upiCol.toLocaleString('en-IN')} ({upiPct}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Chit-by-Chit Breakdown Accordion */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-indigo-500" />
+                  <span>Chit-by-Chit Collected & Pending Dues Roster</span>
+                </h4>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Click any chit scheme to view paid vs unpaid members
+                </span>
+              </div>
+
+              {(() => {
+                let breakdownItems = [];
+                if (currentDaySubmission?.chit_breakdown_json) {
+                  try {
+                    breakdownItems = typeof currentDaySubmission.chit_breakdown_json === 'string'
+                      ? JSON.parse(currentDaySubmission.chit_breakdown_json)
+                      : currentDaySubmission.chit_breakdown_json;
+                  } catch (_) {
+                    breakdownItems = [];
+                  }
+                } else {
+                  // Generate preview live from routesData
+                  breakdownItems = (routesData.groups || []).map((g) => {
+                    const gMembers = (routesData.members || []).filter((m) => m.group_id === g.id);
+                    const pMembers = gMembers.filter((m) => m.is_paid || m.today_status === 'PAID');
+                    const uMembers = gMembers.filter((m) => !m.is_paid && m.today_status !== 'PAID');
+                    const cash = pMembers.filter((m) => m.payment_method === 'CASH').reduce((s, m) => s + Number(m.collected_amount || 0), 0);
+                    const upi = pMembers.filter((m) => m.payment_method !== 'CASH').reduce((s, m) => s + Number(m.collected_amount || 0), 0);
+                    return {
+                      group_id: g.id,
+                      group_name: g.group_name,
+                      group_code: g.group_code,
+                      frequency: g.frequency,
+                      chit_type: g.chit_type,
+                      installment_amount: Number(g.installment_amount || 0),
+                      total_members: gMembers.length,
+                      paid_members_count: pMembers.length,
+                      unpaid_members_count: uMembers.length,
+                      cash_collected: cash,
+                      upi_collected: upi,
+                      total_collected: cash + upi,
+                      receipts_count: pMembers.length,
+                      paid_roster: pMembers.map((m) => ({
+                        member_id: m.member_id,
+                        member_code: m.member_code,
+                        full_name: m.full_name,
+                        ticket_number: m.ticket_number,
+                        phone: m.phone,
+                        amount_paid: Number(m.collected_amount || g.installment_amount || 0),
+                        payment_method: m.payment_method || 'CASH',
+                        receipt_number: m.receipt_number || null,
+                        collection_time: m.collection_time || null,
+                      })),
+                      unpaid_roster: uMembers.map((m) => ({
+                        member_id: m.member_id,
+                        member_code: m.member_code,
+                        full_name: m.full_name,
+                        ticket_number: m.ticket_number,
+                        phone: m.phone,
+                        pending_amount: Number(m.pending_amount || g.installment_amount || 0),
+                        notes: m.today_notes || null,
+                      })),
+                    };
+                  });
+                }
+
+                if (!breakdownItems || breakdownItems.length === 0) {
+                  return (
+                    <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-500">
+                      No active chits assigned for this date.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2.5">
+                    {breakdownItems.map((chit) => {
+                      const isExpanded = expandedChitSubmitId === chit.group_id;
+                      const hasCollections = Number(chit.total_collected || 0) > 0;
+                      return (
+                        <div
+                          key={chit.group_id}
+                          className="rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 overflow-hidden"
+                        >
+                          <div
+                            onClick={() => setExpandedChitSubmitId(isExpanded ? null : chit.group_id)}
+                            className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${
+                                  chit.frequency === 'DAILY'
+                                    ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700'
+                                    : 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-700'
+                                }`}
+                              >
+                                {chit.frequency}
+                              </span>
+                              <div>
+                                <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                  <span>{chit.group_name}</span>
+                                  <span className="text-xs text-slate-400 font-mono">({chit.group_code})</span>
+                                </div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                  Installment: ₹{Number(chit.installment_amount || 0).toLocaleString('en-IN')} • Paid: {chit.paid_members_count} / {chit.total_members} subscribers
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <div className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                                  ₹{Number(chit.total_collected || 0).toLocaleString('en-IN')}
+                                </div>
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                  Cash: ₹{Number(chit.cash_collected || 0).toLocaleString('en-IN')} | UPI: ₹{Number(chit.upi_collected || 0).toLocaleString('en-IN')}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500"
+                              >
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Expanded Chit Roster: Paid & Unpaid Members */}
+                          {isExpanded && (
+                            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-4">
+                              {/* Paid Members Section */}
+                              <div>
+                                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Paid Subscribers ({chit.paid_roster?.length || 0})</span>
+                                </div>
+                                {(!chit.paid_roster || chit.paid_roster.length === 0) ? (
+                                  <div className="text-xs text-slate-400 italic py-1">No payments collected for this chit today yet.</div>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {chit.paid_roster.map((p, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between text-xs"
+                                      >
+                                        <div>
+                                          <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                            <span>{p.full_name}</span>
+                                            <span className="text-[10px] text-slate-400 font-mono">T#{p.ticket_number}</span>
+                                          </div>
+                                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                                            <span className="font-medium text-emerald-600 dark:text-emerald-400">{p.payment_method}</span>
+                                            {p.receipt_number && <span>• Rcpt #{p.receipt_number}</span>}
+                                          </div>
+                                        </div>
+                                        <div className="text-right font-black text-emerald-600 dark:text-emerald-400">
+                                          ₹{Number(p.amount_paid || 0).toLocaleString('en-IN')}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Unpaid Members Section with Pending Dues */}
+                              <div>
+                                <div className="text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  <AlertCircle className="w-3.5 h-3.5" />
+                                  <span>Unpaid Subscribers & Pending Dues ({chit.unpaid_roster?.length || 0})</span>
+                                </div>
+                                {(!chit.unpaid_roster || chit.unpaid_roster.length === 0) ? (
+                                  <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium py-1">
+                                    ✓ All subscribers in this chit scheme have paid!
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {chit.unpaid_roster.map((u, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/40 flex items-center justify-between text-xs"
+                                      >
+                                        <div>
+                                          <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                            <span>{u.full_name}</span>
+                                            <span className="text-[10px] text-slate-400 font-mono">T#{u.ticket_number}</span>
+                                          </div>
+                                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                                            {u.phone && <span>Ph: {u.phone}</span>}
+                                            {u.notes && <span className="italic text-amber-600 dark:text-amber-400">"{u.notes}"</span>}
+                                          </div>
+                                        </div>
+                                        <div className="text-right">
+                                          <div className="text-xs font-black text-rose-600 dark:text-rose-400">
+                                            ₹{Number(u.pending_amount || 0).toLocaleString('en-IN')}
+                                          </div>
+                                          <div className="text-[10px] text-rose-500 font-semibold uppercase">Pending Due</div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Handover Notes & Cash Denominations */}
+            <form onSubmit={handleSubmitDayWork} className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Cash Denominations & Handover Remarks (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  disabled={currentDaySubmission?.status === 'APPROVED'}
+                  value={daySubmitNotes}
+                  onChange={(e) => setDaySubmitNotes(e.target.value)}
+                  placeholder="e.g., Cash Count: ₹500x12, ₹200x5 = ₹7,000 in physical cash envelope. 2 members promised to clear dues tomorrow."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs focus:ring-2 focus:ring-indigo-500 outline-hidden disabled:opacity-60"
+                />
+              </div>
+
+              {daySubmitError && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{daySubmitError}</span>
+                </div>
+              )}
+
+              {daySubmitSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{daySubmitSuccess}</span>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDaySubmitModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
+                {currentDaySubmission?.status === 'APPROVED' ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold flex items-center gap-2 opacity-80 cursor-not-allowed"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>✓ Day Work Approved & Closed by Admin</span>
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={submittingDayWork}
+                    className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+                  >
+                    {submittingDayWork ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Submitting Day Work...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        <span>{currentDaySubmission ? 'Re-Submit / Update Handover' : 'Submit Day Work to Admin'}</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
 
       {/* Confirmation Dialog for Agent Logout */}
       <ConfirmModal

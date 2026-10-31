@@ -40,6 +40,9 @@ import {
   Eye,
   ArrowUpRight,
   Check,
+  PackageCheck,
+  Send,
+  QrCode,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
@@ -70,8 +73,104 @@ export default function RouteTrackingPage() {
   // Member Information Form Modal (Triggered by pressing any node)
   const [showMemberModal, setShowMemberModal] = useState(false);
 
-  // Top-level Navigation: 'PERFORMANCE_LEDGER' | 'ROUTE_MAP'
+  // Top-level Navigation: 'PERFORMANCE_LEDGER' | 'DAY_CLOSINGS' | 'ROUTE_MAP'
   const [activeMainTab, setActiveMainTab] = useState('PERFORMANCE_LEDGER');
+
+  // Agent Day Closings & Handover Approvals States
+  const [daySubmissionsList, setDaySubmissionsList] = useState([]);
+  const [daySubmissionsSummary, setDaySubmissionsSummary] = useState({
+    total_pending: 0,
+    total_approved: 0,
+    total_cash: 0,
+    total_upi: 0,
+    total_collected: 0,
+    pending_cash: 0,
+    pending_upi: 0,
+  });
+  const [loadingDaySubmissions, setLoadingDaySubmissions] = useState(false);
+  const [daySubmissionsStatusFilter, setDaySubmissionsStatusFilter] = useState('ALL'); // 'ALL' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED_DISCREPANCY'
+  const [daySubmissionsAgentFilter, setDaySubmissionsAgentFilter] = useState('ALL');
+  const [daySubmissionsDateFilter, setDaySubmissionsDateFilter] = useState('');
+  const [approvalModalSubmission, setApprovalModalSubmission] = useState(null);
+  const [approvalForm, setApprovalForm] = useState({
+    verified_cash_amount: '',
+    verified_upi_amount: '',
+    admin_notes: '',
+    status: 'APPROVED',
+  });
+  const [approvingSubmission, setApprovingSubmission] = useState(false);
+  const [approvalSuccess, setApprovalSuccess] = useState('');
+  const [approvalError, setApprovalError] = useState('');
+  const [expandedAdminSubmissionId, setExpandedAdminSubmissionId] = useState(null);
+  const [expandedAdminChitId, setExpandedAdminChitId] = useState(null);
+
+  const loadDaySubmissionsForAdmin = async (isSilent = false) => {
+    if (!isSilent) setLoadingDaySubmissions(true);
+    try {
+      const params = {};
+      if (daySubmissionsStatusFilter && daySubmissionsStatusFilter !== 'ALL') {
+        params.status = daySubmissionsStatusFilter;
+      }
+      if (daySubmissionsAgentFilter && daySubmissionsAgentFilter !== 'ALL') {
+        params.agent_id = daySubmissionsAgentFilter;
+      }
+      if (daySubmissionsDateFilter) {
+        params.date = daySubmissionsDateFilter;
+      }
+      const res = await api.get('/admin/day-submissions', { params });
+      if (res.data?.success) {
+        setDaySubmissionsList(Array.isArray(res.data.data) ? res.data.data : []);
+        if (res.data.summary) {
+          setDaySubmissionsSummary(res.data.summary);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load day submissions for admin:', err);
+    } finally {
+      if (!isSilent) setLoadingDaySubmissions(false);
+    }
+  };
+
+  const openApprovalModal = (sub) => {
+    setApprovalModalSubmission(sub);
+    setApprovalForm({
+      verified_cash_amount: sub.cash_collected,
+      verified_upi_amount: sub.upi_collected,
+      admin_notes: '',
+      status: 'APPROVED',
+    });
+    setApprovalSuccess('');
+    setApprovalError('');
+    scrollToFormOrModal('admin-day-closing-modal');
+  };
+
+  const handleApproveSubmission = async (targetStatus = 'APPROVED') => {
+    if (!approvalModalSubmission) return;
+    setApprovingSubmission(true);
+    setApprovalError('');
+    setApprovalSuccess('');
+    try {
+      const res = await api.post(`/admin/day-submissions/${approvalModalSubmission.id}/approve`, {
+        verified_cash_amount: approvalForm.verified_cash_amount,
+        verified_upi_amount: approvalForm.verified_upi_amount,
+        admin_notes: approvalForm.admin_notes,
+        status: targetStatus,
+      });
+      if (res.data?.success) {
+        setApprovalSuccess(res.data.message || 'Day closing successfully approved and collections verified!');
+        setTimeout(() => {
+          setApprovalModalSubmission(null);
+          loadDaySubmissionsForAdmin(false);
+          loadDailyLedger(false);
+          loadTracking(false);
+        }, 1200);
+      }
+    } catch (err) {
+      setApprovalError(err.response?.data?.message || 'Failed to approve day closing. Please try again.');
+    } finally {
+      setApprovingSubmission(false);
+    }
+  };
 
   // Daily Agent Collection Ledger States
   const [ledgerDate, setLedgerDate] = useState(new Date().toISOString().slice(0, 10));
@@ -154,16 +253,28 @@ export default function RouteTrackingPage() {
   useEffect(() => {
     loadTracking();
     loadDailyLedger();
+    loadDaySubmissionsForAdmin();
     const interval = setInterval(() => {
       loadTracking(true);
       loadDailyLedger(true);
+      loadDaySubmissionsForAdmin(true);
     }, 6000);
     return () => clearInterval(interval);
-  }, [selectedRouteId, selectedStop?.id, ledgerDate, ledgerMode, ledgerAgentFilter]);
+  }, [
+    selectedRouteId,
+    selectedStop?.id,
+    ledgerDate,
+    ledgerMode,
+    ledgerAgentFilter,
+    daySubmissionsStatusFilter,
+    daySubmissionsAgentFilter,
+    daySubmissionsDateFilter,
+  ]);
 
   const handleRefresh = () => {
     loadTracking(false);
     loadDailyLedger(false);
+    loadDaySubmissionsForAdmin(false);
   };
 
   // Filter routes by category and instant search term
@@ -369,6 +480,40 @@ export default function RouteTrackingPage() {
             >
               Everyday Reset
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('DAY_CLOSINGS')}
+            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              activeMainTab === 'DAY_CLOSINGS'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <PackageCheck className="w-4 h-4" />
+            <span>Agent Day Closings & Handover Approvals</span>
+            {daySubmissionsSummary?.total_pending > 0 ? (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                  activeMainTab === 'DAY_CLOSINGS'
+                    ? 'bg-amber-400 text-slate-900'
+                    : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 animate-pulse'
+                }`}
+              >
+                {daySubmissionsSummary.total_pending} Pending
+              </span>
+            ) : (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  activeMainTab === 'DAY_CLOSINGS'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {daySubmissionsList?.length || 0}
+              </span>
+            )}
           </button>
 
           <button
@@ -1061,6 +1206,550 @@ export default function RouteTrackingPage() {
               })
             )}
           </div>
+        </div>
+      ) : activeMainTab === 'DAY_CLOSINGS' ? (
+        /* AGENT DAY CLOSINGS & HANDOVER APPROVALS */
+        <div className="space-y-6">
+          {/* Top KPI Banner */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 shadow-xs relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+                  Pending Cash Counts
+                </span>
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
+                {daySubmissionsSummary?.total_pending || 0} Submissions
+              </div>
+              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-1">
+                Cash to Count: ₹{Number(daySubmissionsSummary?.pending_cash || 0).toLocaleString('en-IN')}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                + UPI: ₹{Number(daySubmissionsSummary?.pending_upi || 0).toLocaleString('en-IN')}
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
+              <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                Approved & Closed
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+                {daySubmissionsSummary?.total_approved || 0} Approved
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Reconciled & Formally Signed Off
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                Total Handover Cash
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
+                ₹{Number(daySubmissionsSummary?.total_cash || 0).toLocaleString('en-IN')}
+              </div>
+              <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                Physical Cash Handed Over
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                Total Digital / UPI Handover
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">
+                ₹{Number(daySubmissionsSummary?.total_upi || 0).toLocaleString('en-IN')}
+              </div>
+              <div className="text-xs text-purple-600 dark:text-purple-400 mt-1 font-medium">
+                Bank-Verified Collections
+              </div>
+            </div>
+          </div>
+
+          {/* Admin Guidance / Flexi Closing Info Strip */}
+          <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-start gap-3">
+            <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+            <div className="text-xs space-y-1">
+              <p className="font-bold text-indigo-900 dark:text-indigo-200">
+                Asynchronous Admin Day Closing & Cash Counting
+              </p>
+              <p className="text-indigo-800 dark:text-indigo-300">
+                When agents submit their day's collections, you can count the cash and approve the day closing at any time or any subsequent day.
+                Each approval permanently registers <strong>(1) the Collection Work Date</strong>, <strong>(2) the Agent Name & ID</strong>, <strong>(3) the Counted Amount</strong>, and <strong>(4) the Exact Date & Time of Admin Approval</strong>.
+              </p>
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDaySubmissionsStatusFilter('ALL')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  daySubmissionsStatusFilter === 'ALL'
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                All ({daySubmissionsList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDaySubmissionsStatusFilter('PENDING_APPROVAL')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  daySubmissionsStatusFilter === 'PENDING_APPROVAL'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span>Pending Approvals ({daySubmissionsSummary?.total_pending || 0})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDaySubmissionsStatusFilter('APPROVED')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  daySubmissionsStatusFilter === 'APPROVED'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                }`}
+              >
+                ✓ Approved & Closed ({daySubmissionsSummary?.total_approved || 0})
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Agent Filter */}
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={daySubmissionsAgentFilter}
+                  onChange={(e) => setDaySubmissionsAgentFilter(e.target.value)}
+                  className="bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
+                >
+                  <option value="ALL">All Field Agents</option>
+                  {(ledgerData.agents || []).map((ag) => (
+                    <option key={ag.agentId} value={ag.agentId}>
+                      {ag.agentName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="date"
+                  value={daySubmissionsDateFilter}
+                  onChange={(e) => setDaySubmissionsDateFilter(e.target.value)}
+                  className="bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
+                />
+                {daySubmissionsDateFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setDaySubmissionsDateFilter('')}
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Submissions List */}
+          {loadingDaySubmissions ? (
+            <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-xs text-slate-500">Loading agent day submissions and handovers...</p>
+            </div>
+          ) : daySubmissionsList.length === 0 ? (
+            <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
+              <PackageCheck className="w-10 h-10 text-slate-400 mx-auto" />
+              <h3 className="font-bold text-slate-900 dark:text-white text-base">No Day Submissions Found</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                No field agent day submissions match your selected filter criteria. When agents submit their shifts via their dashboard, they will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {daySubmissionsList.map((sub) => {
+                const isExpanded = expandedAdminSubmissionId === sub.id;
+                let chitsList = [];
+                if (sub.chit_breakdown_json) {
+                  try {
+                    chitsList = typeof sub.chit_breakdown_json === 'string'
+                      ? JSON.parse(sub.chit_breakdown_json)
+                      : sub.chit_breakdown_json;
+                  } catch (_) {
+                    chitsList = [];
+                  }
+                }
+
+                const cashAmt = Number(sub.cash_collected || 0);
+                const upiAmt = Number(sub.upi_collected || 0);
+                const totalAmt = Number(sub.total_collected || 0);
+                const cashPct = totalAmt > 0 ? Math.round((cashAmt / totalAmt) * 100) : 0;
+                const upiPct = totalAmt > 0 ? 100 - cashPct : 0;
+
+                const workDateStr = sub.work_date
+                  ? (typeof sub.work_date === 'string' ? sub.work_date.slice(0, 10) : new Date(sub.work_date).toISOString().slice(0, 10))
+                  : '';
+
+                return (
+                  <div
+                    key={sub.id}
+                    className={`rounded-2xl border bg-white dark:bg-slate-900 shadow-sm transition-all overflow-hidden ${
+                      sub.status === 'PENDING_APPROVAL'
+                        ? 'border-amber-300 dark:border-amber-800/80 ring-1 ring-amber-400/20'
+                        : sub.status === 'APPROVED'
+                        ? 'border-emerald-200 dark:border-emerald-800/60'
+                        : 'border-rose-300 dark:border-rose-800'
+                    }`}
+                  >
+                    {/* Header Strip */}
+                    <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40">
+                      <div className="flex items-start sm:items-center gap-3">
+                        <div
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-white shadow-sm ${
+                            sub.status === 'PENDING_APPROVAL'
+                              ? 'bg-amber-500'
+                              : sub.status === 'APPROVED'
+                              ? 'bg-emerald-600'
+                              : 'bg-rose-500'
+                          }`}
+                        >
+                          <PackageCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900 dark:text-white text-base">
+                              {sub.agent_name || 'Agent'}
+                            </span>
+                            <span className="text-xs text-slate-400 font-mono">(ID: #{sub.agent_id})</span>
+                            {sub.agent_phone && (
+                              <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium">
+                                <Phone className="w-3 h-3 text-slate-400" />
+                                {sub.agent_phone}
+                              </span>
+                            )}
+                            {sub.status === 'PENDING_APPROVAL' ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1">
+                                <Clock className="w-3 h-3 animate-spin" />
+                                <span>AWAITING CASH COUNT & CLOSING</span>
+                              </span>
+                            ) : sub.status === 'APPROVED' ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>CLOSED & APPROVED</span>
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-300 dark:border-rose-700">
+                                DISCREPANCY FLAGGED
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Critical Timing Breakdown */}
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            <span className="flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400">
+                              <Calendar className="w-3.5 h-3.5" />
+                              Collection Work Date: <strong>{formatDate(workDateStr || sub.work_date)}</strong>
+                            </span>
+                            <span>•</span>
+                            <span>Submitted: {formatDateTime(sub.submitted_at)}</span>
+                            {sub.status === 'APPROVED' && (
+                              <>
+                                <span>•</span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                  <ShieldCheck className="w-3.5 h-3.5" />
+                                  Approved by {sub.approved_by_name || 'Admin'} on {formatDateTime(sub.approved_at || sub.approval_date)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Header Actions */}
+                      <div className="flex items-center gap-3 self-end sm:self-auto">
+                        {sub.status === 'PENDING_APPROVAL' && (
+                          <button
+                            type="button"
+                            onClick={() => openApprovalModal(sub)}
+                            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer transition-all hover:scale-102"
+                          >
+                            <Banknote className="w-4 h-4" />
+                            <span>Count Cash & Close Day</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedAdminSubmissionId(isExpanded ? null : sub.id)}
+                          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <span>{isExpanded ? 'Hide Chits Roster' : 'View Chits & Roster'}</span>
+                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Financial Metrics Strip */}
+                    <div className="p-4 sm:p-5 space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">Total Collected</div>
+                          <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
+                            ₹{totalAmt.toLocaleString('en-IN')}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            {sub.total_receipts} receipts issued
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
+                          <div className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <Banknote className="w-3 h-3" />
+                            <span>Physical Cash</span>
+                          </div>
+                          <div className="text-lg font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
+                            ₹{cashAmt.toLocaleString('en-IN')}
+                          </div>
+                          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 font-medium">
+                            {sub.status === 'APPROVED' ? `Verified: ₹${Number(sub.verified_cash_amount || cashAmt).toLocaleString('en-IN')}` : 'To count in person'}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
+                          <div className="text-[10px] font-bold uppercase text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                            <QrCode className="w-3 h-3" />
+                            <span>UPI / Online</span>
+                          </div>
+                          <div className="text-lg font-black text-purple-700 dark:text-purple-300 mt-0.5">
+                            ₹{upiAmt.toLocaleString('en-IN')}
+                          </div>
+                          <div className="text-[11px] text-purple-600 dark:text-purple-400 mt-0.5 font-medium">
+                            {sub.status === 'APPROVED' ? `Verified: ₹${Number(sub.verified_upi_amount || upiAmt).toLocaleString('en-IN')}` : 'Bank reconciled'}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
+                          <div className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400">Route Waypoints</div>
+                          <div className="text-lg font-black text-blue-700 dark:text-blue-300 mt-0.5">
+                            {sub.total_stops_visited} / {Number(sub.total_stops_visited || 0) + Number(sub.total_stops_pending || 0)}
+                          </div>
+                          <div className="text-[11px] text-blue-600 dark:text-blue-400 mt-0.5 font-medium">
+                            {sub.total_stops_pending} pending stops
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cash vs UPI split bar */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                          <span>Payment Composition: {cashPct}% Cash / {upiPct}% UPI</span>
+                          <span>Chit Schemes Included: {chitsList.length}</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex">
+                          <div
+                            className="bg-emerald-500 h-full"
+                            style={{ width: `${cashPct}%` }}
+                            title={`Cash: ₹${cashAmt.toLocaleString('en-IN')} (${cashPct}%)`}
+                          />
+                          <div
+                            className="bg-purple-500 h-full"
+                            style={{ width: `${upiPct}%` }}
+                            title={`UPI: ₹${upiAmt.toLocaleString('en-IN')} (${upiPct}%)`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Notes / Remarks */}
+                      {(sub.agent_notes || sub.admin_notes) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
+                          {sub.agent_notes && (
+                            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                              <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">
+                                Agent Handover Notes / Denominations:
+                              </span>
+                              <span className="text-slate-600 dark:text-slate-400 italic">
+                                "{sub.agent_notes}"
+                              </span>
+                            </div>
+                          )}
+                          {sub.admin_notes && (
+                            <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                              <span className="font-bold text-emerald-800 dark:text-emerald-300 block mb-0.5">
+                                Admin Closing Audit Note:
+                              </span>
+                              <span className="text-emerald-700 dark:text-emerald-400 italic">
+                                "{sub.admin_notes}"
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Expandable Chit Breakdown with Paid & Unpaid Members and Pending Deficits */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-slate-50/60 dark:bg-slate-950/50 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <Layers className="w-4 h-4 text-blue-500" />
+                            <span>Chit Scheme Breakdown & Member Payment Roster</span>
+                          </h5>
+                          <span className="text-xs text-slate-400">
+                            Showing collected vs pending dues per member
+                          </span>
+                        </div>
+
+                        {chitsList.length === 0 ? (
+                          <div className="p-4 text-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-400">
+                            No individual chit scheme breakdown registered for this submission.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {chitsList.map((chit) => {
+                              const isChitExpanded = expandedAdminChitId === `${sub.id}-${chit.group_id}`;
+                              return (
+                                <div
+                                  key={chit.group_id}
+                                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"
+                                >
+                                  <div
+                                    onClick={() =>
+                                      setExpandedAdminChitId(isChitExpanded ? null : `${sub.id}-${chit.group_id}`)
+                                    }
+                                    className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2.5">
+                                      <span
+                                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                          chit.frequency === 'DAILY'
+                                            ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700'
+                                            : 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-700'
+                                        }`}
+                                      >
+                                        {chit.frequency}
+                                      </span>
+                                      <div>
+                                        <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                          <span>{chit.group_name}</span>
+                                          <span className="text-slate-400 font-mono">({chit.group_code})</span>
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                          Installment: ₹{Number(chit.installment_amount || 0).toLocaleString('en-IN')} · Paid: {chit.paid_members_count} / {chit.total_members} subscribers
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
+                                        <div className="text-xs font-bold text-slate-900 dark:text-white">
+                                          ₹{Number(chit.total_collected || 0).toLocaleString('en-IN')}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400">
+                                          Cash: ₹{Number(chit.cash_collected || 0).toLocaleString('en-IN')} | UPI: ₹{Number(chit.upi_collected || 0).toLocaleString('en-IN')}
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="w-6 h-6 rounded flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500"
+                                      >
+                                        {isChitExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Expanded Subscribers Roster */}
+                                  {isChitExpanded && (
+                                    <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-3">
+                                      {/* Paid members */}
+                                      <div>
+                                        <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          <span>Paid Subscribers ({chit.paid_roster?.length || 0})</span>
+                                        </div>
+                                        {(!chit.paid_roster || chit.paid_roster.length === 0) ? (
+                                          <div className="text-xs text-slate-400 italic">No collections registered today.</div>
+                                        ) : (
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                            {chit.paid_roster.map((p, idx) => (
+                                              <div
+                                                key={idx}
+                                                className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between text-xs"
+                                              >
+                                                <div>
+                                                  <div className="font-bold text-slate-800 dark:text-slate-200">
+                                                    {p.full_name} <span className="text-[10px] text-slate-400 font-mono">T#{p.ticket_number}</span>
+                                                  </div>
+                                                  <div className="text-[10px] text-slate-500">
+                                                    {p.payment_method} {p.receipt_number ? `• Rcpt #${p.receipt_number}` : ''}
+                                                  </div>
+                                                </div>
+                                                <div className="font-black text-emerald-600 dark:text-emerald-400">
+                                                  ₹{Number(p.amount_paid || 0).toLocaleString('en-IN')}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Unpaid members with pending deficits */}
+                                      <div>
+                                        <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                          <AlertCircle className="w-3 h-3" />
+                                          <span>Unpaid Subscribers & Pending Dues ({chit.unpaid_roster?.length || 0})</span>
+                                        </div>
+                                        {(!chit.unpaid_roster || chit.unpaid_roster.length === 0) ? (
+                                          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                                            ✓ All subscribers in this scheme paid on this date!
+                                          </div>
+                                        ) : (
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                            {chit.unpaid_roster.map((u, idx) => (
+                                              <div
+                                                key={idx}
+                                                className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/40 flex items-center justify-between text-xs"
+                                              >
+                                                <div>
+                                                  <div className="font-bold text-slate-800 dark:text-slate-200">
+                                                    {u.full_name} <span className="text-[10px] text-slate-400 font-mono">T#{u.ticket_number}</span>
+                                                  </div>
+                                                  <div className="text-[10px] text-slate-500">
+                                                    {u.phone ? `Ph: ${u.phone}` : ''} {u.notes ? `• "${u.notes}"` : ''}
+                                                  </div>
+                                                </div>
+                                                <div className="text-right">
+                                                  <div className="font-black text-rose-600 dark:text-rose-400">
+                                                    ₹{Number(u.pending_amount || 0).toLocaleString('en-IN')}
+                                                  </div>
+                                                  <div className="text-[9px] uppercase font-bold text-rose-500">Pending Due</div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : (
         /* 2D VISUAL ROUTE MAP & WAYPOINTS */
@@ -2203,6 +2892,246 @@ export default function RouteTrackingPage() {
                 >
                   {submittingLog ? 'Saving...' : 'Save & Sync'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Admin Day Closing & Cash Counting Approval Modal */}
+      {approvalModalSubmission && (
+        <ModalPortal id="admin-day-closing-modal">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                  <Banknote className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Count Physical Cash & Close Day</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Count physical cash handed over by agent and sign off on daily shift closing.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApprovalModalSubmission(null)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Crucial Metadata Strip: Agent, Work Date, and Admin Approval Date */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-slate-400" />
+                  <span className="font-semibold text-slate-600 dark:text-slate-300">Field Agent:</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {approvalModalSubmission.agent_name}
+                  </span>
+                  <span className="text-slate-400 font-mono">(ID: #{approvalModalSubmission.agent_id})</span>
+                  {approvalModalSubmission.agent_phone && (
+                    <span className="text-slate-500">· Ph: {approvalModalSubmission.agent_phone}</span>
+                  )}
+                </div>
+                <div className="text-slate-500 dark:text-slate-400">
+                  Submitted: {formatDateTime(approvalModalSubmission.submitted_at)}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium">
+                  <Calendar className="w-4 h-4 text-blue-500" />
+                  <span>
+                    Collection Work Date: <strong>{formatDate(approvalModalSubmission.work_date)}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-medium">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>
+                    Admin Approval Date: <strong>Today ({formatDate(new Date().toISOString().slice(0, 10))})</strong>
+                  </span>
+                </div>
+              </div>
+
+              {approvalModalSubmission.agent_notes && (
+                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-slate-600 dark:text-slate-400">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Agent Handover Note: </span>
+                  <span className="italic">"{approvalModalSubmission.agent_notes}"</span>
+                </div>
+              )}
+            </div>
+
+            {/* Reported Baseline Strip */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/80">
+                <div className="text-[10px] font-bold uppercase text-slate-400">Reported Cash</div>
+                <div className="text-base font-black text-slate-900 dark:text-white mt-0.5">
+                  ₹{Number(approvalModalSubmission.cash_collected || 0).toLocaleString('en-IN')}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/80">
+                <div className="text-[10px] font-bold uppercase text-slate-400">Reported UPI</div>
+                <div className="text-base font-black text-slate-900 dark:text-white mt-0.5">
+                  ₹{Number(approvalModalSubmission.upi_collected || 0).toLocaleString('en-IN')}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/80">
+                <div className="text-[10px] font-bold uppercase text-slate-400">Total Handover</div>
+                <div className="text-base font-black text-slate-900 dark:text-white mt-0.5">
+                  ₹{Number(approvalModalSubmission.total_collected || 0).toLocaleString('en-IN')}
+                </div>
+              </div>
+            </div>
+
+            {/* Cash Verification Input Form */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleApproveSubmission('APPROVED');
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Banknote className="w-4 h-4 text-emerald-600" />
+                    <span>Physical Cash Counted (₹) *</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-normal">Count physical cash in office</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={approvalForm.verified_cash_amount}
+                  onChange={(e) =>
+                    setApprovalForm({ ...approvalForm, verified_cash_amount: e.target.value })
+                  }
+                  placeholder="e.g. 5000"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-hidden"
+                />
+
+                {/* Discrepancy Feedback */}
+                {(() => {
+                  const entered = Number(approvalForm.verified_cash_amount || 0);
+                  const reported = Number(approvalModalSubmission.cash_collected || 0);
+                  const diff = entered - reported;
+                  if (Math.abs(diff) > 0.01) {
+                    return (
+                      <div className="mt-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          Cash Mismatch: Difference of ₹{Math.abs(diff).toLocaleString('en-IN')}{' '}
+                          {diff > 0 ? '(Surplus cash counted)' : '(Shortage / Deficit)'}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Physical cash perfectly matches agent's reported cash.</span>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <QrCode className="w-4 h-4 text-purple-600" />
+                    <span>Verified UPI / Online Amount (₹) *</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-normal">Matches Bank Credit statement</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={approvalForm.verified_upi_amount}
+                  onChange={(e) =>
+                    setApprovalForm({ ...approvalForm, verified_upi_amount: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                  Admin Closing Audit Notes (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={approvalForm.admin_notes}
+                  onChange={(e) =>
+                    setApprovalForm({ ...approvalForm, admin_notes: e.target.value })
+                  }
+                  placeholder="e.g. Physical cash counted in office and placed in cash safe. All receipts verified."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 outline-hidden"
+                />
+              </div>
+
+              {approvalError && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{approvalError}</span>
+                </div>
+              )}
+
+              {approvalSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{approvalSuccess}</span>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setApprovalModalSubmission(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={approvingSubmission}
+                    onClick={() => handleApproveSubmission('REJECTED_DISCREPANCY')}
+                    className="px-4 py-2.5 rounded-xl border border-rose-300 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-bold cursor-pointer transition-colors"
+                  >
+                    ⚠️ Flag Discrepancy
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={approvingSubmission}
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer transition-all hover:scale-102 disabled:opacity-50"
+                  >
+                    {approvingSubmission ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Closing & Reconciling...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>✓ Count Cash & Approve Day Closing</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

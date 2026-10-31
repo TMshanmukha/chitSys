@@ -355,6 +355,8 @@ export async function getMyAssignedRoutes(req, res, next) {
           kyc_type: m.kyc_type || 'Aadhaar Card',
           kyc_number: m.kyc_number || 'Verified',
           is_paid: isPaid,
+          pending_amount: isPaid ? 0 : Number(m.group_installment_amount || 0),
+          installment_amount: Number(m.group_installment_amount || 0),
           today_status: status, // maintain backward compatibility
           cycle_status: status,
           status_label: statusLabel,

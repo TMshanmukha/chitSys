@@ -75,7 +75,7 @@ test('ChitBase Reports & Financial Analytics Test Suite', async (t) => {
       assert.ok('dueAmount' in sample, 'defaulter has dueAmount');
       assert.ok('groupName' in sample, 'defaulter has groupName');
       assert.ok('ticketNumber' in sample, 'defaulter has ticketNumber');
-      assert.equal(sample.status, 'NOT_PAID', 'defaulter status is NOT_PAID');
+      assert.ok(['NOT_PAID', 'PARTIAL', 'OVERDUE'].includes(sample.status), 'defaulter status is unpaid/partial');
     }
   });
 

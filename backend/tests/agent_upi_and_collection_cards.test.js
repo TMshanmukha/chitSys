@@ -189,3 +189,4 @@ test('Agent UPI Metrics & Collection Cards Test Suite', async (t) => {
     assert.ok(parseFloat(capturedJson.data.summary.grandUpiCollected) >= 750.0);
   });
 });
+
