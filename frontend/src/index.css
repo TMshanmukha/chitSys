@@ -58,6 +58,17 @@
     letter-spacing: inherit;
   }
 
+  /* Disable number input spin buttons while preserving clean manual typing */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
   /* -------------------------------------------------------------------------- */
   /* PREMIUM OBSIDIAN DARK MODE ROOT (Clean, velvety midnight canvas)           */
   /* -------------------------------------------------------------------------- */
