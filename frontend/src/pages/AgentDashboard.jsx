@@ -156,6 +156,13 @@ export default function AgentDashboard() {
       const groupMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
       groupMembers.forEach((m) => {
         const expectedAmount = Number(group.installment_amount || 0);
+        const isPaid = Boolean(m.is_paid);
+        const isPartial = Boolean(m.is_partial) || (!isPaid && Number(m.total_cycle_collected || 0) > 0);
+        const collectedAmount = Number(m.total_cycle_collected || m.collected_amount || 0);
+        const remainingBalance = m.remaining_balance !== undefined && m.remaining_balance !== null
+          ? Number(m.remaining_balance)
+          : (isPaid ? 0 : Math.max(0, expectedAmount - collectedAmount));
+
         const hasCustomRemark =
           Boolean(m.today_notes) &&
           m.today_notes !== 'Awaiting payment' &&
@@ -177,8 +184,12 @@ export default function AgentDashboard() {
           chitType: group.chit_type,
           locationName: group.location_name,
           expectedAmount,
-          isPaid: Boolean(m.is_paid),
-          statusLabel: m.status_label,
+          collectedAmount,
+          remainingBalance,
+          isPaid,
+          isPartial,
+          nodeColor: m.node_color || (isPaid ? 'GREEN' : (isPartial ? 'YELLOW' : 'RED')),
+          statusLabel: isPaid ? 'Paid' : (isPartial ? 'Partial' : (m.status_label || 'Unpaid')),
           notes: m.today_notes,
           hasCustomRemark,
           receiptNumber: m.receipt_number,
@@ -269,28 +280,30 @@ export default function AgentDashboard() {
   // Calculate distinct financial stats for any single chit scheme
   const getGroupStats = (group) => {
     const groupMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
-    const paidMembers = groupMembers.filter((m) => m.is_paid || m.today_status === 'PAID');
-    const unpaidMembers = groupMembers.filter((m) => !m.is_paid && m.today_status !== 'PAID');
+    const fullyPaidMembers = groupMembers.filter((m) => m.is_paid || m.today_status === 'PAID');
+    const partialMembers = groupMembers.filter((m) => m.is_partial || (!m.is_paid && Number(m.total_cycle_collected || 0) > 0));
+    const paidMembers = fullyPaidMembers;
+    const unpaidMembers = groupMembers.filter((m) => !m.is_paid && Number(m.total_cycle_collected || 0) === 0 && m.today_status !== 'PAID');
     const isDaily = group.frequency === 'DAILY';
     const isDue = isDaily || isCollectionDayForMonthly;
 
     const installmentAmt = Number(group.installment_amount || 0);
     const targetExpected = isDue ? groupMembers.length * installmentAmt : 0;
 
-    const cashCollected = paidMembers
+    const cashCollected = groupMembers
       .filter((m) => m.payment_method === 'CASH')
-      .reduce((sum, m) => sum + Number(m.collected_amount || installmentAmt), 0);
+      .reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
 
-    const upiCollected = paidMembers
+    const upiCollected = groupMembers
       .filter((m) => m.payment_method === 'UPI' || (m.payment_method && m.payment_method.toUpperCase().includes('UPI')))
-      .reduce((sum, m) => sum + Number(m.collected_amount || installmentAmt), 0);
+      .reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
 
-    const onlineCollected = paidMembers
-      .filter((m) => m.payment_method !== 'CASH')
-      .reduce((sum, m) => sum + Number(m.collected_amount || installmentAmt), 0);
+    const onlineCollected = groupMembers
+      .filter((m) => m.payment_method && m.payment_method !== 'CASH')
+      .reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
 
-    const totalCollected = cashCollected + onlineCollected;
-    const pendingAmount = Math.max(0, targetExpected - totalCollected);
+    const totalCollected = groupMembers.reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
+    const pendingAmount = isDue ? Math.max(0, targetExpected - totalCollected) : 0;
     const progressPercent = targetExpected > 0 ? Math.round((totalCollected / targetExpected) * 100) : (totalCollected > 0 ? 100 : 0);
 
     const isAuction = group.frequency === 'MONTHLY' && group.chit_type !== 'DOUBLE_CHIT';
@@ -299,6 +312,8 @@ export default function AgentDashboard() {
     return {
       groupMembers,
       paidMembers,
+      fullyPaidMembers,
+      partialMembers,
       unpaidMembers,
       isDaily,
       isAuction,
@@ -432,7 +447,7 @@ export default function AgentDashboard() {
 
     if (group?.frequency === 'MONTHLY') {
       if (member?.is_paid) {
-        alert(`Monthly installment for ${member.full_name} has already been collected for this month (Receipt #${member.receipt_number || 'Issued'}). Monthly chits can only be collected one time in a month.`);
+        alert(`Monthly installment for ${member.full_name} has already been fully collected for this month (₹${Number(member.total_cycle_collected || member.installment_amount).toLocaleString('en-IN')}).`);
         return;
       }
       if (!isCollectionDayForMonthly) {
@@ -441,10 +456,14 @@ export default function AgentDashboard() {
       }
     }
 
+    const prefillAmt = (member?.remaining_balance !== undefined && member?.remaining_balance !== null && Number(member.remaining_balance) > 0)
+      ? member.remaining_balance
+      : (defaultAmount || group?.installment_amount || '');
+
     setCollectForm({
       group_id: String(groupId),
       member_id: String(memberId),
-      amount: String(defaultAmount || ''),
+      amount: String(prefillAmt || ''),
       payment_method: 'CASH',
       payment_reference: '',
       notes: '',
@@ -484,6 +503,25 @@ export default function AgentDashboard() {
     }));
   };
 
+  // Member selection auto-adjusts to remaining balance due
+  const handleMemberSelectChange = (memberId) => {
+    const selectedGroup = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
+    const selectedMember = routesData.members.find((m) => String(m.member_id) === String(memberId) && String(m.group_id) === String(collectForm.group_id));
+
+    let defaultAmt = selectedGroup?.installment_amount || '';
+    if (selectedMember) {
+      if (selectedMember.remaining_balance !== undefined && selectedMember.remaining_balance !== null && Number(selectedMember.remaining_balance) > 0) {
+        defaultAmt = selectedMember.remaining_balance;
+      }
+    }
+
+    setCollectForm((prev) => ({
+      ...prev,
+      member_id: memberId,
+      amount: defaultAmt ? String(defaultAmt) : prev.amount,
+    }));
+  };
+
   // Request Confirmation before recording collection
   const handleRecordCollection = (e) => {
     e.preventDefault();
@@ -493,12 +531,18 @@ export default function AgentDashboard() {
       return;
     }
 
+    const enteredAmt = parseFloat(collectForm.amount);
+    if (isNaN(enteredAmt) || enteredAmt <= 0) {
+      setCollectError('Please enter a valid positive collection amount.');
+      return;
+    }
+
     const selectedGroup = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
     const selectedMember = routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id) && String(m.group_id) === String(collectForm.group_id));
 
     if (selectedGroup?.frequency === 'MONTHLY') {
       if (selectedMember?.is_paid) {
-        setCollectError('Monthly installment has already been collected for this subscriber for the current month. Monthly chits can only be collected one time in a month.');
+        setCollectError(`The monthly installment (₹${Number(selectedGroup.installment_amount).toLocaleString('en-IN')}) has already been fully paid by ${selectedMember.full_name} for the current month.`);
         return;
       }
       if (!isCollectionDayForMonthly) {
@@ -1282,6 +1326,8 @@ export default function AgentDashboard() {
                             className={`p-4 rounded-2xl border transition-all duration-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                               task.isPaid
                                 ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40'
+                                : task.isPartial
+                                ? 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800'
                                 : task.hasCustomRemark
                                 ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/40'
                                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-900'
@@ -1293,10 +1339,12 @@ export default function AgentDashboard() {
                                 className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-xs ${
                                   task.isPaid
                                     ? 'bg-emerald-600 text-white'
+                                    : task.isPartial
+                                    ? 'bg-amber-500 text-white'
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                 }`}
                               >
-                                {task.isPaid ? '✓' : `#${task.ticketNumber}`}
+                                {task.isPaid ? '✓' : task.isPartial ? '½' : `#${task.ticketNumber}`}
                               </div>
 
                               <div className="space-y-1 flex-1 min-w-0">
@@ -1314,6 +1362,11 @@ export default function AgentDashboard() {
                                   >
                                     Ticket #{task.ticketNumber} · {task.groupCode}
                                   </span>
+                                  {task.isPartial && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400/60">
+                                      PARTIAL PAID
+                                    </span>
+                                  )}
                                 </div>
 
                                 {/* Address & Phone */}
@@ -1344,6 +1397,13 @@ export default function AgentDashboard() {
                                       Paid Today · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod})
                                     </span>
                                   </div>
+                                ) : task.isPartial ? (
+                                  <div className="text-[11px] text-amber-800 dark:text-amber-300 font-medium flex items-center gap-1.5 mt-1 bg-amber-100/70 dark:bg-amber-950/50 px-2 py-1 rounded-lg border border-amber-300 dark:border-amber-800">
+                                    <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                    <span>
+                                      Paid so far: <strong>₹{task.collectedAmount.toLocaleString('en-IN')}</strong> · Balance Deficit: <strong className="text-amber-900 dark:text-amber-200">₹{task.remainingBalance.toLocaleString('en-IN')}</strong>
+                                    </span>
+                                  </div>
                                 ) : task.hasCustomRemark ? (
                                   <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1 mt-1 bg-amber-100/60 dark:bg-amber-950/40 p-1.5 rounded-lg border border-amber-200 dark:border-amber-900/50">
                                     <MessageSquare className="w-3.5 h-3.5 text-amber-600 shrink-0" />
@@ -1364,10 +1424,10 @@ export default function AgentDashboard() {
                             <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
                               <div className="text-right">
                                 <span className="text-[10px] text-slate-400 block uppercase font-bold">
-                                  Due Amount
+                                  {task.isPartial ? 'Remaining Balance' : 'Due Amount'}
                                 </span>
-                                <span className="text-base font-extrabold text-blue-600 dark:text-blue-400">
-                                  ₹{task.expectedAmount.toLocaleString('en-IN')}
+                                <span className={`text-base font-extrabold ${task.isPartial ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                  ₹{(task.isPartial ? task.remainingBalance : task.expectedAmount).toLocaleString('en-IN')}
                                 </span>
                               </div>
 
@@ -1395,12 +1455,12 @@ export default function AgentDashboard() {
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        openCollectForMember(task.groupId, task.memberId, task.expectedAmount)
+                                        openCollectForMember(task.groupId, task.memberId, task.remainingBalance || task.expectedAmount)
                                       }
                                       className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-colors"
                                     >
                                       <CheckCircle2 className="w-3.5 h-3.5" />
-                                      <span>Collect</span>
+                                      <span>{task.isPartial ? 'Collect Due' : 'Collect'}</span>
                                     </button>
                                   </>
                                 )}
@@ -2622,24 +2682,27 @@ export default function AgentDashboard() {
                 <select
                   required
                   value={collectForm.member_id}
-                  onChange={(e) => setCollectForm({ ...collectForm, member_id: e.target.value })}
+                  onChange={(e) => handleMemberSelectChange(e.target.value)}
                   className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 >
                   <option value="">Select Member</option>
                   {eligibleMembers.map((m) => {
                     const selectedGrp = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
                     const isMonthly = selectedGrp?.frequency === 'MONTHLY';
-                    const isAlreadyCollectedThisMonth = isMonthly && m.is_paid;
+                    const isFullyPaidThisMonth = isMonthly && m.is_paid;
+                    const isPartialThisMonth = isMonthly && (m.is_partial || (!m.is_paid && Number(m.total_cycle_collected || 0) > 0));
 
                     return (
                       <option
                         key={m.member_id}
                         value={m.member_id}
-                        disabled={isAlreadyCollectedThisMonth}
+                        disabled={isFullyPaidThisMonth}
                       >
                         #{m.ticket_number} - {m.full_name} ({m.phone}) {
-                          isAlreadyCollectedThisMonth
-                            ? '✓ [PAID THIS MONTH - Only 1 Collection/Month]'
+                          isFullyPaidThisMonth
+                            ? `✓ [FULLY PAID - ₹${Number(m.total_cycle_collected || selectedGrp?.installment_amount).toLocaleString('en-IN')}]`
+                            : isPartialThisMonth
+                            ? `🟡 [PARTIAL - Paid ₹${Number(m.total_cycle_collected || 0).toLocaleString('en-IN')} · Balance Due ₹${Number(m.remaining_balance || 0).toLocaleString('en-IN')}]`
                             : (m.is_paid ? '✓ Already Paid' : '')
                         }
                       </option>
@@ -2648,21 +2711,115 @@ export default function AgentDashboard() {
                 </select>
               </div>
 
-              {/* Amount */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Collection Amount (₹) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={collectForm.amount}
-                  onChange={(e) => setCollectForm({ ...collectForm, amount: e.target.value })}
-                  placeholder="e.g. 500"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                />
-              </div>
+              {/* Amount and Live Balance Computation */}
+              {(() => {
+                const selectedGrp = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
+                const selectedMem = routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id) && String(m.group_id) === String(collectForm.group_id));
+                const fullTargetAmt = Number(selectedGrp?.installment_amount || 0);
+                const currentPaidInCycle = Number(selectedMem?.total_cycle_collected || 0);
+                const currentRemainingDue = selectedMem?.remaining_balance !== undefined && selectedMem?.remaining_balance !== null
+                  ? Number(selectedMem.remaining_balance)
+                  : Math.max(0, fullTargetAmt - currentPaidInCycle);
+                const enteredAmt = Number(collectForm.amount || 0);
+                const totalPaidAfter = currentPaidInCycle + enteredAmt;
+                const balanceAfter = Math.max(0, fullTargetAmt - totalPaidAfter);
+
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Collection Amount (₹) *
+                      </label>
+                      {currentRemainingDue > 0 && (
+                        <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                          Due: ₹{currentRemainingDue.toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={collectForm.amount}
+                      onChange={(e) => setCollectForm({ ...collectForm, amount: e.target.value })}
+                      placeholder="e.g. 500 (Enter any custom amount)"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+
+                    {/* Quick Amount Chips */}
+                    {selectedGrp && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-[10px] text-slate-400 font-medium">Quick Sets:</span>
+                        {currentRemainingDue > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setCollectForm({ ...collectForm, amount: String(currentRemainingDue) })}
+                            className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 cursor-pointer"
+                          >
+                            Full Due (₹{currentRemainingDue.toLocaleString('en-IN')})
+                          </button>
+                        )}
+                        {currentRemainingDue > 200 && (
+                          <button
+                            type="button"
+                            onClick={() => setCollectForm({ ...collectForm, amount: String(Math.round(currentRemainingDue / 2)) })}
+                            className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 cursor-pointer"
+                          >
+                            Half (₹{Math.round(currentRemainingDue / 2).toLocaleString('en-IN')})
+                          </button>
+                        )}
+                        {[100, 200, 500, 1000, 2000].filter((a) => a <= fullTargetAmt && a !== currentRemainingDue).slice(0, 3).map((val) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setCollectForm({ ...collectForm, amount: String(val) })}
+                            className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 cursor-pointer"
+                          >
+                            ₹{val}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Dynamic Real-time Balance Calculation Display */}
+                    {selectedMem && enteredAmt > 0 && (
+                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                          <span>Cycle Target: ₹{fullTargetAmt.toLocaleString('en-IN')}</span>
+                          <span>Already Paid: ₹{currentPaidInCycle.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 pt-0.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                          <span>Amount Now Collecting:</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">₹{enteredAmt.toLocaleString('en-IN')}</span>
+                        </div>
+
+                        {balanceAfter > 0 ? (
+                          <div className="mt-1 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-[11px] font-semibold flex items-start gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                            <span>
+                              <strong>Partial Payment:</strong> Remaining balance of <span className="underline font-bold">₹{balanceAfter.toLocaleString('en-IN')}</span> will stay as Pending Due on this subscriber and chit.
+                            </span>
+                          </div>
+                        ) : totalPaidAfter === fullTargetAmt ? (
+                          <div className="mt-1 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>
+                              <strong>Full Settlement:</strong> This payment clears the cycle installment in full. Node will turn GREEN.
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="mt-1 p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-blue-800 dark:text-blue-300 text-[11px] font-semibold flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <span>
+                              <strong>Advance / Excess:</strong> ₹{(totalPaidAfter - fullTargetAmt).toLocaleString('en-IN')} paid in excess of standard installment.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Payment Method */}
               <div className="grid grid-cols-2 gap-2">
@@ -2938,6 +3095,12 @@ export default function AgentDashboard() {
         const group = selectedMemberForInfo?.group || {};
         const member = selectedMemberForInfo?.member || {};
         const isPaid = member?.is_paid || member?.today_status === 'PAID';
+        const isPartial = member?.is_partial || (!isPaid && Number(member?.total_cycle_collected || 0) > 0);
+        const installmentAmt = Number(group?.installment_amount || 0);
+        const cyclePaidAmt = Number(member?.total_cycle_collected || member?.collected_amount || 0);
+        const remainingDueAmt = member?.remaining_balance !== undefined && member?.remaining_balance !== null
+          ? Number(member.remaining_balance)
+          : (isPaid ? 0 : Math.max(0, installmentAmt - cyclePaidAmt));
 
         return (
           <ModalPortal
@@ -2951,7 +3114,7 @@ export default function AgentDashboard() {
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white text-base shadow-xs ${
-                      isPaid ? 'bg-emerald-600' : 'bg-rose-600'
+                      isPaid ? 'bg-emerald-600' : (isPartial ? 'bg-amber-500' : 'bg-rose-600')
                     }`}
                   >
                     #{member.ticket_number}
@@ -2965,6 +3128,11 @@ export default function AgentDashboard() {
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 flex items-center gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>PAID</span>
+                        </span>
+                      ) : isPartial ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400 dark:border-amber-700 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>PARTIAL (Due: ₹{remainingDueAmt.toLocaleString('en-IN')})</span>
                         </span>
                       ) : (
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">
@@ -3075,13 +3243,41 @@ export default function AgentDashboard() {
 
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                      Installment Due
+                      Cycle Installment Target
                     </label>
                     <input
                       type="text"
                       readOnly
-                      value={`₹${Number(group?.installment_amount || 0).toLocaleString('en-IN')}`}
+                      value={`₹${installmentAmt.toLocaleString('en-IN')}`}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                      Paid in Current Cycle
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={`₹${cyclePaidAmt.toLocaleString('en-IN')}`}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                      Remaining Balance Due
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={`₹${remainingDueAmt.toLocaleString('en-IN')}`}
+                      className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs font-extrabold ${
+                        remainingDueAmt > 0
+                          ? 'border-amber-300 text-amber-600 dark:border-amber-800 dark:text-amber-400'
+                          : 'border-emerald-300 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400'
+                      }`}
                     />
                   </div>
                 </div>
@@ -3091,13 +3287,23 @@ export default function AgentDashboard() {
                   <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
                     <div className="font-bold flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Payment Collected & Reconciled</span>
+                      <span>Payment Fully Collected & Reconciled</span>
                     </div>
                     <div className="font-mono text-[11px]">
                       Receipt: <strong>{member?.receipt_number || 'REC-TODAY'}</strong> · ₹
                       {Number(member?.collected_amount || group?.installment_amount || 0).toLocaleString('en-IN')} (
                       {member?.payment_method || 'CASH'})
                       {member?.collection_time && ` at ${formatTime(member.collection_time)}`}
+                    </div>
+                  </div>
+                ) : isPartial ? (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span>Partial Payment Collected (₹{cyclePaidAmt.toLocaleString('en-IN')})</span>
+                    </div>
+                    <div>
+                      Remaining deficit of <strong className="text-amber-900 dark:text-amber-200">₹{remainingDueAmt.toLocaleString('en-IN')}</strong> remains pending due on this subscriber and chit.
                     </div>
                   </div>
                 ) : (
@@ -3129,12 +3335,12 @@ export default function AgentDashboard() {
                       type="button"
                       onClick={() => {
                         setShowMemberInfoModal(false);
-                        openCollectForMember(group.id, member.member_id, group.installment_amount);
+                        openCollectForMember(group.id, member.member_id, remainingDueAmt);
                       }}
                       className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Collect / Paid</span>
+                      <span>{isPartial ? `Collect Remaining (₹${remainingDueAmt.toLocaleString('en-IN')})` : 'Collect / Paid'}</span>
                     </button>
                   </>
                 )}
@@ -3680,21 +3886,38 @@ export default function AgentDashboard() {
       />
 
       {/* Confirmation Dialog for Cash/Digital Collection */}
-      <ConfirmModal
-        isOpen={showCollectConfirm}
-        onClose={() => setShowCollectConfirm(false)}
-        onConfirm={executeConfirmedCollection}
-        isLoading={submitting}
-        title="Confirm Payment Collection"
-        message={`Are you sure you want to record ₹${Number(collectForm.amount || 0).toLocaleString('en-IN')} via ${collectForm.payment_method} for ${
-          (routesData.members || []).find((m) => String(m.member_id) === String(collectForm.member_id))?.full_name || 'the selected subscriber'
-        }?`}
-        confirmLabel="Confirm & Issue Receipt"
-        cancelLabel="Review Details"
-        variant="success"
-        icon={Receipt}
-        subtext="This action will issue an official collection receipt and immediately update the member's node to PAID (Green) across the entire system."
-      />
+      {(() => {
+        const selectedGrp = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
+        const selectedMem = routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id) && String(m.group_id) === String(collectForm.group_id));
+        const fullTargetAmt = Number(selectedGrp?.installment_amount || 0);
+        const currentPaidInCycle = Number(selectedMem?.total_cycle_collected || 0);
+        const enteredAmt = Number(collectForm.amount || 0);
+        const totalPaidAfter = currentPaidInCycle + enteredAmt;
+        const balanceAfter = Math.max(0, fullTargetAmt - totalPaidAfter);
+        const isPartial = balanceAfter > 0;
+
+        return (
+          <ConfirmModal
+            isOpen={showCollectConfirm}
+            onClose={() => setShowCollectConfirm(false)}
+            onConfirm={executeConfirmedCollection}
+            isLoading={submitting}
+            title={isPartial ? "Confirm Partial Payment Collection" : "Confirm Payment Collection"}
+            message={`Are you sure you want to record ₹${enteredAmt.toLocaleString('en-IN')} via ${collectForm.payment_method} for ${
+              selectedMem?.full_name || 'the selected subscriber'
+            }?`}
+            confirmLabel="Confirm & Issue Receipt"
+            cancelLabel="Review Details"
+            variant={isPartial ? "warning" : "success"}
+            icon={Receipt}
+            subtext={
+              isPartial
+                ? `Partial Payment Notice: ₹${enteredAmt.toLocaleString('en-IN')} will be recorded. The remaining deficit balance of ₹${balanceAfter.toLocaleString('en-IN')} will remain as Pending Due on this subscriber and chit scheme.`
+                : "This action will issue an official collection receipt and immediately update the member's node to PAID (Green) across the entire system."
+            }
+          />
+        );
+      })()}
     </div>
   );
 }

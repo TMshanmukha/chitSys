@@ -96,28 +96,30 @@ export async function recordCollection(req, res, next) {
     const chitGroup = groupRows[0];
 
     // 2. Validate Monthly Chit Collection Rules:
-    // "monthly chits is only collected only one time in a month on 1st of every month"
+    // Monthly chits are scheduled on the 1st of every month, but members may pay partial amounts and clear remaining balances.
     if (chitGroup.frequency === 'MONTHLY') {
-      // Check A: Member can only pay ONCE per month
       const [existingThisMonth] = await pool.execute(
-        `SELECT id, receipt_number, amount, collection_date 
+        `SELECT COALESCE(SUM(amount), 0) as total_paid_this_month, COUNT(id) as collections_count
          FROM collections 
          WHERE group_id = ? AND member_id = ? AND verification_status != 'CANCELLED'
-           AND YEAR(collection_date) = YEAR(CURDATE()) AND MONTH(collection_date) = MONTH(CURDATE())
-         LIMIT 1`,
+           AND YEAR(collection_date) = YEAR(CURDATE()) AND MONTH(collection_date) = MONTH(CURDATE())`,
         [validated.group_id, validated.member_id]
       );
 
-      if (existingThisMonth.length > 0) {
+      const currentPaid = parseFloat(existingThisMonth[0]?.total_paid_this_month || 0);
+      const installmentAmt = parseFloat(chitGroup.installment_amount || 0);
+
+      // If already fully paid or exceeded, reject duplicate collection
+      if (currentPaid >= installmentAmt) {
         return res.status(400).json({
           success: false,
-          message: `Monthly installment has already been collected for this subscriber for the current month (Receipt #${existingThisMonth[0].receipt_number}). Monthly chits are collected only one time in a month.`,
+          message: `Monthly installment of ₹${installmentAmt.toLocaleString('en-IN')} has already been fully paid by this subscriber for the current month.`,
         });
       }
 
-      // Check B: Collection must be on 1st of month (allow admin override or test bypass)
+      // Check B: Collection must be on 1st of month (allow admin override or test bypass, or paying remaining balance)
       const isFirstDay = new Date().getDate() === 1;
-      const allowOffCycle = req.body.allow_off_cycle || req.user.role === 'SUPER_ADMIN' || req.user.role === 'ADMIN';
+      const allowOffCycle = req.body.allow_off_cycle || req.user.role === 'SUPER_ADMIN' || req.user.role === 'ADMIN' || currentPaid > 0;
       if (!isFirstDay && !allowOffCycle && req.user.role === 'COLLECTION_AGENT') {
         return res.status(400).json({
           success: false,
@@ -188,13 +190,20 @@ export async function recordCollection(req, res, next) {
       link: '/admin/collections',
     }).catch(() => {});
 
+    const installmentAmt = parseFloat(chitGroup.installment_amount || 0);
+    const remainingBalance = Math.max(0, installmentAmt - validated.amount);
+
     res.status(201).json({
       success: true,
-      message: 'Collection recorded successfully.',
+      message: remainingBalance > 0
+        ? `Partial collection of ₹${validated.amount.toLocaleString('en-IN')} recorded successfully. Remaining balance: ₹${remainingBalance.toLocaleString('en-IN')}.`
+        : `Full collection of ₹${validated.amount.toLocaleString('en-IN')} recorded successfully.`,
       receipt: {
         id: insertResult.insertId,
         receiptNumber,
         amount: validated.amount,
+        remainingBalance,
+        installmentAmount: installmentAmt,
         paymentMethod: validated.payment_method,
         date: new Date().toISOString().slice(0, 10),
       },

@@ -2069,6 +2069,10 @@ export default function RouteTrackingPage() {
                     <feGaussianBlur stdDeviation="3" result="blur" />
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                   </filter>
+                  <filter id="glowYellow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
                   <filter id="glowRed" x="-20%" y="-20%" width="140%" height="140%">
                     <feGaussianBlur stdDeviation="3" result="blur" />
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
@@ -2103,9 +2107,11 @@ export default function RouteTrackingPage() {
                   const isSelected = selectedStop?.id === stop.id;
                   const isPaid =
                     stop.status === 'PAID' || stop.nodeColor === 'GREEN' || stop.status === 'VISITED_COLLECTED';
+                  const isPartial =
+                    stop.status === 'PARTIAL' || stop.nodeColor === 'YELLOW' || stop.isPartial;
 
-                  const stopFill = isPaid ? '#10b981' : '#ef4444';
-                  const stopStroke = isPaid ? '#059669' : '#dc2626';
+                  const stopFill = isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444');
+                  const stopStroke = isPaid ? '#059669' : (isPartial ? '#d97706' : '#dc2626');
 
                   return (
                     <g
@@ -2123,7 +2129,7 @@ export default function RouteTrackingPage() {
                           cy={stop.coordY}
                           r="24"
                           fill="none"
-                          stroke={isPaid ? '#10b981' : '#ef4444'}
+                          stroke={isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444')}
                           strokeWidth="2.5"
                           strokeDasharray="4 4"
                           className="animate-spin"
@@ -2131,7 +2137,7 @@ export default function RouteTrackingPage() {
                         />
                       )}
 
-                      {/* Main Member Node Circle (Green if paid, Red if not paid) */}
+                      {/* Main Member Node Circle (Green if paid, Yellow if partial, Red if not paid) */}
                       <circle
                         cx={stop.coordX}
                         cy={stop.coordY}
@@ -2139,7 +2145,7 @@ export default function RouteTrackingPage() {
                         fill={stopFill}
                         stroke={stopStroke}
                         strokeWidth="3.5"
-                        filter={isPaid ? 'url(#glowGreen)' : 'url(#glowRed)'}
+                        filter={isPaid ? 'url(#glowGreen)' : (isPartial ? 'url(#glowYellow)' : 'url(#glowRed)')}
                         className="transition-all"
                       />
 
@@ -2169,17 +2175,17 @@ export default function RouteTrackingPage() {
                         Ticket #{stop.stopOrder}
                       </text>
 
-                      {/* Prominent PAID (Green) or NOT PAID (Red) text below */}
+                      {/* Prominent PAID (Green), PARTIAL (Yellow) or NOT PAID (Red) text below */}
                       <text
                         x={stop.coordX}
                         y={stop.coordY + 40}
                         textAnchor="middle"
-                        fill={isPaid ? '#10b981' : '#ef4444'}
+                        fill={isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444')}
                         fontSize="9"
                         fontWeight="800"
                         className="pointer-events-none select-none tracking-tight uppercase"
                       >
-                        {isPaid ? 'PAID' : 'NOT PAID'}
+                        {isPaid ? 'PAID' : (isPartial ? 'PARTIAL' : 'NOT PAID')}
                       </text>
                     </g>
                   );
@@ -2229,19 +2235,25 @@ export default function RouteTrackingPage() {
                 selectedStop.status === 'PAID' ||
                 selectedStop.nodeColor === 'GREEN' ||
                 selectedStop.status === 'VISITED_COLLECTED';
+              const isPartial =
+                selectedStop.status === 'PARTIAL' ||
+                selectedStop.nodeColor === 'YELLOW' ||
+                selectedStop.isPartial;
 
               return (
                 <div
                   className={`mt-4 p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
                     isPaid
                       ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
+                      : isPartial
+                      ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800'
                       : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/60'
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shrink-0 shadow-xs ${
-                        isPaid ? 'bg-emerald-600' : 'bg-rose-600'
+                        isPaid ? 'bg-emerald-600' : (isPartial ? 'bg-amber-500' : 'bg-rose-600')
                       }`}
                     >
                       #{selectedStop.stopOrder}
@@ -2257,6 +2269,11 @@ export default function RouteTrackingPage() {
                           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             <span>PAID</span>
+                          </span>
+                        ) : isPartial ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400 dark:border-amber-700 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                            <span>PARTIAL (Due: ₹{Number(selectedStop.remainingBalance || 0).toLocaleString('en-IN')})</span>
                           </span>
                         ) : (
                           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">

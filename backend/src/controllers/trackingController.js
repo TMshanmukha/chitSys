@@ -182,47 +182,62 @@ export async function getRouteTrackingOverview(req, res, next) {
         const coordX = Math.round(80 + progress * 640);
         const coordY = Math.round(180 + Math.sin(progress * Math.PI * 2) * 85);
 
-        // Find if this member paid in their respective active cycle (Today for daily, current month for monthly)
-        const coll = groupColls.find((c) => node.memberId && c.member_id === node.memberId);
+        // Find all collections by this member in their respective active cycle (Today for daily, current month for monthly)
+        const memberColls = groupColls.filter((c) => node.memberId && c.member_id === node.memberId);
+        const memberTotalPaid = memberColls.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+        const latestColl = memberColls.length > 0 ? memberColls[memberColls.length - 1] : null;
+        const remainingBalance = Math.max(0, node.expectedAmount - memberTotalPaid);
+
         // Find if agent left a specific tracking log/note for this member in this cycle
         const log = groupLogs.find((l) => 
           (l.member_id && node.memberId && l.member_id === node.memberId) ||
           (l.stop_id === node.stopOrder)
         );
 
-        const isPaid = Boolean(coll) || (log && log.status === 'PAID');
+        const isFullyPaid = memberTotalPaid >= node.expectedAmount || (log && log.status === 'PAID');
+        const isPartiallyPaid = !isFullyPaid && memberTotalPaid > 0;
 
         let status = 'NOT_PAID'; // NOT PAID (Red)
-        let nodeColor = 'RED'; // 'GREEN' | 'RED'
+        let nodeColor = 'RED'; // 'GREEN' | 'YELLOW' | 'RED'
         let statusText = isDaily ? 'Not Paid (Today)' : 'Not Paid (This Month)';
         let notes = log?.notes || (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment');
         let collectionDetails = null;
 
-        if (isPaid) {
+        if (isFullyPaid) {
           status = 'PAID';
           nodeColor = 'GREEN';
           statusText = isDaily ? 'Paid for Today' : 'Paid for Current Month';
           paidCount++;
           lastVisitedStopIndex = idx;
-          lastActivityTime = coll?.collection_time || log?.last_ping_time;
-          if (coll) {
-            if (coll.payment_method === 'CASH') {
-              cashCollected += parseFloat(coll.amount);
-            } else {
-              onlineCollected += parseFloat(coll.amount);
-              if (coll.payment_method === 'UPI' || (coll.payment_method && coll.payment_method.toUpperCase().includes('UPI'))) {
-                upiCollected += parseFloat(coll.amount);
-              }
-            }
+          lastActivityTime = latestColl?.collection_time || log?.last_ping_time;
+          if (latestColl) {
             collectionDetails = {
-              receiptNumber: coll.receipt_number,
-              amount: parseFloat(coll.amount),
-              paymentMethod: coll.payment_method,
-              date: coll.collection_date,
-              time: coll.collection_time,
+              receiptNumber: latestColl.receipt_number,
+              amount: memberTotalPaid,
+              lastAmount: parseFloat(latestColl.amount),
+              paymentMethod: latestColl.payment_method,
+              date: latestColl.collection_date,
+              time: latestColl.collection_time,
             };
           }
-          notes = coll?.notes || log?.notes || (isDaily ? 'Paid for today' : 'Paid for current monthly cycle');
+          notes = latestColl?.notes || log?.notes || (isDaily ? 'Paid for today' : 'Paid for current monthly cycle');
+        } else if (isPartiallyPaid) {
+          status = 'PARTIAL';
+          nodeColor = 'YELLOW';
+          statusText = `Partial (Remaining: ₹${remainingBalance.toLocaleString('en-IN')})`;
+          lastVisitedStopIndex = idx;
+          lastActivityTime = latestColl?.collection_time || log?.last_ping_time;
+          if (latestColl) {
+            collectionDetails = {
+              receiptNumber: latestColl.receipt_number,
+              amount: memberTotalPaid,
+              lastAmount: parseFloat(latestColl.amount),
+              paymentMethod: latestColl.payment_method,
+              date: latestColl.collection_date,
+              time: latestColl.collection_time,
+            };
+          }
+          notes = `Partial payment (Paid: ₹${memberTotalPaid}, Remaining: ₹${remainingBalance})`;
         } else {
           status = 'NOT_PAID';
           nodeColor = 'RED';
@@ -232,6 +247,18 @@ export async function getRouteTrackingOverview(req, res, next) {
             lastActivityTime = log.last_ping_time;
           }
         }
+
+        // Sum cash / online collections
+        memberColls.forEach((c) => {
+          if (c.payment_method === 'CASH') {
+            cashCollected += parseFloat(c.amount);
+          } else {
+            onlineCollected += parseFloat(c.amount);
+            if (c.payment_method === 'UPI' || (c.payment_method && c.payment_method.toUpperCase().includes('UPI'))) {
+              upiCollected += parseFloat(c.amount);
+            }
+          }
+        });
 
         return {
           id: node.id,
@@ -256,6 +283,10 @@ export async function getRouteTrackingOverview(req, res, next) {
           joinedDate: node.joinedDate,
           membershipStatus: node.membershipStatus,
           expectedAmount: node.expectedAmount,
+          totalPaid: memberTotalPaid,
+          remainingBalance: remainingBalance,
+          isPaid: isFullyPaid,
+          isPartial: isPartiallyPaid,
           coordX,
           coordY,
           status,

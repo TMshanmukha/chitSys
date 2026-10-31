@@ -57,21 +57,35 @@ export default function AdminCommissionsPage() {
       totalMembersCount: 0,
       totalAgentsCount: 0,
       totalPayoutsDisbursed: 0,
+      pendingAdvancesAmount: 0,
+      totalAdvancesAdded: 0,
+      recoveredAdvancesAmount: 0,
     },
+    advancesSummary: {
+      totalAdvancesAdded: 0,
+      pendingAdvancesAmount: 0,
+      recoveredAdvancesAmount: 0,
+      pendingMembersCount: 0,
+    },
+    adminAdvances: [],
     auctionLedger: [],
     paymentsLedger: [],
     withdrawalsHistory: [],
   });
 
-  // Active Sub-Section: 'overview' | 'personal' | 'firm' | 'bank' | 'auctions' | 'collections'
+  // Active Sub-Section: 'overview' | 'firm' | 'auctions' | 'collections' | 'advances'
   const [activeSection, setActiveSection] = useState('overview');
   const [ledgerSearch, setLedgerSearch] = useState('');
+  const [advancesStatusFilter, setAdvancesStatusFilter] = useState('ALL'); // 'ALL' | 'PENDING_RECOVERY' | 'RECOVERED'
+  const [recoveringId, setRecoveringId] = useState(null);
 
   // Pagination states
   const [auctionPage, setAuctionPage] = useState(1);
   const [auctionPageSize, setAuctionPageSize] = useState(10);
   const [paymentPage, setPaymentPage] = useState(1);
   const [paymentPageSize, setPaymentPageSize] = useState(10);
+  const [advancesPage, setAdvancesPage] = useState(1);
+  const [advancesPageSize, setAdvancesPageSize] = useState(10);
 
   const loadData = async (isManual = false) => {
     try {
@@ -102,11 +116,56 @@ export default function AdminCommissionsPage() {
     setTimeout(() => setCopiedKey(''), 2000);
   };
 
+  const handleRecoverAdvance = async (adv) => {
+    if (!window.confirm(`Confirm recovery of ₹${Number(adv.advance_amount || 0).toLocaleString('en-IN')} for member ${adv.member_name} (${adv.group_name})?`)) {
+      return;
+    }
+    try {
+      setRecoveringId(adv.id);
+      const res = await api.post('/admin/pending-dues/recover', {
+        advance_id: adv.id,
+        recovered_amount: adv.advance_amount,
+        notes: 'Repaid by subscriber and confirmed on Admin Profile',
+      });
+      if (res.data?.success) {
+        await loadData(true);
+      }
+    } catch (err) {
+      alert(getFriendlyErrorMessage(err, 'Failed to mark advance as recovered.'));
+    } finally {
+      setRecoveringId(null);
+    }
+  };
+
   const overview = data.financialOverview || {};
   const user = data.adminUser || {};
   const profile = data.adminProfile || {};
   const auctionLedger = data.auctionLedger || [];
   const paymentsLedger = data.paymentsLedger || [];
+  const adminAdvances = data.adminAdvances || [];
+  const advancesSummary = data.advancesSummary || {};
+
+  // Filtered Advances Ledger
+  const filteredAdvances = adminAdvances.filter((adv) => {
+    if (advancesStatusFilter !== 'ALL' && adv.status !== advancesStatusFilter) {
+      return false;
+    }
+    if (!ledgerSearch) return true;
+    const q = ledgerSearch.toLowerCase();
+    return (
+      adv.member_name?.toLowerCase().includes(q) ||
+      adv.member_phone?.toLowerCase().includes(q) ||
+      String(adv.ticket_number).includes(q) ||
+      adv.group_name?.toLowerCase().includes(q) ||
+      adv.group_code?.toLowerCase().includes(q) ||
+      adv.added_by_name?.toLowerCase().includes(q)
+    );
+  });
+
+  const paginatedAdvances = filteredAdvances.slice(
+    (advancesPage - 1) * advancesPageSize,
+    advancesPage * advancesPageSize
+  );
 
   // Filtered Auction Ledger
   const filteredAuctions = auctionLedger.filter((a) => {
@@ -390,6 +449,46 @@ export default function AdminCommissionsPage() {
             <span className="font-bold text-sky-600 dark:text-sky-400">Field Staff</span>
           </div>
         </div>
+
+        {/* Metric 7: Auction Advances & Member Deficits Ledger */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Auction Advances & Member Receivables
+              </span>
+              {Number(advancesSummary.pendingMembersCount || 0) > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
+                  {advancesSummary.pendingMembersCount} Unpaid Deficits
+                </span>
+              )}
+            </div>
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <CreditCard className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+            <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
+              ₹{(advancesSummary.pendingAdvancesAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </p>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Total Added: <strong className="text-slate-800 dark:text-slate-200">₹{(advancesSummary.totalAdvancesAdded || 0).toLocaleString('en-IN')}</strong> · Recovered: <strong className="text-emerald-600 dark:text-emerald-400">₹{(advancesSummary.recoveredAdvancesAmount || 0).toLocaleString('en-IN')}</strong>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            <span>Money Added by Admin/Firm to complete auctions when members have not paid</span>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSection('advances');
+                smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
+              }}
+              className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            >
+              View Member Advance Ledger →
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Navigation Tabs for Profile Information with Automatic Window Move */}
@@ -456,6 +555,27 @@ export default function AdminCommissionsPage() {
         >
           <Receipt className="w-4 h-4" />
           <span>Collections Inflows ({paymentsLedger.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSection('advances');
+            smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+            activeSection === 'advances'
+              ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>Auction Advances & Member Dues ({adminAdvances.length})</span>
+          {Number(advancesSummary.pendingMembersCount || 0) > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">
+              {advancesSummary.pendingMembersCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -994,6 +1114,213 @@ export default function AdminCommissionsPage() {
                 pageSize={paymentPageSize}
                 onPageChange={setPaymentPage}
                 onPageSizeChange={setPaymentPageSize}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SECTION 6: Auction Advances & Member Pending Dues Ledger */}
+      {activeSection === 'advances' && (
+        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Auction Advances & Member Deficits Ledger</span>
+                {Number(advancesSummary.pendingMembersCount || 0) > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
+                    {advancesSummary.pendingMembersCount} Pending Recovery
+                  </span>
+                )}
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Amounts added by Administrator or firm to cover unpaid subscribers during auctions, tracked per member and chit scheme until repayment
+              </p>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search member, chit, ticket..."
+                value={ledgerSearch}
+                onChange={(e) => {
+                  setLedgerSearch(e.target.value);
+                  setAdvancesPage(1);
+                }}
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* KPI Summary Cards for Advances */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-slate-500 dark:text-slate-400 block text-[11px] font-medium">Total Advances Added</span>
+                <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                  ₹{Number(advancesSummary.totalAdvancesAdded || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <Coins className="w-5 h-5 text-slate-400" />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-amber-800 dark:text-amber-300 block text-[11px] font-bold">Awaiting Member Recovery</span>
+                <span className="text-base font-black text-amber-600 dark:text-amber-400">
+                  ₹{Number(advancesSummary.pendingAdvancesAmount || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <Clock className="w-5 h-5 text-amber-500" />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-emerald-800 dark:text-emerald-300 block text-[11px] font-bold">Recovered to Admin</span>
+                <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
+                  ₹{Number(advancesSummary.recoveredAdvancesAmount || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            </div>
+          </div>
+
+          {/* Filter Status Chips */}
+          <div className="flex items-center gap-2 pt-1 flex-wrap">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Filter Status:</span>
+            <button
+              type="button"
+              onClick={() => { setAdvancesStatusFilter('ALL'); setAdvancesPage(1); }}
+              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                advancesStatusFilter === 'ALL'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+              }`}
+            >
+              All ({adminAdvances.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAdvancesStatusFilter('PENDING_RECOVERY'); setAdvancesPage(1); }}
+              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                advancesStatusFilter === 'PENDING_RECOVERY'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+              }`}
+            >
+              Pending Recovery ({adminAdvances.filter((a) => a.status === 'PENDING_RECOVERY').length})
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAdvancesStatusFilter('RECOVERED'); setAdvancesPage(1); }}
+              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                advancesStatusFilter === 'RECOVERED'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+              }`}
+            >
+              Recovered ({adminAdvances.filter((a) => a.status === 'RECOVERED').length})
+            </button>
+          </div>
+
+          {/* Ledger Table */}
+          {filteredAdvances.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
+              <CreditCard className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700 mb-2" />
+              <p className="font-semibold">No auction advance records found.</p>
+              <p className="text-xs text-slate-400 mt-1">
+                When an auction is conducted and unpaid member amounts are covered by the administrator, they appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+              <div className="overflow-x-auto overflow-y-auto max-h-[460px]">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
+                    <tr>
+                      <th className="py-3 px-3">Subscriber Member</th>
+                      <th className="py-3 px-3">Respective Chit Scheme</th>
+                      <th className="py-3 px-3 font-bold text-amber-600 dark:text-amber-400">Advance Covered</th>
+                      <th className="py-3 px-3">Added By</th>
+                      <th className="py-3 px-3">Date Added</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3">Notes</th>
+                      <th className="py-3 px-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                    {paginatedAdvances.map((adv) => (
+                      <tr key={adv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3 px-3">
+                          <span className="font-bold text-slate-900 dark:text-white block">
+                            {adv.member_name}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            Ticket #{adv.ticket_number || 'N/A'} {adv.member_phone ? `· ${adv.member_phone}` : ''}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                            {adv.group_name}
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-400">
+                            {adv.group_code} · Due ₹{Number(adv.installment_amount || 0).toLocaleString('en-IN')}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-extrabold text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
+                          ₹{Number(adv.advance_amount || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-3 font-medium text-slate-700 dark:text-slate-300">
+                          {adv.added_by_name || 'Admin'}
+                        </td>
+                        <td className="py-3 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          {formatDate(adv.advance_date)}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {adv.status === 'RECOVERED' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 flex items-center gap-1 w-fit">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Recovered</span>
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400 flex items-center gap-1 w-fit">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              <span>Awaiting Repayment</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={adv.notes}>
+                          {adv.notes || 'Auction pool advance'}
+                        </td>
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          {adv.status === 'PENDING_RECOVERY' ? (
+                            <button
+                              type="button"
+                              disabled={recoveringId === adv.id}
+                              onClick={() => handleRecoverAdvance(adv)}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              {recoveringId === adv.id ? 'Settling...' : 'Mark Recovered'}
+                            </button>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                              ✓ Repaid to Admin
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                currentPage={advancesPage}
+                totalItems={filteredAdvances.length}
+                pageSize={advancesPageSize}
+                onPageChange={setAdvancesPage}
+                onPageSizeChange={setAdvancesPageSize}
               />
             </div>
           )}

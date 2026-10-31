@@ -33,3 +33,4 @@ CREATE TABLE IF NOT EXISTS agent_day_submissions (
   INDEX idx_ads_status (status),
   INDEX idx_ads_work_date (work_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

@@ -298,21 +298,22 @@ export async function getMyAssignedRoutes(req, res, next) {
          JOIN chit_groups g ON gm.group_id = g.id
          JOIN members m ON gm.member_id = m.id
          LEFT JOIN (
-           SELECT c1.*
-           FROM collections c1
-           INNER JOIN (
-             SELECT MAX(c_sub.id) as max_id
-             FROM collections c_sub
-             JOIN chit_groups g_sub ON c_sub.group_id = g_sub.id
-             WHERE c_sub.verification_status != 'CANCELLED'
-               AND (
-                 (g_sub.frequency = 'DAILY' AND c_sub.collection_date = CURDATE())
-                 OR
-                 (g_sub.frequency = 'MONTHLY' AND YEAR(c_sub.collection_date) = YEAR(CURDATE()) AND MONTH(c_sub.collection_date) = MONTH(CURDATE()))
-               )
-             GROUP BY c_sub.group_id, c_sub.member_id
-           ) c2 ON c1.id = c2.max_id
-         ) c ON c.group_id = gm.group_id AND c.member_id = gm.member_id
+           SELECT 
+             c_sub.group_id, c_sub.member_id,
+             SUM(c_sub.amount) as total_cycle_collected,
+             COUNT(c_sub.id) as cycle_receipt_count,
+             MAX(c_sub.id) as max_id
+           FROM collections c_sub
+           JOIN chit_groups g_sub ON c_sub.group_id = g_sub.id
+           WHERE c_sub.verification_status != 'CANCELLED'
+             AND (
+               (g_sub.frequency = 'DAILY' AND c_sub.collection_date = CURDATE())
+               OR
+               (g_sub.frequency = 'MONTHLY' AND YEAR(c_sub.collection_date) = YEAR(CURDATE()) AND MONTH(c_sub.collection_date) = MONTH(CURDATE()))
+             )
+           GROUP BY c_sub.group_id, c_sub.member_id
+         ) c_agg ON c_agg.group_id = gm.group_id AND c_agg.member_id = gm.member_id
+         LEFT JOIN collections c ON c.id = c_agg.max_id
          LEFT JOIN (
            SELECT atl1.*
            FROM agent_tracking_logs atl1
@@ -335,12 +336,27 @@ export async function getMyAssignedRoutes(req, res, next) {
 
       members = memberRows.map((m) => {
         const isDaily = m.group_frequency === 'DAILY';
-        const isPaid = Boolean(m.cycle_collection_id) || m.cycle_tracking_status === 'PAID';
-        const status = isPaid ? 'PAID' : (m.cycle_tracking_status || 'NOT_PAID');
-        const notes = m.collection_notes || m.cycle_tracking_notes || (isPaid ? (isDaily ? 'Paid for today' : 'Paid for current monthly cycle') : (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment'));
-        const statusLabel = isPaid 
+        const installmentAmt = Number(m.group_installment_amount || 0);
+        const collectedAmt = Number(m.total_cycle_collected || m.cycle_collected_amount || 0);
+        const remainingBalance = Math.max(0, installmentAmt - collectedAmt);
+        const isFullyPaid = collectedAmt >= installmentAmt;
+        const isPartiallyPaid = collectedAmt > 0 && collectedAmt < installmentAmt;
+        const isPaid = isFullyPaid || m.cycle_tracking_status === 'PAID';
+        const status = isFullyPaid ? 'PAID' : (isPartiallyPaid ? 'PARTIAL' : (m.cycle_tracking_status || 'NOT_PAID'));
+        const nodeColor = isFullyPaid ? 'GREEN' : (isPartiallyPaid ? 'YELLOW' : 'RED');
+
+        const notes = m.collection_notes || m.cycle_tracking_notes || (
+          isFullyPaid
+            ? (isDaily ? 'Paid for today' : 'Paid for current monthly cycle')
+            : (isPartiallyPaid
+                ? `Partial collection (Paid: ₹${collectedAmt}, Remaining: ₹${remainingBalance})`
+                : (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment')
+              )
+        );
+
+        const statusLabel = isFullyPaid 
           ? (isDaily ? 'Paid for Today' : 'Paid for Month')
-          : (isDaily ? 'Not Paid Today' : 'Not Paid This Month');
+          : (isPartiallyPaid ? `Partial (Due: ₹${remainingBalance})` : (isDaily ? 'Not Paid Today' : 'Not Paid This Month'));
 
         return {
           group_id: m.group_id,
@@ -355,19 +371,23 @@ export async function getMyAssignedRoutes(req, res, next) {
           kyc_type: m.kyc_type || 'Aadhaar Card',
           kyc_number: m.kyc_number || 'Verified',
           is_paid: isPaid,
-          pending_amount: isPaid ? 0 : Number(m.group_installment_amount || 0),
-          installment_amount: Number(m.group_installment_amount || 0),
+          is_partial: isPartiallyPaid,
+          pending_amount: remainingBalance,
+          remaining_balance: remainingBalance,
+          installment_amount: installmentAmt,
+          collected_amount: collectedAmt,
+          total_cycle_collected: collectedAmt,
+          receipt_count: Number(m.cycle_receipt_count || (m.cycle_collection_id ? 1 : 0)),
           today_status: status, // maintain backward compatibility
           cycle_status: status,
           status_label: statusLabel,
           cycle_type: m.group_frequency,
           cycle_mode: isDaily ? 'DAY_BY_DAY' : 'MONTH_BY_MONTH',
           cycle_period_label: isDaily ? 'Day-by-Day (Today)' : 'Month-by-Month (Current Month)',
-          node_color: isPaid ? 'GREEN' : 'RED',
+          node_color: nodeColor,
           today_notes: notes,
           cycle_notes: notes,
           receipt_number: m.cycle_receipt_number,
-          collected_amount: m.cycle_collected_amount,
           payment_method: m.cycle_payment_method,
           collection_date: m.cycle_collection_date,
           collection_time: m.cycle_collection_time,

@@ -721,6 +721,34 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
       LIMIT 50
     `);
 
+    // 9. Admin Advances & Covered Dues Ledger (Amounts added by Admin during Auctions or Rounds)
+    const [advancesRows] = await pool.query(`
+      SELECT 
+        ama.id, ama.group_id, ama.member_id, ama.collection_id, ama.advance_amount,
+        ama.advance_date, ama.cycle_period, ama.status, ama.recovered_amount,
+        ama.recovered_date, ama.notes, ama.created_at,
+        g.group_name, g.group_code, g.chit_type, g.frequency, g.installment_amount,
+        m.full_name AS member_name, m.phone AS member_phone, m.member_code,
+        gm.ticket_number,
+        u.full_name AS added_by_name
+      FROM admin_member_advances ama
+      JOIN chit_groups g ON ama.group_id = g.id
+      JOIN members m ON ama.member_id = m.id
+      LEFT JOIN group_memberships gm ON gm.group_id = ama.group_id AND gm.member_id = ama.member_id
+      LEFT JOIN users u ON ama.created_by = u.id
+      ORDER BY ama.advance_date DESC, ama.id DESC
+      LIMIT 100
+    `);
+
+    const totalAdvancesAdded = advancesRows.reduce((s, a) => s + parseFloat(a.advance_amount || 0), 0);
+    const pendingAdvancesAmount = advancesRows
+      .filter((a) => a.status === 'PENDING_RECOVERY')
+      .reduce((s, a) => s + parseFloat(a.advance_amount || 0), 0);
+    const recoveredAdvancesAmount = advancesRows
+      .filter((a) => a.status === 'RECOVERED')
+      .reduce((s, a) => s + parseFloat(a.recovered_amount || a.advance_amount || 0), 0);
+    const pendingMembersCount = advancesRows.filter((a) => a.status === 'PENDING_RECOVERY').length;
+
     res.status(200).json({
       success: true,
       data: {
@@ -741,10 +769,21 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
           totalMembersCount,
           totalAgentsCount,
           totalPayoutsDisbursed,
+          totalAdvancesAdded,
+          pendingAdvancesAmount,
+          recoveredAdvancesAmount,
+          pendingMembersCount,
         },
         auctionLedger,
         paymentsLedger,
         withdrawalsHistory,
+        adminAdvances: advancesRows,
+        advancesSummary: {
+          totalAdvancesAdded,
+          pendingAdvancesAmount,
+          recoveredAdvancesAmount,
+          pendingMembersCount,
+        },
       },
     });
   } catch (error) {
