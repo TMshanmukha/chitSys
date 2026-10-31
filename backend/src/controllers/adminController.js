@@ -1,5 +1,8 @@
+import crypto from 'crypto';
 import { pool } from '../config/db.js';
 import bcrypt from 'bcryptjs';
+import { recordAuditLog } from '../services/authService.js';
+import { createNotification } from './notificationController.js';
 
 export async function getAuditLogs(req, res, next) {
   try {
@@ -314,6 +317,34 @@ export async function getReportsAnalytics(req, res, next) {
           )
         ) as cycle_paid,
         (
+          SELECT ama.id
+          FROM admin_member_advances ama
+          WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
+            AND ama.status = 'PENDING_RECOVERY'
+          ORDER BY ama.id DESC LIMIT 1
+        ) as active_advance_id,
+        (
+          SELECT ama.advance_amount
+          FROM admin_member_advances ama
+          WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
+            AND ama.status = 'PENDING_RECOVERY'
+          ORDER BY ama.id DESC LIMIT 1
+        ) as active_advance_amount,
+        (
+          SELECT ama.advance_date
+          FROM admin_member_advances ama
+          WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
+            AND ama.status = 'PENDING_RECOVERY'
+          ORDER BY ama.id DESC LIMIT 1
+        ) as active_advance_date,
+        (
+          SELECT ama.notes
+          FROM admin_member_advances ama
+          WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
+            AND ama.status = 'PENDING_RECOVERY'
+          ORDER BY ama.id DESC LIMIT 1
+        ) as active_advance_notes,
+        (
           SELECT c3.receipt_number
           FROM collections c3
           WHERE c3.group_id = gm.group_id AND c3.member_id = gm.member_id 
@@ -345,12 +376,15 @@ export async function getReportsAnalytics(req, res, next) {
     `, defParams);
 
     const defaulters = enrolledMembers
-      .filter((m) => parseFloat(m.cycle_paid || 0) < parseFloat(m.installment_amount || 0))
+      .filter((m) => Boolean(m.active_advance_id) || parseFloat(m.cycle_paid || 0) < parseFloat(m.installment_amount || 0))
       .map((m) => {
         const isDaily = m.frequency === 'DAILY';
         const expected = parseFloat(m.installment_amount);
         const paid = parseFloat(m.cycle_paid || 0);
-        const due = Math.max(0, expected - paid);
+        const hasAdvance = Boolean(m.active_advance_id);
+        const advanceAmount = hasAdvance ? parseFloat(m.active_advance_amount || 0) : 0;
+        const due = hasAdvance ? advanceAmount : Math.max(0, expected - paid);
+        const status = hasAdvance ? 'ADMIN_COVERED' : (paid > 0 ? 'PARTIAL' : 'NOT_PAID');
 
         return {
           membershipId: m.membership_id,
@@ -374,8 +408,13 @@ export async function getReportsAnalytics(req, res, next) {
           expectedAmount: expected,
           paidAmount: paid,
           dueAmount: due,
-          agentNotes: m.agent_notes || (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment'),
-          status: 'NOT_PAID',
+          isAdminCovered: hasAdvance,
+          advanceId: m.active_advance_id || null,
+          advanceAmount,
+          advanceDate: m.active_advance_date || null,
+          advanceNotes: m.active_advance_notes || null,
+          agentNotes: m.agent_notes || (hasAdvance ? `Covered by Admin on ${m.active_advance_date} (Awaiting Recovery)` : (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment')),
+          status,
         };
       });
 
@@ -539,6 +578,9 @@ export async function getReportsAnalytics(req, res, next) {
           monthlyDefaultersCount: monthlyDefaulters.length,
           dailyDefaulterAmount,
           monthlyDefaulterAmount,
+          adminCoveredCount: defaulters.filter((d) => d.isAdminCovered).length,
+          adminCoveredAmount: defaulters.filter((d) => d.isAdminCovered).reduce((s, d) => s + d.dueAmount, 0),
+          unpaidDefaulterAmount: defaulters.filter((d) => !d.isAdminCovered).reduce((s, d) => s + d.dueAmount, 0),
           totalForemanCommission,
           totalDividendsDistributed,
           totalPrizeDisbursed,
@@ -1159,6 +1201,357 @@ export async function getAgentsDailyPerformance(req, res, next) {
     next(error);
   }
 }
+
+/**
+ * Get Comprehensive Pending Member Dues and Admin-Funded Advances Ledger
+ * Explicitly breaks down: which chit, which member, installment due, amount paid, and pending amount.
+ */
+export async function getPendingDuesAndAdvances(req, res, next) {
+  try {
+    const { groupId, status } = req.query; // status: 'ALL' | 'UNPAID' | 'ADMIN_COVERED' | 'RECOVERED'
+    let whereClause = "g.status = 'ACTIVE' AND gm.status = 'ACTIVE'";
+    const params = [];
+
+    if (groupId && groupId !== 'ALL') {
+      whereClause += " AND g.id = ?";
+      params.push(groupId);
+    }
+
+    const [rows] = await pool.query(`
+      SELECT 
+        gm.id as membership_id, gm.group_id, gm.member_id, gm.ticket_number, gm.joined_date,
+        g.group_name, g.group_code, g.chit_type, g.frequency, g.route_category, g.installment_amount, g.total_pool_amount,
+        m.full_name, m.phone, m.alternate_phone, m.address, m.member_code,
+        (
+          SELECT COALESCE(SUM(c2.amount), 0)
+          FROM collections c2
+          WHERE c2.group_id = gm.group_id AND c2.member_id = gm.member_id 
+          AND c2.verification_status != 'CANCELLED'
+          AND (
+            (g.frequency = 'DAILY' AND c2.collection_date = CURDATE())
+            OR
+            (g.frequency = 'MONTHLY' AND YEAR(c2.collection_date) = YEAR(CURDATE()) AND MONTH(c2.collection_date) = MONTH(CURDATE()))
+          )
+        ) as cycle_paid,
+        (
+          SELECT ama.id
+          FROM admin_member_advances ama
+          WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
+            AND ama.status = 'PENDING_RECOVERY'
+          ORDER BY ama.id DESC LIMIT 1
+        ) as active_advance_id,
+        (
+          SELECT ama.advance_amount
+          FROM admin_member_advances ama
+          WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
+            AND ama.status = 'PENDING_RECOVERY'
+          ORDER BY ama.id DESC LIMIT 1
+        ) as active_advance_amount,
+        (
+          SELECT ama.advance_date
+          FROM admin_member_advances ama
+          WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
+            AND ama.status = 'PENDING_RECOVERY'
+          ORDER BY ama.id DESC LIMIT 1
+        ) as active_advance_date,
+        (
+          SELECT ama.notes
+          FROM admin_member_advances ama
+          WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
+            AND ama.status = 'PENDING_RECOVERY'
+          ORDER BY ama.id DESC LIMIT 1
+        ) as active_advance_notes
+      FROM group_memberships gm
+      JOIN chit_groups g ON gm.group_id = g.id
+      JOIN members m ON gm.member_id = m.id
+      WHERE ${whereClause}
+      ORDER BY g.group_code ASC, gm.ticket_number ASC
+    `, params);
+
+    const items = rows.map((m) => {
+      const isDaily = m.frequency === 'DAILY';
+      const expected = parseFloat(m.installment_amount);
+      const paid = parseFloat(m.cycle_paid || 0);
+      const hasActiveAdvance = Boolean(m.active_advance_id);
+      const advanceAmount = hasActiveAdvance ? parseFloat(m.active_advance_amount || 0) : 0;
+
+      let pendingAmount = 0;
+      let recordStatus = 'PAID';
+
+      if (hasActiveAdvance) {
+        recordStatus = 'ADMIN_COVERED';
+        pendingAmount = advanceAmount;
+      } else if (paid < expected) {
+        recordStatus = paid > 0 ? 'PARTIAL' : 'NOT_PAID';
+        pendingAmount = Math.max(0, expected - paid);
+      }
+
+      return {
+        membershipId: m.membership_id,
+        groupId: m.group_id,
+        groupName: m.group_name,
+        groupCode: m.group_code,
+        chitType: m.chit_type,
+        frequency: m.frequency,
+        cycleType: isDaily ? 'Daily Cycle' : 'Monthly Cycle',
+        routeCategory: m.route_category,
+        memberId: m.member_id,
+        memberName: m.full_name,
+        memberPhone: m.phone,
+        alternatePhone: m.alternate_phone,
+        memberAddress: m.address,
+        memberCode: m.member_code,
+        ticketNumber: m.ticket_number,
+        expectedAmount: expected,
+        paidAmount: paid,
+        pendingAmount,
+        isAdminCovered: hasActiveAdvance,
+        advanceId: m.active_advance_id || null,
+        advanceAmount,
+        advanceDate: m.active_advance_date || null,
+        advanceNotes: m.active_advance_notes || null,
+        status: recordStatus,
+      };
+    });
+
+    let filtered = items;
+    if (status === 'UNPAID') {
+      filtered = items.filter((i) => i.status === 'NOT_PAID' || i.status === 'PARTIAL');
+    } else if (status === 'ADMIN_COVERED') {
+      filtered = items.filter((i) => i.status === 'ADMIN_COVERED');
+    } else if (!status || status === 'PENDING_ALL') {
+      filtered = items.filter((i) => i.status === 'NOT_PAID' || i.status === 'PARTIAL' || i.status === 'ADMIN_COVERED');
+    }
+
+    const totalUnpaidAmount = items
+      .filter((i) => i.status === 'NOT_PAID' || i.status === 'PARTIAL')
+      .reduce((s, i) => s + i.pendingAmount, 0);
+
+    const totalAdminCoveredAmount = items
+      .filter((i) => i.status === 'ADMIN_COVERED')
+      .reduce((s, i) => s + i.pendingAmount, 0);
+
+    const totalPendingOverall = totalUnpaidAmount + totalAdminCoveredAmount;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items: filtered,
+        summary: {
+          totalPendingOverall,
+          totalUnpaidAmount,
+          totalAdminCoveredAmount,
+          unpaidCount: items.filter((i) => i.status === 'NOT_PAID' || i.status === 'PARTIAL').length,
+          adminCoveredCount: items.filter((i) => i.status === 'ADMIN_COVERED').length,
+          totalPendingSubscribersCount: items.filter((i) => i.status !== 'PAID').length,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Admin Adds / Covers Member Installment in a Chit Scheme
+ * Creates a collection entry (so chit ledger has funds) and records an admin advance pending member recovery.
+ */
+export async function recordAdminAdvance(req, res, next) {
+  const connection = await pool.getConnection();
+  try {
+    const { group_id, member_id, amount, payment_method, notes, cycle_period } = req.body;
+    const parsedGroupId = parseInt(group_id, 10);
+    const parsedMemberId = parseInt(member_id, 10);
+    const parsedAmount = parseFloat(amount);
+
+    if (!parsedGroupId || !parsedMemberId || !parsedAmount || parsedAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Valid group, member, and positive amount are required.' });
+    }
+
+    // 1. Verify group and member membership
+    const [groupRows] = await connection.execute(
+      'SELECT id, group_name, group_code, installment_amount, frequency FROM chit_groups WHERE id = ?',
+      [parsedGroupId]
+    );
+    if (groupRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chit Group not found.' });
+    }
+    const group = groupRows[0];
+
+    const [memberRows] = await connection.execute(
+      `SELECT m.id, m.full_name, m.phone, gm.ticket_number
+       FROM group_memberships gm
+       JOIN members m ON gm.member_id = m.id
+       WHERE gm.group_id = ? AND gm.member_id = ? LIMIT 1`,
+      [parsedGroupId, parsedMemberId]
+    );
+    if (memberRows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Member is not enrolled in this chit group.' });
+    }
+    const member = memberRows[0];
+
+    await connection.beginTransaction();
+
+    // 2. Generate receipt number and insert collection
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const randSuffix = crypto.randomBytes(2).toString('hex').toUpperCase();
+    const receiptNumber = `ADM-${dateStr}-${randSuffix}`;
+    const paymentMethod = payment_method && ['CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE'].includes(payment_method)
+      ? payment_method
+      : 'CASH';
+
+    const advanceNotes = notes || `[ADMIN_FUNDED] Covered by Admin for ${member.full_name} (Ticket #${member.ticket_number}) - Pending Member Recovery`;
+
+    const [collResult] = await connection.execute(
+      `INSERT INTO collections 
+        (receipt_number, group_id, member_id, agent_id, amount, payment_method, payment_reference, collection_date, collection_time, verification_status, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME(), 'RECONCILED', ?)`,
+      [
+        receiptNumber,
+        parsedGroupId,
+        parsedMemberId,
+        req.user.id,
+        parsedAmount,
+        paymentMethod,
+        `ADMIN_ADV_${Date.now()}`,
+        advanceNotes,
+      ]
+    );
+
+    // 3. Insert record into admin_member_advances
+    const [advResult] = await connection.execute(
+      `INSERT INTO admin_member_advances
+        (group_id, member_id, collection_id, advance_amount, advance_date, cycle_period, status, recovered_amount, notes, created_by)
+       VALUES (?, ?, ?, ?, CURDATE(), ?, 'PENDING_RECOVERY', 0.00, ?, ?)`,
+      [
+        parsedGroupId,
+        parsedMemberId,
+        collResult.insertId,
+        parsedAmount,
+        cycle_period || (group.frequency === 'DAILY' ? 'DAILY_ROUND' : 'MONTHLY_ROUND'),
+        advanceNotes,
+        req.user.id,
+      ]
+    );
+
+    await connection.commit();
+
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'RECORD_ADMIN_ADVANCE',
+      resource: 'ADMIN_MEMBER_ADVANCES',
+      details: {
+        advanceId: advResult.insertId,
+        groupId: parsedGroupId,
+        groupName: group.group_name,
+        memberId: parsedMemberId,
+        memberName: member.full_name,
+        ticketNumber: member.ticket_number,
+        amount: parsedAmount,
+        receiptNumber,
+      },
+    });
+
+    createNotification({
+      targetRole: 'ADMIN',
+      title: `💼 Admin Added Amount: ₹${parsedAmount.toLocaleString('en-IN')}`,
+      message: `Admin covered unpaid installment of ₹${parsedAmount.toLocaleString('en-IN')} for ${member.full_name} in ${group.group_name} (Ticket #${member.ticket_number}). Marked as Pending Recovery.`,
+      type: 'COLLECTION',
+      link: '/admin/reports',
+    }).catch(() => {});
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully added ₹${parsedAmount.toLocaleString('en-IN')} on behalf of ${member.full_name}. Recorded as Pending Recovery.`,
+      data: {
+        advanceId: advResult.insertId,
+        collectionId: collResult.insertId,
+        receiptNumber,
+        groupId: parsedGroupId,
+        groupName: group.group_name,
+        memberId: parsedMemberId,
+        memberName: member.full_name,
+        ticketNumber: member.ticket_number,
+        amount: parsedAmount,
+        status: 'PENDING_RECOVERY',
+      },
+    });
+  } catch (error) {
+    await connection.rollback();
+    next(error);
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Mark Admin Advance as Recovered when Subscriber Repays the Admin
+ */
+export async function settleAdminAdvance(req, res, next) {
+  try {
+    const { advance_id, recovered_amount, notes } = req.body;
+    const advanceId = parseInt(advance_id, 10);
+    if (!advanceId) {
+      return res.status(400).json({ success: false, message: 'Valid advance ID is required.' });
+    }
+
+    const [rows] = await pool.execute(
+      `SELECT ama.*, g.group_name, g.group_code, m.full_name as member_name, m.phone, gm.ticket_number
+       FROM admin_member_advances ama
+       JOIN chit_groups g ON ama.group_id = g.id
+       JOIN members m ON ama.member_id = m.id
+       LEFT JOIN group_memberships gm ON gm.group_id = ama.group_id AND gm.member_id = ama.member_id
+       WHERE ama.id = ? LIMIT 1`,
+      [advanceId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Admin advance record not found.' });
+    }
+
+    const adv = rows[0];
+    const recAmount = recovered_amount !== undefined && recovered_amount !== null && recovered_amount !== ''
+      ? parseFloat(recovered_amount)
+      : parseFloat(adv.advance_amount);
+
+    await pool.execute(
+      `UPDATE admin_member_advances
+       SET status = 'RECOVERED', recovered_amount = ?, recovered_date = CURDATE(), notes = CONCAT(COALESCE(notes, ''), ' | Recovered: ', ?)
+       WHERE id = ?`,
+      [recAmount, notes || 'Fully repaid by subscriber to admin', advanceId]
+    );
+
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'SETTLE_ADMIN_ADVANCE',
+      resource: 'ADMIN_MEMBER_ADVANCES',
+      details: {
+        advanceId,
+        groupId: adv.group_id,
+        groupName: adv.group_name,
+        memberId: adv.member_id,
+        memberName: adv.member_name,
+        recoveredAmount: recAmount,
+      },
+    });
+
+    createNotification({
+      targetRole: 'ADMIN',
+      title: `✅ Recovered: ₹${recAmount.toLocaleString('en-IN')}`,
+      message: `Subscriber ${adv.member_name} (Ticket #${adv.ticket_number || ''}) has repaid ₹${recAmount.toLocaleString('en-IN')} to Admin for scheme ${adv.group_name}. Advance settled.`,
+      type: 'COLLECTION',
+      link: '/admin/reports',
+    }).catch(() => {});
+
+    res.status(200).json({
+      success: true,
+      message: `Advance of ₹${recAmount.toLocaleString('en-IN')} marked as recovered from ${adv.member_name}.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 
 
 

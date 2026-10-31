@@ -28,6 +28,10 @@ import {
   Sparkles,
   Phone,
   Eye,
+  Coins,
+  PlusCircle,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
@@ -87,6 +91,78 @@ export default function ReportsPage() {
 
   // Quick WhatsApp share feedback
   const [whatsappCopied, setWhatsappCopied] = useState(false);
+
+  // Admin Advance / Covered Due State
+  const [adminAdvanceModal, setAdminAdvanceModal] = useState(null);
+  const [adminAdvanceForm, setAdminAdvanceForm] = useState({
+    group_id: '',
+    member_id: '',
+    amount: '',
+    payment_method: 'CASH',
+    notes: '',
+  });
+  const [advanceSubmitting, setAdvanceSubmitting] = useState(false);
+  const [advanceSuccess, setAdvanceSuccess] = useState('');
+
+  const handleOpenAdminAdvance = (defaulter) => {
+    setAdvanceSuccess('');
+    setError('');
+    setAdminAdvanceModal(defaulter);
+    setAdminAdvanceForm({
+      group_id: defaulter.groupId,
+      member_id: defaulter.memberId,
+      amount: String(defaulter.dueAmount || defaulter.expectedAmount || 0),
+      payment_method: 'CASH',
+      notes: `[ADMIN_FUNDED] Covered by Admin on behalf of ${defaulter.memberName} (Ticket #${defaulter.ticketNumber}) - Pending Recovery`,
+    });
+  };
+
+  const handleSubmitAdminAdvance = async (e) => {
+    e.preventDefault();
+    setError('');
+    setAdvanceSubmitting(true);
+    try {
+      const res = await api.post('/admin/pending-dues/add-amount', {
+        group_id: parseInt(adminAdvanceForm.group_id, 10),
+        member_id: parseInt(adminAdvanceForm.member_id, 10),
+        amount: parseFloat(adminAdvanceForm.amount),
+        payment_method: adminAdvanceForm.payment_method,
+        notes: adminAdvanceForm.notes,
+      });
+
+      if (res.data?.success) {
+        setAdminAdvanceModal(null);
+        setAdvanceSuccess(res.data.message || 'Amount added successfully by Admin!');
+        await loadReports(true);
+      }
+    } catch (err) {
+      setError(getFriendlyErrorMessage(err, 'Failed to record Admin covered amount.'));
+    } finally {
+      setAdvanceSubmitting(false);
+    }
+  };
+
+  const handleSettleAdvance = async (advanceId, memberName, amount) => {
+    if (!window.confirm(`Confirm that ${memberName} has repaid ₹${Number(amount).toLocaleString('en-IN')} to Admin? This will settle the pending recovery.`)) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await api.post('/admin/pending-dues/recover', {
+        advance_id: advanceId,
+        recovered_amount: amount,
+        notes: 'Repaid by subscriber to admin',
+      });
+      if (res.data?.success) {
+        setAdvanceSuccess(`Successfully recorded repayment of ₹${Number(amount).toLocaleString('en-IN')} from ${memberName}.`);
+        await loadReports(true);
+      }
+    } catch (err) {
+      setError(getFriendlyErrorMessage(err, 'Failed to mark advance as settled.'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadReports = async (isManual = false) => {
     try {
@@ -862,26 +938,66 @@ export default function ReportsPage() {
                         <td className="py-3 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">
                           Ticket #{d.ticketNumber}
                         </td>
-                        <td className="py-3 px-4 font-extrabold text-rose-600 dark:text-rose-400 text-sm">
-                          ₹{Number(d.dueAmount).toLocaleString('en-IN')}
+                        <td className="py-3 px-4">
+                          <div className="font-extrabold text-sm font-heading">
+                            {d.isAdminCovered ? (
+                              <span className="text-amber-600 dark:text-amber-400">₹{Number(d.dueAmount).toLocaleString('en-IN')}</span>
+                            ) : (
+                              <span className="text-rose-600 dark:text-rose-400">₹{Number(d.dueAmount).toLocaleString('en-IN')}</span>
+                            )}
+                          </div>
+                          {d.isAdminCovered ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 mt-0.5">
+                              <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
+                              <span>Admin Covered · Owes Admin</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 mt-0.5">
+                              <Clock className="w-2.5 h-2.5 text-rose-600" />
+                              <span>Unpaid Deficit</span>
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-slate-500 italic max-w-xs">
                           {d.agentNotes ? <ShowMoreText text={d.agentNotes} maxChars={30} /> : <span className="text-slate-400">None</span>}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          {d.memberPhone ? (
-                            <a
-                              href={getWhatsAppReminderUrl(d)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>WhatsApp Reminder</span>
-                            </a>
-                          ) : (
-                            <span className="text-slate-400 italic text-[11px]">Phone Required</span>
-                          )}
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            {d.isAdminCovered ? (
+                              <button
+                                type="button"
+                                onClick={() => handleSettleAdvance(d.advanceId, d.memberName, d.dueAmount)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+                                title="Mark as repaid by member to admin"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Mark Repaid</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAdminAdvance(d)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+                                title="Admin adds amount so chit proceeds - recorded under pending recovery"
+                              >
+                                <PlusCircle className="w-3.5 h-3.5" />
+                                <span>+ Add Amount</span>
+                              </button>
+                            )}
+                            {d.memberPhone ? (
+                              <a
+                                href={getWhatsAppReminderUrl(d)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>WhatsApp</span>
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">Phone Required</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1621,6 +1737,146 @@ export default function ReportsPage() {
                 Close
               </button>
             </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Admin Add Amount (Cover Due) Modal */}
+      {Boolean(adminAdvanceModal) && (
+        <ModalPortal
+          id="report-admin-advance-modal"
+          isOpen={Boolean(adminAdvanceModal)}
+          onClose={() => setAdminAdvanceModal(null)}
+        >
+          <div className="w-full max-w-lg p-5 sm:p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400">
+                  <Coins className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white font-heading">
+                    Add Amount as Admin (Cover Due)
+                  </h3>
+                  <span className="text-xs text-slate-500">
+                    Fund unpaid installment so chit continues; tracked under Admin Pending Recovery
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdminAdvanceModal(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Chit Scheme:</span>
+                <span className="font-extrabold text-blue-900 dark:text-blue-300 font-heading">
+                  {adminAdvanceModal.groupName} ({adminAdvanceModal.groupCode})
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Subscriber:</span>
+                <span className="font-bold text-slate-900 dark:text-white font-heading">
+                  #{adminAdvanceModal.ticketNumber} - {adminAdvanceModal.memberName} ({adminAdvanceModal.memberPhone})
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Cycle Type:</span>
+                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                  {adminAdvanceModal.cycleLabel || adminAdvanceModal.cycleType}
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-t border-blue-200/60 dark:border-blue-900/40 pt-1.5">
+                <span className="text-rose-600 dark:text-rose-400 font-bold">Unpaid / Deficit Pending:</span>
+                <span className="font-mono font-black text-rose-600 dark:text-rose-400 text-sm">
+                  ₹{Number(adminAdvanceModal.dueAmount || adminAdvanceModal.expectedAmount || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitAdminAdvance} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                  Amount Added by Admin (₹) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  min="1"
+                  onWheel={(e) => e.target.blur()}
+                  value={adminAdvanceForm.amount}
+                  onChange={(e) => setAdminAdvanceForm({ ...adminAdvanceForm, amount: e.target.value })}
+                  placeholder="e.g. 500"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                  Admin Payment Source / Method
+                </label>
+                <select
+                  value={adminAdvanceForm.payment_method}
+                  onChange={(e) => setAdminAdvanceForm({ ...adminAdvanceForm, payment_method: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                >
+                  <option value="CASH">Cash (Admin Cash Outlay)</option>
+                  <option value="UPI">UPI / Digital (Admin Bank)</option>
+                  <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                  <option value="CHEQUE">Cheque</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                  Remarks / Audit Note
+                </label>
+                <input
+                  type="text"
+                  value={adminAdvanceForm.notes}
+                  onChange={(e) => setAdminAdvanceForm({ ...adminAdvanceForm, notes: e.target.value })}
+                  placeholder="e.g. Covered by Admin on behalf of subscriber"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center gap-2 text-xs text-amber-900 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  This deposit will credit the chit fund ledger and record a pending recovery of ₹{Number(adminAdvanceForm.amount || 0).toLocaleString('en-IN')} against {adminAdvanceModal.memberName}.
+                </span>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setAdminAdvanceModal(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={advanceSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md hover:shadow-lg flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer font-heading"
+                >
+                  {advanceSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Adding Amount...</span>
+                    </>
+                  ) : (
+                    <span>Confirm & Add Amount</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </ModalPortal>
       )}

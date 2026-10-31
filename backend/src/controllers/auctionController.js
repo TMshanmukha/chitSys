@@ -714,13 +714,18 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
       [groupId]
     );
 
-    // 3. Fetch all enrolled subscribers with prized status and individual dividend totals
+    // 3. Fetch all enrolled subscribers with prized status, individual dividend totals, cycle payment, and admin advances
     const [subscribers] = await pool.execute(
       `SELECT gm.id as membership_id, gm.ticket_number, gm.joined_date, gm.status,
               gm.is_prized, gm.prized_period, gm.prized_auction_id,
               m.id as member_id, m.member_code, m.full_name, m.phone, m.kyc_type, m.kyc_number, m.address,
               COALESCE(col.total_paid_in_group, 0) as total_paid_in_group,
-              COALESCE(div_sum.total_dividend_credited, 0) as total_dividend_credited
+              COALESCE(div_sum.total_dividend_credited, 0) as total_dividend_credited,
+              COALESCE(col_cycle.cycle_paid, 0) as cycle_paid,
+              ama.id as active_advance_id,
+              COALESCE(ama.advance_amount, 0) as active_advance_amount,
+              ama.advance_date as active_advance_date,
+              ama.notes as active_advance_notes
        FROM group_memberships gm
        JOIN members m ON gm.member_id = m.id
        LEFT JOIN (
@@ -735,10 +740,58 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
          WHERE group_id = ?
          GROUP BY member_id, group_id
        ) div_sum ON div_sum.member_id = gm.member_id
+       LEFT JOIN (
+         SELECT c.member_id, c.group_id, SUM(c.amount) as cycle_paid
+         FROM collections c
+         JOIN chit_groups g2 ON c.group_id = g2.id
+         WHERE c.group_id = ? AND c.verification_status != 'CANCELLED'
+           AND (
+             (g2.frequency = 'DAILY' AND c.collection_date = CURDATE())
+             OR
+             (g2.frequency = 'MONTHLY' AND YEAR(c.collection_date) = YEAR(CURDATE()) AND MONTH(c.collection_date) = MONTH(CURDATE()))
+           )
+         GROUP BY c.member_id, c.group_id
+       ) col_cycle ON col_cycle.member_id = gm.member_id
+       LEFT JOIN (
+         SELECT id, group_id, member_id, advance_amount, advance_date, notes
+         FROM admin_member_advances
+         WHERE group_id = ? AND status = 'PENDING_RECOVERY'
+       ) ama ON ama.member_id = gm.member_id
        WHERE gm.group_id = ?
        ORDER BY gm.ticket_number ASC`,
-      [groupId, groupId, groupId]
+      [groupId, groupId, groupId, groupId, groupId]
     );
+
+    const baseInstallment = parseFloat(group.installment_amount);
+    const enrichedSubscribers = subscribers.map((sub) => {
+      const paidInCycle = parseFloat(sub.cycle_paid || 0);
+      const hasAdvance = Boolean(sub.active_advance_id);
+      const advanceAmount = hasAdvance ? parseFloat(sub.active_advance_amount || 0) : 0;
+
+      let paymentStatus = 'PAID';
+      let pendingAmount = 0;
+
+      if (hasAdvance) {
+        paymentStatus = 'ADMIN_COVERED';
+        pendingAmount = advanceAmount;
+      } else if (paidInCycle < baseInstallment) {
+        paymentStatus = paidInCycle > 0 ? 'PARTIAL' : 'NOT_PAID';
+        pendingAmount = Math.max(0, baseInstallment - paidInCycle);
+      }
+
+      return {
+        ...sub,
+        base_installment: baseInstallment,
+        cycle_paid: paidInCycle,
+        pending_amount: pendingAmount,
+        is_admin_covered: hasAdvance,
+        advance_id: sub.active_advance_id || null,
+        advance_amount: advanceAmount,
+        advance_date: sub.active_advance_date || null,
+        advance_notes: sub.active_advance_notes || null,
+        payment_status: paymentStatus,
+      };
+    });
 
     // 4. Fetch all member_dividends records for this group
     const [dividendDistributions] = await pool.execute(
@@ -771,18 +824,27 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
     // Dividends are credited to the subscriber passbook, never reducing the base installment due.
     const currentInstallmentDue = parseFloat(group.installment_amount);
 
+    const unpaidCount = enrichedSubscribers.filter((s) => s.payment_status === 'NOT_PAID' || s.payment_status === 'PARTIAL').length;
+    const unpaidAmount = enrichedSubscribers
+      .filter((s) => s.payment_status === 'NOT_PAID' || s.payment_status === 'PARTIAL')
+      .reduce((sum, s) => sum + s.pending_amount, 0);
+    const adminCoveredCount = enrichedSubscribers.filter((s) => s.payment_status === 'ADMIN_COVERED').length;
+    const adminCoveredAmount = enrichedSubscribers
+      .filter((s) => s.payment_status === 'ADMIN_COVERED')
+      .reduce((sum, s) => sum + s.pending_amount, 0);
+
     res.status(200).json({
       success: true,
       data: {
         group,
         auctions,
-        subscribers,
+        subscribers: enrichedSubscribers,
         dividendDistributions,
         totals: {
           totalPoolAmount: parseFloat(group.total_pool_amount),
           baseInstallmentAmount: parseFloat(group.installment_amount),
           totalMembersLimit: parseInt(group.total_members_limit || 20, 10),
-          enrolledCount: subscribers.length,
+          enrolledCount: enrichedSubscribers.length,
           totalPrizedCount,
           totalEligibleCount,
           totalDividendsDistributed,
@@ -795,6 +857,11 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
           isPoolFullyCollected,
           collectionShortfall: parseFloat(collectionShortfall.toFixed(2)),
           collectionPercentage,
+          unpaidCount,
+          unpaidAmount,
+          adminCoveredCount,
+          adminCoveredAmount,
+          totalPendingAmount: unpaidAmount + adminCoveredAmount,
         },
       },
     });

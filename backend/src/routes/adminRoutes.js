@@ -8,6 +8,9 @@ import {
   updateAdminProfile,
   updateAdminPassword,
   getAgentsDailyPerformance,
+  getPendingDuesAndAdvances,
+  recordAdminAdvance,
+  settleAdminAdvance,
 } from '../controllers/adminController.js';
 import { listGroups, createGroup, getGroupDetails } from '../controllers/groupController.js';
 import { listMembers, createMember, enrollMemberInGroup, getMemberPassbook } from '../controllers/memberController.js';
@@ -67,6 +70,11 @@ router.put('/users/:id/status', toggleAgentStatus);
 router.get('/collections', listCollections);
 router.post('/collections', recordCollection);
 router.get('/collections/summary', getCollectionSummary);
+
+// Pending Dues & Admin Advances Management (Deficit Tracking & Recovery)
+router.get('/pending-dues', getPendingDuesAndAdvances);
+router.post('/pending-dues/add-amount', recordAdminAdvance);
+router.post('/pending-dues/recover', settleAdminAdvance);
 
 // Auctions & Dividends Management (ChitBase Monthly & Double Chit Auctions)
 router.get('/auctions', listAuctions);
