@@ -562,13 +562,13 @@ export default function RouteTrackingPage() {
             {/* Digital / UPI */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
               <div className="flex items-center justify-between text-purple-600 dark:text-purple-400 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Digital / Online</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">UPI / Digital Collected</span>
                 <CreditCard className="w-4 h-4" />
               </div>
               <div className="text-lg sm:text-xl font-extrabold text-purple-600 dark:text-purple-400">
                 ₹{Number(ledgerData.summary?.grandOnline || 0).toLocaleString('en-IN')}
               </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">UPI & direct bank transfers</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">UPI, QR & direct bank transfers</span>
             </div>
 
             {/* Total Inflow */}
@@ -732,7 +732,7 @@ export default function RouteTrackingPage() {
 
                       <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
                         <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
-                          Online / Digital
+                          UPI / Digital Inflow
                         </span>
                         <div className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
                           ₹{agent.onlineCollected.toLocaleString('en-IN')}

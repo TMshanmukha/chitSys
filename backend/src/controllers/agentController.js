@@ -17,10 +17,24 @@ export async function listAgents(req, res, next) {
       SELECT 
         u.id, u.full_name, u.username, u.role, u.phone, u.is_active, u.last_login_at, u.created_at,
         COUNT(DISTINCT aga.id) as assigned_groups_count,
-        CAST(GROUP_CONCAT(DISTINCT g.group_name SEPARATOR ', ') AS CHAR) as assigned_group_names
+        CAST(GROUP_CONCAT(DISTINCT g.group_name SEPARATOR ', ') AS CHAR) as assigned_group_names,
+        COALESCE(MAX(colls.today_cash), 0) as today_cash,
+        COALESCE(MAX(colls.today_upi), 0) as today_upi,
+        COALESCE(MAX(colls.today_online), 0) as today_online,
+        COALESCE(MAX(colls.today_total), 0) as today_total
       FROM users u
       LEFT JOIN agent_group_assignments aga ON u.id = aga.agent_id AND aga.is_active = 1
       LEFT JOIN chit_groups g ON aga.group_id = g.id
+      LEFT JOIN (
+        SELECT agent_id,
+               SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'CASH' THEN amount ELSE 0 END) as today_cash,
+               SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'UPI' THEN amount ELSE 0 END) as today_upi,
+               SUM(CASE WHEN UPPER(TRIM(payment_method)) != 'CASH' THEN amount ELSE 0 END) as today_online,
+               SUM(amount) as today_total
+        FROM collections
+        WHERE collection_date = CURDATE() AND verification_status != 'CANCELLED'
+        GROUP BY agent_id
+      ) colls ON u.id = colls.agent_id
     `;
     const params = [];
     if (role && role !== 'ALL') {
@@ -361,8 +375,11 @@ export async function getMyAssignedRoutes(req, res, next) {
 
     // Today's collections by this agent
     const [todayCollections] = await pool.execute(
-      `SELECT COALESCE(SUM(CASE WHEN payment_method = 'CASH' THEN amount ELSE 0 END), 0) as todayCash,
-              COALESCE(SUM(CASE WHEN payment_method != 'CASH' THEN amount ELSE 0 END), 0) as todayOnline,
+      `SELECT COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'CASH' THEN amount ELSE 0 END), 0) as todayCash,
+              COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'UPI' THEN amount ELSE 0 END), 0) as todayUpi,
+              COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) != 'CASH' THEN amount ELSE 0 END), 0) as todayOnline,
+              COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'BANK_TRANSFER' THEN amount ELSE 0 END), 0) as todayBank,
+              COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'CHEQUE' THEN amount ELSE 0 END), 0) as todayCheque,
               COALESCE(SUM(amount), 0) as todayTotal,
               COUNT(id) as totalCollectionsCount
        FROM collections

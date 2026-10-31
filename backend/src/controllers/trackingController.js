@@ -104,16 +104,19 @@ export async function getRouteTrackingOverview(req, res, next) {
     let grandTotalStops = 0;
     let grandVisitedStops = 0;
     let grandCashCollected = 0;
+    let grandUpiCollected = 0;
     let grandOnlineCollected = 0;
 
     let dailyTotalStops = 0;
     let dailyVisitedStops = 0;
     let dailyCashCollected = 0;
+    let dailyUpiCollected = 0;
     let dailyOnlineCollected = 0;
 
     let monthlyTotalStops = 0;
     let monthlyVisitedStops = 0;
     let monthlyCashCollected = 0;
+    let monthlyUpiCollected = 0;
     let monthlyOnlineCollected = 0;
 
     const routes = groups.map((grp) => {
@@ -129,6 +132,7 @@ export async function getRouteTrackingOverview(req, res, next) {
       const groupLogs = trackingLogs.filter((l) => l.group_id === grp.id);
 
       let cashCollected = 0;
+      let upiCollected = 0;
       let onlineCollected = 0;
       let paidCount = 0;
       let lastVisitedStopIndex = -1;
@@ -202,8 +206,14 @@ export async function getRouteTrackingOverview(req, res, next) {
           lastVisitedStopIndex = idx;
           lastActivityTime = coll?.collection_time || log?.last_ping_time;
           if (coll) {
-            if (coll.payment_method === 'CASH') cashCollected += parseFloat(coll.amount);
-            else onlineCollected += parseFloat(coll.amount);
+            if (coll.payment_method === 'CASH') {
+              cashCollected += parseFloat(coll.amount);
+            } else {
+              onlineCollected += parseFloat(coll.amount);
+              if (coll.payment_method === 'UPI' || (coll.payment_method && coll.payment_method.toUpperCase().includes('UPI'))) {
+                upiCollected += parseFloat(coll.amount);
+              }
+            }
             collectionDetails = {
               receiptNumber: coll.receipt_number,
               amount: parseFloat(coll.amount),
@@ -293,17 +303,20 @@ export async function getRouteTrackingOverview(req, res, next) {
       grandTotalStops += totalStops;
       grandVisitedStops += paidCount;
       grandCashCollected += cashCollected;
+      grandUpiCollected += upiCollected;
       grandOnlineCollected += onlineCollected;
 
       if (isDaily) {
         dailyTotalStops += totalStops;
         dailyVisitedStops += paidCount;
         dailyCashCollected += cashCollected;
+        dailyUpiCollected += upiCollected;
         dailyOnlineCollected += onlineCollected;
       } else {
         monthlyTotalStops += totalStops;
         monthlyVisitedStops += paidCount;
         monthlyCashCollected += cashCollected;
+        monthlyUpiCollected += upiCollected;
         monthlyOnlineCollected += onlineCollected;
       }
 
@@ -333,6 +346,7 @@ export async function getRouteTrackingOverview(req, res, next) {
           pendingStops: totalStops - paidCount,
           progressPercent,
           cashCollected,
+          upiCollected,
           onlineCollected,
           totalCollected: cashCollected + onlineCollected,
           lastActivityTime,
@@ -359,6 +373,7 @@ export async function getRouteTrackingOverview(req, res, next) {
           grandPendingStops: grandTotalStops - grandVisitedStops,
           grandProgressPercent,
           grandCashCollected,
+          grandUpiCollected,
           grandOnlineCollected,
           grandTotalCollected: grandCashCollected + grandOnlineCollected,
           // Explicit Day-by-Day (Daily) vs Month-by-Month (Monthly) segregation
@@ -369,6 +384,7 @@ export async function getRouteTrackingOverview(req, res, next) {
             pendingStops: dailyTotalStops - dailyVisitedStops,
             progressPercent: dailyTotalStops > 0 ? Math.round((dailyVisitedStops / dailyTotalStops) * 100) : 0,
             cashCollected: dailyCashCollected,
+            upiCollected: dailyUpiCollected,
             onlineCollected: dailyOnlineCollected,
             totalCollected: dailyCashCollected + dailyOnlineCollected,
           },
@@ -379,6 +395,7 @@ export async function getRouteTrackingOverview(req, res, next) {
             pendingStops: monthlyTotalStops - monthlyVisitedStops,
             progressPercent: monthlyTotalStops > 0 ? Math.round((monthlyVisitedStops / monthlyTotalStops) * 100) : 0,
             cashCollected: monthlyCashCollected,
+            upiCollected: monthlyUpiCollected,
             onlineCollected: monthlyOnlineCollected,
             totalCollected: monthlyCashCollected + monthlyOnlineCollected,
           },

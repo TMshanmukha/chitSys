@@ -43,6 +43,8 @@ import {
   Coins,
   Users,
   Filter,
+  CreditCard,
+  QrCode,
 } from 'lucide-react';
 import { formatDate, formatTime } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
@@ -265,6 +267,10 @@ export default function AgentDashboard() {
       .filter((m) => m.payment_method === 'CASH')
       .reduce((sum, m) => sum + Number(m.collected_amount || installmentAmt), 0);
 
+    const upiCollected = paidMembers
+      .filter((m) => m.payment_method === 'UPI' || (m.payment_method && m.payment_method.toUpperCase().includes('UPI')))
+      .reduce((sum, m) => sum + Number(m.collected_amount || installmentAmt), 0);
+
     const onlineCollected = paidMembers
       .filter((m) => m.payment_method !== 'CASH')
       .reduce((sum, m) => sum + Number(m.collected_amount || installmentAmt), 0);
@@ -286,6 +292,7 @@ export default function AgentDashboard() {
       isDue,
       targetExpected,
       cashCollected,
+      upiCollected,
       onlineCollected,
       totalCollected,
       pendingAmount,
@@ -699,7 +706,7 @@ export default function AgentDashboard() {
         </div>
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
               Today's Collections
@@ -721,6 +728,19 @@ export default function AgentDashboard() {
               ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}
             </div>
             <span className="text-[11px] text-slate-400 mt-1 block">To reconcile with admin</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
+            <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 block uppercase tracking-wider">
+              UPI / Digital Collected
+            </span>
+            <div className="text-xl sm:text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-1">
+              ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+              <CreditCard className="w-3 h-3 text-purple-500" />
+              <span>GPay, PhonePe & Netbanking</span>
+            </div>
           </div>
 
           <div
@@ -1691,22 +1711,33 @@ export default function AgentDashboard() {
               </div>
 
               {/* Quick Credential Highlights */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-5 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-5 text-xs">
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Assigned Routes</span>
-                  <span className="text-lg font-black text-slate-900 dark:text-white">{routesData.groups.length} Active Routes</span>
+                  <span className="text-lg font-black text-slate-900 dark:text-white">{routesData.groups.length} Active</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Subscribers</span>
                   <span className="text-lg font-black text-blue-600 dark:text-blue-400">{routesData.members.length} Members</span>
                 </div>
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Cash on Hand</span>
+                <div className="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 space-y-1">
+                  <span className="text-[10px] text-emerald-800 dark:text-emerald-300 font-bold uppercase tracking-wider block">Total Cash on Hand</span>
                   <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 space-y-1">
+                  <span className="text-[10px] text-purple-800 dark:text-purple-300 font-bold uppercase tracking-wider block flex items-center gap-1">
+                    <CreditCard className="w-3 h-3 text-purple-600" />
+                    <span>UPI / Digital Card Amount</span>
+                  </span>
+                  <span className="text-lg font-black text-purple-600 dark:text-purple-400">₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-1">
+                  <span className="text-[10px] text-blue-800 dark:text-blue-300 font-bold uppercase tracking-wider block">Total Day Inflow</span>
+                  <span className="text-lg font-black text-blue-600 dark:text-blue-400">₹{Number(routesData.summary?.todayTotal || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Receipts Today</span>
-                  <span className="text-lg font-black text-purple-600 dark:text-purple-400">{routesData.summary?.totalCollectionsCount || 0} Issued</span>
+                  <span className="text-lg font-black text-slate-800 dark:text-slate-200">{routesData.summary?.totalCollectionsCount || 0} Issued</span>
                 </div>
               </div>
 
@@ -1773,10 +1804,13 @@ export default function AgentDashboard() {
                               ₹{stats.cashCollected.toLocaleString('en-IN')}
                             </span>
                           </div>
-                          <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800">
-                            <span className="text-[10px] text-slate-400 block font-semibold">Digital / Online</span>
-                            <span className="font-extrabold text-blue-600 dark:text-blue-400">
-                              ₹{stats.onlineCollected.toLocaleString('en-IN')}
+                          <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800">
+                            <span className="text-[10px] text-purple-700 dark:text-purple-300 block font-bold flex items-center gap-1">
+                              <CreditCard className="w-2.5 h-2.5 text-purple-500" />
+                              <span>UPI / Online</span>
+                            </span>
+                            <span className="font-extrabold text-purple-600 dark:text-purple-400">
+                              ₹{(stats.upiCollected || stats.onlineCollected).toLocaleString('en-IN')}
                             </span>
                           </div>
                           <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800">
@@ -2065,10 +2099,13 @@ export default function AgentDashboard() {
                                 ₹{stats.cashCollected.toLocaleString('en-IN')}
                               </span>
                             </div>
-                            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
-                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Online Collected</span>
-                              <span className="font-extrabold text-sm text-purple-600 dark:text-purple-400">
-                                ₹{stats.onlineCollected.toLocaleString('en-IN')}
+                            <div className="p-3 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/80 space-y-1">
+                              <span className="text-[10px] text-purple-800 dark:text-purple-300 font-bold uppercase tracking-wider block flex items-center gap-1">
+                                <CreditCard className="w-3 h-3 text-purple-600" />
+                                <span>UPI / Online</span>
+                              </span>
+                              <span className="font-black text-sm text-purple-700 dark:text-purple-300">
+                                ₹{(stats.upiCollected || stats.onlineCollected).toLocaleString('en-IN')}
                               </span>
                             </div>
                             <div className="p-3 rounded-2xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 space-y-1">
@@ -2271,8 +2308,8 @@ export default function AgentDashboard() {
                   </div>
                   <ul className="space-y-1.5 text-slate-600 dark:text-slate-300 leading-relaxed list-disc list-inside">
                     <li>Count physical cash: must equal <strong>₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}</strong>.</li>
-                    <li>Verify all UPI receipts have matching reference numbers.</li>
-                    <li>Ensure every collected subscriber was issued an official receipt.</li>
+                    <li>Verify all UPI & digital receipts: must equal <strong>₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}</strong> (cross-check UPI UTR numbers).</li>
+                    <li>Gross collections combined: <strong>₹{Number(routesData.summary?.todayTotal || 0).toLocaleString('en-IN')}</strong> across {routesData.summary?.totalCollectionsCount || 0} issued receipts.</li>
                     <li>Submit collected cash to the admin cashier desk prior to shift closing.</li>
                   </ul>
                 </div>
@@ -2307,7 +2344,25 @@ export default function AgentDashboard() {
               <p className="text-xs text-slate-500">Collected dues will appear here with immediate receipt issuance.</p>
             </div>
           ) : (
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between">
+                  <span className="text-emerald-800 dark:text-emerald-300 font-medium">Cash Collected</span>
+                  <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono">₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 flex items-center justify-between">
+                  <span className="text-purple-800 dark:text-purple-300 font-medium flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-purple-600" />
+                    <span>UPI / Digital Receipts</span>
+                  </span>
+                  <span className="font-extrabold text-purple-700 dark:text-purple-400 font-mono">₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 flex items-center justify-between">
+                  <span className="text-blue-800 dark:text-blue-300 font-medium">Total Day Inflow</span>
+                  <span className="font-extrabold text-blue-700 dark:text-blue-400 font-mono">₹{Number(routesData.summary?.todayTotal || 0).toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+
               <div className="overflow-x-auto overflow-y-auto max-h-[460px]">
                 <table className="w-full text-left text-xs">
                   <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px] shadow-xs">

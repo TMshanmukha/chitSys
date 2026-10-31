@@ -483,14 +483,26 @@ export default function UsersPage() {
                         </div>
                       </td>
 
-                      {/* Assigned Routes / Groups */}
+                      {/* Assigned Routes / Groups & Today Collections */}
                       <td className="py-3.5 px-4 max-w-xs">
                         {u.role === 'COLLECTION_AGENT' ? (
-                          u.assigned_group_names ? (
-                            <ShowMoreText text={u.assigned_group_names} maxChars={32} />
-                          ) : (
-                            <span className="text-slate-400 italic">Unassigned</span>
-                          )
+                          <div className="space-y-1">
+                            {u.assigned_group_names ? (
+                              <ShowMoreText text={u.assigned_group_names} maxChars={32} />
+                            ) : (
+                              <span className="text-slate-400 italic">Unassigned</span>
+                            )}
+                            {Number(u.today_total || 0) > 0 && (
+                              <div className="flex items-center gap-1.5 text-[10px] flex-wrap pt-0.5">
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono font-bold">
+                                  Cash: ₹{Number(u.today_cash || 0).toLocaleString('en-IN')}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 font-mono font-bold">
+                                  UPI: ₹{Number(u.today_upi || u.today_online || 0).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-slate-400">All Schemes Access</span>
                         )}

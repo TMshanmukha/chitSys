@@ -24,3 +24,4 @@ CREATE TABLE IF NOT EXISTS admin_member_advances (
   INDEX idx_ama_member (member_id),
   INDEX idx_ama_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
