@@ -4,6 +4,18 @@ import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 
+const draw2Schema = z.object({
+  winning_member_id: z.number().int().positive('Winning member for Draw #2 is required'),
+  winning_ticket_number: z.number().int().positive('Winning ticket number for Draw #2 is required'),
+  pool_amount: z.number().min(0).optional().nullable(),
+  bid_discount: z.number().min(0, 'Bid discount for Draw #2 cannot be negative').default(0),
+  custom_commission_percent: z.number().min(0).max(100).optional().nullable(),
+  custom_foreman_commission: z.number().min(0).optional().nullable(),
+  custom_net_payable: z.number().min(0).optional().nullable(),
+  custom_double_chit_reserve: z.number().min(0).optional().nullable(),
+  notes: z.string().optional().nullable(),
+}).optional().nullable();
+
 const auctionSchema = z.object({
   group_id: z.number().int().positive('Chit Group is required'),
   period_number: z.number().int().positive('Auction period/month number must be positive'),
@@ -22,6 +34,8 @@ const auctionSchema = z.object({
   custom_dividend_per_member: z.number().min(0).optional().nullable(),
   custom_next_installment: z.number().min(0).optional().nullable(),
   custom_double_chit_reserve: z.number().min(0).optional().nullable(),
+  conduct_draw2: z.boolean().optional().default(false),
+  draw2: draw2Schema,
   notes: z.string().optional().nullable(),
 });
 
@@ -92,6 +106,18 @@ export async function conductAuction(req, res, next) {
       custom_dividend_per_member: req.body.custom_dividend_per_member !== undefined && req.body.custom_dividend_per_member !== null && req.body.custom_dividend_per_member !== '' ? parseFloat(req.body.custom_dividend_per_member) : null,
       custom_next_installment: req.body.custom_next_installment !== undefined && req.body.custom_next_installment !== null && req.body.custom_next_installment !== '' ? parseFloat(req.body.custom_next_installment) : null,
       custom_double_chit_reserve: req.body.custom_double_chit_reserve !== undefined && req.body.custom_double_chit_reserve !== null && req.body.custom_double_chit_reserve !== '' ? parseFloat(req.body.custom_double_chit_reserve) : null,
+      conduct_draw2: Boolean(req.body.conduct_draw2),
+      draw2: req.body.draw2 ? {
+        winning_member_id: parseInt(req.body.draw2.winning_member_id ?? req.body.draw2.winningMemberId, 10),
+        winning_ticket_number: parseInt(req.body.draw2.winning_ticket_number ?? req.body.draw2.winningTicketNumber, 10),
+        pool_amount: req.body.draw2.pool_amount !== undefined && req.body.draw2.pool_amount !== null && req.body.draw2.pool_amount !== '' ? parseFloat(req.body.draw2.pool_amount) : null,
+        bid_discount: parseFloat(req.body.draw2.bid_discount ?? 0),
+        custom_commission_percent: req.body.draw2.custom_commission_percent !== undefined && req.body.draw2.custom_commission_percent !== null && req.body.draw2.custom_commission_percent !== '' ? parseFloat(req.body.draw2.custom_commission_percent) : null,
+        custom_foreman_commission: req.body.draw2.custom_foreman_commission !== undefined && req.body.draw2.custom_foreman_commission !== null && req.body.draw2.custom_foreman_commission !== '' ? parseFloat(req.body.draw2.custom_foreman_commission) : null,
+        custom_net_payable: req.body.draw2.custom_net_payable !== undefined && req.body.draw2.custom_net_payable !== null && req.body.draw2.custom_net_payable !== '' ? parseFloat(req.body.draw2.custom_net_payable) : null,
+        custom_double_chit_reserve: req.body.draw2.custom_double_chit_reserve !== undefined && req.body.draw2.custom_double_chit_reserve !== null && req.body.draw2.custom_double_chit_reserve !== '' ? parseFloat(req.body.draw2.custom_double_chit_reserve) : null,
+        notes: req.body.draw2.notes || null,
+      } : null,
     });
 
     // 1. Fetch group details
@@ -151,6 +177,81 @@ export async function conductAuction(req, res, next) {
       });
     }
 
+    // 3b. If conduct_draw2 is enabled, validate Draw #2 winner and rules upfront
+    const isDoubleChit = group.chit_type === 'DOUBLE_CHIT' || validated.auction_type === 'DOUBLE_CHIT_DRAW';
+    let draw2WinnerName = 'Subscriber 2';
+
+    if (validated.conduct_draw2) {
+      if (!isDoubleChit) {
+        return res.status(400).json({
+          success: false,
+          message: 'Double Auction (Draw #2) is only available for Double Chit schemes.',
+        });
+      }
+
+      if (!validated.draw2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Draw #2 details are required when conducting double auction.',
+        });
+      }
+
+      if (validated.draw2.winning_member_id === validated.winning_member_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Draw #2 winning subscriber must be different from Draw #1 winner. The same subscriber cannot win two prizes in the same round.',
+        });
+      }
+
+      const [existingDraw2] = await pool.execute(
+        'SELECT id FROM auctions WHERE group_id = ? AND period_number = ? AND draw_number = 2 LIMIT 1',
+        [validated.group_id, validated.period_number]
+      );
+
+      if (existingDraw2.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Auction Draw #2 for Month/Period #${validated.period_number} has already been recorded for this group.`,
+        });
+      }
+
+      const [draw2MembershipRows] = await pool.execute(
+        `SELECT gm.id, gm.is_prized, gm.prized_period, m.full_name, m.phone 
+         FROM group_memberships gm
+         JOIN members m ON gm.member_id = m.id
+         WHERE gm.group_id = ? AND gm.member_id = ? AND gm.ticket_number = ? LIMIT 1`,
+        [validated.group_id, validated.draw2.winning_member_id, validated.draw2.winning_ticket_number]
+      );
+
+      if (draw2MembershipRows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Selected Draw #2 member does not hold ticket #${validated.draw2.winning_ticket_number} in this chit group.`,
+        });
+      }
+
+      if (draw2MembershipRows[0].is_prized === 1) {
+        return res.status(400).json({
+          success: false,
+          message: `Subscriber ${draw2MembershipRows[0].full_name} has already won in Round #${draw2MembershipRows[0].prized_period || 'past'} and is strictly disqualified from winning Draw #2.`,
+        });
+      }
+
+      const [draw2PreviousWins] = await pool.execute(
+        'SELECT period_number, draw_number FROM auctions WHERE group_id = ? AND winning_member_id = ? LIMIT 1',
+        [validated.group_id, validated.draw2.winning_member_id]
+      );
+
+      if (draw2PreviousWins.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Subscriber ${draw2MembershipRows[0].full_name} has already won in Round #${draw2PreviousWins[0].period_number} and is strictly disqualified from participating again.`,
+        });
+      }
+
+      draw2WinnerName = draw2MembershipRows[0].full_name || 'Subscriber 2';
+    }
+
     // 4. Calculate ChitBase Financials according to updated business rules:
     // Specification:
     // - Admin Commission is deducted from the WINNER'S PRIZE AMOUNT (Gross Winner Prize = Pool - Bid Discount),
@@ -160,7 +261,6 @@ export async function conductAuction(req, res, next) {
     // - In DOUBLE CHIT: Admin gets commission from winner prize as usual. No dividend/member distribution (totalDividend = 0).
     //   The winning bid discount is saved in that chit's pool reserve (doubleChitReserve) so it can be auctioned in Draw #2.
     // - Option to auction the saved reserve: If auctioning saved reserve, effective pool amount is the specified reserve amount.
-    const isDoubleChit = group.chit_type === 'DOUBLE_CHIT' || validated.auction_type === 'DOUBLE_CHIT_DRAW';
     const groupPoolAmount = parseFloat(group.total_pool_amount);
 
     let effectivePoolAmount = groupPoolAmount;
@@ -232,102 +332,205 @@ export async function conductAuction(req, res, next) {
       // Dividend is credited to the respective member, but NOT subtracted from the installment due.
     }
 
-    // 5. Insert into auctions table
-    const [insertResult] = await pool.execute(
-      `INSERT INTO auctions 
-        (group_id, period_number, draw_number, auction_type, winning_member_id, winning_ticket_number,
-         bid_discount, foreman_commission, total_dividend, double_chit_reserve, dividend_per_member,
-         net_payable_amount, next_installment_payable, auction_date, payout_status, conducted_by, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`,
-      [
-        validated.group_id,
-        validated.period_number,
-        finalDrawNumber,
-        finalAuctionType,
-        validated.winning_member_id,
-        validated.winning_ticket_number,
-        validated.bid_discount,
-        foremanCommission,
-        totalDividend,
-        doubleChitReserve,
-        dividendPerMember,
-        netPayableAmount,
-        nextInstallmentPayable,
-        validated.auction_date,
-        req.user.id,
-        validated.notes || null,
-      ]
-    );
+    // Draw #2 Financial Calculations (if double auction is enabled)
+    let draw2PoolAmount = 0.00;
+    let draw2BidDiscount = 0.00;
+    let draw2GrossWinnerPrize = 0.00;
+    let draw2CommPercent = commissionPercent;
+    let draw2ForemanCommission = 0.00;
+    let draw2NetPayableAmount = 0.00;
+    let draw2DoubleChitReserve = 0.00;
 
-    const auctionId = insertResult.insertId;
+    if (validated.conduct_draw2 && validated.draw2) {
+      draw2PoolAmount = validated.draw2.pool_amount && parseFloat(validated.draw2.pool_amount) > 0
+        ? parseFloat(validated.draw2.pool_amount)
+        : bidDiscount; // Defaults to the reversing amount from Draw #1!
+      draw2BidDiscount = parseFloat(validated.draw2.bid_discount || 0);
+      draw2GrossWinnerPrize = Math.max(0, parseFloat((draw2PoolAmount - draw2BidDiscount).toFixed(2)));
+      draw2CommPercent = validated.draw2.custom_commission_percent !== null && validated.draw2.custom_commission_percent !== undefined
+        ? parseFloat(validated.draw2.custom_commission_percent)
+        : commissionPercent;
+      const defaultDraw2ForemanComm = parseFloat(((draw2GrossWinnerPrize * draw2CommPercent) / 100).toFixed(2));
+      draw2ForemanCommission = validated.draw2.custom_foreman_commission !== null && validated.draw2.custom_foreman_commission !== undefined
+        ? parseFloat(validated.draw2.custom_foreman_commission)
+        : defaultDraw2ForemanComm;
+      const defaultDraw2Net = Math.max(0, parseFloat((draw2GrossWinnerPrize - draw2ForemanCommission).toFixed(2)));
+      draw2NetPayableAmount = validated.draw2.custom_net_payable !== null && validated.draw2.custom_net_payable !== undefined
+        ? parseFloat(validated.draw2.custom_net_payable)
+        : defaultDraw2Net;
+      draw2DoubleChitReserve = validated.draw2.custom_double_chit_reserve !== null && validated.draw2.custom_double_chit_reserve !== undefined
+        ? parseFloat(validated.draw2.custom_double_chit_reserve)
+        : draw2BidDiscount;
+    }
 
-    // 6. Update winning member in group_memberships to PRIZED (cannot participate again)
-    await pool.execute(
-      'UPDATE group_memberships SET is_prized = 1, prized_period = ?, prized_auction_id = ? WHERE group_id = ? AND member_id = ?',
-      [validated.period_number, auctionId, validated.group_id, validated.winning_member_id]
-    );
+    // 5. Execute DB Inserts inside a transactional connection
+    const connection = await pool.getConnection();
+    let auctionId = null;
+    let payoutNumber = null;
+    let auctionId2 = null;
+    let payoutNumber2 = null;
 
-    // 7. Persist distributed dividend into subscriber passbook (member_dividends table)
-    // STRICT RULE: Record goes to passbook ONLY IF IT IS AN AUCTION CHIT with dividend > 0
-    // Double Chit never creates passbook dividend records.
-    if (!isDoubleChit && totalDividend > 0) {
-      const [enrolledMembers] = await pool.execute(
-        'SELECT member_id, ticket_number, is_prized FROM group_memberships WHERE group_id = ?',
-        [validated.group_id]
+    try {
+      await connection.beginTransaction();
+
+      // 5a. Insert Draw #1 into auctions table
+      const [insertResult] = await connection.execute(
+        `INSERT INTO auctions 
+          (group_id, period_number, draw_number, auction_type, winning_member_id, winning_ticket_number,
+           bid_discount, foreman_commission, total_dividend, double_chit_reserve, dividend_per_member,
+           net_payable_amount, next_installment_payable, auction_date, payout_status, conducted_by, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`,
+        [
+          validated.group_id,
+          validated.period_number,
+          finalDrawNumber,
+          finalAuctionType,
+          validated.winning_member_id,
+          validated.winning_ticket_number,
+          validated.bid_discount,
+          foremanCommission,
+          totalDividend,
+          doubleChitReserve,
+          dividendPerMember,
+          netPayableAmount,
+          nextInstallmentPayable,
+          validated.auction_date,
+          req.user.id,
+          validated.notes || null,
+        ]
       );
 
-      for (const mem of enrolledMembers) {
-        const isWinner = mem.member_id === validated.winning_member_id;
-        const alreadyPrized = isWinner || mem.is_prized === 1;
+      auctionId = insertResult.insertId;
 
-        await pool.execute(
-          `INSERT INTO member_dividends
-            (auction_id, group_id, member_id, ticket_number, period_number, draw_number,
-             dividend_amount, net_installment_due, credited_date, is_prized, status, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREDITED', ?)
-           ON DUPLICATE KEY UPDATE 
-             dividend_amount = VALUES(dividend_amount),
-             net_installment_due = VALUES(net_installment_due),
-             is_prized = VALUES(is_prized)`,
+      // 5b. Update Draw #1 winning member in group_memberships to PRIZED
+      await connection.execute(
+        'UPDATE group_memberships SET is_prized = 1, prized_period = ?, prized_auction_id = ? WHERE group_id = ? AND member_id = ?',
+        [validated.period_number, auctionId, validated.group_id, validated.winning_member_id]
+      );
+
+      // 5c. Persist distributed dividend into subscriber passbook (member_dividends table) for Auction Chit
+      if (!isDoubleChit && totalDividend > 0) {
+        const [enrolledMembers] = await connection.execute(
+          'SELECT member_id, ticket_number, is_prized FROM group_memberships WHERE group_id = ?',
+          [validated.group_id]
+        );
+
+        for (const mem of enrolledMembers) {
+          const isWinner = mem.member_id === validated.winning_member_id;
+          const alreadyPrized = isWinner || mem.is_prized === 1;
+
+          await connection.execute(
+            `INSERT INTO member_dividends
+              (auction_id, group_id, member_id, ticket_number, period_number, draw_number,
+               dividend_amount, net_installment_due, credited_date, is_prized, status, notes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREDITED', ?)
+             ON DUPLICATE KEY UPDATE 
+               dividend_amount = VALUES(dividend_amount),
+               net_installment_due = VALUES(net_installment_due),
+               is_prized = VALUES(is_prized)`,
+            [
+              auctionId,
+              validated.group_id,
+              mem.member_id,
+              mem.ticket_number,
+              validated.period_number,
+              finalDrawNumber,
+              dividendPerMember,
+              nextInstallmentPayable,
+              validated.auction_date,
+              alreadyPrized ? 1 : 0,
+              isWinner ? 'Prize Winner in this Round' : 'Subscriber Dividend Credited Equally',
+            ]
+          );
+        }
+      }
+
+      // 5d. Generate payout voucher record for Draw #1
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const randSuffix = crypto.randomBytes(2).toString('hex').toUpperCase();
+      payoutNumber = `PAY-${dateStr}-${randSuffix}`;
+
+      await connection.execute(
+        `INSERT INTO payouts 
+          (payout_number, group_id, member_id, period_number, gross_chit_amount, bid_discount, net_payable_amount, payout_date, payment_method, approved_by, status, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NEFT_RTGS', ?, 'PENDING_APPROVAL', ?)`,
+        [
+          payoutNumber,
+          validated.group_id,
+          validated.winning_member_id,
+          validated.period_number,
+          effectivePoolAmount,
+          validated.bid_discount,
+          netPayableAmount,
+          validated.auction_date,
+          req.user.id,
+          `Auction Month ${validated.period_number} Draw ${finalDrawNumber} (${finalAuctionType})`,
+        ]
+      );
+
+      // 5e. If conduct_draw2 is enabled, insert Draw #2 auction and payout voucher
+      if (validated.conduct_draw2 && validated.draw2) {
+        const [insertResult2] = await connection.execute(
+          `INSERT INTO auctions 
+            (group_id, period_number, draw_number, auction_type, winning_member_id, winning_ticket_number,
+             bid_discount, foreman_commission, total_dividend, double_chit_reserve, dividend_per_member,
+             net_payable_amount, next_installment_payable, auction_date, payout_status, conducted_by, notes)
+           VALUES (?, ?, 2, 'DOUBLE_CHIT_DRAW', ?, ?, ?, ?, 0.00, ?, 0.00, ?, ?, ?, 'PENDING', ?, ?)`,
           [
-            auctionId,
             validated.group_id,
-            mem.member_id,
-            mem.ticket_number,
             validated.period_number,
-            finalDrawNumber,
-            dividendPerMember,
+            validated.draw2.winning_member_id,
+            validated.draw2.winning_ticket_number,
+            draw2BidDiscount,
+            draw2ForemanCommission,
+            draw2DoubleChitReserve,
+            draw2NetPayableAmount,
             nextInstallmentPayable,
             validated.auction_date,
-            alreadyPrized ? 1 : 0,
-            isWinner ? 'Prize Winner in this Round' : 'Subscriber Dividend Credited Equally',
+            req.user.id,
+            validated.draw2.notes || `Double Auction Draw #2 for Reversing Amount (Period ${validated.period_number})`,
+          ]
+        );
+
+        auctionId2 = insertResult2.insertId;
+
+        // Update Draw #2 winning member in group_memberships to PRIZED
+        await connection.execute(
+          'UPDATE group_memberships SET is_prized = 1, prized_period = ?, prized_auction_id = ? WHERE group_id = ? AND member_id = ?',
+          [validated.period_number, auctionId2, validated.group_id, validated.draw2.winning_member_id]
+        );
+
+        // Generate payout voucher for Draw #2
+        const dateStr2 = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const randSuffix2 = crypto.randomBytes(2).toString('hex').toUpperCase();
+        payoutNumber2 = `PAY-${dateStr2}-${randSuffix2}`;
+
+        await connection.execute(
+          `INSERT INTO payouts 
+            (payout_number, group_id, member_id, period_number, gross_chit_amount, bid_discount, net_payable_amount, payout_date, payment_method, approved_by, status, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NEFT_RTGS', ?, 'PENDING_APPROVAL', ?)`,
+          [
+            payoutNumber2,
+            validated.group_id,
+            validated.draw2.winning_member_id,
+            validated.period_number,
+            draw2PoolAmount,
+            draw2BidDiscount,
+            draw2NetPayableAmount,
+            validated.auction_date,
+            req.user.id,
+            `Double Auction Month ${validated.period_number} Draw 2 (Reversing Pool)`,
           ]
         );
       }
+
+      await connection.commit();
+    } catch (txError) {
+      await connection.rollback();
+      throw txError;
+    } finally {
+      connection.release();
     }
-
-    // 8. Generate payout voucher record for the winning member
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const randSuffix = crypto.randomBytes(2).toString('hex').toUpperCase();
-    const payoutNumber = `PAY-${dateStr}-${randSuffix}`;
-
-    await pool.execute(
-      `INSERT INTO payouts 
-        (payout_number, group_id, member_id, period_number, gross_chit_amount, bid_discount, net_payable_amount, payout_date, payment_method, approved_by, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NEFT_RTGS', ?, 'PENDING_APPROVAL', ?)`,
-      [
-        payoutNumber,
-        validated.group_id,
-        validated.winning_member_id,
-        validated.period_number,
-        effectivePoolAmount,
-        validated.bid_discount,
-        netPayableAmount,
-        validated.auction_date,
-        req.user.id,
-        `Auction Month ${validated.period_number} Draw ${finalDrawNumber} (${finalAuctionType})`,
-      ]
-    );
 
     await recordAuditLog({
       userId: req.user.id,
@@ -348,22 +551,34 @@ export async function conductAuction(req, res, next) {
         commissionPercent,
         dividendPerMember,
         doubleChitReserve,
+        conductDraw2: validated.conduct_draw2,
+        draw2: validated.conduct_draw2 ? {
+          auctionId: auctionId2,
+          winnerId: validated.draw2.winning_member_id,
+          poolAmount: draw2PoolAmount,
+          netPayable: draw2NetPayableAmount,
+          foremanCommission: draw2ForemanCommission,
+        } : null,
       },
     });
 
     await createNotification({
       targetRole: 'ALL',
       title: `🏆 Auction Won: ${group.group_name || group.name || 'Chit Scheme'}`,
-      message: `Winner: ${winnerName} · Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')} (Admin Comm: ₹${foremanCommission.toLocaleString('en-IN')} from Winner Prize)${dividendPerMember > 0 ? ` · Dividend: ₹${dividendPerMember}/member (from Bid Amount)` : ` · Saved Chit Reserve: ₹${doubleChitReserve.toLocaleString('en-IN')}`}`,
+      message: validated.conduct_draw2
+        ? `Double Chit Round #${validated.period_number} Completed: Draw #1 won by ${winnerName} (Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')}) & Draw #2 (Reversing Pool) won by ${draw2WinnerName} (Prize: ₹${Number(draw2NetPayableAmount).toLocaleString('en-IN')}) · Total Admin Comm: ₹${(foremanCommission + draw2ForemanCommission).toLocaleString('en-IN')}`
+        : `Winner: ${winnerName} · Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')} (Admin Comm: ₹${foremanCommission.toLocaleString('en-IN')} from Winner Prize)${dividendPerMember > 0 ? ` · Dividend: ₹${dividendPerMember}/member (from Bid Amount)` : ` · Saved Chit Reserve: ₹${doubleChitReserve.toLocaleString('en-IN')}`}`,
       type: 'AUCTION',
       link: '/admin/auctions',
     });
 
     res.status(201).json({
       success: true,
-      message: isDoubleChit
-        ? `Double Chit Round #${validated.period_number} Draw #${finalDrawNumber} conducted successfully. Admin commission of ₹${foremanCommission.toLocaleString('en-IN')} deducted from winner prize, and ₹${doubleChitReserve.toLocaleString('en-IN')} saved in this chit's pool reserve (available to auction again).`
-        : `Auction for Round #${validated.period_number} conducted successfully. Admin commission of ₹${foremanCommission.toLocaleString('en-IN')} deducted from winner prize, and full bid discount of ₹${totalDividend.toLocaleString('en-IN')} distributed equally among all ${totalMembers} members (₹${dividendPerMember}/member) in passbook.`,
+      message: validated.conduct_draw2
+        ? `Double Chit Round #${validated.period_number} completed: Draw #1 won by ${winnerName} (Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')}) and Draw #2 (Reversing Amount Double Auction) won by ${draw2WinnerName} (Prize: ₹${Number(draw2NetPayableAmount).toLocaleString('en-IN')}) in a single session.`
+        : isDoubleChit
+          ? `Double Chit Round #${validated.period_number} Draw #${finalDrawNumber} conducted successfully. Admin commission of ₹${foremanCommission.toLocaleString('en-IN')} deducted from winner prize, and ₹${doubleChitReserve.toLocaleString('en-IN')} saved in this chit's pool reserve (available to auction again).`
+          : `Auction for Round #${validated.period_number} conducted successfully. Admin commission of ₹${foremanCommission.toLocaleString('en-IN')} deducted from winner prize, and full bid discount of ₹${totalDividend.toLocaleString('en-IN')} distributed equally among all ${totalMembers} members (₹${dividendPerMember}/member) in passbook.`,
       data: {
         auctionId,
         payoutNumber,
@@ -376,6 +591,19 @@ export async function conductAuction(req, res, next) {
         doubleChitReserve,
         dividendPerMember,
         nextInstallmentPayable,
+        draw2: validated.conduct_draw2 ? {
+          auctionId: auctionId2,
+          payoutNumber: payoutNumber2,
+          poolAmount: draw2PoolAmount,
+          grossWinnerPrize: draw2GrossWinnerPrize,
+          netPayableAmount: draw2NetPayableAmount,
+          foremanCommission: draw2ForemanCommission,
+          commissionPercent: draw2CommPercent,
+          doubleChitReserve: draw2DoubleChitReserve,
+          winningMemberId: validated.draw2.winning_member_id,
+          winningTicketNumber: validated.draw2.winning_ticket_number,
+          winnerName: draw2WinnerName,
+        } : null,
       },
     });
   } catch (error) {

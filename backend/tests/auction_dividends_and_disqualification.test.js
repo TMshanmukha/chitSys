@@ -415,4 +415,107 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     assert.equal(capturedJson.data.dividendPerMember, 1000);
     assert.equal(capturedJson.data.nextInstallmentPayable, 5000);
   });
+
+  await t.test('7. Double Chit Single Form: Conducts Draw #1 and Draw #2 for reversing amount simultaneously in a single session', async () => {
+    // Create a Double Chit scheme to test single-form dual auction
+    const randDual = Math.floor(1000 + Math.random() * 9000);
+    const [grpDual] = await pool.execute(
+      `INSERT INTO chit_groups 
+        (group_code, group_name, chit_type, frequency, route_category, location_name, installment_amount, total_pool_amount, duration_periods, total_members_limit, foreman_commission_percent, start_date, created_by)
+       VALUES (?, 'Test Double Chit Single Form Dual Auction', 'DOUBLE_CHIT', 'MONTHLY', 'MONTHLY_ROUTE', 'Chennai Hub', 5000.00, 100000.00, 20, 20, 5.00, CURDATE(), ?)`,
+      [`TEST-DUAL-${randDual}`, adminUserId]
+    );
+    const dualGroupId = grpDual.insertId;
+
+    // Enroll Member 2 and Member 3
+    await pool.execute(
+      'INSERT INTO group_memberships (group_id, member_id, ticket_number, joined_date, status) VALUES (?, ?, 1, CURDATE(), "ACTIVE")',
+      [dualGroupId, testMember2Id]
+    );
+    await pool.execute(
+      'INSERT INTO group_memberships (group_id, member_id, ticket_number, joined_date, status) VALUES (?, ?, 2, CURDATE(), "ACTIVE")',
+      [dualGroupId, testMember3Id]
+    );
+
+    let capturedStatus;
+    let capturedJson;
+
+    // Single Form Payload: Draw #1 (Member 2) + Draw #2 for Reversing Amount (Member 3)
+    const mockReq = {
+      body: {
+        group_id: dualGroupId,
+        period_number: 1,
+        draw_number: 1,
+        auction_type: 'DOUBLE_CHIT_DRAW',
+        winning_member_id: testMember2Id,
+        winning_ticket_number: 1,
+        bid_discount: 30000, // Reversing amount generated
+        auction_date: new Date().toISOString().slice(0, 10),
+        conduct_draw2: true, // Enable Draw #2 in the same form!
+        draw2: {
+          winning_member_id: testMember3Id, // Second winner
+          winning_ticket_number: 2,
+          pool_amount: 30000, // Reversing pool from Draw #1
+          bid_discount: 5000,
+          notes: 'Draw 2 for reversing amount conducted in same form',
+        },
+      },
+      user: { id: adminUserId },
+    };
+
+    const mockRes = {
+      status(s) {
+        capturedStatus = s;
+        return this;
+      },
+      json(d) {
+        capturedJson = d;
+        return this;
+      },
+    };
+
+    await conductAuction(mockReq, mockRes, (err) => {
+      if (err) throw err;
+    });
+
+    assert.equal(capturedStatus, 201);
+    assert.equal(capturedJson.success, true);
+
+    // Verify Draw #1
+    // Pool = 100,000, Bid Discount = 30,000, Winner Prize = 70,000, Commission = 5% of 70,000 = 3,500, Net Prize = 66,500
+    assert.equal(capturedJson.data.netPayableAmount, 66500);
+    assert.equal(capturedJson.data.foremanCommission, 3500);
+
+    // Verify Draw #2 returned in response
+    // Pool = 30,000, Bid Discount = 5,000, Winner Prize = 25,000, Commission = 5% of 25,000 = 1,250, Net Prize = 23,750, Reserve = 5,000
+    assert.ok(capturedJson.data.draw2);
+    assert.equal(capturedJson.data.draw2.poolAmount, 30000);
+    assert.equal(capturedJson.data.draw2.grossWinnerPrize, 25000);
+    assert.equal(capturedJson.data.draw2.foremanCommission, 1250);
+    assert.equal(capturedJson.data.draw2.netPayableAmount, 23750);
+    assert.equal(capturedJson.data.draw2.doubleChitReserve, 5000);
+    assert.equal(capturedJson.data.draw2.winningMemberId, testMember3Id);
+
+    // Verify both auctions exist in the database
+    const [dualAuctions] = await pool.execute('SELECT draw_number, winning_member_id, net_payable_amount FROM auctions WHERE group_id = ? ORDER BY draw_number ASC', [dualGroupId]);
+    assert.equal(dualAuctions.length, 2);
+    assert.equal(dualAuctions[0].draw_number, 1);
+    assert.equal(dualAuctions[0].winning_member_id, testMember2Id);
+    assert.equal(dualAuctions[1].draw_number, 2);
+    assert.equal(dualAuctions[1].winning_member_id, testMember3Id);
+
+    // Verify both members are marked PRIZED in group_memberships
+    const [dualMemberships] = await pool.execute('SELECT member_id, is_prized FROM group_memberships WHERE group_id = ?', [dualGroupId]);
+    assert.equal(dualMemberships.every((m) => m.is_prized === 1), true);
+
+    // Verify 2 payout vouchers exist
+    const [dualPayouts] = await pool.execute('SELECT member_id, net_payable_amount FROM payouts WHERE group_id = ?', [dualGroupId]);
+    assert.equal(dualPayouts.length, 2);
+
+    // Clean up
+    await pool.execute('DELETE FROM payouts WHERE group_id = ?', [dualGroupId]);
+    await pool.execute('DELETE FROM auctions WHERE group_id = ?', [dualGroupId]);
+    await pool.execute('DELETE FROM group_memberships WHERE group_id = ?', [dualGroupId]);
+    await pool.execute('DELETE FROM chit_groups WHERE id = ?', [dualGroupId]);
+  });
 });

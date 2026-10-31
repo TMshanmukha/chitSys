@@ -103,6 +103,20 @@ export default function AuctionsPage() {
     is_custom_dividend_enabled: false,
     is_custom_reserve_enabled: false,
     is_custom_due_enabled: false,
+    // Double Chit: Optional Draw #2 in the same form
+    conduct_draw2: false,
+    draw2_pool_amount: '',
+    draw2_winning_member_id: '',
+    draw2_winning_ticket_number: '',
+    draw2_bid_discount: '',
+    draw2_commission_percent: '5.0',
+    draw2_custom_foreman_commission: '',
+    draw2_custom_net_payable: '',
+    draw2_custom_double_chit_reserve: '',
+    draw2_is_custom_commission_enabled: false,
+    draw2_is_custom_net_payable_enabled: false,
+    draw2_is_custom_reserve_enabled: false,
+    draw2_notes: '',
     notes: '',
   });
 
@@ -196,6 +210,19 @@ export default function AuctionsPage() {
       is_custom_dividend_enabled: false,
       is_custom_reserve_enabled: false,
       is_custom_due_enabled: false,
+      conduct_draw2: false,
+      draw2_pool_amount: '',
+      draw2_winning_member_id: '',
+      draw2_winning_ticket_number: '',
+      draw2_bid_discount: '',
+      draw2_commission_percent: String(groupObj?.foreman_commission_percent || '5.0'),
+      draw2_custom_foreman_commission: '',
+      draw2_custom_net_payable: '',
+      draw2_custom_double_chit_reserve: '',
+      draw2_is_custom_commission_enabled: false,
+      draw2_is_custom_net_payable_enabled: false,
+      draw2_is_custom_reserve_enabled: false,
+      draw2_notes: '',
       auction_type: groupObj?.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT_DRAW' : 'AUCTION',
     }));
 
@@ -291,13 +318,45 @@ export default function AuctionsPage() {
     ? parseFloat(form.custom_next_installment)
     : autoNextInstallment;
 
+  // 7. Draw #2 Live Calculations (Optional Double Auction of Reversing Amount in same session)
+  const draw2EffectivePool = form.draw2_pool_amount !== ''
+    ? (parseFloat(form.draw2_pool_amount) || 0)
+    : bidDiscount; // Defaults to Draw #1 Reversing / Bid Discount amount!
+
+  const draw2BidDiscount = parseFloat(form.draw2_bid_discount || 0);
+  const draw2GrossWinnerPrize = Math.max(0, parseFloat((draw2EffectivePool - draw2BidDiscount).toFixed(2)));
+
+  const draw2ActiveCommissionPercent = form.draw2_commission_percent !== ''
+    ? parseFloat(form.draw2_commission_percent)
+    : (selectedGroup ? parseFloat(selectedGroup.foreman_commission_percent || 5) : 5);
+
+  const draw2AutoForemanCommission = draw2GrossWinnerPrize > 0
+    ? parseFloat(((draw2GrossWinnerPrize * draw2ActiveCommissionPercent) / 100).toFixed(2))
+    : 0;
+  const draw2EffectiveForemanCommission = (form.draw2_is_custom_commission_enabled && form.draw2_custom_foreman_commission !== '')
+    ? parseFloat(form.draw2_custom_foreman_commission)
+    : draw2AutoForemanCommission;
+
+  const draw2AutoNetPayablePrize = Math.max(0, parseFloat((draw2GrossWinnerPrize - draw2EffectiveForemanCommission).toFixed(2)));
+  const draw2EffectiveNetPayablePrize = (form.draw2_is_custom_net_payable_enabled && form.draw2_custom_net_payable !== '')
+    ? parseFloat(form.draw2_custom_net_payable)
+    : draw2AutoNetPayablePrize;
+
+  const draw2AutoDoubleChitReserve = draw2BidDiscount;
+  const draw2EffectiveDoubleChitReserve = (form.draw2_is_custom_reserve_enabled && form.draw2_custom_double_chit_reserve !== '')
+    ? parseFloat(form.draw2_custom_double_chit_reserve)
+    : draw2AutoDoubleChitReserve;
+
   // Has any custom override been applied?
   const hasCustomCommission = form.is_custom_commission_enabled || (selectedGroup && String(form.commission_percent) !== String(selectedGroup.foreman_commission_percent));
   const hasCustomNetPrize = form.is_custom_net_payable_enabled;
   const hasCustomDividend = form.is_custom_dividend_enabled;
   const hasCustomReserve = form.is_custom_reserve_enabled;
   const hasCustomDue = form.is_custom_due_enabled;
-  const hasAnyOverrides = hasCustomCommission || hasCustomNetPrize || hasCustomDividend || hasCustomReserve || hasCustomDue;
+  const hasDraw2CustomCommission = form.draw2_is_custom_commission_enabled || (selectedGroup && String(form.draw2_commission_percent) !== String(selectedGroup.foreman_commission_percent));
+  const hasDraw2CustomNet = form.draw2_is_custom_net_payable_enabled;
+  const hasDraw2CustomReserve = form.draw2_is_custom_reserve_enabled;
+  const hasAnyOverrides = hasCustomCommission || hasCustomNetPrize || hasCustomDividend || hasCustomReserve || hasCustomDue || (form.conduct_draw2 && (hasDraw2CustomCommission || hasDraw2CustomNet || hasDraw2CustomReserve));
 
   const handleResetCalculations = () => {
     setForm((prev) => ({
@@ -314,6 +373,13 @@ export default function AuctionsPage() {
       is_custom_dividend_enabled: false,
       is_custom_reserve_enabled: false,
       is_custom_due_enabled: false,
+      draw2_commission_percent: String(selectedGroup?.foreman_commission_percent || '5.0'),
+      draw2_custom_foreman_commission: '',
+      draw2_custom_net_payable: '',
+      draw2_custom_double_chit_reserve: '',
+      draw2_is_custom_commission_enabled: false,
+      draw2_is_custom_net_payable_enabled: false,
+      draw2_is_custom_reserve_enabled: false,
     }));
   };
 
@@ -367,6 +433,23 @@ export default function AuctionsPage() {
       return;
     }
 
+    // Double Chit: Optional Draw #2 in-session validation
+    if (isDoubleChitScheme && form.conduct_draw2) {
+      if (!form.draw2_winning_member_id || !form.draw2_winning_ticket_number) {
+        setError('Please select the winning subscriber and ticket number for Draw #2 (Double Auction).');
+        return;
+      }
+      if (String(form.draw2_winning_member_id) === String(form.winning_member_id)) {
+        setError('Draw #2 winning subscriber must be different from Draw #1 winner. The same subscriber cannot win both prizes in the same round.');
+        return;
+      }
+      const chosenDraw2Member = groupMembers.find((m) => String(m.member_id) === String(form.draw2_winning_member_id));
+      if (chosenDraw2Member?.is_prized === 1) {
+        setError(`Subscriber ${chosenDraw2Member.full_name} has already won in Round #${chosenDraw2Member.prized_period || 'past'} and is strictly disqualified from winning Draw #2.`);
+        return;
+      }
+    }
+
     setShowAuctionConfirm(true);
   };
 
@@ -375,7 +458,7 @@ export default function AuctionsPage() {
     setSubmitting(true);
 
     try {
-      const res = await api.post('/admin/auctions', {
+      const payload = {
         group_id: parseInt(form.group_id, 10),
         period_number: parseInt(form.period_number, 10),
         draw_number: parseInt(form.draw_number, 10),
@@ -393,8 +476,22 @@ export default function AuctionsPage() {
         custom_dividend_per_member: isDoubleChitScheme ? 0 : effectiveDividendPerMember,
         custom_next_installment: effectiveNextInstallment,
         custom_double_chit_reserve: isDoubleChitScheme ? effectiveDoubleChitReserve : 0,
+        conduct_draw2: isDoubleChitScheme && form.conduct_draw2,
+        draw2: (isDoubleChitScheme && form.conduct_draw2) ? {
+          winning_member_id: parseInt(form.draw2_winning_member_id, 10),
+          winning_ticket_number: parseInt(form.draw2_winning_ticket_number, 10),
+          pool_amount: draw2EffectivePool,
+          bid_discount: draw2BidDiscount,
+          custom_commission_percent: form.draw2_commission_percent !== '' ? parseFloat(form.draw2_commission_percent) : null,
+          custom_foreman_commission: draw2EffectiveForemanCommission,
+          custom_net_payable: draw2EffectiveNetPayablePrize,
+          custom_double_chit_reserve: draw2EffectiveDoubleChitReserve,
+          notes: form.draw2_notes || null,
+        } : null,
         notes: form.notes || null,
-      });
+      };
+
+      const res = await api.post('/admin/auctions', payload);
 
       if (res.data?.success) {
         setShowAuctionConfirm(false);
@@ -422,6 +519,19 @@ export default function AuctionsPage() {
           is_custom_dividend_enabled: false,
           is_custom_reserve_enabled: false,
           is_custom_due_enabled: false,
+          conduct_draw2: false,
+          draw2_pool_amount: '',
+          draw2_winning_member_id: '',
+          draw2_winning_ticket_number: '',
+          draw2_bid_discount: '',
+          draw2_commission_percent: '5.0',
+          draw2_custom_foreman_commission: '',
+          draw2_custom_net_payable: '',
+          draw2_custom_double_chit_reserve: '',
+          draw2_is_custom_commission_enabled: false,
+          draw2_is_custom_net_payable_enabled: false,
+          draw2_is_custom_reserve_enabled: false,
+          draw2_notes: '',
           notes: '',
         });
         setAvailableReserve(0);
@@ -1963,6 +2073,345 @@ export default function AuctionsPage() {
                 </div>
               </div>
 
+              {/* Double Chit: Optional Draw #2 In-Form Double Auction */}
+              {isDoubleChitScheme && isDraw1 && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50/50 to-blue-50 dark:from-purple-950/40 dark:via-slate-800/80 dark:to-slate-900 border-2 border-dashed border-purple-300 dark:border-purple-700/70 space-y-3 transition-all">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-purple-600 text-white font-bold text-[10px] tracking-wide uppercase font-heading">
+                          Double Chit Special
+                        </span>
+                        <h4 className="text-sm sm:text-base font-extrabold text-purple-950 dark:text-purple-200 font-heading">
+                          Optional Draw #2: Double Auction of Reversing Amount
+                        </h4>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        Conduct the second auction of this round using the reversing amount (₹{effectiveDoubleChitReserve.toLocaleString('en-IN')}) simultaneously in this single form session.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          conduct_draw2: !prev.conduct_draw2,
+                          draw2_pool_amount: !prev.conduct_draw2 ? String(effectiveDoubleChitReserve || bidDiscount) : '',
+                        }))
+                      }
+                      className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer font-heading shadow-sm shrink-0 ${
+                        form.conduct_draw2
+                          ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-purple-500/20'
+                          : 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {form.conduct_draw2 ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span>Draw #2 Active (Click to Remove)</span>
+                        </>
+                      ) : (
+                        <>
+                          <PlusCircle className="w-4 h-4" />
+                          <span>+ Enable Draw #2 Double Auction</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Draw #2 Section - Expands when enabled */}
+                  {form.conduct_draw2 && (
+                    <div className="mt-4 pt-4 border-t border-purple-200 dark:border-purple-800/80 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <span className="text-xs font-black uppercase tracking-wider text-purple-800 dark:text-purple-300 font-heading flex items-center gap-1.5">
+                          <Gavel className="w-4 h-4 text-purple-600" />
+                          Draw #2 Details (Reversing Pool: ₹{draw2EffectivePool.toLocaleString('en-IN')})
+                        </span>
+                        <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                          Winner cannot be Draw #1 winner ({groupMembers.find((m) => String(m.member_id) === String(form.winning_member_id))?.full_name || 'Draw #1 Winner'})
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Draw #2 Auction Pool Amount */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                            Draw #2 Auction Pool (Reversing Amount) (₹)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            onWheel={(e) => e.target.blur()}
+                            value={form.draw2_pool_amount}
+                            onChange={(e) => setForm({ ...form, draw2_pool_amount: e.target.value })}
+                            placeholder={String(effectiveDoubleChitReserve || bidDiscount)}
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-xl text-sm font-bold text-purple-900 dark:text-purple-200 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400 block mt-1">
+                            Defaulted from Draw #1 bid discount. Admin can modify if required.
+                          </span>
+                        </div>
+
+                        {/* Draw #2 Winning Subscriber Dropdown */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                            Draw #2 Winning Subscriber *
+                          </label>
+                          <select
+                            value={form.draw2_winning_member_id}
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              const member = groupMembers.find((m) => String(m.member_id) === selectedId);
+                              setForm({
+                                ...form,
+                                draw2_winning_member_id: selectedId,
+                                draw2_winning_ticket_number: member ? String(member.ticket_number) : '',
+                              });
+                            }}
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none font-medium"
+                          >
+                            <option value="">-- Choose Draw #2 Winning Subscriber --</option>
+                            {groupMembers
+                              .filter((m) => String(m.member_id) !== String(form.winning_member_id))
+                              .map((m) => {
+                                const isDisqualified = m.is_prized === 1;
+                                return (
+                                  <option
+                                    key={m.member_id}
+                                    value={m.member_id}
+                                    disabled={isDisqualified}
+                                  >
+                                    #{m.ticket_number} - {m.full_name} ({m.phone})
+                                    {isDisqualified ? ` [PRIZED in Round #${m.prized_period || 'past'} - Disqualified]` : ''}
+                                  </option>
+                                );
+                              })}
+                          </select>
+                          <span className="text-[10px] text-slate-400 block mt-1">
+                            Draw #1 winner & previously prized subscribers are disqualified.
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Draw #2 Winning Ticket Number */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                            Draw #2 Winning Ticket Number *
+                          </label>
+                          <input
+                            type="number"
+                            onWheel={(e) => e.target.blur()}
+                            value={form.draw2_winning_ticket_number}
+                            onChange={(e) => setForm({ ...form, draw2_winning_ticket_number: e.target.value })}
+                            placeholder="Auto-populated from subscriber"
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Draw #2 Bid Discount */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                            Draw #2 Winning Bid Discount (₹)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            onWheel={(e) => e.target.blur()}
+                            value={form.draw2_bid_discount}
+                            onChange={(e) => setForm({ ...form, draw2_bid_discount: e.target.value })}
+                            placeholder="0.00"
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400 block mt-1">
+                            Amount foregone by Draw #2 winner from reversing pool.
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Draw #2 Financial Modification & Overrides Controls */}
+                      <div className="p-4 rounded-xl bg-white dark:bg-slate-800/90 border border-purple-200 dark:border-purple-800 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <span className="text-xs font-black uppercase text-purple-900 dark:text-purple-300 font-heading flex items-center gap-1.5">
+                            <Sliders className="w-3.5 h-3.5 text-purple-600" />
+                            Draw #2 Admin Financial Controls & Overrides
+                          </span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                            Commission calculated strictly on Draw #2 Winner Prize (₹{draw2GrossWinnerPrize.toLocaleString('en-IN')})
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                          {/* Draw #2 Commission Rate % */}
+                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 font-heading">
+                              Comm. Rate (%)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              onWheel={(e) => e.target.blur()}
+                              value={form.draw2_commission_percent}
+                              onChange={(e) => setForm({ ...form, draw2_commission_percent: e.target.value })}
+                              placeholder={String(selectedGroup?.foreman_commission_percent || 5)}
+                              className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            />
+                            <span className="text-[9px] text-slate-400 block mt-0.5">Applied to winner prize</span>
+                          </div>
+
+                          {/* Draw #2 Admin Commission ₹ */}
+                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 font-heading">Admin Comm. (₹)</span>
+                              <button
+                                type="button"
+                                onClick={() => setForm((prev) => ({
+                                  ...prev,
+                                  draw2_is_custom_commission_enabled: !prev.draw2_is_custom_commission_enabled,
+                                  draw2_custom_foreman_commission: !prev.draw2_is_custom_commission_enabled ? String(draw2AutoForemanCommission) : '',
+                                }))}
+                                className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5 cursor-pointer font-heading"
+                              >
+                                <Edit3 className="w-2.5 h-2.5" />
+                                <span>{form.draw2_is_custom_commission_enabled ? 'Revert' : 'Custom ₹'}</span>
+                              </button>
+                            </div>
+                            {form.draw2_is_custom_commission_enabled ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                onWheel={(e) => e.target.blur()}
+                                value={form.draw2_custom_foreman_commission}
+                                onChange={(e) => setForm({ ...form, draw2_custom_foreman_commission: e.target.value })}
+                                placeholder={String(draw2AutoForemanCommission)}
+                                className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-md text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              />
+                            ) : (
+                              <div className="text-sm font-black text-amber-600 dark:text-amber-400 font-heading">
+                                ₹{draw2AutoForemanCommission.toLocaleString('en-IN')}
+                              </div>
+                            )}
+                            <span className="text-[9px] text-slate-400 block mt-0.5">{draw2ActiveCommissionPercent}% on ₹{draw2GrossWinnerPrize.toLocaleString('en-IN')}</span>
+                          </div>
+
+                          {/* Draw #2 Net Prize Money */}
+                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 font-heading">Net Prize (₹)</span>
+                              <button
+                                type="button"
+                                onClick={() => setForm((prev) => ({
+                                  ...prev,
+                                  draw2_is_custom_net_payable_enabled: !prev.draw2_is_custom_net_payable_enabled,
+                                  draw2_custom_net_payable: !prev.draw2_is_custom_net_payable_enabled ? String(draw2AutoNetPayablePrize) : '',
+                                }))}
+                                className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5 cursor-pointer font-heading"
+                              >
+                                <Edit3 className="w-2.5 h-2.5" />
+                                <span>{form.draw2_is_custom_net_payable_enabled ? 'Revert' : 'Custom Net'}</span>
+                              </button>
+                            </div>
+                            {form.draw2_is_custom_net_payable_enabled ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                onWheel={(e) => e.target.blur()}
+                                value={form.draw2_custom_net_payable}
+                                onChange={(e) => setForm({ ...form, draw2_custom_net_payable: e.target.value })}
+                                placeholder={String(draw2AutoNetPayablePrize)}
+                                className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-md text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              />
+                            ) : (
+                              <div className="text-sm font-black text-purple-600 dark:text-purple-400 font-heading">
+                                ₹{draw2AutoNetPayablePrize.toLocaleString('en-IN')}
+                              </div>
+                            )}
+                            <span className="text-[9px] text-slate-400 block mt-0.5">Prize − Comm.</span>
+                          </div>
+
+                          {/* Draw #2 Remaining Reserve */}
+                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 font-heading">Surplus Reserve (₹)</span>
+                              <button
+                                type="button"
+                                onClick={() => setForm((prev) => ({
+                                  ...prev,
+                                  draw2_is_custom_reserve_enabled: !prev.draw2_is_custom_reserve_enabled,
+                                  draw2_custom_double_chit_reserve: !prev.draw2_is_custom_reserve_enabled ? String(draw2AutoDoubleChitReserve) : '',
+                                }))}
+                                className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5 cursor-pointer font-heading"
+                              >
+                                <Edit3 className="w-2.5 h-2.5" />
+                                <span>{form.draw2_is_custom_reserve_enabled ? 'Revert' : 'Custom'}</span>
+                              </button>
+                            </div>
+                            {form.draw2_is_custom_reserve_enabled ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                onWheel={(e) => e.target.blur()}
+                                value={form.draw2_custom_double_chit_reserve}
+                                onChange={(e) => setForm({ ...form, draw2_custom_double_chit_reserve: e.target.value })}
+                                placeholder={String(draw2AutoDoubleChitReserve)}
+                                className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 rounded-md text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              />
+                            ) : (
+                              <div className="text-sm font-black text-slate-900 dark:text-white font-heading">
+                                ₹{draw2AutoDoubleChitReserve.toLocaleString('en-IN')}
+                              </div>
+                            )}
+                            <span className="text-[9px] text-slate-400 block mt-0.5">Carried forward in chit</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Draw #2 Notes */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                          Draw #2 Notes / Remarks
+                        </label>
+                        <input
+                          type="text"
+                          value={form.draw2_notes}
+                          onChange={(e) => setForm({ ...form, draw2_notes: e.target.value })}
+                          placeholder="e.g. Draw #2 auction of reversing pool conducted in presence of members"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-800 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Dual Auction Combined Overview Banner */}
+                      <div className="p-3 bg-purple-100/60 dark:bg-purple-950/60 rounded-xl border border-purple-200 dark:border-purple-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
+                          <span className="font-bold text-purple-900 dark:text-purple-200 font-heading">
+                            Dual Auction Combined Round Summary:
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-purple-950 dark:text-purple-200 font-medium">
+                          <span>
+                            Draw #1 Prize: <strong>₹{effectiveNetPayablePrize.toLocaleString('en-IN')}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Draw #2 Prize: <strong>₹{draw2EffectiveNetPayablePrize.toLocaleString('en-IN')}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Total Comm.: <strong>₹{(effectiveForemanCommission + draw2EffectiveForemanCommission).toLocaleString('en-IN')}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Final Reserve: <strong>₹{draw2EffectiveDoubleChitReserve.toLocaleString('en-IN')}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Notes */}
               <div>
                 <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5 font-heading">
@@ -2199,13 +2648,29 @@ export default function AuctionsPage() {
         onClose={() => setShowAuctionConfirm(false)}
         onConfirm={executeConfirmedAuction}
         isLoading={submitting}
-        title="Finalize Reverse Auction & Disburse Dividends"
-        message={`Are you sure you want to finalize Auction #${form.draw_number} for ${selectedGroup?.group_name || 'selected group'} with winning subscriber ${groupMembers.find((m) => String(m.member_id) === String(form.winning_member_id))?.full_name || 'member'} at a bid discount of ₹${Number(bidDiscount).toLocaleString('en-IN')}?`}
-        confirmLabel="Confirm & Finalize Auction"
+        title={
+          isDoubleChitScheme && form.conduct_draw2
+            ? `Finalize Dual Auctions (Draw #1 + Draw #2) - Round #${form.period_number}`
+            : "Finalize Reverse Auction & Disburse Dividends"
+        }
+        message={
+          isDoubleChitScheme && form.conduct_draw2
+            ? `Confirm dual auction finalization for Round #${form.period_number} in ${selectedGroup?.group_name || 'selected group'}:\n\n1. Draw #1 Winner: ${groupMembers.find((m) => String(m.member_id) === String(form.winning_member_id))?.full_name || 'Subscriber'} (Ticket #${form.winning_ticket_number}) — Net Prize: ₹${Number(effectiveNetPayablePrize).toLocaleString('en-IN')}\n2. Draw #2 Winner: ${groupMembers.find((m) => String(m.member_id) === String(form.draw2_winning_member_id))?.full_name || 'Subscriber'} (Ticket #${form.draw2_winning_ticket_number}) — Net Prize: ₹${Number(draw2EffectiveNetPayablePrize).toLocaleString('en-IN')}\n\nBoth payout vouchers will be generated simultaneously and both subscribers will be marked as prized.`
+            : `Are you sure you want to finalize Auction #${form.draw_number} for ${selectedGroup?.group_name || 'selected group'} with winning subscriber ${groupMembers.find((m) => String(m.member_id) === String(form.winning_member_id))?.full_name || 'member'} at a bid discount of ₹${Number(bidDiscount).toLocaleString('en-IN')}?`
+        }
+        confirmLabel={
+          isDoubleChitScheme && form.conduct_draw2
+            ? "Confirm Dual Auctions & Generate Vouchers"
+            : "Confirm & Finalize Auction"
+        }
         cancelLabel="Review Bids"
         variant="primary"
         icon={Gavel}
-        subtext={`${!isPoolFullyCollected ? `⚠️ Notice: Collection incomplete (₹${groupTotalCollected.toLocaleString('en-IN')} of ₹${effectivePool.toLocaleString('en-IN')} collected, ₹${collectionShortfall.toLocaleString('en-IN')} pending) · Proceeding via Admin Override | ` : ''}Net Prize: ₹${Number(effectiveNetPayablePrize).toLocaleString('en-IN')} | Foreman Commission: ₹${Number(effectiveForemanCommission).toLocaleString('en-IN')} (from Winner Prize) | Dividend/Member: ₹${Number(effectiveDividendPerMember).toLocaleString('en-IN')}${effectiveDoubleChitReserve > 0 ? ` | Chit Pool Reserve: ₹${Number(effectiveDoubleChitReserve).toLocaleString('en-IN')}` : ''}`}
+        subtext={
+          isDoubleChitScheme && form.conduct_draw2
+            ? `Draw #1 Prize: ₹${Number(effectiveNetPayablePrize).toLocaleString('en-IN')} | Draw #2 Prize: ₹${Number(draw2EffectiveNetPayablePrize).toLocaleString('en-IN')} | Total Admin Commission: ₹${Number(effectiveForemanCommission + draw2EffectiveForemanCommission).toLocaleString('en-IN')} | Final Chit Reserve: ₹${Number(draw2EffectiveDoubleChitReserve).toLocaleString('en-IN')}`
+            : `${!isPoolFullyCollected ? `⚠️ Notice: Collection incomplete (₹${groupTotalCollected.toLocaleString('en-IN')} of ₹${effectivePool.toLocaleString('en-IN')} collected, ₹${collectionShortfall.toLocaleString('en-IN')} pending) · Proceeding via Admin Override | ` : ''}Net Prize: ₹${Number(effectiveNetPayablePrize).toLocaleString('en-IN')} | Foreman Commission: ₹${Number(effectiveForemanCommission).toLocaleString('en-IN')} (from Winner Prize) | Dividend/Member: ₹${Number(effectiveDividendPerMember).toLocaleString('en-IN')}${effectiveDoubleChitReserve > 0 ? ` | Chit Pool Reserve: ₹${Number(effectiveDoubleChitReserve).toLocaleString('en-IN')}` : ''}`
+        }
       />
 
       {/* Confirmation Dialog for Prize Disbursement */}
