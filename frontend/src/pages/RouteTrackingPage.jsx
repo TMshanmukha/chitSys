@@ -1615,6 +1615,8 @@ export default function RouteTrackingPage() {
                           <div className="space-y-3">
                             {chitsList.map((chit) => {
                               const isChitExpanded = expandedAdminChitId === `${sub.id}-${chit.group_id}`;
+                              const paidRoster = chit.paid_roster || chit.paidMembers || [];
+                              const unpaidRoster = chit.unpaid_roster || chit.unpaidMembers || [];
                               return (
                                 <div
                                   key={chit.group_id}
@@ -1640,6 +1642,7 @@ export default function RouteTrackingPage() {
                                         <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                                           <span>{chit.group_name}</span>
                                           <span className="text-slate-400 font-mono">({chit.group_code})</span>
+                                          {chit.absentAgentName && <span className="ml-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[9px] text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Coverage for {chit.absentAgentName}</span>}
                                         </div>
                                         <div className="text-[11px] text-slate-500 dark:text-slate-400">
                                           Installment: ₹{Number(chit.installment_amount || 0).toLocaleString('en-IN')} · Paid: {chit.paid_members_count} / {chit.total_members} subscribers
@@ -1672,27 +1675,27 @@ export default function RouteTrackingPage() {
                                       <div>
                                         <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                                           <CheckCircle2 className="w-3 h-3" />
-                                          <span>Paid Subscribers ({chit.paid_roster?.length || 0})</span>
+                                          <span>Completed Tasks ({paidRoster.length})</span>
                                         </div>
-                                        {(!chit.paid_roster || chit.paid_roster.length === 0) ? (
+                                        {paidRoster.length === 0 ? (
                                           <div className="text-xs text-slate-400 italic">No collections registered today.</div>
                                         ) : (
                                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                            {chit.paid_roster.map((p, idx) => (
+                                            {paidRoster.map((p, idx) => (
                                               <div
                                                 key={idx}
                                                 className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between text-xs"
                                               >
                                                 <div>
                                                   <div className="font-bold text-slate-800 dark:text-slate-200">
-                                                    {p.full_name} <span className="text-[10px] text-slate-400 font-mono">T#{p.ticket_number}</span>
+                                                    {p.full_name || p.memberName} <span className="text-[10px] text-slate-400 font-mono">T#{p.ticket_number || p.ticketNumber}</span>
                                                   </div>
                                                   <div className="text-[10px] text-slate-500">
-                                                    {p.payment_method} {p.receipt_number ? `• Rcpt #${p.receipt_number}` : ''}
+                                                    {p.payment_method || p.paymentMethod} {p.receipt_number || p.receiptNumber ? `• Rcpt #${p.receipt_number || p.receiptNumber}` : ''} {p.completedBy ? `• Completed by ${p.completedBy}` : ''}
                                                   </div>
                                                 </div>
                                                 <div className="font-black text-emerald-600 dark:text-emerald-400">
-                                                  ₹{Number(p.amount_paid || 0).toLocaleString('en-IN')}
+                                                  ₹{Number(p.amount_paid ?? p.amount ?? 0).toLocaleString('en-IN')}
                                                 </div>
                                               </div>
                                             ))}
@@ -1704,22 +1707,22 @@ export default function RouteTrackingPage() {
                                       <div>
                                         <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                                           <AlertCircle className="w-3 h-3" />
-                                          <span>Unpaid Subscribers & Pending Dues ({chit.unpaid_roster?.length || 0})</span>
+                                          <span>Pending Tasks ({unpaidRoster.length})</span>
                                         </div>
-                                        {(!chit.unpaid_roster || chit.unpaid_roster.length === 0) ? (
+                                        {unpaidRoster.length === 0 ? (
                                           <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                                             ✓ All subscribers in this scheme paid on this date!
                                           </div>
                                         ) : (
                                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                            {chit.unpaid_roster.map((u, idx) => (
+                                            {unpaidRoster.map((u, idx) => (
                                               <div
                                                 key={idx}
                                                 className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/40 flex items-center justify-between text-xs"
                                               >
                                                 <div>
                                                   <div className="font-bold text-slate-800 dark:text-slate-200">
-                                                    {u.full_name} <span className="text-[10px] text-slate-400 font-mono">T#{u.ticket_number}</span>
+                                                    {u.full_name || u.memberName} <span className="text-[10px] text-slate-400 font-mono">T#{u.ticket_number || u.ticketNumber}</span>
                                                   </div>
                                                   <div className="text-[10px] text-slate-500">
                                                     {u.phone ? `Ph: ${u.phone}` : ''} {u.notes ? `• "${u.notes}"` : ''}
@@ -1727,9 +1730,10 @@ export default function RouteTrackingPage() {
                                                 </div>
                                                 <div className="text-right">
                                                   <div className="font-black text-rose-600 dark:text-rose-400">
-                                                    ₹{Number(u.pending_amount || 0).toLocaleString('en-IN')}
+                                                    ₹{Number(u.pending_amount ?? u.pendingDeficit ?? u.expectedAmount ?? 0).toLocaleString('en-IN')}
                                                   </div>
                                                   <div className="text-[9px] uppercase font-bold text-rose-500">Pending Due</div>
+                                                  {chit.absentAgentName && <a className="mt-1 block text-[9px] text-blue-600 hover:underline" href={`/admin/collections?group_id=${chit.group_id}&member_id=${u.member_id || u.memberId}&collection_date=${workDateStr}&absent_agent=${encodeURIComponent(chit.absentAgentName)}`}>Record as admin</a>}
                                                 </div>
                                               </div>
                                             ))}

@@ -78,6 +78,7 @@ export default function AdminCommissionsPage() {
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [advancesStatusFilter, setAdvancesStatusFilter] = useState('ALL'); // 'ALL' | 'PENDING_RECOVERY' | 'RECOVERED'
   const [recoveringId, setRecoveringId] = useState(null);
+  const [analyticsFilters, setAnalyticsFilters] = useState({ startDate: '', endDate: '', agentId: '', groupId: '', frequency: '', paymentMethod: '' });
 
   // Pagination states
   const [auctionPage, setAuctionPage] = useState(1);
@@ -87,15 +88,17 @@ export default function AdminCommissionsPage() {
   const [advancesPage, setAdvancesPage] = useState(1);
   const [advancesPageSize, setAdvancesPageSize] = useState(10);
 
-  const loadData = async (isManual = false) => {
+  const loadData = async (isManual = false, filters = analyticsFilters) => {
     try {
       if (isManual) setRefreshing(true);
       else setLoading(true);
       setError('');
 
-      const res = await api.get('/admin/commissions');
+      const params = Object.fromEntries(Object.entries(filters).filter(([,value])=>Boolean(value)));
+      const res = await api.get('/admin/commissions', { params });
       if (res.data?.success) {
         setData(res.data.data);
+        setAnalyticsFilters(res.data.data.collectionFilters?.active || filters);
       }
     } catch (err) {
       setError(getFriendlyErrorMessage(err, 'Failed to retrieve administrator profile from database. Please try again.'));
@@ -581,6 +584,19 @@ export default function AdminCommissionsPage() {
 
       {/* SECTION 1: Full Admin Profile (Personal + System Overview) */}
       {activeSection === 'overview' && (
+        <div className="space-y-6">
+        <section className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div><h2 className="font-extrabold text-slate-900 dark:text-white">Collection analytics filters</h2><p className="text-xs text-slate-500 mt-1">Filter totals across the full collection ledger. Leave a field blank to include all values.</p></div>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+            <label className="text-xs font-semibold text-slate-500">From<input type="date" value={analyticsFilters.startDate} onChange={e=>setAnalyticsFilters(f=>({...f,startDate:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"/></label>
+            <label className="text-xs font-semibold text-slate-500">Through<input type="date" value={analyticsFilters.endDate} onChange={e=>setAnalyticsFilters(f=>({...f,endDate:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"/></label>
+            <label className="text-xs font-semibold text-slate-500">Agent<select value={analyticsFilters.agentId} onChange={e=>setAnalyticsFilters(f=>({...f,agentId:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"><option value="">All agents</option>{(data.collectionFilters?.agents||[]).map(a=><option key={a.id} value={a.id}>{a.full_name}</option>)}</select></label>
+            <label className="text-xs font-semibold text-slate-500">Chit / route<select value={analyticsFilters.groupId} onChange={e=>setAnalyticsFilters(f=>({...f,groupId:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"><option value="">All chits</option>{(data.collectionFilters?.groups||[]).map(g=><option key={g.id} value={g.id}>{g.group_name} ({g.group_code})</option>)}</select></label>
+            <label className="text-xs font-semibold text-slate-500">Frequency<select value={analyticsFilters.frequency} onChange={e=>setAnalyticsFilters(f=>({...f,frequency:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"><option value="">All</option><option value="DAILY">Daily</option><option value="MONTHLY">Monthly</option></select></label>
+            <label className="text-xs font-semibold text-slate-500">Payment method<select value={analyticsFilters.paymentMethod} onChange={e=>setAnalyticsFilters(f=>({...f,paymentMethod:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"><option value="">All methods</option><option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank transfer</option><option value="CHEQUE">Cheque</option></select></label>
+          </div>
+          <div className="flex gap-2"><button type="button" onClick={()=>loadData(true,analyticsFilters)} className="rounded-xl bg-blue-600 px-4 py-2 text-white text-sm font-bold">Apply filters</button><button type="button" onClick={()=>{const clear={startDate:'',endDate:'',agentId:'',groupId:'',frequency:'',paymentMethod:''};setAnalyticsFilters(clear);loadData(true,clear);}} className="rounded-xl border px-4 py-2 text-sm font-bold dark:border-slate-700">Clear all</button></div>
+        </section>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Personal Account Information */}
           <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -770,6 +786,7 @@ export default function AdminCommissionsPage() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       )}
 

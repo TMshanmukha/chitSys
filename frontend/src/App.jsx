@@ -22,6 +22,7 @@ import {
 } from './pages/ModulePages';
 import NotificationsPage from './pages/NotificationsPage';
 import NotFound from './pages/NotFound';
+import LeaveManagementPage from './pages/LeaveManagementPage';
 
 import ScrollToTop from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -58,6 +59,7 @@ export default function App() {
               <Route path="auctions" element={<AuctionsPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="agents" element={<UsersPage />} />
+              <Route path="leaves" element={<LeaveManagementPage />} />
               <Route path="members" element={<MembersPage />} />
               <Route path="collections" element={<CollectionsPage />} />
               <Route path="profile" element={<AdminCommissionsPage />} />
@@ -71,6 +73,10 @@ export default function App() {
             </Route>
 
             {/* Protected Agent Routes */}
+            <Route
+              path="/agent/leaves"
+              element={<ProtectedRoute allowedRoles={['COLLECTION_AGENT']}><LeaveManagementPage /></ProtectedRoute>}
+            />
             <Route
               path="/agent/dashboard"
               element={

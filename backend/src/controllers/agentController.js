@@ -260,9 +260,20 @@ export async function getMyAssignedRoutes(req, res, next) {
        FROM agent_group_assignments aga
        JOIN chit_groups g ON aga.group_id = g.id
        WHERE aga.agent_id = ? AND aga.is_active = 1 AND g.status = 'ACTIVE'
+         AND NOT EXISTS (SELECT 1 FROM agent_leaves al WHERE al.agent_id=aga.agent_id AND al.leave_date=CURDATE() AND al.status='APPROVED')
        ORDER BY g.route_category ASC, g.id ASC`,
       [agentId]
     );
+
+    // Approved leave coverage adds the absent agent's routes only for the covered day.
+    const [coveredGroups] = await pool.execute(
+      `SELECT g.id,g.group_code,g.group_name,g.chit_type,g.frequency,g.route_category,
+              g.location_name,g.installment_amount,g.total_pool_amount,g.status,g.start_date,g.created_at,
+              l.agent_id AS absent_agent_id, absent.full_name AS absent_agent_name
+       FROM agent_leave_coverages c JOIN agent_leaves l ON l.id=c.leave_id
+       JOIN chit_groups g ON g.id=c.group_id JOIN users absent ON absent.id=l.agent_id
+       WHERE c.covering_agent_id=? AND l.leave_date=CURDATE() AND l.status='APPROVED' AND g.status='ACTIVE'`, [agentId]);
+    for (const g of coveredGroups) if (!groups.some((mine) => mine.id === g.id)) groups.push({ ...g, temporary_coverage: true });
 
     const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -311,8 +322,9 @@ export async function getMyAssignedRoutes(req, res, next) {
       // 2. Fetch collections for assigned groups within the last 60 days
       const [colls] = await pool.query(
         `SELECT c.id, c.group_id, c.member_id, c.amount, c.payment_method, c.receipt_number,
-                c.collection_date, c.collection_time, c.notes
+                c.collection_date, c.collection_time, c.notes, collector.full_name AS collector_name, collector.role AS collector_role
          FROM collections c
+         LEFT JOIN users collector ON collector.id=c.agent_id
          WHERE c.group_id IN (?) AND c.verification_status != 'CANCELLED'
            AND c.collection_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
          ORDER BY c.collection_date DESC, c.collection_time DESC, c.id DESC`,
@@ -441,6 +453,10 @@ export async function getMyAssignedRoutes(req, res, next) {
           payment_method: latestColl?.payment_method || null,
           collection_date: latestColl?.collection_date || null,
           collection_time: latestColl?.collection_time || null,
+          completed_by_name: latestColl?.collector_name || null,
+          completed_by_role: latestColl?.collector_role || null,
+          absent_agent_name: g?.absent_agent_name || null,
+          is_temporary_coverage: Boolean(g?.temporary_coverage),
           cycle_start: g?.cycle_start || null,
           cycle_due: g?.cycle_due || null,
           cycle_anchor_day: g?.cycle_anchor_day || null,

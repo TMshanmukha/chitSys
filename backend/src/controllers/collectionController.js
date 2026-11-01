@@ -99,6 +99,16 @@ export async function recordCollection(req, res, next) {
     }
     const chitGroup = groupRows[0];
 
+    if (req.user.role === 'COLLECTION_AGENT') {
+      const finalDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date)) ? req.body.collection_date : new Date().toISOString().slice(0, 10);
+      const [access] = await pool.execute(
+        `SELECT 1 FROM agent_group_assignments WHERE agent_id=? AND group_id=? AND is_active=1
+         UNION SELECT 1 FROM agent_leave_coverages c JOIN agent_leaves l ON l.id=c.leave_id
+         WHERE c.covering_agent_id=? AND c.group_id=? AND l.leave_date=? AND l.status='APPROVED' LIMIT 1`,
+        [req.user.id, validated.group_id, req.user.id, validated.group_id, finalDate]);
+      if (!access.length) return res.status(403).json({success:false,message:'This route is not assigned to you for the selected date.'});
+    }
+
     // 2. Real-Life Flexibility: Handle standard, partial, advance, and off-cycle payments seamlessly without blocking!
     let isAdvance = false;
     let isOffCycle = false;

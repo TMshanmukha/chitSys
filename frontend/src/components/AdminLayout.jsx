@@ -13,6 +13,7 @@ const TITLE_MAP = {
   '/admin/auctions': 'Auctions & Dividends',
   '/admin/users': 'User Management (Agents)',
   '/admin/agents': 'Collection Agents',
+  '/admin/leaves': 'Agent Leave & Coverage',
   '/admin/members': 'Members & Passbook',
   '/admin/collections': 'Daily & Monthly Collections',
   '/admin/profile': 'Admin Profile',

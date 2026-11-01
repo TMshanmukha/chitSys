@@ -607,6 +607,7 @@ export async function getReportsAnalytics(req, res, next) {
 export async function getAdminCommissionsAndProfile(req, res, next) {
   try {
     const userId = req.user?.id || req.user?.userId;
+    const { startDate, endDate, agentId, groupId, frequency, paymentMethod } = req.query;
 
     // 1. Ensure personal profile exists for this admin
     const [userRows] = await pool.query(
@@ -646,6 +647,15 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
     const totalAuctionsConducted = parseInt(commRows[0].total_auctions_conducted || 0, 10);
 
     // 3. Aggregate Collections & Payments Got
+    const collectionConditions = ["c.verification_status != 'CANCELLED'"];
+    const collectionParams = [];
+    if (startDate) { collectionConditions.push('c.collection_date >= ?'); collectionParams.push(startDate); }
+    if (endDate) { collectionConditions.push('c.collection_date <= ?'); collectionParams.push(endDate); }
+    if (agentId) { collectionConditions.push('c.agent_id = ?'); collectionParams.push(agentId); }
+    if (groupId) { collectionConditions.push('c.group_id = ?'); collectionParams.push(groupId); }
+    if (frequency) { collectionConditions.push('g.frequency = ?'); collectionParams.push(frequency); }
+    if (paymentMethod) { collectionConditions.push('c.payment_method = ?'); collectionParams.push(paymentMethod); }
+    const filteredCollectionWhere = collectionConditions.join(' AND ');
     const [collAggRows] = await pool.query(`
       SELECT 
         COALESCE(SUM(amount), 0) AS total_payments_received,
@@ -653,8 +663,9 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
         COALESCE(SUM(CASE WHEN payment_method IN ('UPI', 'BANK_TRANSFER') THEN amount ELSE 0 END), 0) AS digital_payments,
         COALESCE(SUM(CASE WHEN payment_method = 'CHEQUE' THEN amount ELSE 0 END), 0) AS cheque_payments,
         COUNT(*) AS total_transactions_count
-      FROM collections
-    `);
+      FROM collections c JOIN chit_groups g ON g.id=c.group_id
+      WHERE ${filteredCollectionWhere}
+    `, collectionParams);
     const totalPaymentsReceived = parseFloat(collAggRows[0].total_payments_received || 0);
     const cashPayments = parseFloat(collAggRows[0].cash_payments || 0);
     const digitalPayments = parseFloat(collAggRows[0].digital_payments || 0);
@@ -708,9 +719,13 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
       JOIN chit_groups g ON c.group_id = g.id
       JOIN members m ON c.member_id = m.id
       LEFT JOIN users u ON c.agent_id = u.id
+      WHERE ${filteredCollectionWhere}
       ORDER BY c.collection_date DESC, c.id DESC
-      LIMIT 100
-    `);
+      LIMIT 500
+    `, collectionParams);
+
+    const [filterAgents] = await pool.query("SELECT id,full_name FROM users WHERE role='COLLECTION_AGENT' AND is_active=1 ORDER BY full_name");
+    const [filterGroups] = await pool.query("SELECT id,group_name,group_code,frequency FROM chit_groups ORDER BY group_name");
 
     // 8. Withdrawals History
     const [withdrawalsHistory] = await pool.query(`
@@ -777,6 +792,7 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
         },
         auctionLedger,
         paymentsLedger,
+        collectionFilters: { agents: filterAgents, groups: filterGroups, active: { startDate: startDate || '', endDate: endDate || '', agentId: agentId || '', groupId: groupId || '', frequency: frequency || '', paymentMethod: paymentMethod || '' } },
         withdrawalsHistory,
         adminAdvances: advancesRows,
         advancesSummary: {

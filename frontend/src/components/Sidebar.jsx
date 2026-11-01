@@ -16,6 +16,7 @@ import {
   History,
   Sparkles,
   Bell,
+  CalendarDays,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
@@ -65,6 +66,7 @@ const NAV_ITEMS = [
     hoverBg: 'hover:bg-purple-50/70 dark:hover:bg-purple-950/40',
     hoverText: 'hover:text-purple-600 dark:hover:text-purple-400',
   },
+  { name: 'Agent Leaves', path: '/admin/leaves', icon: CalendarDays, activeGradient: 'from-emerald-600 to-teal-600', glowColor: 'rgba(16,185,129,.4)', hoverBg: 'hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40', hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400' },
   {
     name: 'Members & Passbook',
     path: '/admin/members',

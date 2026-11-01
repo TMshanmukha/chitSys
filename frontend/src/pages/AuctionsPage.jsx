@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/client';
 import {
   Gavel,
@@ -137,6 +137,9 @@ export default function AuctionsPage() {
   const [availableReserve, setAvailableReserve] = useState(0);
   const [groupTotalCollected, setGroupTotalCollected] = useState(0);
   const [loadingGroupDetails, setLoadingGroupDetails] = useState(false);
+  const groupDetailsRequest = useRef(0);
+  const [showAuctionGroupPicker, setShowAuctionGroupPicker] = useState(false);
+  const [auctionGroupSearch, setAuctionGroupSearch] = useState('');
 
   const loadData = async () => {
     try {
@@ -203,7 +206,11 @@ export default function AuctionsPage() {
 
   // When group changes in Conduct Auction modal, load its enrolled members, reserve, and total collections
   const handleGroupChange = async (groupId) => {
+    const requestId = ++groupDetailsRequest.current;
     const groupObj = groups.find((g) => String(g.id) === String(groupId));
+    setGroupMembers([]);
+    setAvailableReserve(0);
+    setGroupTotalCollected(0);
     setForm((prev) => ({
       ...prev,
       group_id: groupId,
@@ -243,9 +250,11 @@ export default function AuctionsPage() {
       try {
         setLoadingGroupDetails(true);
         const res = await api.get(`/admin/groups/${groupId}`);
-        if (res.data?.success) {
+        if (requestId === groupDetailsRequest.current && res.data?.success) {
           setGroupMembers(res.data.data.members || []);
           const auctionsList = res.data.data.auctions || [];
+          const nextPeriod = Math.max(0, ...auctionsList.map((auction) => Number(auction.period_number) || 0)) + 1;
+          setForm((prev) => prev.group_id === String(groupId) ? { ...prev, period_number: String(nextPeriod) } : prev);
           const reserveSum = auctionsList.reduce((acc, a) => acc + parseFloat(a.double_chit_reserve || 0), 0);
           setAvailableReserve(reserveSum);
           setGroupTotalCollected(parseFloat(res.data.data.financials?.totalCollected || 0));
@@ -253,9 +262,10 @@ export default function AuctionsPage() {
       } catch (err) {
         console.error(err);
       } finally {
-        setLoadingGroupDetails(false);
+        if (requestId === groupDetailsRequest.current) setLoadingGroupDetails(false);
       }
     } else {
+      setLoadingGroupDetails(false);
       setGroupMembers([]);
       setAvailableReserve(0);
       setGroupTotalCollected(0);
@@ -1546,19 +1556,10 @@ export default function AuctionsPage() {
                 <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-2 font-heading">
                   Select Chit Scheme (Daily / Monthly) *
                 </label>
-                <select
-                  required
-                  value={form.group_id}
-                  onChange={(e) => handleGroupChange(e.target.value)}
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                >
-                  <option value="">-- Choose Auction Chit or Double Chit Group --</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.group_name} [{g.frequency === 'DAILY' ? '⚡ Daily' : '🏛️ Monthly'} {g.chit_type === 'DOUBLE_CHIT' ? 'Double Chit' : 'Auction Chit'}] — Pool: ₹{Number(g.total_pool_amount).toLocaleString('en-IN')}
-                    </option>
-                  ))}
-                </select>
+                <button type="button" onClick={() => setShowAuctionGroupPicker((open) => !open)} className="w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-left hover:border-blue-500 hover:ring-2 hover:ring-blue-100 dark:hover:ring-blue-950 transition-all">
+                  {selectedGroup ? <span className="flex flex-wrap items-center justify-between gap-2"><span><span className="block font-extrabold text-slate-900 dark:text-white">{selectedGroup.group_name}</span><span className="text-xs text-slate-500">{selectedGroup.group_code} · {selectedGroup.frequency} · {selectedGroup.chit_type === 'DOUBLE_CHIT' ? 'Double chit' : 'Auction chit'}</span></span><span className="text-right text-xs text-slate-500">Pool value<strong className="block text-sm text-emerald-600">₹{Number(selectedGroup.total_pool_amount).toLocaleString('en-IN')}</strong></span></span> : <span className="text-sm font-semibold text-slate-500">Choose a chit scheme to conduct its auction</span>}
+                </button>
+                {showAuctionGroupPicker && <div className="mt-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden"><div className="p-3 border-b dark:border-slate-800"><input autoFocus value={auctionGroupSearch} onChange={e=>setAuctionGroupSearch(e.target.value)} placeholder="Search scheme name, code, frequency…" className="w-full rounded-xl border px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-700"/></div><div className="max-h-64 overflow-y-auto p-2 space-y-1">{groups.filter(g=>`${g.group_name} ${g.group_code} ${g.frequency} ${g.chit_type}`.toLowerCase().includes(auctionGroupSearch.toLowerCase())).map(g=><button key={g.id} type="button" onClick={()=>{setShowAuctionGroupPicker(false);setAuctionGroupSearch('');handleGroupChange(String(g.id));}} className={`w-full rounded-xl p-3 text-left hover:bg-blue-50 dark:hover:bg-blue-950/50 ${String(g.id)===String(form.group_id)?'bg-blue-50 dark:bg-blue-950/50':''}`}><span className="flex items-center justify-between gap-2"><span><strong className="block text-sm text-slate-900 dark:text-white">{g.group_name}</strong><span className="text-xs text-slate-500">{g.group_code} · {g.frequency} · {g.chit_type==='DOUBLE_CHIT'?'Double chit':'Auction chit'}</span></span><span className="text-right text-xs text-slate-500">Pool<strong className="block text-slate-800 dark:text-white">₹{Number(g.total_pool_amount).toLocaleString('en-IN')}</strong></span></span></button>)}{groups.filter(g=>`${g.group_name} ${g.group_code} ${g.frequency} ${g.chit_type}`.toLowerCase().includes(auctionGroupSearch.toLowerCase())).length===0&&<p className="p-4 text-center text-sm text-slate-500">No matching auction schemes.</p>}</div></div>}
               </div>
 
               {/* Scheme Details Banner */}

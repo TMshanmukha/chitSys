@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import {
   Layers,
@@ -2859,6 +2860,7 @@ export function MembersPage() {
    4. COLLECTIONS & RECEIPT MANAGEMENT
    ========================================================================= */
 export function CollectionsPage() {
+  const [searchParams] = useSearchParams();
   const [collections, setCollections] = useState([]);
   const [groups, setGroups] = useState([]);
   const [members, setMembers] = useState([]);
@@ -2906,6 +2908,19 @@ export function CollectionsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const groupId = searchParams.get('group_id');
+    const memberId = searchParams.get('member_id');
+    const date = searchParams.get('collection_date');
+    const amount = searchParams.get('amount');
+    if (!groupId || !memberId || !groups.length || !members.length) return;
+    const group = groups.find((item) => String(item.id) === String(groupId));
+    const member = members.find((item) => String(item.id) === String(memberId));
+    if (!group || !member) return;
+    setForm((current) => ({ ...current, group_id: String(groupId), member_id: String(memberId), amount: amount || String(group.installment_amount || ''), collection_date: date || current.collection_date, notes: `Admin collection for absent agent ${searchParams.get('absent_agent') || ''}`.trim() }));
+    setShowModal(true);
+  }, [groups, members, searchParams]);
 
   const handleGroupSelect = (groupId) => {
     setForm((prev) => ({ ...prev, group_id: groupId }));

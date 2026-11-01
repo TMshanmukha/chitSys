@@ -16,29 +16,35 @@ export async function submitAgentDayWork(req, res, next) {
     // 1. Fetch agent's active assigned groups
     const [groups] = await pool.query(
       `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.installment_amount, g.total_pool_amount,
-              g.start_date, g.created_at
-       FROM agent_group_assignments aga
-       JOIN chit_groups g ON aga.group_id = g.id
-       WHERE aga.agent_id = ? AND aga.is_active = 1 AND g.status = 'ACTIVE'
+              g.start_date, g.created_at, absent_agent.full_name AS absent_agent_name
+       FROM chit_groups g
+       LEFT JOIN agent_group_assignments aga ON aga.group_id=g.id AND aga.agent_id=? AND aga.is_active=1
+       LEFT JOIN agent_leave_coverages alc ON alc.group_id=g.id AND alc.covering_agent_id=?
+       LEFT JOIN agent_leaves al ON al.id=alc.leave_id AND al.leave_date=? AND al.status='APPROVED'
+       LEFT JOIN users absent_agent ON absent_agent.id=al.agent_id
+       WHERE ((aga.agent_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM agent_leaves own_leave WHERE own_leave.agent_id=? AND own_leave.leave_date=? AND own_leave.status='APPROVED')) OR al.id IS NOT NULL) AND g.status = 'ACTIVE'
+       GROUP BY g.id,g.group_code,g.group_name,g.chit_type,g.frequency,g.installment_amount,g.total_pool_amount,g.start_date,g.created_at,absent_agent.full_name
        ORDER BY g.id ASC`,
-      [agentId]
+      [agentId, agentId, workDate, agentId, workDate]
     );
 
     const groupIds = groups.map((g) => g.id);
 
-    // 2. Fetch all collections recorded by this agent on workDate
+    // Include every collector in covered routes so admin-recorded work is complete in the roster.
     const [collections] = await pool.query(
       `SELECT c.id, c.receipt_number, c.group_id, c.member_id, c.amount, c.payment_method, c.payment_reference,
               c.collection_date, c.collection_time, c.notes, m.full_name as member_name, gm.ticket_number, m.phone as member_phone,
-              g.group_name, g.group_code
+              g.group_name, g.group_code, handler.full_name AS completed_by_name, handler.role AS collector_role, c.agent_id AS collector_id
        FROM collections c
        JOIN members m ON c.member_id = m.id
        LEFT JOIN group_memberships gm ON c.group_id = gm.group_id AND c.member_id = gm.member_id
        LEFT JOIN chit_groups g ON c.group_id = g.id
-       WHERE c.agent_id = ? AND c.collection_date = ? AND c.verification_status != 'CANCELLED'
+       LEFT JOIN users handler ON handler.id=c.agent_id
+       WHERE c.group_id IN (?) AND c.collection_date = ? AND c.verification_status != 'CANCELLED'
        ORDER BY c.collection_time ASC, c.id ASC`,
-      [agentId, workDate]
+      [groupIds.length ? groupIds : [-1], workDate]
     );
+    const agentCollections = collections.filter((c) => Number(c.collector_id) === Number(agentId));
 
     // 3. Calculate collection totals
     let cashCollected = 0;
@@ -46,7 +52,7 @@ export async function submitAgentDayWork(req, res, next) {
     let chequeCollected = 0;
     let totalCollected = 0;
 
-    for (const c of collections) {
+    for (const c of agentCollections) {
       const amt = parseFloat(c.amount || 0);
       totalCollected += amt;
       const method = (c.payment_method || '').toUpperCase().trim();
@@ -59,7 +65,7 @@ export async function submitAgentDayWork(req, res, next) {
       }
     }
 
-    const totalReceipts = collections.length;
+    const totalReceipts = agentCollections.length;
 
     // 4. Fetch all active members in assigned groups to compile detailed paid vs unpaid rosters per chit
     let enrolledMembers = [];
@@ -118,18 +124,22 @@ export async function submitAgentDayWork(req, res, next) {
       const unpaidMembers = [];
 
       for (const m of gMembers) {
-        const coll = gCollections.find((c) => c.member_id === m.member_id);
-        if (coll) {
+        const memberCollections = gCollections.filter((c) => c.member_id === m.member_id);
+        const collectedForMember = memberCollections.reduce((sum,c)=>sum+parseFloat(c.amount||0),0);
+        const coll = memberCollections[0] || null;
+        if (collectedForMember >= installmentAmt && installmentAmt > 0) {
           totalStopsVisited++;
           paidMembers.push({
             memberId: m.member_id,
             memberName: m.full_name,
             ticketNumber: m.ticket_number,
             phone: m.phone,
-            amount: parseFloat(coll.amount),
+            amount: collectedForMember,
             paymentMethod: coll.payment_method,
             receiptNumber: coll.receipt_number,
             collectionTime: coll.collection_time,
+            completedBy: [...new Set(memberCollections.map((item)=>item.completed_by_name).filter(Boolean))].join(', ') || null,
+            completedByAdmin: memberCollections.some((item)=>['ADMIN','SUPER_ADMIN'].includes(item.collector_role)),
             notes: coll.notes || '',
             statusLabel: 'Collected Today',
           });
@@ -156,8 +166,10 @@ export async function submitAgentDayWork(req, res, next) {
             memberName: m.full_name,
             ticketNumber: m.ticket_number,
             phone: m.phone,
+            amountCollected: collectedForMember,
             expectedAmount: installmentAmt,
-            pendingDeficit: installmentAmt,
+            pendingDeficit: Math.max(0, installmentAmt-collectedForMember),
+            partialCollectors: [...new Set(memberCollections.map((item)=>item.completed_by_name).filter(Boolean))].join(', ') || null,
             isAdminCovered: Boolean(m.advance_id && m.advance_status === 'PENDING_RECOVERY'),
             advanceAmount: m.advance_amount ? parseFloat(m.advance_amount) : 0,
             statusType,
@@ -176,6 +188,7 @@ export async function submitAgentDayWork(req, res, next) {
         groupId: g.id,
         groupCode: g.group_code,
         groupName: g.group_name,
+        absentAgentName: g.absent_agent_name || null,
         frequency: g.frequency,
         chitType: g.chit_type,
         installmentAmount: installmentAmt,

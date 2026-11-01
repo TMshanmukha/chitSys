@@ -58,6 +58,7 @@ import NotificationBell from '../components/NotificationBell';
 import AnimatedChitBackground from '../components/AnimatedChitBackground';
 import WelcomeCelebrationModal from '../components/WelcomeCelebrationModal';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
+import { Link } from 'react-router-dom';
 import ModalPortal from '../components/ModalPortal';
 
 export default function AgentDashboard() {
@@ -211,6 +212,9 @@ export default function AgentDashboard() {
           cycleStatusNotice: m.cycle_status_notice || group.collection_schedule_note || '',
           rawMember: m,
           rawGroup: group,
+          isTemporaryCoverage: Boolean(group.temporary_coverage || m.is_temporary_coverage),
+          absentAgentName: group.absent_agent_name || m.absent_agent_name || null,
+          completedByName: m.completed_by_name || null,
         });
       });
     });
@@ -701,6 +705,7 @@ export default function AgentDashboard() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link to="/agent/leaves" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"><Calendar className="w-4 h-4"/>Leave calendar</Link>
           {/* Live Notification Center */}
           <NotificationBell />
 
@@ -1380,6 +1385,8 @@ export default function AgentDashboard() {
                                   >
                                     Ticket #{task.ticketNumber} · {task.groupCode}
                                   </span>
+                                  {task.isTemporaryCoverage && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Covering {task.absentAgentName || 'absent agent'}</span>}
+                                  {task.isPaid && task.completedByName && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Completed by {task.completedByName}</span>}
                                   {task.isPartial && (
                                     <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400/60">
                                       PARTIAL PAID
