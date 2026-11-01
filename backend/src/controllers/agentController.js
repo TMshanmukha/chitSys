@@ -352,7 +352,6 @@ export async function getMyAssignedRoutes(req, res, next) {
         });
 
         const collectedAmt = inCycleColls.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-        const installmentAmt = Number(m.group_installment_amount || g?.installment_amount || 0);
         const remainingBalance = installmentAmt > 0 ? Math.max(0, installmentAmt - collectedAmt) : 0;
         // STRICT PAID CHECK: must have actual collections AND meet installment amount
         // Guard: installmentAmt must be > 0, and collectedAmt must be > 0
