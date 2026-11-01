@@ -23,6 +23,34 @@
         } catch (e) {}
       })();
     </script>
+
+    <style>
+      /* UNCONDITIONAL REMOVAL OF NUMBER INPUT STEPPER ARROWS & SPINNERS ACROSS ALL BROWSERS (CHROME, EDGE, SAFARI, FIREFOX, OPERA) */
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button,
+      input:hover::-webkit-inner-spin-button,
+      input:focus::-webkit-inner-spin-button,
+      input:active::-webkit-inner-spin-button,
+      input[type="number"]:hover::-webkit-inner-spin-button,
+      input[type="number"]:focus::-webkit-inner-spin-button,
+      input[type="number"]:active::-webkit-inner-spin-button {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        margin: 0 !important;
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+
+      input[type="number"] {
+        -moz-appearance: textfield !important;
+        appearance: textfield !important;
+      }
+    </style>
   </head>
 
   <body class="antialiased selection:bg-blue-600 selection:text-white">

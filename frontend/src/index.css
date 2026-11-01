@@ -59,14 +59,29 @@
   }
 
   /* Disable number input spin buttons while preserving clean manual typing */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button,
-  input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
+  input[type="number"]::-webkit-inner-spin-button,
+  input:hover::-webkit-inner-spin-button,
+  input:focus::-webkit-inner-spin-button,
+  input:active::-webkit-inner-spin-button,
+  input[type="number"]:hover::-webkit-inner-spin-button,
+  input[type="number"]:focus::-webkit-inner-spin-button,
+  input[type="number"]:active::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
   }
 
   input[type="number"] {
-    -moz-appearance: textfield;
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
   }
 
   /* -------------------------------------------------------------------------- */
@@ -491,5 +506,35 @@ html.dark span[class*="bg-rose-950"] {
 .animate-successGlow {
   animation: successGlow 2s ease-out infinite;
 }
+
+/* ==========================================================================
+   UNCONDITIONAL REMOVAL OF NUMBER INPUT SPINNERS & STEPPER ARROWS (ALL BROWSERS)
+   Guarantees zero arrows and enables manual keyboard numeric entry only
+   ========================================================================== */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button,
+input:hover::-webkit-inner-spin-button,
+input:focus::-webkit-inner-spin-button,
+input:active::-webkit-inner-spin-button,
+input[type="number"]:hover::-webkit-inner-spin-button,
+input[type="number"]:focus::-webkit-inner-spin-button,
+input[type="number"]:active::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
 
 
