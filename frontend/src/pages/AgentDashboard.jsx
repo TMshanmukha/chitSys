@@ -118,10 +118,14 @@ export default function AgentDashboard() {
     group_id: '',
     member_id: '',
     amount: '',
+    collection_date: new Date().toISOString().slice(0, 10),
     payment_method: 'CASH',
     payment_reference: '',
     notes: '',
   });
+
+  // Schedule View Mode: 'ALL' (All Assigned Routes & Subscribers) vs 'TODAY_SCHEDULED' (Strict Daily + Monthly on 1st)
+  const [scheduleViewMode, setScheduleViewMode] = useState('ALL');
 
   // Unpaid Note / Remark Modal
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -142,14 +146,14 @@ export default function AgentDashboard() {
 
   // Today's Tasks calculations across all assigned routes and members:
   // - Daily chits are collected day-by-day (every day).
-  // - Monthly chits are collected strictly on the 1st of every month.
+  // - Monthly chits: 'ALL' mode allows collecting anytime/any day; 'TODAY_SCHEDULED' filters to 1st of month.
   const tasksList = useMemo(() => {
     const list = [];
     (routesData.groups || []).forEach((group) => {
       const isDaily = group.frequency === 'DAILY';
 
-      // Monthly chits only appear in Today's Tasks on the 1st of the month
-      if (!isDaily && !isCollectionDayForMonthly) {
+      // If strict today filter is selected, monthly chits only appear on the 1st of the month
+      if (scheduleViewMode === 'TODAY_SCHEDULED' && !isDaily && !isCollectionDayForMonthly) {
         return;
       }
 
@@ -201,7 +205,7 @@ export default function AgentDashboard() {
       });
     });
     return list;
-  }, [routesData.groups, routesData.members, isCollectionDayForMonthly]);
+  }, [routesData.groups, routesData.members, isCollectionDayForMonthly, scheduleViewMode]);
 
   // Routes visible on the Agent Profile:
   // "if 1st then the chitt should appear on agent profile other wise it should not kk naa, every day tasks it should come thats it kk naa"
@@ -440,22 +444,12 @@ export default function AgentDashboard() {
     loadAgentData();
   };
 
-  // Pre-fill modal for a specific member to collect
+  // Pre-fill modal for a specific member to collect (flexible for partial, full, off-cycle & advance)
   const openCollectForMember = (groupId, memberId, defaultAmount) => {
     const group = routesData.groups.find((g) => String(g.id) === String(groupId));
     const member = routesData.members.find((m) => String(m.member_id) === String(memberId) && String(m.group_id) === String(groupId));
 
-    if (group?.frequency === 'MONTHLY') {
-      if (member?.is_paid) {
-        alert(`Monthly installment for ${member.full_name} has already been fully collected for this month (₹${Number(member.total_cycle_collected || member.installment_amount).toLocaleString('en-IN')}).`);
-        return;
-      }
-      if (!isCollectionDayForMonthly) {
-        alert('Monthly chits are scheduled to be collected strictly on the 1st of every month. Next collection cycle opens on the 1st.');
-        return;
-      }
-    }
-
+    const isAlreadyPaid = Boolean(member?.is_paid);
     const prefillAmt = (member?.remaining_balance !== undefined && member?.remaining_balance !== null && Number(member.remaining_balance) > 0)
       ? member.remaining_balance
       : (defaultAmount || group?.installment_amount || '');
@@ -464,9 +458,10 @@ export default function AgentDashboard() {
       group_id: String(groupId),
       member_id: String(memberId),
       amount: String(prefillAmt || ''),
+      collection_date: new Date().toISOString().slice(0, 10),
       payment_method: 'CASH',
       payment_reference: '',
-      notes: '',
+      notes: isAlreadyPaid ? 'Advance collection for upcoming cycle' : '',
     });
     setCollectError('');
     setShowCollectModal(true);
@@ -475,14 +470,11 @@ export default function AgentDashboard() {
 
   // Pre-fill collection modal specifically for a single chit scheme
   const openCollectForChitScheme = (group) => {
-    if (group?.frequency === 'MONTHLY' && !isCollectionDayForMonthly) {
-      alert('Monthly chits are scheduled to be collected strictly on the 1st of every month. Next collection cycle opens on the 1st.');
-      return;
-    }
     setCollectForm({
       group_id: String(group.id),
       member_id: '',
       amount: String(group.installment_amount || ''),
+      collection_date: new Date().toISOString().slice(0, 10),
       payment_method: 'CASH',
       payment_reference: '',
       notes: '',
@@ -522,7 +514,7 @@ export default function AgentDashboard() {
     }));
   };
 
-  // Request Confirmation before recording collection
+  // Request Confirmation before recording collection (maximum real-life flexibility)
   const handleRecordCollection = (e) => {
     e.preventDefault();
     setCollectError('');
@@ -535,20 +527,6 @@ export default function AgentDashboard() {
     if (isNaN(enteredAmt) || enteredAmt <= 0) {
       setCollectError('Please enter a valid positive collection amount.');
       return;
-    }
-
-    const selectedGroup = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
-    const selectedMember = routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id) && String(m.group_id) === String(collectForm.group_id));
-
-    if (selectedGroup?.frequency === 'MONTHLY') {
-      if (selectedMember?.is_paid) {
-        setCollectError(`The monthly installment (₹${Number(selectedGroup.installment_amount).toLocaleString('en-IN')}) has already been fully paid by ${selectedMember.full_name} for the current month.`);
-        return;
-      }
-      if (!isCollectionDayForMonthly) {
-        setCollectError('Monthly chits are scheduled to be collected strictly on the 1st of every month.');
-        return;
-      }
     }
 
     setShowCollectConfirm(true);
@@ -566,8 +544,10 @@ export default function AgentDashboard() {
         amount: parseFloat(collectForm.amount),
         payment_method: collectForm.payment_method,
         payment_reference: collectForm.payment_reference || null,
+        collection_date: collectForm.collection_date || new Date().toISOString().slice(0, 10),
         notes: collectForm.notes || null,
-        allow_off_cycle: simulateFirstOfMonth,
+        allow_off_cycle: true,
+        allow_advance: true,
       });
 
       if (res.data?.success) {
@@ -1114,6 +1094,36 @@ export default function AgentDashboard() {
                   >
                     With Remarks ({remarksTasksCount})
                   </button>
+
+                  <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
+
+                  {/* Schedule Mode: Flexible Any-Time vs Strict Today Only */}
+                  <div className="inline-flex p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setScheduleViewMode('ALL')}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        scheduleViewMode === 'ALL'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                      title="Collect from any assigned subscriber anytime (Flexible real-life mode)"
+                    >
+                      🌐 All Assigned ({allAssignedTasks.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleViewMode('TODAY_SCHEDULED')}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        scheduleViewMode === 'TODAY_SCHEDULED'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                      title="Show strictly today's calendar scheduled stops"
+                    >
+                      📅 Strict Due Today
+                    </button>
+                  </div>
 
                   <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
 
@@ -2696,11 +2706,10 @@ export default function AgentDashboard() {
                       <option
                         key={m.member_id}
                         value={m.member_id}
-                        disabled={isFullyPaidThisMonth}
                       >
                         #{m.ticket_number} - {m.full_name} ({m.phone}) {
                           isFullyPaidThisMonth
-                            ? `✓ [FULLY PAID - ₹${Number(m.total_cycle_collected || selectedGrp?.installment_amount).toLocaleString('en-IN')}]`
+                            ? `✓ [CURRENT CYCLE CLEARED - ₹${Number(m.total_cycle_collected || selectedGrp?.installment_amount).toLocaleString('en-IN')}] · Advance Payment Eligible`
                             : isPartialThisMonth
                             ? `🟡 [PARTIAL - Paid ₹${Number(m.total_cycle_collected || 0).toLocaleString('en-IN')} · Balance Due ₹${Number(m.remaining_balance || 0).toLocaleString('en-IN')}]`
                             : (m.is_paid ? '✓ Already Paid' : '')
@@ -2709,6 +2718,20 @@ export default function AgentDashboard() {
                     );
                   })}
                 </select>
+              </div>
+
+              {/* Collection Date Selector (Real-Life Flexibility for Backdated / Exact Date Collections) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Collection Date (Today or Backdated) *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={collectForm.collection_date || new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setCollectForm({ ...collectForm, collection_date: e.target.value })}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                />
               </div>
 
               {/* Amount and Live Balance Computation */}
@@ -2723,6 +2746,7 @@ export default function AgentDashboard() {
                 const enteredAmt = Number(collectForm.amount || 0);
                 const totalPaidAfter = currentPaidInCycle + enteredAmt;
                 const balanceAfter = Math.max(0, fullTargetAmt - totalPaidAfter);
+                const isAdvancePayment = currentPaidInCycle >= fullTargetAmt;
 
                 return (
                   <div className="space-y-2">
@@ -2793,7 +2817,14 @@ export default function AgentDashboard() {
                           <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">₹{enteredAmt.toLocaleString('en-IN')}</span>
                         </div>
 
-                        {balanceAfter > 0 ? (
+                        {isAdvancePayment ? (
+                          <div className="mt-1 p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-blue-800 dark:text-blue-300 text-[11px] font-semibold flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <span>
+                              <strong>Advance Collection:</strong> Subscriber has already cleared this cycle's installment. This ₹{enteredAmt.toLocaleString('en-IN')} payment will be saved as advance credit for upcoming cycles.
+                            </span>
+                          </div>
+                        ) : balanceAfter > 0 ? (
                           <div className="mt-1 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-[11px] font-semibold flex items-start gap-1.5">
                             <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                             <span>
@@ -3894,7 +3925,8 @@ export default function AgentDashboard() {
         const enteredAmt = Number(collectForm.amount || 0);
         const totalPaidAfter = currentPaidInCycle + enteredAmt;
         const balanceAfter = Math.max(0, fullTargetAmt - totalPaidAfter);
-        const isPartial = balanceAfter > 0;
+        const isAdvancePayment = currentPaidInCycle >= fullTargetAmt;
+        const isPartial = !isAdvancePayment && balanceAfter > 0;
 
         return (
           <ConfirmModal
@@ -3902,16 +3934,24 @@ export default function AgentDashboard() {
             onClose={() => setShowCollectConfirm(false)}
             onConfirm={executeConfirmedCollection}
             isLoading={submitting}
-            title={isPartial ? "Confirm Partial Payment Collection" : "Confirm Payment Collection"}
+            title={
+              isAdvancePayment
+                ? "Confirm Advance Payment Collection"
+                : isPartial
+                ? "Confirm Partial Payment Collection"
+                : "Confirm Payment Collection"
+            }
             message={`Are you sure you want to record ₹${enteredAmt.toLocaleString('en-IN')} via ${collectForm.payment_method} for ${
               selectedMem?.full_name || 'the selected subscriber'
             }?`}
             confirmLabel="Confirm & Issue Receipt"
             cancelLabel="Review Details"
-            variant={isPartial ? "warning" : "success"}
+            variant={isAdvancePayment ? "info" : isPartial ? "warning" : "success"}
             icon={Receipt}
             subtext={
-              isPartial
+              isAdvancePayment
+                ? `Advance Payment Notice: ₹${enteredAmt.toLocaleString('en-IN')} will be safely recorded as advance payment credit for ${selectedMem?.full_name || 'this subscriber'} on date ${collectForm.collection_date || 'today'}.`
+                : isPartial
                 ? `Partial Payment Notice: ₹${enteredAmt.toLocaleString('en-IN')} will be recorded. The remaining deficit balance of ₹${balanceAfter.toLocaleString('en-IN')} will remain as Pending Due on this subscriber and chit scheme.`
                 : "This action will issue an official collection receipt and immediately update the member's node to PAID (Green) across the entire system."
             }

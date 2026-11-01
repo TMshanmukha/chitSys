@@ -2880,6 +2880,9 @@ export function CollectionsPage() {
     payment_method: 'CASH',
     payment_reference: '',
     notes: '',
+    collection_date: new Date().toISOString().slice(0, 10),
+    allow_advance: true,
+    allow_off_cycle: true,
   });
 
   const loadData = async () => {
@@ -2930,6 +2933,9 @@ export function CollectionsPage() {
           payment_method: 'CASH',
           payment_reference: '',
           notes: '',
+          collection_date: new Date().toISOString().slice(0, 10),
+          allow_advance: true,
+          allow_off_cycle: true,
         });
         loadData();
       }
@@ -3140,7 +3146,7 @@ export function CollectionsPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
                     Amount Collected (₹) *
@@ -3153,6 +3159,18 @@ export function CollectionsPage() {
                     value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-base font-extrabold text-blue-600 dark:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                    Collection Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={form.collection_date || new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setForm({ ...form, collection_date: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
                 </div>
                 <div>

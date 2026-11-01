@@ -10,8 +10,11 @@ const collectionSchema = z.object({
   amount: z.number().positive('Collection amount must be greater than zero'),
   payment_method: z.enum(['CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE']).default('CASH'),
   payment_reference: z.string().optional().nullable(),
+  collection_date: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   agent_id: z.number().int().optional(),
+  allow_advance: z.boolean().optional(),
+  allow_off_cycle: z.boolean().optional(),
 });
 
 export async function listCollections(req, res, next) {
@@ -95,48 +98,52 @@ export async function recordCollection(req, res, next) {
     }
     const chitGroup = groupRows[0];
 
-    // 2. Validate Monthly Chit Collection Rules:
-    // Monthly chits are scheduled on the 1st of every month, but members may pay partial amounts and clear remaining balances.
+    // 2. Real-Life Flexibility: Handle standard, partial, advance, and off-cycle payments seamlessly without blocking!
+    let isAdvance = false;
+    let isOffCycle = false;
+    let autoNotePrefix = '';
+
+    const finalCollectionDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date))
+      ? req.body.collection_date
+      : new Date().toISOString().slice(0, 10);
+
     if (chitGroup.frequency === 'MONTHLY') {
       const [existingThisMonth] = await pool.execute(
         `SELECT COALESCE(SUM(amount), 0) as total_paid_this_month, COUNT(id) as collections_count
          FROM collections 
          WHERE group_id = ? AND member_id = ? AND verification_status != 'CANCELLED'
-           AND YEAR(collection_date) = YEAR(CURDATE()) AND MONTH(collection_date) = MONTH(CURDATE())`,
-        [validated.group_id, validated.member_id]
+           AND YEAR(collection_date) = YEAR(?) AND MONTH(collection_date) = MONTH(?)`,
+        [validated.group_id, validated.member_id, finalCollectionDate, finalCollectionDate]
       );
 
       const currentPaid = parseFloat(existingThisMonth[0]?.total_paid_this_month || 0);
       const installmentAmt = parseFloat(chitGroup.installment_amount || 0);
 
-      // If already fully paid or exceeded, reject duplicate collection
+      // If current cycle installment is already satisfied, treat as Advance collection for subscriber!
       if (currentPaid >= installmentAmt) {
-        return res.status(400).json({
-          success: false,
-          message: `Monthly installment of ₹${installmentAmt.toLocaleString('en-IN')} has already been fully paid by this subscriber for the current month.`,
-        });
+        isAdvance = true;
+        autoNotePrefix += '[Advance Collection] ';
       }
 
-      // Check B: Collection must be on 1st of month (allow admin override or test bypass, or paying remaining balance)
-      const isFirstDay = new Date().getDate() === 1;
-      const allowOffCycle = req.body.allow_off_cycle || req.user.role === 'SUPER_ADMIN' || req.user.role === 'ADMIN' || currentPaid > 0;
-      if (!isFirstDay && !allowOffCycle && req.user.role === 'COLLECTION_AGENT') {
-        return res.status(400).json({
-          success: false,
-          message: 'Monthly chits are scheduled to be collected strictly on the 1st of every month. Next collection will open on the 1st.',
-        });
+      // If collected on a date other than 1st of the month, record as off-cycle collection seamlessly
+      const isFirstDay = new Date(finalCollectionDate).getDate() === 1;
+      if (!isFirstDay) {
+        isOffCycle = true;
+        autoNotePrefix += `[Off-cycle collection on ${finalCollectionDate}] `;
       }
     }
 
+    const finalNotes = (autoNotePrefix + (validated.notes || '')).trim() || null;
+
     // Generate unique receipt number: REC-YYYYMMDD-XXXX
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const dateStr = finalCollectionDate.replace(/-/g, '');
     const randSuffix = crypto.randomBytes(2).toString('hex').toUpperCase();
     const receiptNumber = `REC-${dateStr}-${randSuffix}`;
 
     const [insertResult] = await pool.execute(
       `INSERT INTO collections 
         (receipt_number, group_id, member_id, agent_id, amount, payment_method, payment_reference, collection_date, collection_time, verification_status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME(), 'PENDING_RECONCILIATION', ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURTIME(), 'PENDING_RECONCILIATION', ?)`,
       [
         receiptNumber,
         validated.group_id,
@@ -145,7 +152,8 @@ export async function recordCollection(req, res, next) {
         validated.amount,
         validated.payment_method,
         validated.payment_reference || null,
-        validated.notes || null,
+        finalCollectionDate,
+        finalNotes,
       ]
     );
 
@@ -162,8 +170,8 @@ export async function recordCollection(req, res, next) {
 
       await pool.execute(
         `INSERT INTO agent_tracking_logs (agent_id, group_id, member_id, stop_id, tracking_date, status, last_ping_time, notes)
-         VALUES (?, ?, ?, ?, CURDATE(), 'PAID', CURTIME(), ?)`,
-        [recordingAgentId, validated.group_id, validated.member_id, validStopId, validated.notes || 'Paid in field']
+         VALUES (?, ?, ?, ?, ?, 'PAID', CURTIME(), ?)`,
+        [recordingAgentId, validated.group_id, validated.member_id, validStopId, finalCollectionDate, validated.notes || 'Paid in field']
       );
     } catch (e) {
       console.error('Tracking log sync warning:', e.message);
@@ -195,9 +203,11 @@ export async function recordCollection(req, res, next) {
 
     res.status(201).json({
       success: true,
-      message: remainingBalance > 0
-        ? `Partial collection of ₹${validated.amount.toLocaleString('en-IN')} recorded successfully. Remaining balance: ₹${remainingBalance.toLocaleString('en-IN')}.`
-        : `Full collection of ₹${validated.amount.toLocaleString('en-IN')} recorded successfully.`,
+      message: isAdvance
+        ? `Advance collection of ₹${validated.amount.toLocaleString('en-IN')} recorded successfully!`
+        : (remainingBalance > 0
+            ? `Partial collection of ₹${validated.amount.toLocaleString('en-IN')} recorded successfully. Remaining balance: ₹${remainingBalance.toLocaleString('en-IN')}.`
+            : `Full collection of ₹${validated.amount.toLocaleString('en-IN')} recorded successfully.`),
       receipt: {
         id: insertResult.insertId,
         receiptNumber,
@@ -205,7 +215,9 @@ export async function recordCollection(req, res, next) {
         remainingBalance,
         installmentAmount: installmentAmt,
         paymentMethod: validated.payment_method,
-        date: new Date().toISOString().slice(0, 10),
+        date: finalCollectionDate,
+        isAdvance,
+        isOffCycle,
       },
     });
   } catch (error) {
