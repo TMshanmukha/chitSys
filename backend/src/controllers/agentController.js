@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
+import { getMonthlyCycleInfo, formatYMD } from '../utils/cycleHelper.js';
 
 const agentSchema = z.object({
   full_name: z.string().min(2, 'Agent full name is required'),
@@ -254,7 +255,8 @@ export async function getMyAssignedRoutes(req, res, next) {
 
     const [groups] = await pool.execute(
       `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
-              g.location_name, g.installment_amount, g.total_pool_amount, g.status
+              g.location_name, g.installment_amount, g.total_pool_amount, g.status,
+              g.start_date, g.created_at
        FROM agent_group_assignments aga
        JOIN chit_groups g ON aga.group_id = g.id
        WHERE aga.agent_id = ? AND aga.is_active = 1 AND g.status = 'ACTIVE'
@@ -262,101 +264,146 @@ export async function getMyAssignedRoutes(req, res, next) {
       [agentId]
     );
 
-    const isFirstOfMonth = new Date().getDate() === 1;
+    const todayStr = new Date().toISOString().slice(0, 10);
 
     const enrichedGroups = groups.map((g) => {
       const isDaily = g.frequency === 'DAILY';
-      const isDueToday = isDaily || isFirstOfMonth;
+      const cycleInfo = isDaily ? null : getMonthlyCycleInfo(g.start_date || g.created_at, todayStr);
+      const isDueToday = isDaily || (cycleInfo ? cycleInfo.isDeadlineToday : false);
       return {
         ...g,
         cycle_type: g.frequency,
         cycle_mode: isDaily ? 'DAY_BY_DAY' : 'MONTH_BY_MONTH',
-        cycle_label: isDaily ? 'Day-by-Day (Today)' : 'Month-by-Month (Current Month)',
+        cycle_label: isDaily ? 'Day-by-Day (Today)' : `Month-by-Month (Due: ${cycleInfo?.cycleDue})`,
         cycle_period_label: isDaily ? 'Daily Installment' : 'Monthly Installment',
         is_due_today: isDueToday,
-        is_first_of_month: isFirstOfMonth,
+        cycle_start: cycleInfo ? cycleInfo.cycleStart : null,
+        cycle_due: cycleInfo ? cycleInfo.cycleDue : null,
+        cycle_anchor_day: cycleInfo ? cycleInfo.anchorDay : null,
+        cycle_days_remaining: cycleInfo ? cycleInfo.daysRemaining : 0,
+        is_deadline_today: cycleInfo ? cycleInfo.isDeadlineToday : false,
+        has_time_remaining: cycleInfo ? cycleInfo.hasTimeRemaining : false,
+        is_overdue: cycleInfo ? cycleInfo.isOverdue : false,
         collection_schedule_note: isDaily
           ? 'Collected daily (Every day task)'
-          : 'Collected only once per month on 1st of every month',
+          : (cycleInfo ? cycleInfo.statusNotice : 'Monthly chit collected anytime during monthly cycle'),
       };
     });
 
-    // Get members in these assigned groups with live payment & tracking note status for their respective cycle:
-    // - Daily groups: c.collection_date = CURDATE() (Day-by-Day)
-    // - Monthly groups: current month YEAR(collection_date) = YEAR(CURDATE()) AND MONTH(collection_date) = MONTH(CURDATE()) (Month-by-Month)
+    const groupMap = new Map(enrichedGroups.map((g) => [g.id, g]));
     const groupIds = groups.map((g) => g.id);
     let members = [];
+
     if (groupIds.length > 0) {
+      // 1. Fetch active enrolled members
       const [memberRows] = await pool.query(
         `SELECT gm.group_id, gm.ticket_number, gm.joined_date, m.id as member_id, m.member_code, m.full_name, m.phone,
                 m.alternate_phone, m.address, m.kyc_type, m.kyc_number,
-                g.frequency as group_frequency, g.chit_type as group_chit_type, g.installment_amount as group_installment_amount,
-                c.id as cycle_collection_id, c.amount as cycle_collected_amount, c.payment_method as cycle_payment_method,
-                c.receipt_number as cycle_receipt_number, c.collection_date as cycle_collection_date, c.collection_time as cycle_collection_time, c.notes as collection_notes,
-                atl.status as cycle_tracking_status, atl.notes as cycle_tracking_notes, atl.last_ping_time as cycle_tracking_time
+                g.frequency as group_frequency, g.chit_type as group_chit_type, g.installment_amount as group_installment_amount
          FROM group_memberships gm
          JOIN chit_groups g ON gm.group_id = g.id
          JOIN members m ON gm.member_id = m.id
-         LEFT JOIN (
-           SELECT 
-             c_sub.group_id, c_sub.member_id,
-             SUM(c_sub.amount) as total_cycle_collected,
-             COUNT(c_sub.id) as cycle_receipt_count,
-             MAX(c_sub.id) as max_id
-           FROM collections c_sub
-           JOIN chit_groups g_sub ON c_sub.group_id = g_sub.id
-           WHERE c_sub.verification_status != 'CANCELLED'
-             AND (
-               (g_sub.frequency = 'DAILY' AND c_sub.collection_date = CURDATE())
-               OR
-               (g_sub.frequency = 'MONTHLY' AND YEAR(c_sub.collection_date) = YEAR(CURDATE()) AND MONTH(c_sub.collection_date) = MONTH(CURDATE()))
-             )
-           GROUP BY c_sub.group_id, c_sub.member_id
-         ) c_agg ON c_agg.group_id = gm.group_id AND c_agg.member_id = gm.member_id
-         LEFT JOIN collections c ON c.id = c_agg.max_id
-         LEFT JOIN (
-           SELECT atl1.*
-           FROM agent_tracking_logs atl1
-           INNER JOIN (
-             SELECT MAX(atl_sub.id) as max_id
-             FROM agent_tracking_logs atl_sub
-             JOIN chit_groups g_atl ON atl_sub.group_id = g_atl.id
-             WHERE (
-               (g_atl.frequency = 'DAILY' AND atl_sub.tracking_date = CURDATE())
-               OR
-               (g_atl.frequency = 'MONTHLY' AND YEAR(atl_sub.tracking_date) = YEAR(CURDATE()) AND MONTH(atl_sub.tracking_date) = MONTH(CURDATE()))
-             )
-             GROUP BY atl_sub.group_id, COALESCE(atl_sub.member_id, atl_sub.stop_id)
-           ) atl2 ON atl1.id = atl2.max_id
-         ) atl ON atl.group_id = gm.group_id AND (atl.member_id = gm.member_id OR atl.stop_id = gm.ticket_number)
          WHERE gm.group_id IN (?) AND gm.status = 'ACTIVE'
          ORDER BY gm.group_id ASC, gm.ticket_number ASC`,
         [groupIds]
       );
 
+      // 2. Fetch collections for assigned groups within the last 60 days
+      const [colls] = await pool.query(
+        `SELECT c.id, c.group_id, c.member_id, c.amount, c.payment_method, c.receipt_number,
+                c.collection_date, c.collection_time, c.notes
+         FROM collections c
+         WHERE c.group_id IN (?) AND c.verification_status != 'CANCELLED'
+           AND c.collection_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+         ORDER BY c.collection_date DESC, c.collection_time DESC, c.id DESC`,
+        [groupIds]
+      );
+
+      // 3. Fetch tracking logs within the last 60 days
+      const [trackingLogs] = await pool.query(
+        `SELECT atl.id, atl.group_id, atl.member_id, atl.stop_id, atl.tracking_date, atl.status, atl.notes, atl.last_ping_time
+         FROM agent_tracking_logs atl
+         WHERE atl.group_id IN (?) AND atl.tracking_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+         ORDER BY atl.tracking_date DESC, atl.last_ping_time DESC, atl.id DESC`,
+        [groupIds]
+      );
+
       members = memberRows.map((m) => {
-        const isDaily = m.group_frequency === 'DAILY';
-        const installmentAmt = Number(m.group_installment_amount || 0);
-        const collectedAmt = Number(m.total_cycle_collected || m.cycle_collected_amount || 0);
+        const g = groupMap.get(m.group_id);
+        const isDaily = g ? g.frequency === 'DAILY' : m.group_frequency === 'DAILY';
+        const installmentAmt = Number(m.group_installment_amount || g?.installment_amount || 0);
+
+        // Filter collections that belong to the member's current active cycle
+        const inCycleColls = colls.filter((c) => {
+          if (c.group_id !== m.group_id || c.member_id !== m.member_id) return false;
+          if (isDaily) {
+            const collDateStr = typeof c.collection_date === 'string' 
+              ? c.collection_date.slice(0, 10) 
+              : new Date(c.collection_date).toISOString().slice(0, 10);
+            return collDateStr === todayStr;
+          }
+          if (g && g.cycle_start && g.cycle_due) {
+            const collDateStr = typeof c.collection_date === 'string'
+              ? c.collection_date.slice(0, 10)
+              : new Date(c.collection_date).toISOString().slice(0, 10);
+            return collDateStr >= g.cycle_start && collDateStr <= g.cycle_due;
+          }
+          return true;
+        });
+
+        const collectedAmt = inCycleColls.reduce((sum, c) => sum + Number(c.amount || 0), 0);
         const remainingBalance = Math.max(0, installmentAmt - collectedAmt);
         const isFullyPaid = collectedAmt >= installmentAmt;
         const isPartiallyPaid = collectedAmt > 0 && collectedAmt < installmentAmt;
-        const isPaid = isFullyPaid || m.cycle_tracking_status === 'PAID';
-        const status = isFullyPaid ? 'PAID' : (isPartiallyPaid ? 'PARTIAL' : (m.cycle_tracking_status || 'NOT_PAID'));
+
+        // Match latest tracking log for this cycle
+        const atl = trackingLogs.find((l) => {
+          if (l.group_id !== m.group_id) return false;
+          const matchesMember = l.member_id === m.member_id || l.stop_id === m.ticket_number;
+          if (!matchesMember) return false;
+          const logDateStr = typeof l.tracking_date === 'string'
+            ? l.tracking_date.slice(0, 10)
+            : new Date(l.tracking_date).toISOString().slice(0, 10);
+          if (isDaily) return logDateStr === todayStr;
+          if (g && g.cycle_start && g.cycle_due) {
+            return logDateStr >= g.cycle_start && logDateStr <= g.cycle_due;
+          }
+          return true;
+        });
+
+        const isPaid = isFullyPaid || (atl && atl.status === 'PAID');
+        const status = isFullyPaid ? 'PAID' : (isPartiallyPaid ? 'PARTIAL' : (atl?.status || 'NOT_PAID'));
         const nodeColor = isFullyPaid ? 'GREEN' : (isPartiallyPaid ? 'YELLOW' : 'RED');
+        const latestColl = inCycleColls[0] || null;
 
-        const notes = m.collection_notes || m.cycle_tracking_notes || (
-          isFullyPaid
-            ? (isDaily ? 'Paid for today' : 'Paid for current monthly cycle')
-            : (isPartiallyPaid
-                ? `Partial collection (Paid: ₹${collectedAmt}, Remaining: ₹${remainingBalance})`
-                : (isDaily ? 'Awaiting today installment' : 'Awaiting monthly installment')
-              )
-        );
+        let defaultNote = '';
+        if (isFullyPaid) {
+          defaultNote = isDaily ? 'Paid for today' : `Paid for monthly cycle (Due: ${g?.cycle_due})`;
+        } else if (isPartiallyPaid) {
+          defaultNote = `Partial collection (Paid: ₹${collectedAmt.toLocaleString('en-IN')}, Remaining: ₹${remainingBalance.toLocaleString('en-IN')})`;
+        } else if (isDaily) {
+          defaultNote = 'Awaiting today installment';
+        } else {
+          // Monthly unpaid
+          if (g?.has_time_remaining) {
+            defaultNote = `This month there is time to collect (Due: ${g.cycle_due} · ${g.cycle_days_remaining} days left) · No worry`;
+          } else if (g?.is_deadline_today) {
+            defaultNote = `Cycle Deadline Today (${g.cycle_due}) · Last day to complete collection!`;
+          } else {
+            defaultNote = `Cycle Overdue (Deadline was ${g?.cycle_due}) · Not completed`;
+          }
+        }
 
+        const notes = latestColl?.notes || atl?.notes || defaultNote;
         const statusLabel = isFullyPaid 
           ? (isDaily ? 'Paid for Today' : 'Paid for Month')
-          : (isPartiallyPaid ? `Partial (Due: ₹${remainingBalance})` : (isDaily ? 'Not Paid Today' : 'Not Paid This Month'));
+          : (isPartiallyPaid 
+              ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')})` 
+              : (isDaily 
+                  ? 'Not Paid Today' 
+                  : (g?.has_time_remaining 
+                      ? `In Progress (${g.cycle_days_remaining}d left)` 
+                      : (g?.is_deadline_today ? 'Due Today!' : 'Overdue'))));
 
         return {
           group_id: m.group_id,
@@ -377,20 +424,28 @@ export async function getMyAssignedRoutes(req, res, next) {
           installment_amount: installmentAmt,
           collected_amount: collectedAmt,
           total_cycle_collected: collectedAmt,
-          receipt_count: Number(m.cycle_receipt_count || (m.cycle_collection_id ? 1 : 0)),
-          today_status: status, // maintain backward compatibility
+          receipt_count: inCycleColls.length,
+          today_status: status,
           cycle_status: status,
           status_label: statusLabel,
           cycle_type: m.group_frequency,
           cycle_mode: isDaily ? 'DAY_BY_DAY' : 'MONTH_BY_MONTH',
-          cycle_period_label: isDaily ? 'Day-by-Day (Today)' : 'Month-by-Month (Current Month)',
+          cycle_period_label: isDaily ? 'Daily Installment' : `Monthly Installment (Due: ${g?.cycle_due})`,
           node_color: nodeColor,
           today_notes: notes,
           cycle_notes: notes,
-          receipt_number: m.cycle_receipt_number,
-          payment_method: m.cycle_payment_method,
-          collection_date: m.cycle_collection_date,
-          collection_time: m.cycle_collection_time,
+          receipt_number: latestColl?.receipt_number || null,
+          payment_method: latestColl?.payment_method || null,
+          collection_date: latestColl?.collection_date || null,
+          collection_time: latestColl?.collection_time || null,
+          cycle_start: g?.cycle_start || null,
+          cycle_due: g?.cycle_due || null,
+          cycle_anchor_day: g?.cycle_anchor_day || null,
+          cycle_days_remaining: g?.cycle_days_remaining ?? 0,
+          is_deadline_today: g?.is_deadline_today ?? false,
+          has_time_remaining: g?.has_time_remaining ?? false,
+          is_overdue: g?.is_overdue ?? false,
+          cycle_status_notice: g?.collection_schedule_note || '',
         };
       });
     }

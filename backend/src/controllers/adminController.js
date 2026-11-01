@@ -3,6 +3,7 @@ import { pool } from '../config/db.js';
 import bcrypt from 'bcryptjs';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
+import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
 
 export async function getAuditLogs(req, res, next) {
   try {
@@ -1041,7 +1042,7 @@ export async function getAgentsDailyPerformance(req, res, next) {
       SELECT 
         aga.agent_id,
         g.id as group_id, g.group_code, g.group_name, g.frequency, g.chit_type, g.location_name,
-        g.installment_amount, g.total_pool_amount,
+        g.installment_amount, g.total_pool_amount, g.start_date, g.created_at,
         COUNT(DISTINCT gm.id) as subscriber_count,
         COALESCE(SUM(g.installment_amount), 0) as group_target_amount
       FROM agent_group_assignments aga
@@ -1123,11 +1124,12 @@ export async function getAgentsDailyPerformance(req, res, next) {
 
       // Calculate Target expected for date:
       // Daily routes have installments due every day.
-      // Monthly routes have installments due strictly on 1st of month.
+      // Monthly routes have cycle deadline on anchor day (start_date day).
       let targetExpected = 0;
       agentRoutes.forEach((r) => {
         const isDaily = r.frequency === 'DAILY';
-        const isMonthlyDue = r.frequency === 'MONTHLY' && isFirstDayOfSelectedDate;
+        const cycleInfo = isDaily ? null : getMonthlyCycleInfo(r.start_date || r.created_at, targetDate);
+        const isMonthlyDue = r.frequency === 'MONTHLY' && cycleInfo?.isDeadlineToday;
 
         if (isAllTime) {
           targetExpected += Number(r.group_target_amount || 0);

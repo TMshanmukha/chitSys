@@ -98,11 +98,12 @@ export default function AgentDashboard() {
   const [profileChitFilter, setProfileChitFilter] = useState('ALL'); // 'ALL' | 'DAILY' | 'AUCTION' | 'DOUBLE'
   const [expandedProfileChitId, setExpandedProfileChitId] = useState(null);
 
-  // Monthly Chit 1st-of-Month Schedule Logic:
-  // "make sure the montly chits is only collected only one time in a month on 1st of every month , if 1st then the chitt should appear on agent profile other wise it should not kk naa, every day tasks it should come thats it kk naa"
+  // Monthly Chit Schedule:
+  // Monthly chits can be collected anytime during their monthly cycle (anchored to start_date).
+  // All assigned routes and members are visible and available for collection at all times.
   const isActualFirstDayOfMonth = new Date().getDate() === 1;
   const [simulateFirstOfMonth, setSimulateFirstOfMonth] = useState(false);
-  const isCollectionDayForMonthly = isActualFirstDayOfMonth || simulateFirstOfMonth;
+  const isCollectionDayForMonthly = true; // All assigned monthly chits are visible and collectible anytime
 
   // Confirmation Modals
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -152,8 +153,8 @@ export default function AgentDashboard() {
     (routesData.groups || []).forEach((group) => {
       const isDaily = group.frequency === 'DAILY';
 
-      // If strict today filter is selected, monthly chits only appear on the 1st of the month
-      if (scheduleViewMode === 'TODAY_SCHEDULED' && !isDaily && !isCollectionDayForMonthly) {
+      // If strict today filter is selected, monthly chits only appear if today is their cycle deadline
+      if (scheduleViewMode === 'TODAY_SCHEDULED' && !isDaily && !group.is_due_today && !group.is_deadline_today) {
         return;
       }
 
@@ -199,22 +200,24 @@ export default function AgentDashboard() {
           receiptNumber: m.receipt_number,
           paymentMethod: m.payment_method,
           collectionTime: m.collection_time,
+          cycleDue: m.cycle_due || group.cycle_due || null,
+          cycleDaysRemaining: m.cycle_days_remaining !== undefined ? m.cycle_days_remaining : (group.cycle_days_remaining ?? 0),
+          isDeadlineToday: Boolean(m.is_deadline_today || group.is_due_today || group.is_deadline_today),
+          hasTimeRemaining: Boolean(m.has_time_remaining !== undefined ? m.has_time_remaining : (group.has_time_remaining ?? false)),
+          cycleStatusNotice: m.cycle_status_notice || group.collection_schedule_note || '',
           rawMember: m,
           rawGroup: group,
         });
       });
     });
     return list;
-  }, [routesData.groups, routesData.members, isCollectionDayForMonthly, scheduleViewMode]);
+  }, [routesData.groups, routesData.members, scheduleViewMode]);
 
   // Routes visible on the Agent Profile:
-  // "if 1st then the chitt should appear on agent profile other wise it should not kk naa, every day tasks it should come thats it kk naa"
+  // All assigned schemes (both Daily and Monthly) are visible and collectible at all times!
   const activeProfileRoutes = useMemo(() => {
-    return (routesData.groups || []).filter((group) => {
-      if (group.frequency === 'DAILY') return true; // Daily chits appear every day
-      return isCollectionDayForMonthly; // Monthly chits only appear on 1st of every month
-    });
-  }, [routesData.groups, isCollectionDayForMonthly]);
+    return routesData.groups || [];
+  }, [routesData.groups]);
 
   const totalAssignedMonthlyRoutesCount = useMemo(() => {
     return (routesData.groups || []).filter((group) => group.frequency === 'MONTHLY').length;
@@ -886,21 +889,15 @@ export default function AgentDashboard() {
               <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
                 Assigned Routes
               </span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                isCollectionDayForMonthly
-                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                  : 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300'
-              }`}>
-                {isCollectionDayForMonthly ? '1st of Month Active' : 'Daily Chits Active'}
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                All Schemes Active
               </span>
             </div>
             <div className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">
-              {activeProfileRoutes.length} <span className="text-xs font-semibold text-slate-400">Routes Active Today</span>
+              {activeProfileRoutes.length} <span className="text-xs font-semibold text-slate-400">Routes Assigned</span>
             </div>
             <span className="text-[11px] text-slate-400 mt-1 block">
-              {isCollectionDayForMonthly
-                ? `${activeProfileRoutes.length} Schemes Scheduled for Collection`
-                : `${activeProfileRoutes.length} Daily Schemes (${totalAssignedMonthlyRoutesCount} Monthly due on 1st) →`}
+              {(routesData.summary?.dailyGroupsCount || 0)} Daily • {(routesData.summary?.monthlyGroupsCount || 0)} Monthly (Collect Anytime) →
             </span>
           </div>
         </div>
@@ -1421,10 +1418,22 @@ export default function AgentDashboard() {
                                       Remark: <strong>{task.notes}</strong>
                                     </span>
                                   </div>
+                                ) : task.frequency === 'MONTHLY' && task.hasTimeRemaining ? (
+                                  <div className="text-[11px] text-blue-700 dark:text-blue-300 font-medium flex items-center gap-1.5 mt-1 bg-blue-50/80 dark:bg-blue-950/40 px-2 py-1 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                    <span>
+                                      This month there is time to collect (Due: <strong>{task.cycleDue}</strong> · {task.cycleDaysRemaining}d remaining) · No worry
+                                    </span>
+                                  </div>
+                                ) : task.frequency === 'MONTHLY' && task.isDeadlineToday ? (
+                                  <div className="text-[11px] text-amber-800 dark:text-amber-300 font-bold flex items-center gap-1.5 mt-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-300 dark:border-amber-800">
+                                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                    <span>Cycle Deadline Today ({task.cycleDue}) · Last day of monthly cycle!</span>
+                                  </div>
                                 ) : (
                                   <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1 mt-1">
                                     <Clock className="w-3.5 h-3.5 shrink-0" />
-                                    <span>Awaiting installment payment</span>
+                                    <span>{task.frequency === 'DAILY' ? 'Awaiting today installment' : `Cycle Overdue (Deadline was ${task.cycleDue || 'due date'}) · Not completed`}</span>
                                   </div>
                                 )}
                               </div>
@@ -2032,48 +2041,26 @@ export default function AgentDashboard() {
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 font-semibold">
-                    {routesData.summary?.dailyGroupsCount || 0} Daily (Everyday) · {routesData.summary?.monthlyGroupsCount || 0} Monthly (1st of Month)
+                    {routesData.summary?.dailyGroupsCount || 0} Daily (Everyday) · {routesData.summary?.monthlyGroupsCount || 0} Monthly (Collect Anytime)
                   </span>
                 </div>
               </div>
 
-              {/* 1st of Month vs Daily Chits Schedule Banner */}
-              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs ${
-                isCollectionDayForMonthly
-                  ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200'
-                  : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200'
-              }`}>
+              {/* Flexible Real-Life Schedule Banner */}
+              <div className="p-4 rounded-2xl border border-blue-200 dark:border-blue-800/80 bg-blue-50/70 dark:bg-blue-950/30 text-blue-950 dark:text-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                 <div className="flex items-start gap-2.5">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                    isCollectionDayForMonthly ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
-                  }`}>
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                     <Calendar className="w-4 h-4" />
                   </div>
                   <div>
                     <strong className="block font-bold">
-                      {isCollectionDayForMonthly
-                        ? '🔔 1st of Month Active: Monthly Collection Cycle Open'
-                        : '🚚 Daily Routes Active: Monthly Chits Only Appear on 1st of Month'}
+                      ⚡ Flexible Real-Life Collections (All Assigned Schemes Visible Anytime)
                     </strong>
                     <span className="text-[11px] opacity-80 block mt-0.5 leading-relaxed">
-                      {isCollectionDayForMonthly
-                        ? 'All assigned monthly chits appear today on your profile for once-a-month installment collection.'
-                        : `Monthly chits are collected only one time in a month on the 1st of every month. Since today is day ${new Date().getDate()}, monthly chits are hidden and will appear automatically on the 1st.`}
+                      Daily chits are collected everyday. Monthly chits can be collected on any date and any time during their monthly cycle (limit: cycle anchor day). No restrictive 1st-of-month blocks!
                     </span>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSimulateFirstOfMonth(!simulateFirstOfMonth)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer border ${
-                    simulateFirstOfMonth
-                      ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:border-purple-400'
-                  }`}
-                >
-                  {simulateFirstOfMonth ? '✓ 1st of Month Active (Click to Reset)' : '🔘 Test / Preview 1st of Month'}
-                </button>
               </div>
 
               {/* Chit Scheme Category Filter Tabs */}
@@ -2187,16 +2174,16 @@ export default function AgentDashboard() {
                                   {stats.isDaily
                                     ? '🚚 DAILY CHIT SCHEME · EVERYDAY COLLECTION'
                                     : stats.isDouble
-                                    ? '💎 MONTHLY DOUBLE SCHEME · 1st OF MONTH'
-                                    : '🏛️ MONTHLY AUCTION SCHEME · 1st OF MONTH'}
+                                    ? '💎 MONTHLY DOUBLE SCHEME · COLLECT ANYTIME'
+                                    : '🏛️ MONTHLY AUCTION SCHEME · COLLECT ANYTIME'}
                                 </span>
                               </div>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                 {stats.isDaily
                                   ? 'Daily installment collected day-by-day during route field rounds'
                                   : stats.isDouble
-                                  ? 'Bimonthly dual draw surplus reserve scheme collected on 1st of month'
-                                  : 'ChitBase reverse auction scheme collected once a month on 1st'} · Area: <strong>{group.location_name || 'Assigned Territory'}</strong>
+                                  ? `Bimonthly dual draw surplus reserve scheme (Due: ${group.cycle_due || 'Cycle Anchor Date'})`
+                                  : `ChitBase reverse auction scheme (Due: ${group.cycle_due || 'Cycle Anchor Date'})`} · Area: <strong>{group.location_name || 'Assigned Territory'}</strong>
                               </p>
                             </div>
                           </div>
@@ -2673,14 +2660,11 @@ export default function AgentDashboard() {
                   className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 >
                   <option value="">Select Chit Group Route</option>
-                  {routesData.groups.map((g) => {
-                    const isDue = g.frequency === 'DAILY' || isCollectionDayForMonthly;
-                    return (
-                      <option key={g.id} value={g.id}>
-                        {g.group_name} ({g.group_code}) — ₹{g.installment_amount} {g.frequency === 'DAILY' ? '• Daily (Everyday)' : (isDue ? '• Monthly (Open Today)' : '• Monthly (Due 1st of Month)')}
-                      </option>
-                    );
-                  })}
+                  {routesData.groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.group_name} ({g.group_code}) — ₹{g.installment_amount} {g.frequency === 'DAILY' ? '• Daily (Everyday)' : `• Monthly (Due: ${g.cycle_due || 'Anchor Date'})`}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -3781,41 +3765,75 @@ export default function AgentDashboard() {
                                 )}
                               </div>
 
-                              {/* Unpaid Members Section with Pending Dues */}
+                              {/* Unpaid / Active Cycle Members Section */}
                               <div>
-                                <div className="text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                  <AlertCircle className="w-3.5 h-3.5" />
-                                  <span>Unpaid Subscribers & Pending Dues ({chit.unpaid_roster?.length || 0})</span>
+                                <div className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    {chit.frequency === 'MONTHLY' ? (
+                                      <>
+                                        <Clock className="w-3.5 h-3.5 text-blue-600" />
+                                        <span className="text-blue-700 dark:text-blue-400">
+                                          Monthly Cycle Subscribers & Status ({chit.unpaid_roster?.length || 0})
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                                        <span className="text-rose-700 dark:text-rose-400">
+                                          Unpaid Subscribers Today ({chit.unpaid_roster?.length || 0})
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                  {chit.frequency === 'MONTHLY' && (
+                                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 normal-case">
+                                      {chit.statusNotice || 'Collected anytime during monthly cycle'}
+                                    </span>
+                                  )}
                                 </div>
                                 {(!chit.unpaid_roster || chit.unpaid_roster.length === 0) ? (
                                   <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium py-1">
-                                    ✓ All subscribers in this chit scheme have paid!
+                                    ✓ All subscribers in this chit scheme have cleared their installments!
                                   </div>
                                 ) : (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {chit.unpaid_roster.map((u, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/40 flex items-center justify-between text-xs"
-                                      >
-                                        <div>
-                                          <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                            <span>{u.full_name}</span>
-                                            <span className="text-[10px] text-slate-400 font-mono">T#{u.ticket_number}</span>
+                                    {chit.unpaid_roster.map((u, idx) => {
+                                      const isMonthlyTimeLeft = chit.frequency === 'MONTHLY' && (u.hasTimeRemaining || u.statusType === 'TIME_REMAINING_NO_WORRY');
+                                      return (
+                                        <div
+                                          key={idx}
+                                          className={`p-2.5 rounded-xl bg-white dark:bg-slate-900 border flex items-center justify-between text-xs ${
+                                            isMonthlyTimeLeft
+                                              ? 'border-blue-200 dark:border-blue-800/40'
+                                              : 'border-rose-200 dark:border-rose-800/40'
+                                          }`}
+                                        >
+                                          <div>
+                                            <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                              <span>{u.full_name}</span>
+                                              <span className="text-[10px] text-slate-400 font-mono">T#{u.ticket_number}</span>
+                                            </div>
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                                              {u.phone && <span>Ph: {u.phone}</span>}
+                                              {u.notes && <span className="italic text-amber-600 dark:text-amber-400">"{u.notes}"</span>}
+                                            </div>
+                                            {isMonthlyTimeLeft && (
+                                              <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium mt-0.5">
+                                                ⏳ Time remaining this month (Due: {u.cycleDue || chit.cycle_due || 'Anchor Date'}) · No worry
+                                              </div>
+                                            )}
                                           </div>
-                                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
-                                            {u.phone && <span>Ph: {u.phone}</span>}
-                                            {u.notes && <span className="italic text-amber-600 dark:text-amber-400">"{u.notes}"</span>}
+                                          <div className="text-right">
+                                            <div className={`text-xs font-black ${isMonthlyTimeLeft ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                              ₹{Number(u.pending_amount || 0).toLocaleString('en-IN')}
+                                            </div>
+                                            <div className={`text-[10px] font-semibold uppercase ${isMonthlyTimeLeft ? 'text-blue-500' : 'text-rose-500'}`}>
+                                              {isMonthlyTimeLeft ? 'Cycle Target' : (u.isDeadlineToday ? 'Deadline Today' : 'Pending Due')}
+                                            </div>
                                           </div>
                                         </div>
-                                        <div className="text-right">
-                                          <div className="text-xs font-black text-rose-600 dark:text-rose-400">
-                                            ₹{Number(u.pending_amount || 0).toLocaleString('en-IN')}
-                                          </div>
-                                          <div className="text-[10px] text-rose-500 font-semibold uppercase">Pending Due</div>
-                                        </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>

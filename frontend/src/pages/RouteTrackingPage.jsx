@@ -737,7 +737,7 @@ export default function RouteTrackingPage() {
               <div className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
                 ₹{Number(ledgerData.summary?.grandTarget || 0).toLocaleString('en-IN')}
               </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Daily routes + Monthly on 1st</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Daily routes + Monthly at cycle deadline</span>
             </div>
 
             {/* Total Pending */}

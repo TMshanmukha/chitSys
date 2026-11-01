@@ -1,6 +1,7 @@
 import { pool } from '../config/db.js';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
+import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
 
 /**
  * Submit agent's day collections & route work for Admin verification and day closing.
@@ -14,7 +15,8 @@ export async function submitAgentDayWork(req, res, next) {
 
     // 1. Fetch agent's active assigned groups
     const [groups] = await pool.query(
-      `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.installment_amount, g.total_pool_amount
+      `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.installment_amount, g.total_pool_amount,
+              g.start_date, g.created_at
        FROM agent_group_assignments aga
        JOIN chit_groups g ON aga.group_id = g.id
        WHERE aga.agent_id = ? AND aga.is_active = 1 AND g.status = 'ACTIVE'
@@ -82,6 +84,10 @@ export async function submitAgentDayWork(req, res, next) {
     let totalStopsPending = 0;
 
     const chitBreakdown = groups.map((g) => {
+      const isDaily = g.frequency === 'DAILY';
+      const cycleInfo = isDaily ? null : getMonthlyCycleInfo(g.start_date || g.created_at, workDate);
+      const installmentAmt = parseFloat(g.installment_amount || 0);
+
       const gMembers = enrolledMembers.filter((m) => m.group_id === g.id);
       const gCollections = collections.filter((c) => c.group_id === g.id);
 
@@ -94,9 +100,18 @@ export async function submitAgentDayWork(req, res, next) {
         .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
 
       const gTotal = gCash + gUpi;
-      const installmentAmt = parseFloat(g.installment_amount || 0);
-      const expectedTarget = gMembers.length * installmentAmt;
-      const pendingAmount = Math.max(0, expectedTarget - gTotal);
+
+      // Target expected for today's shift:
+      // - Daily chits have installments due every day.
+      // - Monthly chits have cycle deadline on anchorDay (start_date day).
+      const isDeadlineToday = isDaily || (cycleInfo && cycleInfo.isDeadlineToday);
+      const hasTimeRemaining = !isDaily && cycleInfo && cycleInfo.daysRemaining > 0;
+      const expectedTarget = isDaily 
+        ? gMembers.length * installmentAmt 
+        : (cycleInfo?.isDeadlineToday ? gMembers.length * installmentAmt : 0);
+      const pendingAmount = isDaily
+        ? Math.max(0, expectedTarget - gTotal)
+        : (cycleInfo?.isDeadlineToday ? Math.max(0, (gMembers.length * installmentAmt) - gTotal) : 0);
 
       // Paid vs unpaid members in this group
       const paidMembers = [];
@@ -116,9 +131,26 @@ export async function submitAgentDayWork(req, res, next) {
             receiptNumber: coll.receipt_number,
             collectionTime: coll.collection_time,
             notes: coll.notes || '',
+            statusLabel: 'Collected Today',
           });
         } else {
           totalStopsPending++;
+          let statusType = 'DAILY_UNPAID';
+          let statusNotice = 'Not paid today';
+
+          if (!isDaily) {
+            if (hasTimeRemaining) {
+              statusType = 'TIME_REMAINING_NO_WORRY';
+              statusNotice = `This month there is time to collect (Due: ${cycleInfo.cycleDue} · ${cycleInfo.daysRemaining} days left) · No worry`;
+            } else if (cycleInfo?.isDeadlineToday) {
+              statusType = 'DEADLINE_TODAY';
+              statusNotice = `Cycle Deadline Today (${cycleInfo.cycleDue}) · Last day of monthly cycle!`;
+            } else {
+              statusType = 'OVERDUE_NOT_COMPLETED';
+              statusNotice = `Cycle Overdue (Deadline was ${cycleInfo?.cycleDue}) · Not completed`;
+            }
+          }
+
           unpaidMembers.push({
             memberId: m.member_id,
             memberName: m.full_name,
@@ -128,6 +160,12 @@ export async function submitAgentDayWork(req, res, next) {
             pendingDeficit: installmentAmt,
             isAdminCovered: Boolean(m.advance_id && m.advance_status === 'PENDING_RECOVERY'),
             advanceAmount: m.advance_amount ? parseFloat(m.advance_amount) : 0,
+            statusType,
+            statusNotice,
+            hasTimeRemaining,
+            isDeadlineToday,
+            cycleDue: cycleInfo?.cycleDue || null,
+            daysRemaining: cycleInfo?.daysRemaining ?? null,
           });
         }
       }
@@ -152,6 +190,20 @@ export async function submitAgentDayWork(req, res, next) {
         unpaidSubscribersCount: unpaidMembers.length,
         paidMembers,
         unpaidMembers,
+        cycleInfo: cycleInfo ? {
+          cycleStart: cycleInfo.cycleStart,
+          cycleDue: cycleInfo.cycleDue,
+          daysRemaining: cycleInfo.daysRemaining,
+          isDeadlineToday: cycleInfo.isDeadlineToday,
+          hasTimeRemaining: cycleInfo.hasTimeRemaining,
+          isOverdue: cycleInfo.isOverdue,
+          statusNotice: cycleInfo.statusNotice,
+        } : null,
+        isDeadlineToday,
+        hasTimeRemaining,
+        scheduleAnalysisNotice: isDaily
+          ? 'Daily chit collected everyday'
+          : cycleInfo?.statusNotice,
       };
     });
 
@@ -164,11 +216,44 @@ export async function submitAgentDayWork(req, res, next) {
     const cashSharePercent = totalCollected > 0 ? Math.round((cashCollected / totalCollected) * 100) : 0;
     const upiSharePercent = totalCollected > 0 ? Math.round((upiCollected / totalCollected) * 100) : 0;
 
+    const dailyChits = chitBreakdown.filter((c) => c.frequency === 'DAILY');
+    const monthlyChits = chitBreakdown.filter((c) => c.frequency === 'MONTHLY');
+
+    const dailyTarget = dailyChits.reduce((sum, item) => sum + item.expectedTarget, 0);
+    const dailyCollected = dailyChits.reduce((sum, item) => sum + item.totalCollected, 0);
+    const dailyPending = Math.max(0, dailyTarget - dailyCollected);
+
+    const monthlyCollectedToday = monthlyChits.reduce((sum, item) => sum + item.totalCollected, 0);
+    const monthlySubscribersCollectedToday = monthlyChits.reduce((sum, item) => sum + item.paidSubscribersCount, 0);
+    const monthlySubscribersTimeRemaining = monthlyChits.reduce(
+      (sum, item) => sum + (item.hasTimeRemaining ? item.unpaidSubscribersCount : 0),
+      0
+    );
+    const monthlySubscribersDeadlineOrOverdue = monthlyChits.reduce(
+      (sum, item) => sum + (!item.hasTimeRemaining ? item.unpaidSubscribersCount : 0),
+      0
+    );
+
     const graphsAnalyses = {
       overallCompletionPercent,
       grandExpectedTarget,
       totalCollected,
       grandPendingAmount: Math.max(0, grandExpectedTarget - totalCollected),
+      dailyOverview: {
+        target: dailyTarget,
+        collected: dailyCollected,
+        pending: dailyPending,
+        completionPercent: dailyTarget > 0 ? Math.round((dailyCollected / dailyTarget) * 100) : (dailyCollected > 0 ? 100 : 0),
+      },
+      monthlyOverview: {
+        collectedToday: monthlyCollectedToday,
+        subscribersCollectedToday: monthlySubscribersCollectedToday,
+        subscribersWithTimeRemaining: monthlySubscribersTimeRemaining,
+        subscribersDeadlineOrOverdue: monthlySubscribersDeadlineOrOverdue,
+        statusNotice: monthlySubscribersTimeRemaining > 0
+          ? `${monthlySubscribersTimeRemaining} monthly subscribers have time remaining this cycle · No worry`
+          : 'All monthly cycles up-to-date',
+      },
       paymentSplit: {
         cashAmount: cashCollected,
         cashPercent: cashSharePercent,
@@ -187,12 +272,18 @@ export async function submitAgentDayWork(req, res, next) {
       schemeDistribution: chitBreakdown.map((item) => ({
         groupCode: item.groupCode,
         groupName: item.groupName,
+        frequency: item.frequency,
         target: item.expectedTarget,
         collected: item.totalCollected,
         cash: item.cashCollected,
         upi: item.upiCollected,
         pending: item.pendingAmount,
         percent: item.progressPercent,
+        hasTimeRemaining: item.hasTimeRemaining,
+        isDeadlineToday: item.isDeadlineToday,
+        cycleDue: item.cycleInfo?.cycleDue || null,
+        daysRemaining: item.cycleInfo?.daysRemaining ?? null,
+        statusNotice: item.scheduleAnalysisNotice,
       })),
     };
 

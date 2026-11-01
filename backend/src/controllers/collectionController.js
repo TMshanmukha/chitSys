@@ -3,6 +3,7 @@ import { pool } from '../config/db.js';
 import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
+import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
 
 const collectionSchema = z.object({
   group_id: z.number().int().positive('Chit Group selection is required'),
@@ -107,29 +108,24 @@ export async function recordCollection(req, res, next) {
       ? req.body.collection_date
       : new Date().toISOString().slice(0, 10);
 
+    let cycleInfo = null;
     if (chitGroup.frequency === 'MONTHLY') {
-      const [existingThisMonth] = await pool.execute(
-        `SELECT COALESCE(SUM(amount), 0) as total_paid_this_month, COUNT(id) as collections_count
+      cycleInfo = getMonthlyCycleInfo(chitGroup.start_date || chitGroup.created_at, finalCollectionDate);
+      const [existingInCycle] = await pool.execute(
+        `SELECT COALESCE(SUM(amount), 0) as total_paid_in_cycle, COUNT(id) as collections_count
          FROM collections 
          WHERE group_id = ? AND member_id = ? AND verification_status != 'CANCELLED'
-           AND YEAR(collection_date) = YEAR(?) AND MONTH(collection_date) = MONTH(?)`,
-        [validated.group_id, validated.member_id, finalCollectionDate, finalCollectionDate]
+           AND collection_date >= ? AND collection_date <= ?`,
+        [validated.group_id, validated.member_id, cycleInfo.cycleStart, cycleInfo.cycleDue]
       );
 
-      const currentPaid = parseFloat(existingThisMonth[0]?.total_paid_this_month || 0);
+      const currentPaid = parseFloat(existingInCycle[0]?.total_paid_in_cycle || 0);
       const installmentAmt = parseFloat(chitGroup.installment_amount || 0);
 
       // If current cycle installment is already satisfied, treat as Advance collection for subscriber!
       if (currentPaid >= installmentAmt) {
         isAdvance = true;
         autoNotePrefix += '[Advance Collection] ';
-      }
-
-      // If collected on a date other than 1st of the month, record as off-cycle collection seamlessly
-      const isFirstDay = new Date(finalCollectionDate).getDate() === 1;
-      if (!isFirstDay) {
-        isOffCycle = true;
-        autoNotePrefix += `[Off-cycle collection on ${finalCollectionDate}] `;
       }
     }
 
@@ -218,6 +214,7 @@ export async function recordCollection(req, res, next) {
         date: finalCollectionDate,
         isAdvance,
         isOffCycle,
+        cycleInfo,
       },
     });
   } catch (error) {
