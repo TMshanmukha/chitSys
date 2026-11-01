@@ -352,8 +352,11 @@ export async function getMyAssignedRoutes(req, res, next) {
         });
 
         const collectedAmt = inCycleColls.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-        const remainingBalance = Math.max(0, installmentAmt - collectedAmt);
-        const isFullyPaid = collectedAmt >= installmentAmt;
+        const installmentAmt = Number(m.group_installment_amount || g?.installment_amount || 0);
+        const remainingBalance = installmentAmt > 0 ? Math.max(0, installmentAmt - collectedAmt) : 0;
+        // STRICT PAID CHECK: must have actual collections AND meet installment amount
+        // Guard: installmentAmt must be > 0, and collectedAmt must be > 0
+        const isFullyPaid = collectedAmt > 0 && installmentAmt > 0 && collectedAmt >= installmentAmt;
         const isPartiallyPaid = collectedAmt > 0 && collectedAmt < installmentAmt;
 
         // Match latest tracking log for this cycle
@@ -371,8 +374,9 @@ export async function getMyAssignedRoutes(req, res, next) {
           return true;
         });
 
-        const isPaid = isFullyPaid || (atl && atl.status === 'PAID');
-        const status = isFullyPaid ? 'PAID' : (isPartiallyPaid ? 'PARTIAL' : (atl?.status || 'NOT_PAID'));
+        // isPaid is STRICTLY based on actual collections, NOT tracking log status alone
+        const isPaid = isFullyPaid;
+        const status = isFullyPaid ? 'PAID' : (isPartiallyPaid ? 'PARTIAL' : (atl?.status === 'PAID' ? 'NOT_PAID' : (atl?.status || 'NOT_PAID')));
         const nodeColor = isFullyPaid ? 'GREEN' : (isPartiallyPaid ? 'YELLOW' : 'RED');
         const latestColl = inCycleColls[0] || null;
 

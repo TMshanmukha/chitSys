@@ -161,12 +161,16 @@ export default function AgentDashboard() {
       const groupMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
       groupMembers.forEach((m) => {
         const expectedAmount = Number(group.installment_amount || 0);
-        const isPaid = Boolean(m.is_paid);
-        const isPartial = Boolean(m.is_partial) || (!isPaid && Number(m.total_cycle_collected || 0) > 0);
+        // STRICT: only mark as paid if backend confirmed actual collections meet installment
+        // Never derive isPaid from status strings or 0-amount comparisons
+        const isPaid = Boolean(m.is_paid) && expectedAmount > 0;
         const collectedAmount = Number(m.total_cycle_collected || m.collected_amount || 0);
-        const remainingBalance = m.remaining_balance !== undefined && m.remaining_balance !== null
-          ? Number(m.remaining_balance)
-          : (isPaid ? 0 : Math.max(0, expectedAmount - collectedAmount));
+        const isPartial = !isPaid && collectedAmount > 0;
+        const remainingBalance = isPaid
+          ? 0
+          : expectedAmount > 0
+            ? Math.max(0, expectedAmount - collectedAmount)
+            : 0;
 
         const hasCustomRemark =
           Boolean(m.today_notes) &&
@@ -287,14 +291,21 @@ export default function AgentDashboard() {
   // Calculate distinct financial stats for any single chit scheme
   const getGroupStats = (group) => {
     const groupMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
-    const fullyPaidMembers = groupMembers.filter((m) => m.is_paid || m.today_status === 'PAID');
-    const partialMembers = groupMembers.filter((m) => m.is_partial || (!m.is_paid && Number(m.total_cycle_collected || 0) > 0));
+    const installmentAmt = Number(group.installment_amount || 0);
+    // STRICT: only count as fully paid if backend confirmed it AND installment > 0
+    const fullyPaidMembers = groupMembers.filter(
+      (m) => Boolean(m.is_paid) && installmentAmt > 0
+    );
+    const partialMembers = groupMembers.filter(
+      (m) => !Boolean(m.is_paid) && Number(m.total_cycle_collected || 0) > 0
+    );
     const paidMembers = fullyPaidMembers;
-    const unpaidMembers = groupMembers.filter((m) => !m.is_paid && Number(m.total_cycle_collected || 0) === 0 && m.today_status !== 'PAID');
+    const unpaidMembers = groupMembers.filter(
+      (m) => !Boolean(m.is_paid) && Number(m.total_cycle_collected || 0) === 0
+    );
     const isDaily = group.frequency === 'DAILY';
     const isDue = isDaily || isCollectionDayForMonthly;
 
-    const installmentAmt = Number(group.installment_amount || 0);
     const targetExpected = isDue ? groupMembers.length * installmentAmt : 0;
 
     const cashCollected = groupMembers
@@ -1584,7 +1595,8 @@ export default function AgentDashboard() {
               ) : (
                 displayedGroups.map((group) => {
                   const groupMembers = routesData.members.filter((m) => m.group_id === group.id);
-                  const paidCount = groupMembers.filter((m) => m.is_paid || m.today_status === 'PAID').length;
+                  const installmentAmt = Number(group.installment_amount || 0);
+                  const paidCount = groupMembers.filter((m) => Boolean(m.is_paid) && installmentAmt > 0).length;
                   const progressPct = groupMembers.length > 0 ? Math.round((paidCount / groupMembers.length) * 100) : 0;
                   const isDaily = group.chit_type === 'DAILY_CHIT' || group.route_category === 'DAILY_ROUTE';
 
@@ -1664,7 +1676,11 @@ export default function AgentDashboard() {
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-1">
                             {groupMembers.map((member) => {
-                              const isPaid = member.is_paid || member.today_status === 'PAID';
+                              const installmentAmt = Number(group.installment_amount || 0);
+                              const collectedAmt = Number(member.total_cycle_collected || member.collected_amount || 0);
+                              // STRICT: isPaid only when backend confirmed AND actual collections meet installment
+                              const isPaid = Boolean(member.is_paid) && installmentAmt > 0;
+                              const isPartialMember = !isPaid && collectedAmt > 0;
 
                               return (
                                 <div
@@ -2300,7 +2316,10 @@ export default function AgentDashboard() {
 
                               <div className="space-y-2">
                                 {stats.groupMembers.map((member) => {
-                                  const isPaid = Boolean(member.is_paid || member.today_status === 'PAID');
+                                  const installmentAmt = Number(group.installment_amount || 0);
+                                  const collectedAmt = Number(member.total_cycle_collected || member.collected_amount || 0);
+                                  // STRICT: only mark paid if backend confirmed AND installment > 0
+                                  const isPaid = Boolean(member.is_paid) && installmentAmt > 0;
 
                                   return (
                                     <div

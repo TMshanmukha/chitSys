@@ -186,7 +186,9 @@ export async function getRouteTrackingOverview(req, res, next) {
         const memberColls = groupColls.filter((c) => node.memberId && c.member_id === node.memberId);
         const memberTotalPaid = memberColls.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
         const latestColl = memberColls.length > 0 ? memberColls[memberColls.length - 1] : null;
-        const remainingBalance = Math.max(0, node.expectedAmount - memberTotalPaid);
+        // Only consider members with actual expected installment; guard against 0/NaN
+        const expectedAmt = parseFloat(node.expectedAmount) || 0;
+        const remainingBalance = expectedAmt > 0 ? Math.max(0, expectedAmt - memberTotalPaid) : 0;
 
         // Find if agent left a specific tracking log/note for this member in this cycle
         const log = groupLogs.find((l) => 
@@ -194,7 +196,11 @@ export async function getRouteTrackingOverview(req, res, next) {
           (l.stop_id === node.stopOrder)
         );
 
-        const isFullyPaid = memberTotalPaid >= node.expectedAmount || (log && log.status === 'PAID');
+        // STRICT PAID CHECK:
+        // - Must have ACTUAL collections recorded (memberTotalPaid > 0)
+        // - AND must meet the expected installment amount (if expectedAmt > 0)
+        // - Tracking log status 'PAID' alone (without actual collections) does NOT mark as paid
+        const isFullyPaid = memberTotalPaid > 0 && expectedAmt > 0 && memberTotalPaid >= expectedAmt;
         const isPartiallyPaid = !isFullyPaid && memberTotalPaid > 0;
 
         let status = 'NOT_PAID'; // NOT PAID (Red)
@@ -208,7 +214,11 @@ export async function getRouteTrackingOverview(req, res, next) {
           nodeColor = 'GREEN';
           statusText = isDaily ? 'Paid for Today' : 'Paid for Current Month';
           paidCount++;
-          lastVisitedStopIndex = idx;
+          // Track the latest paid stop index by actual collection time, not array order
+          const collTime = latestColl?.collection_time || latestColl?.collection_date || null;
+          if (lastVisitedStopIndex === -1 || collTime) {
+            lastVisitedStopIndex = idx;
+          }
           lastActivityTime = latestColl?.collection_time || log?.last_ping_time;
           if (latestColl) {
             collectionDetails = {
@@ -225,7 +235,11 @@ export async function getRouteTrackingOverview(req, res, next) {
           status = 'PARTIAL';
           nodeColor = 'YELLOW';
           statusText = `Partial (Remaining: ₹${remainingBalance.toLocaleString('en-IN')})`;
-          lastVisitedStopIndex = idx;
+          // Only update lastVisitedStopIndex if this partial payment is more recent than last visited
+          const collTime = latestColl?.collection_time || latestColl?.collection_date || null;
+          if (lastVisitedStopIndex === -1 || collTime) {
+            lastVisitedStopIndex = idx;
+          }
           lastActivityTime = latestColl?.collection_time || log?.last_ping_time;
           if (latestColl) {
             collectionDetails = {
@@ -300,17 +314,34 @@ export async function getRouteTrackingOverview(req, res, next) {
       const progressPercent = totalStops > 0 ? Math.round((paidCount / totalStops) * 100) : 0;
 
       // Determine Agent 2D Position on route path
+      // Agent position is based on the LAST ACTUALLY PAID stop (by collection time), not array order
+      // This prevents the agent dot from jumping ahead of unpaid members
       let agentPosition = { x: 80, y: 180, currentStopOrder: 1, isIdle: totalStops === 0 };
       if (totalStops > 0) {
-        if (lastVisitedStopIndex === -1) {
-          // Agent at beginning of route
+        // Find the stop with the most recent actual collection time among paid/partial stops
+        let latestCollectedIdx = -1;
+        let latestCollTime = null;
+        mappedStops.forEach((stop, idx) => {
+          if (stop.collectionDetails) {
+            const ct = stop.collectionDetails.time || stop.collectionDetails.date;
+            if (latestCollTime === null || ct > latestCollTime) {
+              latestCollTime = ct;
+              latestCollectedIdx = idx;
+            }
+          }
+        });
+        // Fall back to lastVisitedStopIndex if no collection time found
+        const effectiveLastIdx = latestCollectedIdx !== -1 ? latestCollectedIdx : lastVisitedStopIndex;
+
+        if (effectiveLastIdx === -1) {
+          // Agent at beginning of route (no collections yet)
           agentPosition = {
             x: mappedStops[0].coordX,
             y: mappedStops[0].coordY,
             currentStopOrder: 1,
             isIdle: false,
           };
-        } else if (lastVisitedStopIndex >= totalStops - 1) {
+        } else if (effectiveLastIdx >= totalStops - 1) {
           // Agent completed all collections
           agentPosition = {
             x: mappedStops[totalStops - 1].coordX,
@@ -319,9 +350,9 @@ export async function getRouteTrackingOverview(req, res, next) {
             isIdle: true,
           };
         } else {
-          // Agent at current position
-          const currentStop = mappedStops[lastVisitedStopIndex];
-          const nextStop = mappedStops[lastVisitedStopIndex + 1];
+          // Agent is between last paid stop and next unpaid stop
+          const currentStop = mappedStops[effectiveLastIdx];
+          const nextStop = mappedStops[effectiveLastIdx + 1];
           agentPosition = {
             x: Math.round((currentStop.coordX + nextStop.coordX) / 2),
             y: Math.round((currentStop.coordY + nextStop.coordY) / 2),
