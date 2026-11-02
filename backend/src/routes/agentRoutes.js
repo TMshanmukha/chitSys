@@ -11,7 +11,7 @@ const router = Router();
 
 // Route Guard: Authorized Collection Agents Only
 router.use(requireAuth);
-router.use(requireRole('COLLECTION_AGENT'));
+router.use(requireRole('COLLECTION_AGENT', 'ADMIN', 'SUPER_ADMIN'));
 
 // Assigned Groups & Members
 router.get('/my-routes', getMyAssignedRoutes);

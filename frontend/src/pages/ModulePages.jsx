@@ -2871,6 +2871,13 @@ export function CollectionsPage() {
   const [success, setSuccess] = useState('');
   const [generatedReceipt, setGeneratedReceipt] = useState(null);
 
+  // View Section: 'tasks' (Today's Tasks & Stops) vs 'ledger' (Collections History)
+  const [activeSection, setActiveSection] = useState('tasks');
+  const [adminTasks, setAdminTasks] = useState([]);
+  const [tasksSummary, setTasksSummary] = useState({ totalTarget: 0, totalCollected: 0, pendingCount: 0, completedCount: 0, progressPct: 0 });
+  const [taskFilter, setTaskFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'COLLECTED' | 'DAILY' | 'MONTHLY' | 'COVERED'
+  const [taskSearch, setTaskSearch] = useState('');
+
   // Pagination for Collections Table
   const [collectionsPage, setCollectionsPage] = useState(1);
   const [collectionsPageSize, setCollectionsPageSize] = useState(10);
@@ -2890,14 +2897,19 @@ export function CollectionsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [colRes, grpRes, memRes] = await Promise.all([
+      const [colRes, grpRes, memRes, taskRes] = await Promise.all([
         api.get('/admin/collections'),
         api.get('/admin/groups'),
         api.get('/admin/members'),
+        api.get('/admin/collections/tasks').catch(() => ({ data: { tasks: [], summary: {} } })),
       ]);
       if (colRes.data?.success) setCollections(colRes.data.data || []);
       if (grpRes.data?.success) setGroups(grpRes.data.data || []);
       if (memRes.data?.success) setMembers(memRes.data.data || []);
+      if (taskRes.data?.success) {
+        setAdminTasks(taskRes.data.tasks || []);
+        setTasksSummary(taskRes.data.summary || { totalTarget: 0, totalCollected: 0, pendingCount: 0, completedCount: 0, progressPct: 0 });
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -2963,29 +2975,250 @@ export function CollectionsPage() {
     }
   };
 
+  // Filtered Task Stops
+  const filteredTasks = adminTasks.filter((task) => {
+    if (taskFilter === 'PENDING' && task.is_paid) return false;
+    if (taskFilter === 'COLLECTED' && !task.is_paid) return false;
+    if (taskFilter === 'DAILY' && task.frequency !== 'DAILY') return false;
+    if (taskFilter === 'MONTHLY' && task.frequency !== 'MONTHLY') return false;
+    if (taskFilter === 'COVERED' && !task.is_covered_today) return false;
+    if (taskSearch.trim()) {
+      const q = taskSearch.toLowerCase();
+      const matchName = (task.member_name || '').toLowerCase().includes(q);
+      const matchPhone = (task.member_phone || '').includes(q);
+      const matchGroup = (task.group_name || '').toLowerCase().includes(q);
+      const matchTicket = String(task.ticket_number || '').includes(q);
+      if (!matchName && !matchPhone && !matchGroup && !matchTicket) return false;
+    }
+    return true;
+  });
+
+  const handleQuickCollect = (task) => {
+    setForm((prev) => ({
+      ...prev,
+      group_id: String(task.group_id),
+      member_id: String(task.member_id),
+      amount: String(task.remaining_due || task.installment_amount),
+      notes: task.is_covered_today ? `Office collection covering for ${task.absent_agent_name || 'agent on leave'}` : '',
+    }));
+    setShowModal(true);
+    scrollToFormOrModal('record-payment-modal');
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Collections & Receipt Entry</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Record physical cash and digital UPI payments with official receipt generation
-          </p>
+      {/* Top Bar with Navigation Tabs */}
+      <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading">
+              Collections Terminal & Field Tasks
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Collect daily & monthly member dues, manage absent agent coverage tasks, and audit live receipts
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowModal(true);
+              setError('');
+              scrollToFormOrModal('record-payment-modal');
+            }}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all cursor-pointer font-heading"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Record Direct Payment</span>
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setShowModal(true);
-            setError('');
-            scrollToFormOrModal('record-payment-modal');
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Record Payment</span>
-        </button>
+
+        {/* Dual Section Navigation Island */}
+        <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+          <button
+            type="button"
+            onClick={() => setActiveSection('tasks')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer font-heading ${
+              activeSection === 'tasks'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Today's Route Tasks & Stops ({tasksSummary.pendingCount || 0} Pending)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('ledger')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer font-heading ${
+              activeSection === 'ledger'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Receipt className="w-4 h-4" />
+            <span>Collections History & Receipts ({collections.length})</span>
+          </button>
+        </div>
       </div>
+
+      {/* SECTION 1: TODAY'S TASKS & COLLECTION STOPS (Same as Agent Terminal) */}
+      {activeSection === 'tasks' && (
+        <section className="space-y-4 animate-fadeIn">
+          {/* Target & Progress Island */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Target Progress</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading">
+                  ₹{Number(tasksSummary.totalCollected || 0).toLocaleString('en-IN')}
+                </span>
+                <span className="text-xs text-slate-400 font-medium">
+                  of ₹{Number(tasksSummary.totalTarget || 0).toLocaleString('en-IN')} target
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="w-32 sm:w-48 bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-200 dark:border-slate-700">
+                <div
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${tasksSummary.progressPct || 0}%` }}
+                />
+              </div>
+              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                {tasksSummary.progressPct || 0}%
+              </span>
+            </div>
+          </div>
+
+          {/* Filters & Search Row */}
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { id: 'ALL', label: `All Stops (${adminTasks.length})` },
+                { id: 'PENDING', label: `Pending (${tasksSummary.pendingCount || 0})` },
+                { id: 'COLLECTED', label: `Collected (${tasksSummary.completedCount || 0})` },
+                { id: 'DAILY', label: 'Daily Chits' },
+                { id: 'MONTHLY', label: 'Monthly Chits' },
+                { id: 'COVERED', label: `Covered on Leave (${adminTasks.filter(t => t.is_covered_today).length})` },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setTaskFilter(f.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    taskFilter === f.id
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full md:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search member, phone, chit..."
+                value={taskSearch}
+                onChange={(e) => setTaskSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Task Stop Cards Grid */}
+          {filteredTasks.length === 0 ? (
+            <div className="p-12 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+              No collection tasks matching current filter criteria.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {filteredTasks.map((t) => (
+                <article
+                  key={`${t.group_id}:${t.member_id}`}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 shadow-xs ${
+                    t.is_paid
+                      ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-800'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-extrabold text-sm text-slate-900 dark:text-white font-heading">
+                            {t.member_name}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-400">· #{t.ticket_number}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          {t.member_phone || 'No phone'}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shrink-0 ${
+                          t.is_paid
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
+                            : t.is_partial
+                            ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800'
+                            : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
+                        }`}
+                      >
+                        {t.is_paid ? '✓ Paid' : t.is_partial ? 'Partial' : 'Pending'}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-700 dark:text-slate-300 truncate">
+                          {t.group_name}
+                        </span>
+                        <span className="font-bold text-slate-900 dark:text-white font-mono">
+                          ₹{t.installment_amount.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                        <span>{t.cycle_label}</span>
+                        <span>{t.is_paid ? 'Cleared' : `Due: ₹${t.remaining_due.toLocaleString('en-IN')}`}</span>
+                      </div>
+                    </div>
+
+                    {t.is_covered_today && (
+                      <div className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                        <Shield className="w-3 h-3 text-indigo-500 shrink-0" />
+                        <span>Covering for {t.absent_agent_name || 'Agent on Leave'}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {!t.is_paid ? (
+                    <button
+                      type="button"
+                      onClick={() => handleQuickCollect(t)}
+                      className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer font-heading"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>Collect ₹{t.remaining_due.toLocaleString('en-IN')}</span>
+                    </button>
+                  ) : (
+                    <div className="py-1.5 text-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      ✓ Collected Today
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* SECTION 2: COLLECTIONS HISTORY LEDGER TABLE */}
+      {activeSection === 'ledger' && (
+        <section className="space-y-4 animate-fadeIn">
 
       {generatedReceipt && (
         <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -3088,6 +3321,8 @@ export function CollectionsPage() {
           onPageSizeChange={setCollectionsPageSize}
         />
       </div>
+      </section>
+      )}
 
       {/* Modal: Record Collection */}
       <ModalPortal

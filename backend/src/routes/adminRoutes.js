@@ -15,7 +15,7 @@ import {
 import { listGroups, createGroup, getGroupDetails } from '../controllers/groupController.js';
 import { listMembers, createMember, enrollMemberInGroup, getMemberPassbook } from '../controllers/memberController.js';
 import { listAgents, createAgent, updateAgent, toggleAgentStatus, assignAgentToGroup } from '../controllers/agentController.js';
-import { listCollections, recordCollection, getCollectionSummary } from '../controllers/collectionController.js';
+import { listCollections, recordCollection, getCollectionSummary, getAdminCollectionTasks } from '../controllers/collectionController.js';
 import { listAuctions, conductAuction, updateAuctionPayout, getAuctionSummary, getSchemeAuctionBreakdown } from '../controllers/auctionController.js';
 import { getRouteTrackingOverview, logAgentStopActivity, populateRouteStopsFromMembers } from '../controllers/trackingController.js';
 import { listDaySubmissionsForAdmin, approveAndCloseDaySubmission } from '../controllers/daySubmissionController.js';
@@ -72,6 +72,7 @@ router.put('/users/:id/status', toggleAgentStatus);
 router.get('/collections', listCollections);
 router.post('/collections', recordCollection);
 router.get('/collections/summary', getCollectionSummary);
+router.get('/collections/tasks', getAdminCollectionTasks);
 
 // Pending Dues & Admin Advances Management (Deficit Tracking & Recovery)
 router.get('/pending-dues', getPendingDuesAndAdvances);

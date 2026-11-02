@@ -270,3 +270,138 @@ export async function getCollectionSummary(req, res, next) {
     next(error);
   }
 }
+
+export async function getAdminCollectionTasks(req, res, next) {
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const queryDate = (req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)) ? req.query.date : todayStr;
+    const filterAssignedToMe = req.query.only_me === 'true';
+
+    // 1. Fetch active groups with assignments and active leave coverages
+    const [groups] = await pool.query(
+      `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
+              g.location_name, g.installment_amount, g.total_pool_amount, g.status, g.start_date, g.created_at,
+              aga.agent_id as assigned_agent_id, u.full_name as assigned_agent_name,
+              alc.covering_agent_id, coverer.full_name as covering_agent_name,
+              al.id as active_leave_id
+       FROM chit_groups g
+       LEFT JOIN agent_group_assignments aga ON aga.group_id = g.id AND aga.is_active = 1
+       LEFT JOIN users u ON u.id = aga.agent_id
+       LEFT JOIN agent_leaves al ON al.agent_id = aga.agent_id AND al.leave_date = ? AND al.status = 'APPROVED'
+       LEFT JOIN agent_leave_coverages alc ON alc.leave_id = al.id AND alc.group_id = g.id
+       LEFT JOIN users coverer ON coverer.id = alc.covering_agent_id
+       WHERE g.status = 'ACTIVE'
+       ORDER BY g.route_category ASC, g.id ASC`,
+      [queryDate]
+    );
+
+    if (groups.length === 0) {
+      return res.json({ success: true, tasks: [], summary: { totalTarget: 0, totalCollected: 0, pendingCount: 0, completedCount: 0, progressPct: 0 } });
+    }
+
+    let relevantGroups = groups;
+    if (filterAssignedToMe) {
+      relevantGroups = groups.filter((g) => {
+        if (g.covering_agent_id && Number(g.covering_agent_id) === Number(req.user.id)) return true;
+        if (!g.covering_agent_id && Number(g.assigned_agent_id) === Number(req.user.id)) return true;
+        return false;
+      });
+    }
+
+    const groupIds = relevantGroups.map((g) => g.id);
+    if (groupIds.length === 0) {
+      return res.json({ success: true, tasks: [], summary: { totalTarget: 0, totalCollected: 0, pendingCount: 0, completedCount: 0, progressPct: 0 } });
+    }
+
+    // 2. Fetch active enrolled members
+    const [members] = await pool.query(
+      `SELECT gm.group_id, gm.ticket_number, m.id as member_id, m.member_code, m.full_name, m.phone, m.address
+       FROM group_memberships gm
+       JOIN members m ON gm.member_id = m.id
+       WHERE gm.group_id IN (?) AND gm.status = 'ACTIVE'
+       ORDER BY gm.group_id ASC, gm.ticket_number ASC`,
+      [groupIds]
+    );
+
+    // 3. Fetch collections recorded for this date
+    const [collections] = await pool.query(
+      `SELECT c.group_id, c.member_id, c.amount, c.collection_date, c.payment_method, u.full_name as collected_by_name
+       FROM collections c
+       JOIN users u ON u.id = c.agent_id
+       WHERE c.group_id IN (?) AND c.collection_date = ? AND c.verification_status != 'CANCELLED'`,
+      [groupIds, queryDate]
+    );
+
+    const colMap = new Map();
+    for (const c of collections) {
+      const key = `${c.group_id}:${c.member_id}`;
+      colMap.set(key, (colMap.get(key) || 0) + Number(c.amount));
+    }
+
+    const groupMap = new Map(relevantGroups.map((g) => [g.id, g]));
+    let totalTarget = 0;
+    let totalCollected = 0;
+    let pendingCount = 0;
+    let completedCount = 0;
+
+    const tasks = members.map((m) => {
+      const g = groupMap.get(m.group_id);
+      const isDaily = g.frequency === 'DAILY';
+      const cycleInfo = isDaily ? null : getMonthlyCycleInfo(g.start_date || g.created_at, queryDate);
+      const isDueToday = isDaily || (cycleInfo ? cycleInfo.isDeadlineToday : false);
+      const paidAmount = colMap.get(`${m.group_id}:${m.member_id}`) || 0;
+      const installment = Number(g.installment_amount);
+      const isPaid = paidAmount >= installment;
+      const isPartial = paidAmount > 0 && paidAmount < installment;
+
+      totalTarget += installment;
+      totalCollected += paidAmount;
+      if (isPaid) completedCount++;
+      else pendingCount++;
+
+      const isCovered = Boolean(g.covering_agent_id);
+      const currentHandlerName = isCovered ? g.covering_agent_name : (g.assigned_agent_name || 'Admin / Office');
+      const isHandledByMe = isCovered
+        ? Number(g.covering_agent_id) === Number(req.user.id)
+        : Number(g.assigned_agent_id) === Number(req.user.id);
+
+      return {
+        group_id: g.id,
+        group_name: g.group_name,
+        group_code: g.group_code,
+        frequency: g.frequency,
+        installment_amount: installment,
+        cycle_label: isDaily ? 'Daily Installment' : `Monthly (Due: ${cycleInfo?.cycleDue || 'Anchor Date'})`,
+        is_due_today: isDueToday,
+        member_id: m.member_id,
+        member_name: m.full_name,
+        member_phone: m.phone,
+        ticket_number: m.ticket_number,
+        address: m.address,
+        paid_amount: paidAmount,
+        remaining_due: Math.max(0, installment - paidAmount),
+        is_paid: isPaid,
+        is_partial: isPartial,
+        is_covered_today: isCovered,
+        covering_agent_name: g.covering_agent_name,
+        absent_agent_name: isCovered ? g.assigned_agent_name : null,
+        current_handler_name: currentHandlerName,
+        is_handled_by_me: isHandledByMe,
+      };
+    });
+
+    res.json({
+      success: true,
+      tasks,
+      summary: {
+        totalTarget,
+        totalCollected,
+        pendingCount,
+        completedCount,
+        progressPct: totalTarget > 0 ? Math.round((totalCollected / totalTarget) * 100) : 0,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
