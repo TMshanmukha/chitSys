@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: chitfund-backend
+    env: node
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTO_MIGRATE
+        value: true
+      - key: DB_HOST
+        value: gateway01.ap-southeast-1.prod.aws.tidbcloud.com
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_USER
+        value: 2KCEmq73dsQ6pbZ.root
+      - key: DB_NAME
+        value: chitfund_db
+      - key: DB_SSL
+        value: "true"

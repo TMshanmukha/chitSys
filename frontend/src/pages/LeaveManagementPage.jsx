@@ -27,6 +27,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import Toast from '../components/Toast';
+import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
 const ymd = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -75,7 +76,11 @@ export default function LeaveManagementPage() {
       setHistory(hist.data.history || []);
       setMessage('');
     } catch (e) {
-      setMessage(e.response?.data?.message || 'Could not load leave records. Please check database sync.');
+      if (e.response?.status === 404) {
+        setMessage('The backend leave service is currently deploying or cold-starting on Render. If this message remains, click "Manual Deploy" -> "Deploy latest commit" on dashboard.render.com.');
+      } else {
+        setMessage(getFriendlyErrorMessage(e, 'Could not load leave records. Please check database sync.'));
+      }
     } finally {
       if (showSpinner) setRefreshing(false);
     }
