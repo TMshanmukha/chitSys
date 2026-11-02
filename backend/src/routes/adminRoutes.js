@@ -21,7 +21,7 @@ import { getRouteTrackingOverview, logAgentStopActivity, populateRouteStopsFromM
 import { listDaySubmissionsForAdmin, approveAndCloseDaySubmission } from '../controllers/daySubmissionController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
-import { listLeaves, reviewLeave, listCoverageHistory } from '../controllers/leaveController.js';
+import { listLeaves, createLeave, reviewLeave, listCoverageHistory } from '../controllers/leaveController.js';
 
 const router = Router();
 
@@ -97,6 +97,7 @@ router.post('/tracking/log-activity', logAgentStopActivity);
 router.get('/day-submissions', listDaySubmissionsForAdmin);
 router.post('/day-submissions/:id/approve', approveAndCloseDaySubmission);
 router.get('/leaves', listLeaves);
+router.post('/leaves', createLeave);
 router.get('/leaves/coverage-history', listCoverageHistory);
 router.put('/leaves/:id/review', reviewLeave);
 

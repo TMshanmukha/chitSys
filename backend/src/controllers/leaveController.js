@@ -65,7 +65,9 @@ export async function listCoverageHistory(req, res, next) {
 export async function createLeave(req, res, next) {
   const conn = await pool.getConnection();
   try {
-    const { start_date, end_date, dates, reason = '' } = req.body;
+    const { start_date, end_date, dates, reason = '', agent_id } = req.body;
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user.role);
+    const targetAgentId = (isAdmin && agent_id) ? Number(agent_id) : req.user.id;
     const chosen = Array.isArray(dates) ? dates : [];
     if (start_date && end_date) {
       const start = new Date(`${start_date}T00:00:00Z`), end = new Date(`${end_date}T00:00:00Z`);
@@ -76,10 +78,12 @@ export async function createLeave(req, res, next) {
     if (!uniqueDates.length || uniqueDates.some(d => !/^\d{4}-\d{2}-\d{2}$/.test(d))) return res.status(400).json({success:false,message:'Choose one or more valid leave dates.'});
     await conn.beginTransaction();
     for (const date of uniqueDates) {
-      await conn.execute(`INSERT INTO agent_leaves (agent_id,leave_date,reason,status) VALUES (?,?,?,'PENDING') ON DUPLICATE KEY UPDATE reason=IF(status='REJECTED',VALUES(reason),reason),status=IF(status='REJECTED','PENDING',status)`, [req.user.id,date,String(reason).slice(0,500)]);
+      await conn.execute(`INSERT INTO agent_leaves (agent_id,leave_date,reason,status) VALUES (?,?,?,'PENDING') ON DUPLICATE KEY UPDATE reason=IF(status='REJECTED',VALUES(reason),reason),status=IF(status='REJECTED','PENDING',status)`, [targetAgentId,date,String(reason).slice(0,500)]);
     }
     await conn.commit();
-    await createNotification({targetRole:'ADMIN',title:'Agent leave approval requested',message:`${req.user.full_name} requested leave for ${uniqueDates.join(', ')}.`,type:'GENERAL',link:'/admin/leaves'});
+    const [agentRows] = await pool.query('SELECT full_name FROM users WHERE id=?', [targetAgentId]);
+    const requesterName = agentRows[0]?.full_name || req.user.full_name;
+    await createNotification({targetRole:'ADMIN',title:'Agent leave approval requested',message:`${requesterName} requested leave for ${uniqueDates.join(', ')}.`,type:'GENERAL',link:'/admin/leaves'});
     res.status(201).json({success:true,message:`Leave request submitted for ${uniqueDates.length} day(s).`});
   } catch(error) { await conn.rollback(); next(error); } finally { conn.release(); }
 }

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
+import Toast from '../components/Toast';
 
 const ymd = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -52,6 +53,7 @@ export default function LeaveManagementPage() {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
+  const [toast, setToast] = useState(null);
   const [searchHistory, setSearchHistory] = useState('');
 
   // Multi-Factor Filter States
@@ -188,12 +190,29 @@ export default function LeaveManagementPage() {
     setBusy(true);
     setMessage('');
     try {
-      const r = await api.post('/agent/leaves', { start_date: start, end_date: end, reason });
-      setMessage(r.data.message);
+      const endpoint = admin ? '/admin/leaves' : '/agent/leaves';
+      const r = await api.post(endpoint, {
+        start_date: start,
+        end_date: end,
+        reason,
+        ...(admin && filterAgent !== 'ALL' ? { agent_id: filterAgent } : {}),
+      });
+      setToast({
+        title: 'Leave Request Sent!',
+        message: 'Your leave application has been submitted to Admin for approval. Tasks and route coverage will be managed by Admin.',
+        type: 'success',
+      });
+      setMessage(r.data.message || 'Leave request submitted successfully.');
       setReason('');
       await refresh();
     } catch (e) {
-      setMessage(e.response?.data?.message || 'Could not submit leave.');
+      const errText = e.response?.data?.message || 'Could not submit leave.';
+      setToast({
+        title: 'Submission Failed',
+        message: errText,
+        type: 'error',
+      });
+      setMessage(errText);
     } finally {
       setBusy(false);
     }
@@ -224,6 +243,14 @@ export default function LeaveManagementPage() {
         return;
       }
       await api.put(`/admin/leaves/${leave.id}/review`, { decision, assignments: list });
+      setToast({
+        title: decision === 'APPROVED' ? 'Leave Approved & Coverage Assigned' : 'Leave Request Rejected',
+        message:
+          decision === 'APPROVED'
+            ? `Leave approved for ${leave.agent_name || 'agent'}. Route coverage has been assigned.`
+            : `Leave request for ${leave.agent_name || 'agent'} was rejected.`,
+        type: decision === 'APPROVED' ? 'success' : 'info',
+      });
       setMessage(`Leave request ${decision.toLowerCase()} successfully.`);
       await refresh();
     } catch (e) {
@@ -266,6 +293,8 @@ export default function LeaveManagementPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fadeIn pb-12 font-sans px-1 sm:px-0">
+      {/* Toast Notification */}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       {/* Page Header */}
       <header className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">

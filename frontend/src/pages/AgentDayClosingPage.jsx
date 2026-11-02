@@ -20,6 +20,7 @@ import {
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
+import Toast from '../components/Toast';
 
 export default function AgentDayClosingPage() {
   const { user } = useAuth();
@@ -30,6 +31,7 @@ export default function AgentDayClosingPage() {
   const [agentNotes, setAgentNotes] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [toast, setToast] = useState(null);
   const [expandedChitId, setExpandedChitId] = useState(null);
 
   const fetchDayData = async (date) => {
@@ -98,11 +100,22 @@ export default function AgentDayClosingPage() {
       });
 
       if (res.data?.success) {
+        setToast({
+          title: 'Day Shift Submitted!',
+          message: 'Day collections & physical cash handover submitted successfully! Forwarded to Admin for cash counting and closing.',
+          type: 'success',
+        });
         setSuccessMsg(res.data.message || `Day shift for ${workDate} submitted successfully for Admin cash counting.`);
         await fetchDayData(workDate);
       }
     } catch (err) {
-      setError(getFriendlyErrorMessage(err, 'Failed to submit day collections handover. Please try again.'));
+      const errText = getFriendlyErrorMessage(err, 'Failed to submit day collections handover. Please try again.');
+      setError(errText);
+      setToast({
+        title: 'Submission Failed',
+        message: errText,
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -117,6 +130,8 @@ export default function AgentDayClosingPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fadeIn pb-16 font-sans px-1 sm:px-0">
+      {/* Floating Toast Notification */}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       {/* Top Banner Header: Mobile-First Responsive Design */}
       <header className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950 text-white p-4 sm:p-7 shadow-xl border border-slate-800 relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />

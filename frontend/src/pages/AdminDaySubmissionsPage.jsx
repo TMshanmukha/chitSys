@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
+import Toast from '../components/Toast';
 
 export default function AdminDaySubmissionsPage() {
   const [loading, setLoading] = useState(true);
@@ -31,6 +32,7 @@ export default function AdminDaySubmissionsPage() {
   const [submittingAction, setSubmittingAction] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [toast, setToast] = useState(null);
 
   // Submissions Data
   const [submissions, setSubmissions] = useState([]);
@@ -119,11 +121,25 @@ export default function AdminDaySubmissionsPage() {
       });
 
       if (res.data?.success) {
+        setToast({
+          title: actionStatus === 'APPROVED' ? 'Shift Approved & Closed' : 'Cash Discrepancy Flagged',
+          message:
+            actionStatus === 'APPROVED'
+              ? `Day shift for ${sub.agent_name} verified and closed successfully.`
+              : `Cash discrepancy flagged for ${sub.agent_name}. Status recorded.`,
+          type: actionStatus === 'APPROVED' ? 'success' : 'error',
+        });
         setSuccessMsg(res.data.message || `Day submission ${actionStatus.toLowerCase()} successfully.`);
         await loadSubmissions(true);
       }
     } catch (err) {
-      setError(getFriendlyErrorMessage(err, 'Failed to update day submission.'));
+      const errText = getFriendlyErrorMessage(err, 'Failed to update day submission.');
+      setError(errText);
+      setToast({
+        title: 'Action Failed',
+        message: errText,
+        type: 'error',
+      });
     } finally {
       setSubmittingAction(false);
     }
@@ -142,6 +158,8 @@ export default function AdminDaySubmissionsPage() {
 
   return (
     <div className="space-y-6 animate-fadeIn pb-16 font-sans">
+      {/* Floating Toast Notification */}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       {/* Page Header */}
       <header className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3.5">

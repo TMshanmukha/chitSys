@@ -14,6 +14,7 @@ const TITLE_MAP = {
   '/admin/users': 'User Management (Agents)',
   '/admin/agents': 'Collection Agents',
   '/admin/leaves': 'Agent Leave & Coverage',
+  '/admin/day-reviews': 'Agent Day Reviews & Cash Handover',
   '/admin/members': 'Members & Passbook',
   '/admin/collections': 'Daily & Monthly Collections',
   '/admin/profile': 'Admin Profile',
