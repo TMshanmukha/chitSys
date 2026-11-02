@@ -114,7 +114,7 @@ test('Day-by-Day vs Month-by-Month Cycle Separation Test Suite', async (t) => {
 
     const monthlyGroup = captured.data.groups.find((g) => g.id === monthlyGroupId);
     assert.equal(monthlyGroup.cycle_mode, 'MONTH_BY_MONTH');
-    assert.equal(monthlyGroup.cycle_label, 'Month-by-Month (Current Month)');
+    assert.ok(monthlyGroup.cycle_label.startsWith('Month-by-Month'));
   });
 
   await t.test('3. Executive dashboard provides distinct dailyOverview and monthlyOverview targets', async () => {

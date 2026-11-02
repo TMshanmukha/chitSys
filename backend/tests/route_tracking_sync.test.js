@@ -146,12 +146,16 @@ test('Synchronous Route Tracking & Agent Node State Transition Suite', async (t)
   });
 
   await t.test('3. Agent records collection -> member node immediately transitions to PAID (Green)', async () => {
+    // Look up the exact group's installment amount so the test pays full installment
+    const [[currentGroup]] = await pool.query('SELECT installment_amount FROM chit_groups WHERE id = ?', [testGroupId]);
+    const fullInstallment = parseFloat(currentGroup?.installment_amount || 500);
+
     const req = {
       user: { id: testAgentId, role: 'COLLECTION_AGENT' },
       body: {
         group_id: testGroupId,
         member_id: testMemberId,
-        amount: 500,
+        amount: fullInstallment,
         payment_method: 'CASH',
         notes: 'Collected cash at shop',
       },
