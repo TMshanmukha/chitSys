@@ -7,11 +7,7 @@ import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
  * Submit agent's day collections & route work for Admin verification and day closing.
  * Aggregates all collections, chit-by-chit breakdowns, and generates analytical graphs.
  */
-export async function submitAgentDayWork(req, res, next) {
-  try {
-    const agentId = req.user.id;
-    const workDate = req.body.work_date || new Date().toISOString().slice(0, 10);
-    const agentNotes = req.body.agent_notes || '';
+export async function calculateDayWorkData(agentId, workDate) {
 
     // 1. Fetch agent's active assigned groups
     const [groups] = await pool.query(
@@ -316,6 +312,84 @@ export async function submitAgentDayWork(req, res, next) {
       submittedAt: new Date().toISOString(),
     });
 
+    return {
+      cashCollected,
+      upiCollected,
+      chequeCollected,
+      totalCollected,
+      totalReceipts,
+      totalStopsVisited,
+      totalStopsPending,
+      chitBreakdown,
+      graphsAnalyses,
+      payloadJson,
+    };
+}
+
+/**
+ * Live preview calculation of today's route collections, chits and graphs without submitting.
+ */
+export async function previewAgentDayWork(req, res, next) {
+  try {
+    const agentId = req.user.id;
+    const workDate = req.query.date || new Date().toISOString().slice(0, 10);
+    const data = await calculateDayWorkData(agentId, workDate);
+
+    const [existing] = await pool.query(
+      `SELECT ads.*, u.full_name as approved_by_name
+       FROM agent_day_submissions ads
+       LEFT JOIN users u ON ads.approved_by = u.id
+       WHERE ads.agent_id = ? AND ads.work_date = ? LIMIT 1`,
+      [agentId, workDate]
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        workDate,
+        isSubmitted: existing.length > 0,
+        submission: existing.length > 0 ? {
+          id: existing[0].id,
+          status: existing[0].status,
+          adminNotes: existing[0].admin_notes,
+          verifiedCashAmount: existing[0].verified_cash_amount ? parseFloat(existing[0].verified_cash_amount) : null,
+          verifiedUpiAmount: existing[0].verified_upi_amount ? parseFloat(existing[0].verified_upi_amount) : null,
+          approvedByName: existing[0].approved_by_name,
+          approvedAt: existing[0].approved_at,
+          submittedAt: existing[0].submitted_at,
+          agentNotes: existing[0].agent_notes,
+        } : null,
+        ...data,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Submit agent's day collections & route work for Admin verification and day closing.
+ * Aggregates all collections, chit-by-chit breakdowns, and generates analytical graphs.
+ */
+export async function submitAgentDayWork(req, res, next) {
+  try {
+    const agentId = req.user.id;
+    const workDate = req.body.work_date || new Date().toISOString().slice(0, 10);
+    const agentNotes = req.body.agent_notes || '';
+
+    const {
+      cashCollected,
+      upiCollected,
+      chequeCollected,
+      totalCollected,
+      totalReceipts,
+      totalStopsVisited,
+      totalStopsPending,
+      chitBreakdown,
+      graphsAnalyses,
+      payloadJson,
+    } = await calculateDayWorkData(agentId, workDate);
+
     // 7. Check if an active submission already exists for this agent and date
     const [existing] = await pool.query(
       `SELECT id, status FROM agent_day_submissions WHERE agent_id = ? AND work_date = ? LIMIT 1`,
@@ -483,7 +557,7 @@ export async function getMyDaySubmissions(req, res, next) {
  */
 export async function listDaySubmissionsForAdmin(req, res, next) {
   try {
-    const { status, agentId, date, startDate, endDate } = req.query;
+    const { status, agentId, date, startDate, endDate, groupId } = req.query;
 
     let query = `
       SELECT ads.*,
@@ -515,6 +589,12 @@ export async function listDaySubmissionsForAdmin(req, res, next) {
     if (endDate) {
       query += ` AND ads.work_date <= ?`;
       params.push(endDate);
+    }
+    if (groupId && groupId !== 'ALL') {
+      query += ` AND (ads.chit_breakdown_json LIKE ? OR EXISTS (
+        SELECT 1 FROM agent_group_assignments aga WHERE aga.agent_id = ads.agent_id AND aga.group_id = ?
+      ))`;
+      params.push(`%"groupId":${groupId}%`, groupId);
     }
 
     query += ` ORDER BY FIELD(ads.status, 'PENDING_APPROVAL', 'REJECTED_DISCREPANCY', 'APPROVED'), ads.work_date DESC, ads.id DESC`;

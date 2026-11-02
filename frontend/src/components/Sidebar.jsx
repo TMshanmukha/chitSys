@@ -17,6 +17,7 @@ import {
   Sparkles,
   Bell,
   CalendarDays,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
@@ -67,6 +68,15 @@ const NAV_ITEMS = [
     hoverText: 'hover:text-purple-600 dark:hover:text-purple-400',
   },
   { name: 'Agent Leaves', path: '/admin/leaves', icon: CalendarDays, activeGradient: 'from-emerald-600 to-teal-600', glowColor: 'rgba(16,185,129,.4)', hoverBg: 'hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40', hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400' },
+  {
+    name: 'Day Submissions & Approvals',
+    path: '/admin/day-reviews',
+    icon: ClipboardCheck,
+    activeGradient: 'from-amber-600 to-orange-600',
+    glowColor: 'rgba(245, 158, 11, 0.4)',
+    hoverBg: 'hover:bg-amber-50/70 dark:hover:bg-amber-950/40',
+    hoverText: 'hover:text-amber-600 dark:hover:text-amber-400',
+  },
   {
     name: 'Members & Passbook',
     path: '/admin/members',

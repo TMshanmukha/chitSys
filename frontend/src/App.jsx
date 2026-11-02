@@ -23,6 +23,8 @@ import {
 import NotificationsPage from './pages/NotificationsPage';
 import NotFound from './pages/NotFound';
 import LeaveManagementPage from './pages/LeaveManagementPage';
+import AgentDayClosingPage from './pages/AgentDayClosingPage';
+import AdminDaySubmissionsPage from './pages/AdminDaySubmissionsPage';
 
 import ScrollToTop from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -62,6 +64,7 @@ export default function App() {
               <Route path="users" element={<UsersPage />} />
               <Route path="agents" element={<UsersPage />} />
               <Route path="leaves" element={<LeaveManagementPage />} />
+              <Route path="day-reviews" element={<AdminDaySubmissionsPage />} />
               <Route path="members" element={<MembersPage />} />
               <Route path="collections" element={<CollectionsPage />} />
               <Route path="profile" element={<AdminCommissionsPage />} />
@@ -88,6 +91,7 @@ export default function App() {
               <Route path="tasks" element={<AgentDashboard key="tasks" defaultTab="tasks" />} />
               <Route path="routes" element={<AgentDashboard key="routes" defaultTab="routes" />} />
               <Route path="leaves" element={<LeaveManagementPage />} />
+              <Route path="day-closing" element={<AgentDayClosingPage />} />
               <Route path="history" element={<AgentDashboard key="history" defaultTab="history" />} />
               <Route path="profile" element={<AgentDashboard key="profile" defaultTab="profile" />} />
             </Route>

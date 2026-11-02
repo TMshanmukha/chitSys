@@ -17,6 +17,10 @@ import {
   Calendar,
   Layers,
   Search,
+  Filter,
+  RotateCcw,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
@@ -44,11 +48,20 @@ export default function LeaveManagementPage() {
   const [reason, setReason] = useState('');
   const [assignments, setAssignments] = useState({});
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
   const [searchHistory, setSearchHistory] = useState('');
 
-  const refresh = async () => {
+  // Multi-Factor Filter States
+  const [filterAgent, setFilterAgent] = useState('ALL');
+  const [filterGroup, setFilterGroup] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'APPROVED' | 'PENDING' | 'WORKING'
+
+  const todayYmd = useMemo(() => ymd(new Date()), []);
+
+  const refresh = async (showSpinner = false) => {
     try {
+      if (showSpinner) setRefreshing(true);
       const [res, hist] = await Promise.all([
         api.get(admin ? '/admin/leaves' : '/agent/leaves'),
         api.get(admin ? '/admin/leaves/coverage-history' : '/agent/leaves/coverage-history'),
@@ -56,8 +69,11 @@ export default function LeaveManagementPage() {
       setLeaves(res.data.leaves || []);
       setCoverage(res.data.coverage || []);
       setHistory(hist.data.history || []);
+      setMessage('');
     } catch (e) {
-      setMessage(e.response?.data?.message || 'Could not load leave records.');
+      setMessage(e.response?.data?.message || 'Could not load leave records. Please check database sync.');
+    } finally {
+      if (showSpinner) setRefreshing(false);
     }
   };
 
@@ -70,10 +86,14 @@ export default function LeaveManagementPage() {
           setGroups(g.data.data || []);
         })
         .catch(() => {});
+    } else {
+      api.get('/agent/my-routes')
+        .then((r) => {
+          setGroups(r.data.data?.groups || []);
+        })
+        .catch(() => {});
     }
   }, [admin]);
-
-  const statusFor = (date) => leaves.filter((l) => String(l.leave_date).slice(0, 10) === date);
 
   const days = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
@@ -83,6 +103,57 @@ export default function LeaveManagementPage() {
       ...Array.from({ length: last.getDate() }, (_, i) => ymd(new Date(month.getFullYear(), month.getMonth(), i + 1))),
     ];
   }, [month]);
+
+  // Dynamic Multi-Factor Filtered Leaves
+  const filteredLeaves = useMemo(() => {
+    return leaves.filter((l) => {
+      // 1. Agent Filter
+      if (filterAgent !== 'ALL' && String(l.agent_id) !== String(filterAgent)) {
+        return false;
+      }
+      // 2. Status Filter
+      if (filterStatus === 'APPROVED' && l.status !== 'APPROVED') {
+        return false;
+      }
+      if (filterStatus === 'PENDING' && l.status !== 'PENDING') {
+        return false;
+      }
+      // 3. Chit Group Filter
+      if (filterGroup !== 'ALL') {
+        const groupObj = groups.find((g) => String(g.id) === String(filterGroup));
+        const agentAssigned = (groupObj?.assigned_agent_ids || '').split(',').includes(String(l.agent_id));
+        const inCoverage = coverage.some(
+          (c) => Number(c.leave_id) === Number(l.id) && Number(c.group_id) === Number(filterGroup)
+        );
+        if (!agentAssigned && !inCoverage) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [leaves, filterAgent, filterStatus, filterGroup, groups, coverage]);
+
+  const statusFor = (date) => filteredLeaves.filter((l) => String(l.leave_date).slice(0, 10) === date);
+
+  // Dynamic KPI Metrics
+  const pendingApprovalsCount = useMemo(
+    () => filteredLeaves.filter((l) => l.status === 'PENDING').length,
+    [filteredLeaves]
+  );
+  const approvedLeavesCount = useMemo(
+    () => filteredLeaves.filter((l) => l.status === 'APPROVED').length,
+    [filteredLeaves]
+  );
+  const workingDaysInMonth = useMemo(() => {
+    return days.filter((d) => {
+      if (!d) return false;
+      if (d > todayYmd) return false;
+      const isApprovedLeave = filteredLeaves.some(
+        (l) => String(l.leave_date).slice(0, 10) === d && l.status === 'APPROVED'
+      );
+      return !isApprovedLeave;
+    }).length;
+  }, [days, todayYmd, filteredLeaves]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -134,20 +205,39 @@ export default function LeaveManagementPage() {
     }
   };
 
+  // Filtered Coverage History Table
   const filteredHistory = useMemo(() => {
-    if (!searchHistory.trim()) return history;
-    const q = searchHistory.toLowerCase();
-    return history.filter(
-      (h) =>
-        (h.group_name || '').toLowerCase().includes(q) ||
-        (h.absent_agent_name || '').toLowerCase().includes(q) ||
-        (h.covering_agent_name || '').toLowerCase().includes(q) ||
-        String(h.leave_date).includes(q)
-    );
-  }, [history, searchHistory]);
+    let list = history;
+    if (filterAgent !== 'ALL') {
+      list = list.filter(
+        (h) => String(h.absent_agent_id) === String(filterAgent) || String(h.covering_agent_id) === String(filterAgent)
+      );
+    }
+    if (filterGroup !== 'ALL') {
+      list = list.filter((h) => String(h.group_id) === String(filterGroup));
+    }
+    if (searchHistory.trim()) {
+      const q = searchHistory.toLowerCase();
+      list = list.filter(
+        (h) =>
+          (h.group_name || '').toLowerCase().includes(q) ||
+          (h.absent_agent_name || '').toLowerCase().includes(q) ||
+          (h.covering_agent_name || '').toLowerCase().includes(q) ||
+          String(h.leave_date).includes(q)
+      );
+    }
+    return list;
+  }, [history, filterAgent, filterGroup, searchHistory]);
+
+  const resetFilters = () => {
+    setFilterAgent('ALL');
+    setFilterGroup('ALL');
+    setFilterStatus('ALL');
+    setSearchHistory('');
+  };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
+    <div className="space-y-6 animate-fadeIn pb-12 font-sans">
       {/* Page Header */}
       <header className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3.5">
@@ -180,8 +270,131 @@ export default function LeaveManagementPage() {
             <span className="w-2 h-2 rounded-full bg-amber-500" />
             Amber: Awaiting Approval
           </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-bold border border-slate-300 dark:border-slate-700 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-500" />
+            White: Future / Upcoming
+          </span>
         </div>
       </header>
+
+      {/* Multi-Factor Filter Bar */}
+      <section className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 font-heading">
+            <Filter className="w-4 h-4 text-emerald-600" />
+            <span>Multi-Factor Calendar & Coverage Filters</span>
+          </div>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Filters</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          {/* Agent Picker Filter */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+              Field Agent Filter
+            </label>
+            {admin ? (
+              <select
+                value={filterAgent}
+                onChange={(e) => setFilterAgent(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="ALL">All Field Agents</option>
+                {usersList
+                  .filter((u) => u.role === 'COLLECTION_AGENT')
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} (@{u.username})
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <div className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white truncate">
+                {user?.full_name || 'My Leaves'} (Self)
+              </div>
+            )}
+          </div>
+
+          {/* Chit Scheme Picker Filter */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+              Chit Scheme Route
+            </label>
+            <select
+              value={filterGroup}
+              onChange={(e) => setFilterGroup(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="ALL">All Chit Schemes</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.group_name} ({g.group_code}) · {g.frequency}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Picker Filter */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+              Attendance / Leave Status
+            </label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="WORKING">Present / Working Days Only</option>
+              <option value="APPROVED">Approved Leave (Red) Only</option>
+              <option value="PENDING">Pending Approval (Amber) Only</option>
+            </select>
+          </div>
+
+          {/* Quick Month Navigator */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+              Month / Year
+            </label>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Previous Month"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex-1 text-center py-2 px-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-white font-heading truncate">
+                {month.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Next Month"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setMonth(new Date())}
+                className="px-2.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Current Month"
+              >
+                Today
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Status Notice Alert */}
       {message && (
@@ -190,25 +403,35 @@ export default function LeaveManagementPage() {
             <AlertCircle className="w-5 h-5 shrink-0 text-blue-600" />
             <span>{message}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setMessage('')}
-            className="p-1 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900 text-xs font-bold"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => refresh(true)}
+              className="px-3 py-1 rounded-lg bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 text-blue-800 dark:text-blue-100 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+            >
+              <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Retry</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMessage('')}
+              className="p-1 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900 text-xs font-bold"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Main Grid: Calendar View & Apply Leave Form */}
-      <div className="grid lg:grid-cols-[1.2fr_.8fr] gap-6">
+      {/* Main Grid: Calendar View & Apply Leave Form / Admin Stats */}
+      <div className="grid lg:grid-cols-[1.25fr_.75fr] gap-6">
         {/* Calendar View Card */}
         <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               title="Previous Month"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -220,7 +443,7 @@ export default function LeaveManagementPage() {
             <button
               type="button"
               onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               title="Next Month"
             >
               <ChevronRight className="w-5 h-5" />
@@ -239,35 +462,68 @@ export default function LeaveManagementPage() {
           {/* Calendar Grid Cells */}
           <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
             {days.map((date, i) => {
-              const items = date ? statusFor(date) : [];
-              const approved = items.some((x) => x.status === 'APPROVED');
-              const pending = items.some((x) => x.status === 'PENDING');
-
               if (!date) {
                 return <div key={`blank-${i}`} className="min-h-16 sm:min-h-20 rounded-2xl bg-transparent" />;
+              }
+
+              const items = statusFor(date);
+              const approved = items.some((x) => x.status === 'APPROVED');
+              const pending = items.some((x) => x.status === 'PENDING');
+              const isFuture = date > todayYmd;
+              const isToday = date === todayYmd;
+
+              // Handle filterStatus visual highlighting
+              if (filterStatus === 'APPROVED' && !approved) {
+                // Dim non-approved cells
+              }
+
+              let cellClass = '';
+              if (approved) {
+                cellClass =
+                  'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200 border-rose-300 dark:border-rose-800 shadow-xs ring-1 ring-rose-400/30';
+              } else if (pending) {
+                cellClass =
+                  'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 border-amber-300 dark:border-amber-800 shadow-xs ring-1 ring-amber-400/30';
+              } else if (isFuture) {
+                // Clean WHITE styling for future dates (no green, no clutter)
+                cellClass =
+                  'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700';
+              } else {
+                // Past or today working day is GREEN
+                cellClass =
+                  'bg-emerald-50/70 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200 border-emerald-200 dark:border-emerald-900/60 shadow-2xs';
               }
 
               return (
                 <div
                   key={date}
-                  className={`min-h-16 sm:min-h-20 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between transition-all border ${
-                    approved
-                      ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200 border-rose-300 dark:border-rose-800 shadow-xs'
-                      : pending
-                      ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 border-amber-300 dark:border-amber-800 shadow-xs'
-                      : 'bg-emerald-50/70 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200 border-emerald-200 dark:border-emerald-900/60'
+                  className={`min-h-16 sm:min-h-20 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between transition-all border ${cellClass} ${
+                    isToday ? 'outline-2 outline-blue-500/80 outline-offset-1' : ''
                   }`}
                   title={
                     items.length > 0
-                      ? items.map((x) => `${x.agent_name || 'You'}: ${x.status} (${x.reason || 'No reason'})`).join('\n')
-                      : `${date}: Working day`
+                      ? items
+                          .map((x) => `${x.agent_name || 'Agent'}: ${x.status} (${x.reason || 'No reason'})`)
+                          .join('\n')
+                      : isFuture
+                      ? `${date}: Upcoming future date`
+                      : `${date}: Working / Present day`
                   }
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-xs sm:text-sm font-mono">{Number(date.slice(-2))}</span>
+                    <span className="font-extrabold text-xs sm:text-sm font-mono">
+                      {Number(date.slice(-2))}
+                    </span>
                     {approved && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
                     {pending && <span className="w-2 h-2 rounded-full bg-amber-500" />}
-                    {!approved && !pending && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                    {!approved && !pending && !isFuture && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    )}
+                    {isToday && (
+                      <span className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950 px-1 rounded">
+                        Today
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-1">
@@ -278,6 +534,11 @@ export default function LeaveManagementPage() {
                     ) : pending ? (
                       <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100">
                         Pending
+                      </span>
+                    ) : isFuture ? (
+                      // Clean white future cell with no green text
+                      <span className="inline-block text-[9px] font-medium text-slate-400 dark:text-slate-500">
+                        Upcoming
                       </span>
                     ) : (
                       <span className="inline-block text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
@@ -293,71 +554,102 @@ export default function LeaveManagementPage() {
 
         {/* Right Column: Apply Leave Form (for Agent) OR Quick Stats (for Admin) */}
         {!admin ? (
-          <form
-            onSubmit={submit}
-            className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Palmtree className="w-5 h-5 text-emerald-600" />
-                <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
-                  Request Time Off / Leave
-                </h2>
+          <div className="space-y-6">
+            {/* Dynamic Filter-Aware Agent Counts */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
+                  Pending
+                </span>
+                <span className="text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5 block font-heading">
+                  {pendingApprovalsCount}
+                </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                Select a single date or date range. Your leave request will notify the administrator for approval and route coverage.
-              </p>
-
-              <div className="space-y-3.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  From Date *
-                  <input
-                    required
-                    type="date"
-                    value={start}
-                    onChange={(e) => {
-                      setStart(e.target.value);
-                      if (end < e.target.value) setEnd(e.target.value);
-                    }}
-                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs font-semibold dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </label>
-
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Through Date (Same for single day) *
-                  <input
-                    required
-                    type="date"
-                    min={start}
-                    value={end}
-                    onChange={(e) => setEnd(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs font-semibold dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </label>
-
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Reason / Handover Note (Optional)
-                  <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    maxLength={500}
-                    rows={4}
-                    placeholder="Provide context for your leave request (medical, emergency, personal)..."
-                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs font-normal dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
-                  />
-                </label>
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
+                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
+                  Approved
+                </span>
+                <span className="text-xl font-black text-rose-700 dark:text-rose-300 mt-0.5 block font-heading">
+                  {approvedLeavesCount}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
+                  Worked
+                </span>
+                <span className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 block font-heading">
+                  {workingDaysInMonth} Days
+                </span>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white p-3 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+            {/* Apply Leave Form */}
+            <form
+              onSubmit={submit}
+              className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 flex flex-col justify-between"
             >
-              <Send className="w-4 h-4" />
-              <span>{busy ? 'Submitting Leave Request...' : 'Submit Leave Request'}</span>
-            </button>
-          </form>
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Palmtree className="w-5 h-5 text-emerald-600" />
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
+                    Request Time Off / Leave
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                  Select a single date or date range. Your leave request will notify the administrator for approval and route coverage.
+                </p>
+
+                <div className="space-y-3.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    From Date *
+                    <input
+                      required
+                      type="date"
+                      value={start}
+                      onChange={(e) => {
+                        setStart(e.target.value);
+                        if (end < e.target.value) setEnd(e.target.value);
+                      }}
+                      className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs font-semibold dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </label>
+
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Through Date (Same for single day) *
+                    <input
+                      required
+                      type="date"
+                      min={start}
+                      value={end}
+                      onChange={(e) => setEnd(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs font-semibold dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </label>
+
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Reason / Handover Note (Optional)
+                    <textarea
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      maxLength={500}
+                      rows={3}
+                      placeholder="Provide context for your leave request (medical, emergency, personal)..."
+                      className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs font-normal dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white p-3 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Send className="w-4 h-4" />
+                <span>{busy ? 'Submitting Leave Request...' : 'Submit Leave Request'}</span>
+              </button>
+            </form>
+          </div>
         ) : (
           <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2 mb-2">
@@ -371,22 +663,45 @@ export default function LeaveManagementPage() {
               When approved, you must assign the absent agent's route stops to another active field agent or cover them as administrator.
             </p>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900">
-                <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider block">
+            <div className="grid grid-cols-3 gap-2.5 pt-2">
+              <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900">
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
                   Pending Approvals
                 </span>
-                <span className="text-2xl font-black text-blue-700 dark:text-blue-300 mt-1 block">
-                  {leaves.filter((l) => l.status === 'PENDING').length}
+                <span className="text-xl font-black text-blue-700 dark:text-blue-300 mt-1 block font-heading">
+                  {pendingApprovalsCount}
                 </span>
               </div>
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
-                <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block">
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
+                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
                   Approved Leaves
                 </span>
-                <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1 block">
-                  {leaves.filter((l) => l.status === 'APPROVED').length}
+                <span className="text-xl font-black text-rose-700 dark:text-rose-300 mt-1 block font-heading">
+                  {approvedLeavesCount}
                 </span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
+                  Month Working
+                </span>
+                <span className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-1 block font-heading">
+                  {workingDaysInMonth} Days
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+              <span className="font-bold block text-slate-800 dark:text-slate-200">
+                Active Filter Summary:
+              </span>
+              <div>
+                Agent: <strong className="text-slate-900 dark:text-white">{filterAgent === 'ALL' ? 'All Agents' : usersList.find(u => String(u.id) === String(filterAgent))?.full_name || filterAgent}</strong>
+              </div>
+              <div>
+                Chit: <strong className="text-slate-900 dark:text-white">{filterGroup === 'ALL' ? 'All Schemes' : groups.find(g => String(g.id) === String(filterGroup))?.group_name || filterGroup}</strong>
+              </div>
+              <div>
+                Status: <strong className="text-slate-900 dark:text-white">{filterStatus}</strong>
               </div>
             </div>
           </div>
@@ -400,12 +715,12 @@ export default function LeaveManagementPage() {
         </h2>
 
         <div className="space-y-3">
-          {leaves.length === 0 ? (
+          {filteredLeaves.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-              No leave requests registered yet.
+              No leave requests registered matching current filters.
             </div>
           ) : (
-            leaves.map((l) => {
+            filteredLeaves.map((l) => {
               const eligibleGroups = assignedGroups(l);
               return (
                 <article
@@ -415,7 +730,7 @@ export default function LeaveManagementPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                        <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white font-heading">
                           {admin ? l.agent_name : 'Leave Day'}
                         </span>
                         <span className="text-xs text-slate-400 font-mono">· {label(l.leave_date)}</span>
@@ -441,7 +756,7 @@ export default function LeaveManagementPage() {
                   {/* Admin Route Coverage Picker */}
                   {admin && (l.status === 'PENDING' || l.status === 'APPROVED') && (
                     <div className="mt-4 pt-2 space-y-3">
-                      <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
                         <Layers className="w-3.5 h-3.5 text-blue-600" />
                         <span>Assign Temporary Coverage for Absent Routes ({eligibleGroups.length})</span>
                       </div>
@@ -464,10 +779,10 @@ export default function LeaveManagementPage() {
                               className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                             >
                               <div>
-                                <span className="font-extrabold text-slate-900 dark:text-white block">
+                                <span className="font-extrabold text-slate-900 dark:text-white block font-heading">
                                   {g.group_name} ({g.group_code})
                                 </span>
-                                <span className="text-[11px] text-slate-500">
+                                <span className="text-[11px] text-slate-500 font-mono">
                                   Installment: ₹{Number(g.installment_amount).toLocaleString('en-IN')} · {g.frequency}
                                 </span>
                               </div>
@@ -591,7 +906,7 @@ export default function LeaveManagementPage() {
                         <strong>{row.covering_agent_name}</strong>.
                       </span>
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-indigo-200 dark:bg-indigo-900 text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-indigo-200 dark:bg-indigo-900 text-[10px] font-mono">
                       {row.completed_tasks} of {row.total_tasks} completed
                     </span>
                   </div>
@@ -605,7 +920,7 @@ export default function LeaveManagementPage() {
                         You covered tasks for absent agent <strong>{row.absent_agent_name}</strong> on {label(row.leave_date)}.
                       </span>
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900 text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900 text-[10px] font-mono">
                       {row.completed_tasks} of {row.total_tasks} done
                     </span>
                   </div>
@@ -620,7 +935,7 @@ export default function LeaveManagementPage() {
                         <strong>{row.covering_agent_name}</strong>.
                       </span>
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[10px] font-mono">
                       {row.completed_tasks} of {row.total_tasks} done
                     </span>
                   </div>
@@ -629,7 +944,7 @@ export default function LeaveManagementPage() {
                 {/* Header Info */}
                 <div className="p-4 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
                   <div>
-                    <div className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base">
+                    <div className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base font-heading">
                       {row.group_name} <span className="font-mono text-xs text-slate-400">({row.group_code})</span>
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -639,7 +954,7 @@ export default function LeaveManagementPage() {
                   </div>
 
                   <div className="text-right">
-                    <div className="font-black text-sm text-emerald-600 dark:text-emerald-400">
+                    <div className="font-black text-sm text-emerald-600 dark:text-emerald-400 font-heading">
                       {row.completed_tasks} / {row.total_tasks} Tasks Done ({pct}%)
                     </div>
                     <div className="w-36 h-2 mt-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
@@ -652,7 +967,7 @@ export default function LeaveManagementPage() {
                 <div className="p-4 grid md:grid-cols-2 gap-4">
                   {/* Left Column: Completed Collections */}
                   <div className="space-y-2">
-                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1 font-heading">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Completed Tasks · Recorded on Official Receipt</span>
                     </div>
@@ -676,7 +991,7 @@ export default function LeaveManagementPage() {
 
                   {/* Right Column: Pending Remaining Stops */}
                   <div className="space-y-2">
-                    <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                    <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1 font-heading">
                       <Clock className="w-3.5 h-3.5" />
                       <span>Still Pending / Unpaid Stops</span>
                     </div>
@@ -689,10 +1004,10 @@ export default function LeaveManagementPage() {
                             className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs flex items-center justify-between gap-2"
                           >
                             <div>
-                              <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                              <span className="font-bold text-slate-800 dark:text-slate-200 block font-heading">
                                 {task.member_name}
                               </span>
-                              <span className="text-[11px] text-slate-500">
+                              <span className="text-[11px] text-slate-500 font-mono">
                                 {task.paid_so_far > 0
                                   ? `₹${task.paid_so_far.toLocaleString('en-IN')} received, ₹${task.remaining_due.toLocaleString('en-IN')} due`
                                   : `₹${task.remaining_due.toLocaleString('en-IN')} due`}
@@ -702,7 +1017,7 @@ export default function LeaveManagementPage() {
 
                             {admin && (
                               <a
-                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline shrink-0"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline shrink-0 cursor-pointer"
                                 href={`/admin/collections?group_id=${row.group_id}&member_id=${task.member_id}&collection_date=${String(row.leave_date).slice(0, 10)}&amount=${task.remaining_due}&absent_agent=${encodeURIComponent(row.absent_agent_name)}`}
                               >
                                 <span>Record Admin Collection</span>
