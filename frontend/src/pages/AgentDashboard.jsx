@@ -58,10 +58,10 @@ import NotificationBell from '../components/NotificationBell';
 import AnimatedChitBackground from '../components/AnimatedChitBackground';
 import WelcomeCelebrationModal from '../components/WelcomeCelebrationModal';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ModalPortal from '../components/ModalPortal';
 
-export default function AgentDashboard() {
+export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
@@ -69,7 +69,20 @@ export default function AgentDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [routesData, setRoutesData] = useState({ groups: [], members: [], summary: {} });
   const [recentCollections, setRecentCollections] = useState([]);
-  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'routes' | 'profile' | 'history'
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(defaultTab || 'tasks'); // 'tasks' | 'routes' | 'profile' | 'history'
+
+  useEffect(() => {
+    if (defaultTab && defaultTab !== activeTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab]);
+
+  const handleTabSwitch = (tab) => {
+    setActiveTab(tab);
+    navigate(`/agent/${tab}`);
+    smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+  };
 
   // Day Submit & Shift Closing Handover State
   const [showDaySubmitModal, setShowDaySubmitModal] = useState(false);
@@ -680,74 +693,7 @@ export default function AgentDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/80 dark:bg-[#070b14] text-slate-800 dark:text-slate-100 flex flex-col transition-colors relative overflow-x-hidden">
-      {/* Lightly Animated Floating Chit Fund Motifs Background */}
-      <AnimatedChitBackground />
-
-      {/* Login Welcome Celebration with Ribbon & Smile Emoji 😊 */}
-      <WelcomeCelebrationModal />
-
-      {/* Floating Translucent Header Island (Separated from Body Page) */}
-      <header className="sticky top-3 z-30 mx-3 sm:mx-6 flex items-center justify-between h-16 px-4 sm:px-6 rounded-2xl bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-[0_8px_30px_rgba(0,0,0,0.04)] mb-4 relative z-20">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
-              <span>ChitFund Pro</span>
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
-                Agent
-              </span>
-            </h1>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Field Route Collection Terminal</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link to="/agent/leaves" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"><Calendar className="w-4 h-4"/>Leave calendar</Link>
-          {/* Live Notification Center */}
-          <NotificationBell />
-
-          {/* Refresh Data */}
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            aria-label="Refresh routes"
-            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors cursor-pointer"
-            title="Refresh routes & live status"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
-          </button>
-
-          {/* Theme Switcher */}
-          <button
-            type="button"
-            id="agent-theme-toggle-btn"
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors cursor-pointer"
-          >
-            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-          </button>
-
-          {/* Logout */}
-          <button
-            type="button"
-            id="agent-logout-btn"
-            onClick={() => setShowLogoutConfirm(true)}
-            aria-label="Logout"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-950/30 border border-red-200 dark:border-rose-900/40 transition-colors cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content Body */}
-      <main className="flex-1 px-3 sm:px-6 max-w-5xl w-full mx-auto space-y-5 animate-pageSlideIn pb-12">
+    <div className="w-full space-y-5">
         {/* Agent Profile & Quick Action Bar */}
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -827,6 +773,17 @@ export default function AgentDashboard() {
               <PlusCircle className="w-4 h-4" />
               <span>Record Field Collection</span>
             </button>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              aria-label="Refresh routes"
+              className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+              title="Refresh routes & live status"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
           </div>
         </div>
 
@@ -870,8 +827,7 @@ export default function AgentDashboard() {
 
           <div
             onClick={() => {
-              setActiveTab('tasks');
-              smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+              handleTabSwitch('tasks');
             }}
             className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-blue-400 transition-colors"
           >
@@ -896,8 +852,7 @@ export default function AgentDashboard() {
 
           <div
             onClick={() => {
-              setActiveTab('profile');
-              smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+              handleTabSwitch('profile');
             }}
             className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-purple-400 transition-colors"
           >
@@ -950,8 +905,7 @@ export default function AgentDashboard() {
           <button
             type="button"
             onClick={() => {
-              setActiveTab('routes');
-              smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+              handleTabSwitch('routes');
             }}
             className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               activeTab === 'routes'
@@ -984,8 +938,7 @@ export default function AgentDashboard() {
           <button
             type="button"
             onClick={() => {
-              setActiveTab('history');
-              smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
+              handleTabSwitch('history');
             }}
             className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               activeTab === 'history'
@@ -996,6 +949,15 @@ export default function AgentDashboard() {
             <Receipt className="w-4 h-4" />
             <span>Receipts & History ({recentCollections?.length || 0})</span>
           </button>
+
+          {/* Tab 5: Leave Calendar & Coverage */}
+          <Link
+            to="/agent/leaves"
+            className="pb-2.5 px-3 border-b-2 border-transparent text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Leave Calendar & Coverage</span>
+          </Link>
         </div>
 
         {/* Loading Spinner */}
@@ -2641,7 +2603,6 @@ export default function AgentDashboard() {
             </div>
           )
         )}
-      </main>
 
       {/* Collect Modal (Synchronous Payment Entry) */}
       <ModalPortal

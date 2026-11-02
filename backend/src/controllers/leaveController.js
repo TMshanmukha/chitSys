@@ -46,7 +46,7 @@ export async function listCoverageHistory(req, res, next) {
        LEFT JOIN members m ON m.id=gm.member_id
        LEFT JOIN (
          SELECT c.group_id,c.member_id,c.collection_date,SUM(c.amount) AS total_paid,
-                GROUP_CONCAT(DISTINCT handler.full_name ORDER BY handler.full_name SEPARATOR ', ') AS handler_names
+                GROUP_CONCAT(DISTINCT CONCAT(handler.full_name, IF(handler.role IN ('ADMIN','SUPER_ADMIN'), ' (Admin)', ' (Agent)')) ORDER BY handler.full_name SEPARATOR ', ') AS handler_names
          FROM collections c LEFT JOIN users handler ON handler.id=c.agent_id
          WHERE c.verification_status!='CANCELLED'
          GROUP BY c.group_id,c.member_id,c.collection_date
@@ -101,8 +101,8 @@ export async function reviewLeave(req, res, next) {
       for (const item of assignments) {
         const groupId=Number(item.group_id), agentId=Number(item.covering_agent_id);
         if (!groupIds.has(groupId) || assigned.has(groupId) || agentId===leave.agent_id) throw Object.assign(new Error('Assign each absent route to a different active agent.'),{status:400});
-        const [agents] = await conn.execute("SELECT id FROM users WHERE id=? AND role='COLLECTION_AGENT' AND is_active=1",[agentId]);
-        if (!agents.length) throw Object.assign(new Error('Choose an active collection agent for coverage.'),{status:400});
+        const [agents] = await conn.execute("SELECT id, role, full_name FROM users WHERE id=? AND role IN ('COLLECTION_AGENT', 'ADMIN', 'SUPER_ADMIN') AND is_active=1",[agentId]);
+        if (!agents.length) throw Object.assign(new Error('Choose an active collection agent or administrator for coverage.'),{status:400});
         assigned.add(groupId);
       }
       if (assigned.size !== groupIds.size) throw Object.assign(new Error('Assign every route belonging to the absent agent before approving leave.'),{status:400});

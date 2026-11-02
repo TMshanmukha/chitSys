@@ -692,7 +692,7 @@ export default function AuctionsPage() {
             scrollToFormOrModal('conduct-auction-modal');
             setShowModal(true);
             const targetGroupId = selectedSchemeId || (groups.length > 0 ? String(groups[0].id) : '');
-            if (targetGroupId && String(form.group_id) !== String(targetGroupId)) {
+            if (targetGroupId) {
               handleGroupChange(targetGroupId);
             }
           }}

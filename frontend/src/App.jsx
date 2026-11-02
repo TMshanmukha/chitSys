@@ -27,6 +27,8 @@ import LeaveManagementPage from './pages/LeaveManagementPage';
 import ScrollToTop from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
 
+import AgentLayout from './components/AgentLayout';
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -72,21 +74,23 @@ export default function App() {
               <Route path="settings" element={<SettingsPage />} />
             </Route>
 
-            {/* Protected Agent Routes */}
+            {/* Protected Agent Portal with Dedicated Sidebar & Menu Pages */}
             <Route
-              path="/agent/leaves"
-              element={<ProtectedRoute allowedRoles={['COLLECTION_AGENT']}><LeaveManagementPage /></ProtectedRoute>}
-            />
-            <Route
-              path="/agent/dashboard"
+              path="/agent"
               element={
                 <ProtectedRoute allowedRoles={['COLLECTION_AGENT']}>
-                  <ErrorBoundary>
-                    <AgentDashboard />
-                  </ErrorBoundary>
+                  <AgentLayout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<Navigate to="/agent/tasks" replace />} />
+              <Route path="dashboard" element={<Navigate to="/agent/tasks" replace />} />
+              <Route path="tasks" element={<AgentDashboard defaultTab="tasks" />} />
+              <Route path="routes" element={<AgentDashboard defaultTab="routes" />} />
+              <Route path="leaves" element={<LeaveManagementPage />} />
+              <Route path="history" element={<AgentDashboard defaultTab="history" />} />
+              <Route path="profile" element={<AgentDashboard defaultTab="profile" />} />
+            </Route>
 
             {/* 404 Route */}
             <Route path="*" element={<NotFound />} />

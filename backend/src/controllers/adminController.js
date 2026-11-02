@@ -48,6 +48,8 @@ export async function getAuditLogs(req, res, next) {
 
 export async function getDashboardOverview(req, res, next) {
   try {
+    const { groupId, startDate, endDate, frequency, agentId } = req.query || {};
+
     // 1. Group Breakdown (Daily Chit vs Monthly Auction vs Monthly Double Chit)
     const [[groupCounts]] = await pool.execute(`
       SELECT 
@@ -72,18 +74,37 @@ export async function getDashboardOverview(req, res, next) {
     );
 
     // 4. Collections Totals: Split into Day-by-Day (Today) and Month-by-Month (Current Month)
-    const [[collectionRow]] = await pool.execute(`
-      SELECT 
-        COALESCE(SUM(CASE WHEN payment_method = 'CASH' THEN amount ELSE 0 END), 0) as todayCash,
-        COALESCE(SUM(CASE WHEN payment_method != 'CASH' THEN amount ELSE 0 END), 0) as todayOnline,
-        COALESCE(SUM(amount), 0) as todayTotal,
-        COUNT(id) as todayCount
-      FROM collections
-      WHERE collection_date = CURDATE() AND verification_status != 'CANCELLED'
-    `);
+    const collConds = ["c.verification_status != 'CANCELLED'"];
+    const collParams = [];
+    if (groupId) { collConds.push('c.group_id = ?'); collParams.push(groupId); }
+    if (agentId) { collConds.push('c.agent_id = ?'); collParams.push(agentId); }
+    if (startDate) { collConds.push('c.collection_date >= ?'); collParams.push(startDate); }
+    if (endDate) { collConds.push('c.collection_date <= ?'); collParams.push(endDate); }
+    if (!startDate && !endDate) { collConds.push('c.collection_date = CURDATE()'); }
+    if (frequency) { collConds.push('g.frequency = ?'); collParams.push(frequency); }
 
-    // 4a. Daily Chit Collections (Day-by-Day, Today)
-    const [[dailyCollectionRow]] = await pool.execute(`
+    const [collectionRows] = await pool.query(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN c.payment_method = 'CASH' THEN c.amount ELSE 0 END), 0) as todayCash,
+        COALESCE(SUM(CASE WHEN c.payment_method != 'CASH' THEN c.amount ELSE 0 END), 0) as todayOnline,
+        COALESCE(SUM(c.amount), 0) as todayTotal,
+        COUNT(c.id) as todayCount
+      FROM collections c
+      JOIN chit_groups g ON c.group_id = g.id
+      WHERE ${collConds.join(' AND ')}
+    `, collParams);
+    const collectionRow = collectionRows[0] || { todayCash: 0, todayOnline: 0, todayTotal: 0, todayCount: 0 };
+
+    // 4a. Daily Chit Collections
+    const dailyConds = ["c.verification_status != 'CANCELLED'", "g.frequency = 'DAILY'"];
+    const dailyParams = [];
+    if (groupId) { dailyConds.push('c.group_id = ?'); dailyParams.push(groupId); }
+    if (agentId) { dailyConds.push('c.agent_id = ?'); dailyParams.push(agentId); }
+    if (startDate) { dailyConds.push('c.collection_date >= ?'); dailyParams.push(startDate); }
+    if (endDate) { dailyConds.push('c.collection_date <= ?'); dailyParams.push(endDate); }
+    if (!startDate && !endDate) { dailyConds.push('c.collection_date = CURDATE()'); }
+
+    const [dailyCollectionRows] = await pool.query(`
       SELECT 
         COALESCE(SUM(CASE WHEN c.payment_method = 'CASH' THEN c.amount ELSE 0 END), 0) as dailyCash,
         COALESCE(SUM(CASE WHEN c.payment_method != 'CASH' THEN c.amount ELSE 0 END), 0) as dailyOnline,
@@ -91,11 +112,22 @@ export async function getDashboardOverview(req, res, next) {
         COUNT(c.id) as dailyCount
       FROM collections c
       JOIN chit_groups g ON c.group_id = g.id
-      WHERE g.frequency = 'DAILY' AND c.collection_date = CURDATE() AND c.verification_status != 'CANCELLED'
-    `);
+      WHERE ${dailyConds.join(' AND ')}
+    `, dailyParams);
+    const dailyCollectionRow = dailyCollectionRows[0] || { dailyCash: 0, dailyOnline: 0, dailyTotal: 0, dailyCount: 0 };
 
-    // 4b. Monthly Chit Collections (Month-by-Month, Current Month)
-    const [[monthlyCollectionRow]] = await pool.execute(`
+    // 4b. Monthly Chit Collections
+    const monthlyConds = ["c.verification_status != 'CANCELLED'", "g.frequency = 'MONTHLY'"];
+    const monthlyParams = [];
+    if (groupId) { monthlyConds.push('c.group_id = ?'); monthlyParams.push(groupId); }
+    if (agentId) { monthlyConds.push('c.agent_id = ?'); monthlyParams.push(agentId); }
+    if (startDate) { monthlyConds.push('c.collection_date >= ?'); monthlyParams.push(startDate); }
+    if (endDate) { monthlyConds.push('c.collection_date <= ?'); monthlyParams.push(endDate); }
+    if (!startDate && !endDate) {
+      monthlyConds.push('YEAR(c.collection_date) = YEAR(CURDATE()) AND MONTH(c.collection_date) = MONTH(CURDATE())');
+    }
+
+    const [monthlyCollectionRows] = await pool.query(`
       SELECT 
         COALESCE(SUM(CASE WHEN c.payment_method = 'CASH' THEN c.amount ELSE 0 END), 0) as monthlyCash,
         COALESCE(SUM(CASE WHEN c.payment_method != 'CASH' THEN c.amount ELSE 0 END), 0) as monthlyOnline,
@@ -103,38 +135,52 @@ export async function getDashboardOverview(req, res, next) {
         COUNT(c.id) as monthlyCount
       FROM collections c
       JOIN chit_groups g ON c.group_id = g.id
-      WHERE g.frequency = 'MONTHLY' 
-        AND YEAR(c.collection_date) = YEAR(CURDATE()) 
-        AND MONTH(c.collection_date) = MONTH(CURDATE())
-        AND c.verification_status != 'CANCELLED'
-    `);
+      WHERE ${monthlyConds.join(' AND ')}
+    `, monthlyParams);
+    const monthlyCollectionRow = monthlyCollectionRows[0] || { monthlyCash: 0, monthlyOnline: 0, monthlyTotal: 0, monthlyCount: 0 };
 
-    // 5a. Expected Daily Target (Day-by-Day Installments Target for Today)
-    const [[dailyTargetRow]] = await pool.execute(`
+    // 5a. Expected Daily Target (Day-by-Day Installments Target)
+    const dailyTargetConds = ["g.frequency = 'DAILY'", "g.status = 'ACTIVE'"];
+    const dailyTargetParams = [];
+    if (groupId) { dailyTargetConds.push('g.id = ?'); dailyTargetParams.push(groupId); }
+    const [dailyTargetRows] = await pool.query(`
       SELECT COALESCE(SUM(g.installment_amount * (
         SELECT COUNT(gm.id) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE'
       )), 0) as expectedDailyTarget
       FROM chit_groups g
-      WHERE g.frequency = 'DAILY' AND g.status = 'ACTIVE'
-    `);
+      WHERE ${dailyTargetConds.join(' AND ')}
+    `, dailyTargetParams);
+    const dailyTargetRow = dailyTargetRows[0] || { expectedDailyTarget: 0 };
 
-    // 5b. Expected Monthly Target (Month-by-Month Installments Target for Current Month)
-    const [[monthlyTargetRow]] = await pool.execute(`
+    // 5b. Expected Monthly Target (Month-by-Month Installments Target)
+    const monthlyTargetConds = ["g.frequency = 'MONTHLY'", "g.status = 'ACTIVE'"];
+    const monthlyTargetParams = [];
+    if (groupId) { monthlyTargetConds.push('g.id = ?'); monthlyTargetParams.push(groupId); }
+    const [monthlyTargetRows] = await pool.query(`
       SELECT COALESCE(SUM(g.installment_amount * (
         SELECT COUNT(gm.id) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE'
       )), 0) as expectedMonthlyTarget
       FROM chit_groups g
-      WHERE g.frequency = 'MONTHLY' AND g.status = 'ACTIVE'
-    `);
+      WHERE ${monthlyTargetConds.join(' AND ')}
+    `, monthlyTargetParams);
+    const monthlyTargetRow = monthlyTargetRows[0] || { expectedMonthlyTarget: 0 };
 
     // 6. Auctions & Dividends stats
-    const [[auctionStats]] = await pool.execute(`
+    const aucConds = [];
+    const aucParams = [];
+    if (groupId) { aucConds.push('group_id = ?'); aucParams.push(groupId); }
+    if (startDate) { aucConds.push('auction_date >= ?'); aucParams.push(startDate); }
+    if (endDate) { aucConds.push('auction_date <= ?'); aucParams.push(endDate); }
+    const aucWhere = aucConds.length ? `WHERE ${aucConds.join(' AND ')}` : '';
+    const [aucStatsRows] = await pool.query(`
       SELECT 
         COUNT(id) as totalAuctionsCount,
         COALESCE(SUM(total_dividend), 0) as totalDividendsGenerated,
         COALESCE(SUM(net_payable_amount), 0) as totalPrizeMoneyDisbursed
       FROM auctions
-    `);
+      ${aucWhere}
+    `, aucParams);
+    const auctionStats = aucStatsRows[0] || { totalAuctionsCount: 0, totalDividendsGenerated: 0, totalPrizeMoneyDisbursed: 0 };
 
     // 7. Recent Collections (Last 6 transactions)
     const [recentCollections] = await pool.execute(`
@@ -243,6 +289,10 @@ export async function getDashboardOverview(req, res, next) {
         groupsList,
         agentsSummary,
         recentAuctions,
+        availableFilters: {
+          groups: (await pool.query('SELECT id, group_name, group_code, frequency, chit_type FROM chit_groups ORDER BY group_name ASC'))[0] || [],
+          agents: (await pool.query("SELECT id, full_name, username FROM users WHERE role = 'COLLECTION_AGENT' AND is_active = 1 ORDER BY full_name ASC"))[0] || [],
+        },
       },
     });
   } catch (error) {
