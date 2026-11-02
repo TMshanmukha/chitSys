@@ -239,20 +239,27 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     return (routesData.groups || []).filter((group) => group.frequency === 'MONTHLY').length;
   }, [routesData.groups]);
 
-  const totalTasksCount = tasksList.length;
-  const completedTasksCount = tasksList.filter((t) => t.isPaid).length;
-  const pendingTasksCount = tasksList.filter((t) => !t.isPaid).length;
-  const remarksTasksCount = tasksList.filter((t) => t.hasCustomRemark).length;
-  const taskProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
-
-  const totalTargetExpected = useMemo(() => {
-    return tasksList.reduce((sum, t) => sum + t.expectedAmount, 0);
-  }, [tasksList]);
-
-  const filteredTasks = useMemo(() => {
+  // Dynamically recalculate base tasks matching active Scheme & Frequency filters
+  const baseSchemeTasks = useMemo(() => {
     return tasksList.filter((t) => {
       if (taskFrequencyFilter !== 'ALL' && t.frequency !== taskFrequencyFilter) return false;
       if (taskChitFilter !== 'ALL' && String(t.groupId) !== String(taskChitFilter)) return false;
+      return true;
+    });
+  }, [tasksList, taskFrequencyFilter, taskChitFilter]);
+
+  const totalTasksCount = baseSchemeTasks.length;
+  const completedTasksCount = baseSchemeTasks.filter((t) => t.isPaid).length;
+  const pendingTasksCount = baseSchemeTasks.filter((t) => !t.isPaid).length;
+  const remarksTasksCount = baseSchemeTasks.filter((t) => t.hasCustomRemark).length;
+  const taskProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+
+  const totalTargetExpected = useMemo(() => {
+    return baseSchemeTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
+  }, [baseSchemeTasks]);
+
+  const filteredTasks = useMemo(() => {
+    return baseSchemeTasks.filter((t) => {
       if (taskFilter === 'PENDING' && t.isPaid) return false;
       if (taskFilter === 'COMPLETED' && !t.isPaid) return false;
       if (taskFilter === 'REMARKS' && !t.hasCustomRemark) return false;
@@ -271,7 +278,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
       return true;
     });
-  }, [tasksList, taskFilter, taskFrequencyFilter, taskChitFilter, taskSearch]);
+  }, [baseSchemeTasks, taskFilter, taskSearch]);
 
   // Group tasks strictly by Chit Scheme so the agent never gets confused
   const tasksByGroup = useMemo(() => {

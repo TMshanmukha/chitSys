@@ -50,8 +50,16 @@ export async function getDashboardOverview(req, res, next) {
   try {
     const { groupId, startDate, endDate, frequency, agentId } = req.query || {};
 
-    // 1. Group Breakdown (Daily Chit vs Monthly Auction vs Monthly Double Chit)
-    const [[groupCounts]] = await pool.execute(`
+    // 1. Group Breakdown (Daily Chit vs Monthly Auction vs Monthly Double Chit) - Respects Filters
+    const groupCountConds = ["status = 'ACTIVE'"];
+    const groupCountParams = [];
+    if (groupId) { groupCountConds.push('id = ?'); groupCountParams.push(groupId); }
+    if (frequency) { groupCountConds.push('frequency = ?'); groupCountParams.push(frequency); }
+    if (agentId) {
+      groupCountConds.push('id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ? AND is_active = 1)');
+      groupCountParams.push(agentId);
+    }
+    const [groupCountRows] = await pool.query(`
       SELECT 
         COUNT(*) as totalGroups,
         COALESCE(SUM(CASE WHEN chit_type = 'DAILY_CHIT' THEN 1 ELSE 0 END), 0) as dailyChitGroups,
@@ -60,18 +68,63 @@ export async function getDashboardOverview(req, res, next) {
         COALESCE(SUM(CASE WHEN route_category = 'DAILY_ROUTE' THEN 1 ELSE 0 END), 0) as dailyRoutes,
         COALESCE(SUM(CASE WHEN route_category = 'MONTHLY_ROUTE' THEN 1 ELSE 0 END), 0) as monthlyRoutes
       FROM chit_groups
-      WHERE status = 'ACTIVE'
-    `);
+      WHERE ${groupCountConds.join(' AND ')}
+    `, groupCountParams);
+    const groupCounts = groupCountRows[0] || { totalGroups: 0, dailyChitGroups: 0, auctionChitGroups: 0, doubleChitGroups: 0, dailyRoutes: 0, monthlyRoutes: 0 };
 
-    // 2. Members Count
-    const [[{ totalMembers }]] = await pool.execute(
-      'SELECT COUNT(*) as totalMembers FROM members WHERE is_active = 1'
-    );
+    // 2. Members Count - Respects Scheme / Agent / Frequency Filters
+    let totalMembers = 0;
+    if (groupId || frequency || agentId) {
+      const memberConds = ["m.is_active = 1", "gm.status = 'ACTIVE'"];
+      const memberParams = [];
+      if (groupId) { memberConds.push('g.id = ?'); memberParams.push(groupId); }
+      if (frequency) { memberConds.push('g.frequency = ?'); memberParams.push(frequency); }
+      if (agentId) {
+        memberConds.push('g.id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ? AND is_active = 1)');
+        memberParams.push(agentId);
+      }
+      const [memberRows] = await pool.query(`
+        SELECT COUNT(DISTINCT m.id) as totalMembers
+        FROM members m
+        JOIN group_memberships gm ON m.id = gm.member_id
+        JOIN chit_groups g ON gm.group_id = g.id
+        WHERE ${memberConds.join(' AND ')}
+      `, memberParams);
+      totalMembers = memberRows[0]?.totalMembers || 0;
+    } else {
+      const [[{ totalMembers: allMembers }]] = await pool.execute(
+        'SELECT COUNT(*) as totalMembers FROM members WHERE is_active = 1'
+      );
+      totalMembers = allMembers || 0;
+    }
 
-    // 3. Agents Count
-    const [[{ totalAgents }]] = await pool.execute(
-      'SELECT COUNT(*) as totalAgents FROM users WHERE role = "COLLECTION_AGENT" AND is_active = 1'
-    );
+    // 3. Agents Count - Respects Scheme & Agent Filters
+    let totalAgents = 0;
+    if (agentId) {
+      const [[agentRow]] = await pool.query(
+        'SELECT COUNT(*) as totalAgents FROM users WHERE id = ? AND role = "COLLECTION_AGENT" AND is_active = 1',
+        [agentId]
+      );
+      totalAgents = agentRow?.totalAgents || 0;
+    } else if (groupId || frequency) {
+      const agentConds = ["aga.is_active = 1", "u.is_active = 1", "u.role = 'COLLECTION_AGENT'"];
+      const agentParams = [];
+      if (groupId) { agentConds.push('g.id = ?'); agentParams.push(groupId); }
+      if (frequency) { agentConds.push('g.frequency = ?'); agentParams.push(frequency); }
+      const [agentRows] = await pool.query(`
+        SELECT COUNT(DISTINCT aga.agent_id) as totalAgents
+        FROM agent_group_assignments aga
+        JOIN chit_groups g ON aga.group_id = g.id
+        JOIN users u ON aga.agent_id = u.id
+        WHERE ${agentConds.join(' AND ')}
+      `, agentParams);
+      totalAgents = agentRows[0]?.totalAgents || 0;
+    } else {
+      const [[{ totalAgents: allAgents }]] = await pool.execute(
+        'SELECT COUNT(*) as totalAgents FROM users WHERE role = "COLLECTION_AGENT" AND is_active = 1'
+      );
+      totalAgents = allAgents || 0;
+    }
 
     // 4. Collections Totals: Split into Day-by-Day (Today) and Month-by-Month (Current Month)
     const collConds = ["c.verification_status != 'CANCELLED'"];
@@ -140,50 +193,71 @@ export async function getDashboardOverview(req, res, next) {
     const monthlyCollectionRow = monthlyCollectionRows[0] || { monthlyCash: 0, monthlyOnline: 0, monthlyTotal: 0, monthlyCount: 0 };
 
     // 5a. Expected Daily Target (Day-by-Day Installments Target)
-    const dailyTargetConds = ["g.frequency = 'DAILY'", "g.status = 'ACTIVE'"];
-    const dailyTargetParams = [];
-    if (groupId) { dailyTargetConds.push('g.id = ?'); dailyTargetParams.push(groupId); }
-    const [dailyTargetRows] = await pool.query(`
-      SELECT COALESCE(SUM(g.installment_amount * (
-        SELECT COUNT(gm.id) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE'
-      )), 0) as expectedDailyTarget
-      FROM chit_groups g
-      WHERE ${dailyTargetConds.join(' AND ')}
-    `, dailyTargetParams);
-    const dailyTargetRow = dailyTargetRows[0] || { expectedDailyTarget: 0 };
+    let dailyTargetRow = { expectedDailyTarget: 0 };
+    if (!frequency || frequency === 'DAILY') {
+      const dailyTargetConds = ["g.frequency = 'DAILY'", "g.status = 'ACTIVE'"];
+      const dailyTargetParams = [];
+      if (groupId) { dailyTargetConds.push('g.id = ?'); dailyTargetParams.push(groupId); }
+      if (agentId) {
+        dailyTargetConds.push('g.id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ? AND is_active = 1)');
+        dailyTargetParams.push(agentId);
+      }
+      const [dailyTargetRows] = await pool.query(`
+        SELECT COALESCE(SUM(g.installment_amount * (
+          SELECT COUNT(gm.id) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE'
+        )), 0) as expectedDailyTarget
+        FROM chit_groups g
+        WHERE ${dailyTargetConds.join(' AND ')}
+      `, dailyTargetParams);
+      dailyTargetRow = dailyTargetRows[0] || dailyTargetRow;
+    }
 
     // 5b. Expected Monthly Target (Month-by-Month Installments Target)
-    const monthlyTargetConds = ["g.frequency = 'MONTHLY'", "g.status = 'ACTIVE'"];
-    const monthlyTargetParams = [];
-    if (groupId) { monthlyTargetConds.push('g.id = ?'); monthlyTargetParams.push(groupId); }
-    const [monthlyTargetRows] = await pool.query(`
-      SELECT COALESCE(SUM(g.installment_amount * (
-        SELECT COUNT(gm.id) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE'
-      )), 0) as expectedMonthlyTarget
-      FROM chit_groups g
-      WHERE ${monthlyTargetConds.join(' AND ')}
-    `, monthlyTargetParams);
-    const monthlyTargetRow = monthlyTargetRows[0] || { expectedMonthlyTarget: 0 };
+    let monthlyTargetRow = { expectedMonthlyTarget: 0 };
+    if (!frequency || frequency === 'MONTHLY') {
+      const monthlyTargetConds = ["g.frequency = 'MONTHLY'", "g.status = 'ACTIVE'"];
+      const monthlyTargetParams = [];
+      if (groupId) { monthlyTargetConds.push('g.id = ?'); monthlyTargetParams.push(groupId); }
+      if (agentId) {
+        monthlyTargetConds.push('g.id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ? AND is_active = 1)');
+        monthlyTargetParams.push(agentId);
+      }
+      const [monthlyTargetRows] = await pool.query(`
+        SELECT COALESCE(SUM(g.installment_amount * (
+          SELECT COUNT(gm.id) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE'
+        )), 0) as expectedMonthlyTarget
+        FROM chit_groups g
+        WHERE ${monthlyTargetConds.join(' AND ')}
+      `, monthlyTargetParams);
+      monthlyTargetRow = monthlyTargetRows[0] || monthlyTargetRow;
+    }
 
     // 6. Auctions & Dividends stats
-    const aucConds = [];
-    const aucParams = [];
-    if (groupId) { aucConds.push('group_id = ?'); aucParams.push(groupId); }
-    if (startDate) { aucConds.push('auction_date >= ?'); aucParams.push(startDate); }
-    if (endDate) { aucConds.push('auction_date <= ?'); aucParams.push(endDate); }
-    const aucWhere = aucConds.length ? `WHERE ${aucConds.join(' AND ')}` : '';
-    const [aucStatsRows] = await pool.query(`
-      SELECT 
-        COUNT(id) as totalAuctionsCount,
-        COALESCE(SUM(total_dividend), 0) as totalDividendsGenerated,
-        COALESCE(SUM(net_payable_amount), 0) as totalPrizeMoneyDisbursed
-      FROM auctions
-      ${aucWhere}
-    `, aucParams);
-    const auctionStats = aucStatsRows[0] || { totalAuctionsCount: 0, totalDividendsGenerated: 0, totalPrizeMoneyDisbursed: 0 };
+    let auctionStats = { totalAuctionsCount: 0, totalDividendsGenerated: 0, totalPrizeMoneyDisbursed: 0 };
+    if (!frequency || frequency === 'MONTHLY') {
+      const aucConds = [];
+      const aucParams = [];
+      if (groupId) { aucConds.push('group_id = ?'); aucParams.push(groupId); }
+      if (agentId) {
+        aucConds.push('group_id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ? AND is_active = 1)');
+        aucParams.push(agentId);
+      }
+      if (startDate) { aucConds.push('auction_date >= ?'); aucParams.push(startDate); }
+      if (endDate) { aucConds.push('auction_date <= ?'); aucParams.push(endDate); }
+      const aucWhere = aucConds.length ? `WHERE ${aucConds.join(' AND ')}` : '';
+      const [aucStatsRows] = await pool.query(`
+        SELECT 
+          COUNT(id) as totalAuctionsCount,
+          COALESCE(SUM(total_dividend), 0) as totalDividendsGenerated,
+          COALESCE(SUM(net_payable_amount), 0) as totalPrizeMoneyDisbursed
+        FROM auctions
+        ${aucWhere}
+      `, aucParams);
+      auctionStats = aucStatsRows[0] || auctionStats;
+    }
 
-    // 7. Recent Collections (Last 6 transactions)
-    const [recentCollections] = await pool.execute(`
+    // 7. Recent Collections - Dynamically respects filters
+    const [recentCollections] = await pool.query(`
       SELECT 
         c.id, c.receipt_number, c.amount, c.payment_method, c.collection_time, c.created_at,
         g.group_name, g.group_code, g.chit_type, g.frequency, g.route_category,
@@ -193,12 +267,21 @@ export async function getDashboardOverview(req, res, next) {
       JOIN chit_groups g ON c.group_id = g.id
       JOIN members m ON c.member_id = m.id
       JOIN users u ON c.agent_id = u.id
+      WHERE ${collConds.join(' AND ')}
       ORDER BY c.created_at DESC
-      LIMIT 6
-    `);
+      LIMIT 50
+    `, collParams);
 
-    // 8. Active Groups Overview
-    const [groupsList] = await pool.execute(`
+    // 8. Active Groups Overview - Dynamically respects filters
+    const groupListConds = ["g.status = 'ACTIVE'"];
+    const groupListParams = [];
+    if (groupId) { groupListConds.push('g.id = ?'); groupListParams.push(groupId); }
+    if (frequency) { groupListConds.push('g.frequency = ?'); groupListParams.push(frequency); }
+    if (agentId) {
+      groupListConds.push('g.id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ? AND is_active = 1)');
+      groupListParams.push(agentId);
+    }
+    const [groupsList] = await pool.query(`
       SELECT 
         g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
         g.location_name, g.installment_amount, g.total_pool_amount, g.status,
@@ -208,14 +291,28 @@ export async function getDashboardOverview(req, res, next) {
       LEFT JOIN group_memberships gm ON g.id = gm.group_id
       LEFT JOIN agent_group_assignments aga ON g.id = aga.group_id AND aga.is_active = 1
       LEFT JOIN users u ON aga.agent_id = u.id
-      WHERE g.status = 'ACTIVE'
+      WHERE ${groupListConds.join(' AND ')}
       GROUP BY g.id
       ORDER BY g.created_at DESC
-      LIMIT 8
-    `);
+      LIMIT 50
+    `, groupListParams);
 
-    // 9. Agent Today's Collection Status
-    const [agentsSummary] = await pool.execute(`
+    // 9. Agent Collection Status - Dynamically respects filters & date range
+    const agentSummaryConds = ["u.role = 'COLLECTION_AGENT'", "u.is_active = 1"];
+    const agentSummaryParams = [];
+    if (agentId) { agentSummaryConds.push('u.id = ?'); agentSummaryParams.push(agentId); }
+    if (groupId) {
+      agentSummaryConds.push('u.id IN (SELECT agent_id FROM agent_group_assignments WHERE group_id = ? AND is_active = 1)');
+      agentSummaryParams.push(groupId);
+    }
+    const agentCollDateCond = (startDate || endDate)
+      ? `${startDate ? 'c.collection_date >= ?' : '1=1'} AND ${endDate ? 'c.collection_date <= ?' : '1=1'}`
+      : 'c.collection_date = CURDATE()';
+    const agentDateParams = [];
+    if (startDate) agentDateParams.push(startDate);
+    if (endDate) agentDateParams.push(endDate);
+
+    const [agentsSummary] = await pool.query(`
       SELECT 
         u.id, u.full_name, u.username, u.phone,
         COALESCE(SUM(CASE WHEN c.payment_method = 'CASH' THEN c.amount ELSE 0 END), 0) as cashCollected,
@@ -223,14 +320,24 @@ export async function getDashboardOverview(req, res, next) {
         COALESCE(SUM(c.amount), 0) as totalCollected,
         COUNT(c.id) as collectionsCount
       FROM users u
-      LEFT JOIN collections c ON u.id = c.agent_id AND c.collection_date = CURDATE() AND c.verification_status != 'CANCELLED'
-      WHERE u.role = 'COLLECTION_AGENT' AND u.is_active = 1
+      LEFT JOIN collections c ON u.id = c.agent_id AND ${agentCollDateCond} AND c.verification_status != 'CANCELLED'
+      WHERE ${agentSummaryConds.join(' AND ')}
       GROUP BY u.id
       ORDER BY totalCollected DESC
-    `);
+    `, [...agentDateParams, ...agentSummaryParams]);
 
-    // 10. Recent Auctions
-    const [recentAuctions] = await pool.execute(`
+    // 10. Recent Auctions - Dynamically respects filters
+    const aucListConds = [];
+    const aucListParams = [];
+    if (groupId) { aucListConds.push('a.group_id = ?'); aucListParams.push(groupId); }
+    if (agentId) {
+      aucListConds.push('a.group_id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ? AND is_active = 1)');
+      aucListParams.push(agentId);
+    }
+    if (startDate) { aucListConds.push('a.auction_date >= ?'); aucListParams.push(startDate); }
+    if (endDate) { aucListConds.push('a.auction_date <= ?'); aucListParams.push(endDate); }
+    const aucListWhere = aucListConds.length ? `WHERE ${aucListConds.join(' AND ')}` : '';
+    const [recentAuctions] = await pool.query(`
       SELECT 
         a.id, a.period_number, a.draw_number, a.auction_type, a.bid_discount,
         a.total_dividend, a.dividend_per_member, a.net_payable_amount, a.auction_date, a.payout_status,
@@ -239,8 +346,9 @@ export async function getDashboardOverview(req, res, next) {
       FROM auctions a
       JOIN chit_groups g ON a.group_id = g.id
       JOIN members m ON a.winning_member_id = m.id
-      ORDER BY a.auction_date DESC, a.period_number DESC LIMIT 4
-    `);
+      ${aucListWhere}
+      ORDER BY a.auction_date DESC, a.period_number DESC LIMIT 20
+    `, aucListParams);
 
     res.status(200).json({
       success: true,

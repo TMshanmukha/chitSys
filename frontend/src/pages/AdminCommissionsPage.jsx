@@ -31,6 +31,7 @@ import {
   Filter,
   RotateCcw,
   Sliders,
+  Gavel,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
@@ -109,6 +110,22 @@ export default function AdminCommissionsPage() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const updateAnalyticsFilter = (key, value) => {
+    const updated = { ...analyticsFilters, [key]: value };
+    setAnalyticsFilters(updated);
+    setAuctionPage(1);
+    setPaymentPage(1);
+    loadData(true, updated);
+  };
+
+  const setQuickFrequency = (freq) => {
+    const updated = { ...analyticsFilters, frequency: freq };
+    setAnalyticsFilters(updated);
+    setAuctionPage(1);
+    setPaymentPage(1);
+    loadData(true, updated);
   };
 
   useEffect(() => {
@@ -359,13 +376,53 @@ export default function AdminCommissionsPage() {
           )}
         </div>
 
+        {/* Quick Frequency Filter Chips */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Quick Schemes:</span>
+          <button
+            type="button"
+            onClick={() => setQuickFrequency('')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              !analyticsFilters.frequency
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            All Schemes
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickFrequency('DAILY')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              analyticsFilters.frequency === 'DAILY'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 hover:bg-blue-100 border border-blue-200 dark:border-blue-900/40'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+            Daily Chits
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickFrequency('MONTHLY')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              analyticsFilters.frequency === 'MONTHLY'
+                ? 'bg-purple-600 text-white shadow-xs'
+                : 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-900/40'
+            }`}
+          >
+            <Gavel className="w-3.5 h-3.5 text-purple-500" />
+            Monthly Chits
+          </button>
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
             From Date
             <input
               type="date"
               value={analyticsFilters.startDate}
-              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, startDate: e.target.value }))}
+              onChange={(e) => updateAnalyticsFilter('startDate', e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
@@ -374,7 +431,7 @@ export default function AdminCommissionsPage() {
             <input
               type="date"
               value={analyticsFilters.endDate}
-              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, endDate: e.target.value }))}
+              onChange={(e) => updateAnalyticsFilter('endDate', e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
@@ -382,13 +439,13 @@ export default function AdminCommissionsPage() {
             Filter by Chit Scheme
             <select
               value={analyticsFilters.groupId}
-              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, groupId: e.target.value }))}
+              onChange={(e) => updateAnalyticsFilter('groupId', e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Chit Schemes</option>
               {(data.collectionFilters?.groups || []).map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name}
+                  {g.group_name} ({g.group_code})
                 </option>
               ))}
             </select>
@@ -397,7 +454,7 @@ export default function AdminCommissionsPage() {
             Collection Agent
             <select
               value={analyticsFilters.agentId}
-              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, agentId: e.target.value }))}
+              onChange={(e) => updateAnalyticsFilter('agentId', e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Field Agents</option>
@@ -412,7 +469,7 @@ export default function AdminCommissionsPage() {
             Frequency
             <select
               value={analyticsFilters.frequency}
-              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, frequency: e.target.value }))}
+              onChange={(e) => updateAnalyticsFilter('frequency', e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Frequencies</option>
@@ -424,7 +481,7 @@ export default function AdminCommissionsPage() {
             Payment Method
             <select
               value={analyticsFilters.paymentMethod}
-              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, paymentMethod: e.target.value }))}
+              onChange={(e) => updateAnalyticsFilter('paymentMethod', e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Payment Modes</option>

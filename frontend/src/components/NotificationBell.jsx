@@ -29,7 +29,11 @@ export default function NotificationBell() {
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const filteredList = notifications.filter((n) => {
@@ -107,9 +111,17 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* Popover Dropdown Drawer - 100% Solid Opaque Background */}
+      {/* Popover Dropdown Drawer - Mobile Safe Bounds, Solid Opaque Background */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl z-50 overflow-hidden animate-fadeIn">
+        <>
+          {/* Mobile Backdrop to prevent backdrop interactions and handle dismiss */}
+          <div
+            className="fixed inset-0 bg-slate-900/30 backdrop-blur-[2px] z-40 sm:hidden"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div className="fixed sm:absolute left-2.5 right-2.5 sm:left-auto sm:right-0 top-16 sm:top-full mt-2 sm:mt-3 w-auto sm:w-96 max-w-[calc(100vw-1.25rem)] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl z-50 overflow-hidden animate-fadeIn">
           {/* Header */}
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -256,6 +268,7 @@ export default function NotificationBell() {
             </button>
           </div>
         </div>
+        </>
       )}
     </div>
   );
