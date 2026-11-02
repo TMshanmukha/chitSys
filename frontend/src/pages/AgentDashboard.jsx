@@ -1884,7 +1884,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               </div>
 
               {/* Quick Credential Highlights */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-5 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 pt-5 text-xs">
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Assigned Routes</span>
                   <span className="text-lg font-black text-slate-900 dark:text-white">{routesData.groups.length} Active</span>
@@ -1934,13 +1934,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                     return (
                       <div
                         key={group.id}
-                        className={`p-3.5 rounded-2xl border transition-all space-y-2.5 ${
-                          stats.isDaily
-                            ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
-                            : stats.isDouble
-                            ? 'bg-purple-50/30 dark:bg-purple-950/20 border-purple-200 dark:border-purple-900/50'
-                            : 'bg-blue-50/30 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50'
-                        }`}
+                        className="p-3.5 sm:p-4 rounded-2xl border transition-all space-y-2.5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -1951,13 +1945,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                               </span>
                               <span className="font-mono text-[10px] text-slate-400">({group.group_code})</span>
                             </div>
-                            <span className={`inline-block px-2 py-0.5 mt-1 rounded text-[10px] font-bold ${
-                              stats.isDaily
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
-                                : stats.isDouble
-                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300'
-                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
-                            }`}>
+                            <span className="inline-block px-2 py-0.5 mt-1 rounded text-[10px] font-bold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                               {stats.isDaily ? 'Daily Chit' : stats.isDouble ? 'Double Chit' : 'Monthly Auction'} · ₹{Number(group.installment_amount).toLocaleString('en-IN')}/sub
                             </span>
                           </div>
@@ -2144,30 +2132,12 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                       <div
                         id={`chit-scheme-card-${group.id}`}
                         key={group.id}
-                        className={`rounded-3xl border transition-all duration-200 shadow-xs overflow-hidden scroll-mt-6 ${
-                          stats.isDaily
-                            ? 'bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/60'
-                            : stats.isDouble
-                            ? 'bg-white dark:bg-slate-900 border-purple-200 dark:border-purple-900/60'
-                            : 'bg-white dark:bg-slate-900 border-blue-200 dark:border-blue-900/60'
-                        }`}
+                        className="rounded-3xl border transition-all duration-200 shadow-2xs overflow-hidden scroll-mt-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
                       >
                         {/* Scheme Card Header with Unique Identity Branding */}
-                        <div className={`p-4 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3 ${
-                          stats.isDaily
-                            ? 'bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-950/40 dark:to-teal-950/20 border-emerald-100 dark:border-emerald-900/50'
-                            : stats.isDouble
-                            ? 'bg-gradient-to-r from-purple-50 to-pink-50/50 dark:from-purple-950/40 dark:to-pink-950/20 border-purple-100 dark:border-purple-900/50'
-                            : 'bg-gradient-to-r from-blue-50 to-indigo-50/50 dark:from-blue-950/40 dark:to-indigo-950/20 border-blue-100 dark:border-blue-900/50'
-                        }`}>
+                        <div className="p-4 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800">
                           <div className="flex items-center gap-3.5">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-black shrink-0 shadow-sm ${
-                              stats.isDaily
-                                ? 'bg-emerald-600 text-white'
-                                : stats.isDouble
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-blue-600 text-white'
-                            }`}>
+                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-black shrink-0 shadow-sm bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                               {stats.isDaily ? '🚚' : stats.isDouble ? '💎' : '🏛️'}
                             </div>
                             <div>
@@ -2176,13 +2146,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                   {group.group_name}
                                 </h4>
                                 <span className="font-mono text-xs text-slate-500 font-semibold">({group.group_code})</span>
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                  stats.isDaily
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300'
-                                    : stats.isDouble
-                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border border-purple-300'
-                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 border border-blue-300'
-                                }`}>
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                                   {stats.isDaily
                                     ? '🚚 DAILY CHIT SCHEME · EVERYDAY COLLECTION'
                                     : stats.isDouble

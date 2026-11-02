@@ -19,6 +19,7 @@ import ConfirmModal from './ConfirmModal';
 const AGENT_PAGE_TITLES = {
   '/agent/tasks': "Today's Route Tasks & Stops",
   '/agent/routes': 'Assigned Schemes & 2D Map',
+  '/agent/day-closing': 'Day Closing & Collections',
   '/agent/leaves': 'Leave Calendar & Coverage',
   '/agent/history': 'Receipts & Collection History',
   '/agent/profile': 'Agent Profile & Route Hub',
@@ -48,7 +49,7 @@ export default function AgentLayout() {
       {/* Main Body Area */}
       <div className="lg:pl-72 flex flex-col flex-1 relative z-10 transition-all">
         {/* Floating Top Navbar Island */}
-        <header className="sticky top-3 z-30 mx-3 sm:mx-6 flex items-center justify-between h-16 px-4 sm:px-6 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/60 dark:border-slate-800/60 text-slate-800 dark:text-slate-100 transition-all shadow-[0_8px_30px_rgba(0,0,0,0.04)] mb-4">
+        <header className="sticky top-3 z-30 mx-2 sm:mx-6 flex items-center justify-between h-14 sm:h-16 px-3 sm:px-6 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/60 dark:border-slate-800/60 text-slate-800 dark:text-slate-100 transition-all shadow-[0_8px_30px_rgba(0,0,0,0.04)] mb-4">
           {/* Left: Mobile hamburger & Page Title */}
           <div className="flex items-center gap-3">
             <button
@@ -63,7 +64,7 @@ export default function AgentLayout() {
 
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight font-heading truncate max-w-[200px] sm:max-w-none">
+                <h1 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight font-heading truncate max-w-[130px] sm:max-w-none text-xs sm:text-base">
                   {currentTitle}
                 </h1>
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
@@ -77,7 +78,7 @@ export default function AgentLayout() {
           </div>
 
           {/* Right Action Island */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Quick Link to Leave Calendar */}
             <Link
               to="/agent/leaves"

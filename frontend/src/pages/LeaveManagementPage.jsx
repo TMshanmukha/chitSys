@@ -21,6 +21,8 @@ import {
   RotateCcw,
   Sparkles,
   RefreshCw,
+  Star,
+  Award,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
@@ -104,6 +106,31 @@ export default function LeaveManagementPage() {
     ];
   }, [month]);
 
+  // Selected Agent and Enrolment / Joining Date
+  const selectedAgent = useMemo(() => {
+    if (admin) {
+      if (filterAgent !== 'ALL') {
+        return usersList.find((u) => String(u.id) === String(filterAgent)) || null;
+      }
+      return null;
+    }
+    return user;
+  }, [admin, filterAgent, usersList, user]);
+
+  const joiningDate = useMemo(() => {
+    if (selectedAgent?.created_at) {
+      return String(selectedAgent.created_at).slice(0, 10);
+    }
+    if (admin && filterAgent === 'ALL' && usersList.length > 0) {
+      const dates = usersList
+        .filter((u) => u.role === 'COLLECTION_AGENT' && u.created_at)
+        .map((u) => String(u.created_at).slice(0, 10))
+        .sort();
+      if (dates.length > 0) return dates[0];
+    }
+    return user?.created_at ? String(user.created_at).slice(0, 10) : '2026-10-31';
+  }, [selectedAgent, admin, filterAgent, usersList, user]);
+
   // Dynamic Multi-Factor Filtered Leaves
   const filteredLeaves = useMemo(() => {
     return leaves.filter((l) => {
@@ -135,7 +162,7 @@ export default function LeaveManagementPage() {
 
   const statusFor = (date) => filteredLeaves.filter((l) => String(l.leave_date).slice(0, 10) === date);
 
-  // Dynamic KPI Metrics
+  // Dynamic KPI Metrics (Only count from joining date onwards)
   const pendingApprovalsCount = useMemo(
     () => filteredLeaves.filter((l) => l.status === 'PENDING').length,
     [filteredLeaves]
@@ -147,13 +174,14 @@ export default function LeaveManagementPage() {
   const workingDaysInMonth = useMemo(() => {
     return days.filter((d) => {
       if (!d) return false;
-      if (d > todayYmd) return false;
+      if (d < joiningDate) return false; // Prior to joining: never counted as working
+      if (d > todayYmd) return false;    // Future dates: not counted yet
       const isApprovedLeave = filteredLeaves.some(
         (l) => String(l.leave_date).slice(0, 10) === d && l.status === 'APPROVED'
       );
       return !isApprovedLeave;
     }).length;
-  }, [days, todayYmd, filteredLeaves]);
+  }, [days, joiningDate, todayYmd, filteredLeaves]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -237,40 +265,44 @@ export default function LeaveManagementPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12 font-sans">
+    <div className="space-y-4 sm:space-y-6 animate-fadeIn pb-12 font-sans px-1 sm:px-0">
       {/* Page Header */}
-      <header className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3.5 rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 shadow-sm">
-            <Palmtree className="w-6 h-6" />
+      <header className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 shadow-sm shrink-0">
+            <Palmtree className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white font-heading truncate">
               {admin ? 'Field Agent Leaves & Route Coverage Hub' : 'My Leave Calendar & Route Coverage'}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
               {admin
-                ? 'Review leave requests, assign temporary route coverage to other agents or administrators, and monitor task completion.'
-                : 'Apply for single-day or date-range leaves. View calendar availability, approval status, and temporary task coverage.'}
+                ? 'Review leave requests, assign temporary coverage, and track attendance.'
+                : 'Apply for time-off, view attendance history and temporary task coverage.'}
             </p>
           </div>
         </div>
 
-        {/* Legend Pills */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800">
+        {/* Legend Pills: Clear Meanings */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Green: Working / Present
+            Green: Worked / Working
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800">
             <span className="w-2 h-2 rounded-full bg-rose-500" />
-            Red: Approved Leave
+            Red: Absent (Leave)
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold border border-amber-300 dark:border-amber-800">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold border border-amber-300 dark:border-amber-800">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
-            Amber: Awaiting Approval
+            Amber: Pending Leave
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-bold border border-slate-300 dark:border-slate-700 shadow-xs">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-bold border border-blue-300 dark:border-blue-800">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            Blue: Joined Date ★
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-bold border border-slate-300 dark:border-slate-700 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-500" />
             White: Future / Upcoming
           </span>
@@ -282,7 +314,7 @@ export default function LeaveManagementPage() {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 font-heading">
             <Filter className="w-4 h-4 text-emerald-600" />
-            <span>Multi-Factor Calendar & Coverage Filters</span>
+            <span>Attendance & Coverage Filters</span>
           </div>
           <button
             type="button"
@@ -295,10 +327,10 @@ export default function LeaveManagementPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          {/* Agent Picker Filter */}
+          {/* Agent Filter */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-              Field Agent Filter
+              Field Agent
             </label>
             {admin ? (
               <select
@@ -322,7 +354,7 @@ export default function LeaveManagementPage() {
             )}
           </div>
 
-          {/* Chit Scheme Picker Filter */}
+          {/* Chit Scheme Route */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
               Chit Scheme Route
@@ -335,13 +367,13 @@ export default function LeaveManagementPage() {
               <option value="ALL">All Chit Schemes</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.group_code}) · {g.frequency}
+                  {g.group_name} ({g.group_code})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Status Picker Filter */}
+          {/* Status Filter */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
               Attendance / Leave Status
@@ -352,33 +384,33 @@ export default function LeaveManagementPage() {
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="ALL">All Statuses</option>
-              <option value="WORKING">Present / Working Days Only</option>
+              <option value="WORKING">Worked / Working Days Only</option>
               <option value="APPROVED">Approved Leave (Red) Only</option>
               <option value="PENDING">Pending Approval (Amber) Only</option>
             </select>
           </div>
 
-          {/* Quick Month Navigator */}
+          {/* Month Navigator */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
               Month / Year
             </label>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Previous Month"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="flex-1 text-center py-2 px-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-white font-heading truncate">
+              <div className="flex-1 text-center py-2 px-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-white font-heading truncate text-xs">
                 {month.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
               </div>
               <button
                 type="button"
                 onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Next Month"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -386,7 +418,7 @@ export default function LeaveManagementPage() {
               <button
                 type="button"
                 onClick={() => setMonth(new Date())}
-                className="px-2.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Current Month"
               >
                 Today
@@ -398,16 +430,16 @@ export default function LeaveManagementPage() {
 
       {/* Status Notice Alert */}
       {message && (
-        <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 text-blue-800 dark:text-blue-200 text-sm font-semibold flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2">
+        <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 text-blue-800 dark:text-blue-200 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2 min-w-0">
             <AlertCircle className="w-5 h-5 shrink-0 text-blue-600" />
-            <span>{message}</span>
+            <span className="break-words">{message}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => refresh(true)}
-              className="px-3 py-1 rounded-lg bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 text-blue-800 dark:text-blue-100 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+              className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 text-blue-800 dark:text-blue-100 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
             >
               <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
               <span>Retry</span>
@@ -423,10 +455,10 @@ export default function LeaveManagementPage() {
         </div>
       )}
 
-      {/* Main Grid: Calendar View & Apply Leave Form / Admin Stats */}
-      <div className="grid lg:grid-cols-[1.25fr_.75fr] gap-6">
+      {/* Main Grid: Calendar View & Apply Leave Form */}
+      <div className="grid lg:grid-cols-[1.25fr_.75fr] gap-4 sm:gap-6">
         {/* Calendar View Card */}
-        <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+        <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <button
               type="button"
@@ -436,8 +468,8 @@ export default function LeaveManagementPage() {
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2 font-heading">
-              <CalendarDays className="w-5 h-5 text-emerald-600" />
+            <h2 className="text-sm sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2 font-heading">
+              <CalendarDays className="w-5 h-5 text-emerald-600 shrink-0" />
               <span>{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
             </h2>
             <button
@@ -451,19 +483,19 @@ export default function LeaveManagementPage() {
           </div>
 
           {/* Days of Week Header */}
-          <div className="grid grid-cols-7 text-center text-xs font-bold uppercase text-slate-400 font-heading">
+          <div className="grid grid-cols-7 text-center text-[10px] sm:text-xs font-bold uppercase text-slate-400 font-heading">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-              <div key={d} className="py-2">
+              <div key={d} className="py-1 sm:py-2">
                 {d}
               </div>
             ))}
           </div>
 
           {/* Calendar Grid Cells */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {days.map((date, i) => {
               if (!date) {
-                return <div key={`blank-${i}`} className="min-h-16 sm:min-h-20 rounded-2xl bg-transparent" />;
+                return <div key={`blank-${i}`} className="min-h-14 sm:min-h-20 rounded-2xl bg-transparent" />;
               }
 
               const items = statusFor(date);
@@ -471,43 +503,92 @@ export default function LeaveManagementPage() {
               const pending = items.some((x) => x.status === 'PENDING');
               const isFuture = date > todayYmd;
               const isToday = date === todayYmd;
-
-              // Handle filterStatus visual highlighting
-              if (filterStatus === 'APPROVED' && !approved) {
-                // Dim non-approved cells
-              }
+              const isJoiningDate = date === joiningDate;
+              const isBeforeJoining = date < joiningDate;
+              const isPastActiveDay = date >= joiningDate && date < todayYmd;
 
               let cellClass = '';
+              let badgeElement = null;
+
               if (approved) {
+                // Approved Leave: Always Red
                 cellClass =
                   'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200 border-rose-300 dark:border-rose-800 shadow-xs ring-1 ring-rose-400/30';
+                badgeElement = (
+                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100 truncate">
+                    Leave
+                  </span>
+                );
               } else if (pending) {
+                // Pending Leave: Always Amber
                 cellClass =
                   'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 border-amber-300 dark:border-amber-800 shadow-xs ring-1 ring-amber-400/30';
-              } else if (isFuture) {
-                // Clean WHITE styling for future dates (no green, no clutter)
+                badgeElement = (
+                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 truncate">
+                    Pending
+                  </span>
+                );
+              } else if (isJoiningDate) {
+                // Joining Date: Special blue highlight
                 cellClass =
-                  'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700';
-              } else {
-                // Past or today working day is GREEN
+                  'bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200 border-blue-300 dark:border-blue-800 shadow-xs ring-1 ring-blue-400/30';
+                badgeElement = (
+                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-100 truncate">
+                    Joined ★
+                  </span>
+                );
+              } else if (isBeforeJoining) {
+                // PRIOR TO JOINING: Neutral grey cell, NEVER GREEN!
+                cellClass =
+                  'bg-slate-50/50 text-slate-300 dark:bg-slate-900/20 dark:text-slate-600 border-slate-100 dark:border-slate-800/40';
+                badgeElement = (
+                  <span className="inline-block text-[9px] font-medium text-slate-300 dark:text-slate-600">
+                    -
+                  </span>
+                );
+              } else if (isToday) {
+                // Current Date: Active Working Day
+                cellClass =
+                  'bg-emerald-50/80 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800 shadow-xs outline-2 outline-blue-500/80 outline-offset-1';
+                badgeElement = (
+                  <span className="inline-block text-[8px] sm:text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                    Working
+                  </span>
+                );
+              } else if (isPastActiveDay) {
+                // Completed past day after joining: Marked as Worked
                 cellClass =
                   'bg-emerald-50/70 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200 border-emerald-200 dark:border-emerald-900/60 shadow-2xs';
+                badgeElement = (
+                  <span className="inline-block text-[8px] sm:text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                    Worked ✓
+                  </span>
+                );
+              } else {
+                // Future Date: Clean pure white, NO GREEN
+                cellClass =
+                  'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700';
+                badgeElement = (
+                  <span className="inline-block text-[8px] sm:text-[9px] font-medium text-slate-400 dark:text-slate-500 truncate">
+                    Upcoming
+                  </span>
+                );
               }
 
               return (
                 <div
                   key={date}
-                  className={`min-h-16 sm:min-h-20 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between transition-all border ${cellClass} ${
-                    isToday ? 'outline-2 outline-blue-500/80 outline-offset-1' : ''
-                  }`}
+                  className={`min-h-14 sm:min-h-20 rounded-2xl p-1.5 sm:p-2.5 flex flex-col justify-between transition-all border ${cellClass}`}
                   title={
-                    items.length > 0
-                      ? items
-                          .map((x) => `${x.agent_name || 'Agent'}: ${x.status} (${x.reason || 'No reason'})`)
-                          .join('\n')
+                    isBeforeJoining
+                      ? `${date}: Prior to agent joining (${joiningDate})`
+                      : items.length > 0
+                      ? items.map((x) => `${x.agent_name || 'Agent'}: ${x.status} (${x.reason || 'No reason'})`).join('\n')
                       : isFuture
                       ? `${date}: Upcoming future date`
-                      : `${date}: Working / Present day`
+                      : isToday
+                      ? `${date}: Today's active duty shift (Working)`
+                      : `${date}: Completed duty day (Worked)`
                   }
                 >
                   <div className="flex items-center justify-between">
@@ -516,35 +597,14 @@ export default function LeaveManagementPage() {
                     </span>
                     {approved && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
                     {pending && <span className="w-2 h-2 rounded-full bg-amber-500" />}
-                    {!approved && !pending && !isFuture && (
+                    {isJoiningDate && <span className="w-2 h-2 rounded-full bg-blue-500" />}
+                    {!approved && !pending && !isJoiningDate && (isToday || isPastActiveDay) && (
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    )}
-                    {isToday && (
-                      <span className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950 px-1 rounded">
-                        Today
-                      </span>
                     )}
                   </div>
 
-                  <div className="mt-1">
-                    {approved ? (
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100">
-                        Leave
-                      </span>
-                    ) : pending ? (
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100">
-                        Pending
-                      </span>
-                    ) : isFuture ? (
-                      // Clean white future cell with no green text
-                      <span className="inline-block text-[9px] font-medium text-slate-400 dark:text-slate-500">
-                        Upcoming
-                      </span>
-                    ) : (
-                      <span className="inline-block text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
-                        Working ✓
-                      </span>
-                    )}
+                  <div className="mt-1 truncate">
+                    {badgeElement}
                   </div>
                 </div>
               );
@@ -552,54 +612,62 @@ export default function LeaveManagementPage() {
           </div>
         </section>
 
-        {/* Right Column: Apply Leave Form (for Agent) OR Quick Stats (for Admin) */}
+        {/* Right Column: Apply Leave Form (Agent) OR Admin Overview */}
         {!admin ? (
-          <div className="space-y-6">
-            {/* Dynamic Filter-Aware Agent Counts */}
-            <div className="grid grid-cols-3 gap-2.5">
-              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
-                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
+          <div className="space-y-4 sm:space-y-6">
+            {/* Dynamic Filter-Aware Counters */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block truncate">
                   Pending
                 </span>
-                <span className="text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5 block font-heading">
+                <span className="text-lg sm:text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5 block font-heading truncate">
                   {pendingApprovalsCount}
                 </span>
               </div>
-              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
-                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
-                  Approved
+              <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
+                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block truncate">
+                  Leaves
                 </span>
-                <span className="text-xl font-black text-rose-700 dark:text-rose-300 mt-0.5 block font-heading">
+                <span className="text-lg sm:text-xl font-black text-rose-700 dark:text-rose-300 mt-0.5 block font-heading truncate">
                   {approvedLeavesCount}
                 </span>
               </div>
-              <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
+              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block truncate">
                   Worked
                 </span>
-                <span className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 block font-heading">
+                <span className="text-lg sm:text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 block font-heading truncate">
                   {workingDaysInMonth} Days
                 </span>
               </div>
             </div>
 
+            {/* Enrolment Date Notice */}
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between gap-2">
+              <span className="font-semibold">Joined / Enrolled Date:</span>
+              <span className="font-black text-blue-600 dark:text-blue-400 font-mono">
+                {label(joiningDate)}
+              </span>
+            </div>
+
             {/* Apply Leave Form */}
             <form
               onSubmit={submit}
-              className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 flex flex-col justify-between"
+              className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-sm space-y-3.5 flex flex-col justify-between"
             >
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Palmtree className="w-5 h-5 text-emerald-600" />
+                <div className="flex items-center gap-2 mb-2">
+                  <Palmtree className="w-5 h-5 text-emerald-600 shrink-0" />
                   <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
                     Request Time Off / Leave
                   </h2>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                  Select a single date or date range. Your leave request will notify the administrator for approval and route coverage.
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                  Select a single date or date range. Your leave will be submitted for Admin approval.
                 </p>
 
-                <div className="space-y-3.5">
+                <div className="space-y-3">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     From Date *
                     <input
@@ -615,7 +683,7 @@ export default function LeaveManagementPage() {
                   </label>
 
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Through Date (Same for single day) *
+                    Through Date *
                     <input
                       required
                       type="date"
@@ -627,13 +695,13 @@ export default function LeaveManagementPage() {
                   </label>
 
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Reason / Handover Note (Optional)
+                    Reason / Note (Optional)
                     <textarea
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                       maxLength={500}
-                      rows={3}
-                      placeholder="Provide context for your leave request (medical, emergency, personal)..."
+                      rows={2}
+                      placeholder="Medical, personal, emergency note..."
                       className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs font-normal dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
                     />
                   </label>
@@ -646,62 +714,55 @@ export default function LeaveManagementPage() {
                 className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white p-3 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
               >
                 <Send className="w-4 h-4" />
-                <span>{busy ? 'Submitting Leave Request...' : 'Submit Leave Request'}</span>
+                <span>{busy ? 'Submitting Leave...' : 'Submit Leave Request'}</span>
               </button>
             </form>
           </div>
         ) : (
-          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck className="w-5 h-5 text-blue-600" />
+              <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
               <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
                 Admin Leave Administration
               </h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              When an agent applies for leave, an approval request is triggered. If unapproved, tasks remain with that agent.
-              When approved, you must assign the absent agent's route stops to another active field agent or cover them as administrator.
+              When an agent requests leave, approve and assign absent route stops to covering field agents.
             </p>
 
-            <div className="grid grid-cols-3 gap-2.5 pt-2">
-              <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900">
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
-                  Pending Approvals
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900">
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block truncate">
+                  Pending
                 </span>
-                <span className="text-xl font-black text-blue-700 dark:text-blue-300 mt-1 block font-heading">
+                <span className="text-lg sm:text-xl font-black text-blue-700 dark:text-blue-300 mt-0.5 block font-heading truncate">
                   {pendingApprovalsCount}
                 </span>
               </div>
-              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
-                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
-                  Approved Leaves
+              <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
+                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block truncate">
+                  Approved
                 </span>
-                <span className="text-xl font-black text-rose-700 dark:text-rose-300 mt-1 block font-heading">
+                <span className="text-lg sm:text-xl font-black text-rose-700 dark:text-rose-300 mt-0.5 block font-heading truncate">
                   {approvedLeavesCount}
                 </span>
               </div>
-              <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
-                  Month Working
+              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block truncate">
+                  Worked
                 </span>
-                <span className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-1 block font-heading">
+                <span className="text-lg sm:text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 block font-heading truncate">
                   {workingDaysInMonth} Days
                 </span>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
-              <span className="font-bold block text-slate-800 dark:text-slate-200">
-                Active Filter Summary:
-              </span>
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
               <div>
-                Agent: <strong className="text-slate-900 dark:text-white">{filterAgent === 'ALL' ? 'All Agents' : usersList.find(u => String(u.id) === String(filterAgent))?.full_name || filterAgent}</strong>
+                Selected Agent Enrolment: <strong className="text-blue-600 dark:text-blue-400 font-mono">{label(joiningDate)}</strong>
               </div>
               <div>
-                Chit: <strong className="text-slate-900 dark:text-white">{filterGroup === 'ALL' ? 'All Schemes' : groups.find(g => String(g.id) === String(filterGroup))?.group_name || filterGroup}</strong>
-              </div>
-              <div>
-                Status: <strong className="text-slate-900 dark:text-white">{filterStatus}</strong>
+                Filtering Agent: <strong className="text-slate-900 dark:text-white">{filterAgent === 'ALL' ? 'All Agents' : usersList.find(u => String(u.id) === String(filterAgent))?.full_name || filterAgent}</strong>
               </div>
             </div>
           </div>
@@ -709,8 +770,8 @@ export default function LeaveManagementPage() {
       </div>
 
       {/* Leave Requests & Review Section */}
-      <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
-        <h2 className="text-lg font-black text-slate-900 dark:text-white font-heading">
+      <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-sm space-y-4">
+        <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
           {admin ? 'Leave Approval Requests & Route Coverage Assignments' : 'My Leave Requests & Status'}
         </h2>
 
@@ -753,7 +814,6 @@ export default function LeaveManagementPage() {
                     </span>
                   </div>
 
-                  {/* Admin Route Coverage Picker */}
                   {admin && (l.status === 'PENDING' || l.status === 'APPROVED') && (
                     <div className="mt-4 pt-2 space-y-3">
                       <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
@@ -810,7 +870,7 @@ export default function LeaveManagementPage() {
                         })
                       )}
 
-                      <div className="flex items-center gap-2 pt-2">
+                      <div className="flex items-center gap-2 pt-2 flex-wrap">
                         {l.status === 'PENDING' && (
                           <>
                             <button
@@ -855,12 +915,12 @@ export default function LeaveManagementPage() {
       </section>
 
       {/* Coverage Task History & Verification Roster */}
-      <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+      <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-2.5">
-            <ClipboardCheck className="w-6 h-6 text-blue-600" />
+            <ClipboardCheck className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 shrink-0" />
             <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white font-heading">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
                 Coverage Task Accounting & Collector History
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -875,7 +935,7 @@ export default function LeaveManagementPage() {
               type="text"
               value={searchHistory}
               onChange={(e) => setSearchHistory(e.target.value)}
-              placeholder="Search by agent, scheme, date..."
+              placeholder="Search agent, scheme, date..."
               className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
           </div>
@@ -896,13 +956,12 @@ export default function LeaveManagementPage() {
                 key={`${row.leave_id}-${row.group_id}-${i}`}
                 className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs space-y-0"
               >
-                {/* Banner Announcement */}
                 {isAbsentAgentViewing && (
                   <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 border-b border-indigo-200 dark:border-indigo-900 text-xs font-bold text-indigo-900 dark:text-indigo-200 flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5">
                       <span>📢</span>
                       <span>
-                        Your tasks on {label(row.leave_date)} were assigned to and covered by{' '}
+                        Your tasks on {label(row.leave_date)} were covered by{' '}
                         <strong>{row.covering_agent_name}</strong>.
                       </span>
                     </span>
@@ -941,7 +1000,6 @@ export default function LeaveManagementPage() {
                   </div>
                 )}
 
-                {/* Header Info */}
                 <div className="p-4 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <div className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base font-heading">
@@ -963,13 +1021,11 @@ export default function LeaveManagementPage() {
                   </div>
                 </div>
 
-                {/* Columns: Completed Tasks vs Remaining Tasks */}
                 <div className="p-4 grid md:grid-cols-2 gap-4">
-                  {/* Left Column: Completed Collections */}
                   <div className="space-y-2">
                     <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1 font-heading">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Completed Tasks · Recorded on Official Receipt</span>
+                      <span>Completed Tasks · Official Receipts</span>
                     </div>
 
                     <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
@@ -989,11 +1045,10 @@ export default function LeaveManagementPage() {
                     </div>
                   </div>
 
-                  {/* Right Column: Pending Remaining Stops */}
                   <div className="space-y-2">
                     <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1 font-heading">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Still Pending / Unpaid Stops</span>
+                      <span>Pending Unpaid Stops</span>
                     </div>
 
                     <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
@@ -1011,7 +1066,7 @@ export default function LeaveManagementPage() {
                                 {task.paid_so_far > 0
                                   ? `₹${task.paid_so_far.toLocaleString('en-IN')} received, ₹${task.remaining_due.toLocaleString('en-IN')} due`
                                   : `₹${task.remaining_due.toLocaleString('en-IN')} due`}
-                                {task.recorded_by ? ` · Recorded by ${task.recorded_by}` : ''}
+                                {task.recorded_by ? ` · By ${task.recorded_by}` : ''}
                               </span>
                             </div>
 
@@ -1020,7 +1075,7 @@ export default function LeaveManagementPage() {
                                 className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline shrink-0 cursor-pointer"
                                 href={`/admin/collections?group_id=${row.group_id}&member_id=${task.member_id}&collection_date=${String(row.leave_date).slice(0, 10)}&amount=${task.remaining_due}&absent_agent=${encodeURIComponent(row.absent_agent_name)}`}
                               >
-                                <span>Record Admin Collection</span>
+                                <span>Record Collection</span>
                                 <ArrowUpRight className="w-3 h-3" />
                               </a>
                             )}
