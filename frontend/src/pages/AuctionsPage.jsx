@@ -1551,15 +1551,153 @@ export default function AuctionsPage() {
             )}
 
             <form onSubmit={handleConductAuction} className="space-y-5">
-              {/* Group Selector */}
+              {/* Group Selector with Premium Styled Dropdown */}
               <div>
-                <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-2 font-heading">
-                  Select Chit Scheme (Daily / Monthly) *
+                <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-2 font-heading flex items-center justify-between">
+                  <span>Select Chit Scheme (Daily / Monthly) *</span>
+                  <span className="text-xs font-normal text-slate-400">
+                    {groups.length} eligible schemes available
+                  </span>
                 </label>
-                <button type="button" onClick={() => setShowAuctionGroupPicker((open) => !open)} className="w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-left hover:border-blue-500 hover:ring-2 hover:ring-blue-100 dark:hover:ring-blue-950 transition-all">
-                  {selectedGroup ? <span className="flex flex-wrap items-center justify-between gap-2"><span><span className="block font-extrabold text-slate-900 dark:text-white">{selectedGroup.group_name}</span><span className="text-xs text-slate-500">{selectedGroup.group_code} · {selectedGroup.frequency} · {selectedGroup.chit_type === 'DOUBLE_CHIT' ? 'Double chit' : 'Auction chit'}</span></span><span className="text-right text-xs text-slate-500">Pool value<strong className="block text-sm text-emerald-600">₹{Number(selectedGroup.total_pool_amount).toLocaleString('en-IN')}</strong></span></span> : <span className="text-sm font-semibold text-slate-500">Choose a chit scheme to conduct its auction</span>}
+                <button
+                  type="button"
+                  onClick={() => setShowAuctionGroupPicker((open) => !open)}
+                  className={`w-full rounded-2xl border p-4 text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    showAuctionGroupPicker
+                      ? 'border-blue-600 ring-2 ring-blue-100 dark:ring-blue-950/80 bg-blue-50/30 dark:bg-blue-950/20'
+                      : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/90 hover:border-blue-400'
+                  }`}
+                >
+                  {selectedGroup ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2 flex-1 min-w-0">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                            {selectedGroup.group_name}
+                          </span>
+                          <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 font-bold text-slate-700 dark:text-slate-300">
+                            {selectedGroup.group_code}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            selectedGroup.frequency === 'DAILY' ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300' : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                          }`}>
+                            {selectedGroup.frequency === 'DAILY' ? 'Daily Chit' : 'Monthly Chit'}
+                          </span>
+                          <span>•</span>
+                          <span>{selectedGroup.chit_type === 'DOUBLE_CHIT' ? 'Double Chit Draw' : 'Standard Auction'}</span>
+                          <span>•</span>
+                          <span>Installment: ₹{Number(selectedGroup.installment_amount).toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[11px] text-slate-400 block uppercase tracking-wider font-semibold">Total Pool</span>
+                        <strong className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400">
+                          ₹{Number(selectedGroup.total_pool_amount).toLocaleString('en-IN')}
+                        </strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Layers className="w-5 h-5 text-blue-500" />
+                      <span className="text-sm font-semibold">Click to select chit scheme for reverse auction...</span>
+                    </div>
+                  )}
+                  <ChevronRight className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${showAuctionGroupPicker ? 'rotate-90' : ''}`} />
                 </button>
-                {showAuctionGroupPicker && <div className="mt-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden"><div className="p-3 border-b dark:border-slate-800"><input autoFocus value={auctionGroupSearch} onChange={e=>setAuctionGroupSearch(e.target.value)} placeholder="Search scheme name, code, frequency…" className="w-full rounded-xl border px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-700"/></div><div className="max-h-64 overflow-y-auto p-2 space-y-1">{groups.filter(g=>`${g.group_name} ${g.group_code} ${g.frequency} ${g.chit_type}`.toLowerCase().includes(auctionGroupSearch.toLowerCase())).map(g=><button key={g.id} type="button" onClick={()=>{setShowAuctionGroupPicker(false);setAuctionGroupSearch('');handleGroupChange(String(g.id));}} className={`w-full rounded-xl p-3 text-left hover:bg-blue-50 dark:hover:bg-blue-950/50 ${String(g.id)===String(form.group_id)?'bg-blue-50 dark:bg-blue-950/50':''}`}><span className="flex items-center justify-between gap-2"><span><strong className="block text-sm text-slate-900 dark:text-white">{g.group_name}</strong><span className="text-xs text-slate-500">{g.group_code} · {g.frequency} · {g.chit_type==='DOUBLE_CHIT'?'Double chit':'Auction chit'}</span></span><span className="text-right text-xs text-slate-500">Pool<strong className="block text-slate-800 dark:text-white">₹{Number(g.total_pool_amount).toLocaleString('en-IN')}</strong></span></span></button>)}{groups.filter(g=>`${g.group_name} ${g.group_code} ${g.frequency} ${g.chit_type}`.toLowerCase().includes(auctionGroupSearch.toLowerCase())).length===0&&<p className="p-4 text-center text-sm text-slate-500">No matching auction schemes.</p>}</div></div>}
+
+                {showAuctionGroupPicker && (
+                  <div className="mt-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden animate-fadeIn z-20">
+                    <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 flex items-center gap-2">
+                      <Search className="w-4 h-4 text-slate-400 ml-1" />
+                      <input
+                        autoFocus
+                        value={auctionGroupSearch}
+                        onChange={(e) => setAuctionGroupSearch(e.target.value)}
+                        placeholder="Search by scheme name, code (e.g. M-01), daily, or monthly..."
+                        className="w-full bg-transparent border-0 px-2 py-1 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none"
+                      />
+                      {auctionGroupSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setAuctionGroupSearch('')}
+                          className="text-xs text-slate-400 hover:text-slate-600 p-1"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-72 overflow-y-auto p-2 space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800/60">
+                      {groups
+                        .filter((g) =>
+                          `${g.group_name} ${g.group_code} ${g.frequency} ${g.chit_type}`
+                            .toLowerCase()
+                            .includes(auctionGroupSearch.toLowerCase())
+                        )
+                        .map((g) => {
+                          const isSelected = String(g.id) === String(form.group_id);
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => {
+                                setShowAuctionGroupPicker(false);
+                                setAuctionGroupSearch('');
+                                handleGroupChange(String(g.id));
+                              }}
+                              className={`w-full rounded-xl p-3 text-left transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <strong className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                                    {g.group_name}
+                                  </strong>
+                                  <span className="font-mono text-[11px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-300">
+                                    {g.group_code}
+                                  </span>
+                                  {isSelected && (
+                                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded">
+                                      Selected ✓
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                    g.frequency === 'DAILY' ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300' : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                                  }`}>
+                                    {g.frequency}
+                                  </span>
+                                  <span>{g.chit_type === 'DOUBLE_CHIT' ? 'Double Chit' : 'Auction Chit'}</span>
+                                  <span>·</span>
+                                  <span>Installment: ₹{Number(g.installment_amount).toLocaleString('en-IN')}</span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-[10px] text-slate-400 block font-semibold uppercase">Pool Amount</span>
+                                <strong className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                                  ₹{Number(g.total_pool_amount).toLocaleString('en-IN')}
+                                </strong>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      {groups.filter((g) =>
+                        `${g.group_name} ${g.group_code} ${g.frequency} ${g.chit_type}`
+                          .toLowerCase()
+                          .includes(auctionGroupSearch.toLowerCase())
+                      ).length === 0 && (
+                        <div className="p-6 text-center text-sm text-slate-500">
+                          No matching auction chit schemes found.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Scheme Details Banner */}

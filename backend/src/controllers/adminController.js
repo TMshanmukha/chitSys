@@ -636,13 +636,21 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
       profile = newProfile[0];
     }
 
-    // 2. Aggregate Foreman Commissions from Auctions
+    // 2. Aggregate Foreman Commissions from Auctions (with filtering by groupId and date range)
+    const auctionConditions = [];
+    const auctionParams = [];
+    if (groupId) { auctionConditions.push('a.group_id = ?'); auctionParams.push(groupId); }
+    if (startDate) { auctionConditions.push('a.auction_date >= ?'); auctionParams.push(startDate); }
+    if (endDate) { auctionConditions.push('a.auction_date <= ?'); auctionParams.push(endDate); }
+    const auctionWhereClause = auctionConditions.length ? `WHERE ${auctionConditions.join(' AND ')}` : '';
+
     const [commRows] = await pool.query(`
       SELECT 
         COALESCE(SUM(foreman_commission), 0) AS total_commission_earned,
         COUNT(*) AS total_auctions_conducted
-      FROM auctions
-    `);
+      FROM auctions a
+      ${auctionWhereClause}
+    `, auctionParams);
     const totalForemanCommission = parseFloat(commRows[0].total_commission_earned || 0);
     const totalAuctionsConducted = parseInt(commRows[0].total_auctions_conducted || 0, 10);
 
@@ -703,9 +711,10 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
       FROM auctions a
       JOIN chit_groups g ON a.group_id = g.id
       JOIN members m ON a.winning_member_id = m.id
+      ${auctionWhereClause}
       ORDER BY a.auction_date DESC, a.id DESC
       LIMIT 100
-    `);
+    `, auctionParams);
 
     // 7. Detailed Payments Got (Collections Ledger)
     const [paymentsLedger] = await pool.query(`
@@ -738,6 +747,13 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
     `);
 
     // 9. Admin Advances & Covered Dues Ledger (Amounts added by Admin during Auctions or Rounds)
+    const advancesConditions = [];
+    const advancesParams = [];
+    if (groupId) { advancesConditions.push('ama.group_id = ?'); advancesParams.push(groupId); }
+    if (startDate) { advancesConditions.push('ama.advance_date >= ?'); advancesParams.push(startDate); }
+    if (endDate) { advancesConditions.push('ama.advance_date <= ?'); advancesParams.push(endDate); }
+    const advancesWhereClause = advancesConditions.length ? `WHERE ${advancesConditions.join(' AND ')}` : '';
+
     const [advancesRows] = await pool.query(`
       SELECT 
         ama.id, ama.group_id, ama.member_id, ama.collection_id, ama.advance_amount,
@@ -752,9 +768,10 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
       JOIN members m ON ama.member_id = m.id
       LEFT JOIN group_memberships gm ON gm.group_id = ama.group_id AND gm.member_id = ama.member_id
       LEFT JOIN users u ON ama.created_by = u.id
+      ${advancesWhereClause}
       ORDER BY ama.advance_date DESC, ama.id DESC
       LIMIT 100
-    `);
+    `, advancesParams);
 
     const totalAdvancesAdded = advancesRows.reduce((s, a) => s + parseFloat(a.advance_amount || 0), 0);
     const pendingAdvancesAmount = advancesRows

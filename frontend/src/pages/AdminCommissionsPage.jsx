@@ -333,6 +333,135 @@ export default function AdminCommissionsPage() {
         </div>
       </div>
 
+      {/* Top Filter Bar: Interactive Chit & Analytics Filters */}
+      <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+              <Sliders className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-slate-900 dark:text-white text-base">
+                Interactive Chit & Multi-Factor Dashboard Filters
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Filter KPI metrics, foreman commissions, inflows, and ledger entries by chit, date range, or agent.
+              </p>
+            </div>
+          </div>
+          {Object.values(analyticsFilters).some(Boolean) && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+              Active Filter Applied
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+            From Date
+            <input
+              type="date"
+              value={analyticsFilters.startDate}
+              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, startDate: e.target.value }))}
+              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </label>
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+            To Date
+            <input
+              type="date"
+              value={analyticsFilters.endDate}
+              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, endDate: e.target.value }))}
+              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </label>
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+            Filter by Chit Scheme
+            <select
+              value={analyticsFilters.groupId}
+              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, groupId: e.target.value }))}
+              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Chit Schemes</option>
+              {(data.collectionFilters?.groups || []).map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.group_name} ({g.group_code})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+            Collection Agent
+            <select
+              value={analyticsFilters.agentId}
+              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, agentId: e.target.value }))}
+              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Field Agents</option>
+              {(data.collectionFilters?.agents || []).map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+            Frequency
+            <select
+              value={analyticsFilters.frequency}
+              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, frequency: e.target.value }))}
+              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Frequencies</option>
+              <option value="DAILY">Daily Route Chits</option>
+              <option value="MONTHLY">Monthly Auction Chits</option>
+            </select>
+          </label>
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+            Payment Method
+            <select
+              value={analyticsFilters.paymentMethod}
+              onChange={(e) => setAnalyticsFilters((f) => ({ ...f, paymentMethod: e.target.value }))}
+              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Payment Modes</option>
+              <option value="CASH">Cash (Field)</option>
+              <option value="UPI">UPI / QR Code</option>
+              <option value="BANK_TRANSFER">Bank Transfer (NEFT/IMPS)</option>
+              <option value="CHEQUE">Cheque / Draft</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => loadData(true, analyticsFilters)}
+            className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+          >
+            <Filter className="w-3.5 h-3.5" />
+            <span>Apply Analytics Filter</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const clear = { startDate: '', endDate: '', agentId: '', groupId: '', frequency: '', paymentMethod: '' };
+              setAnalyticsFilters(clear);
+              loadData(true, clear);
+            }}
+            className="rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset All Filters</span>
+          </button>
+          {analyticsFilters.groupId && (
+            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 ml-auto">
+              Viewing Chit: {data.collectionFilters?.groups?.find((g) => String(g.id) === String(analyticsFilters.groupId))?.group_name || analyticsFilters.groupId}
+            </span>
+          )}
+        </div>
+      </section>
+
       {/* 6 Real-time Database KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Metric 1: Total Foreman Commission Earned */}
@@ -585,18 +714,6 @@ export default function AdminCommissionsPage() {
       {/* SECTION 1: Full Admin Profile (Personal + System Overview) */}
       {activeSection === 'overview' && (
         <div className="space-y-6">
-        <section className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div><h2 className="font-extrabold text-slate-900 dark:text-white">Collection analytics filters</h2><p className="text-xs text-slate-500 mt-1">Filter totals across the full collection ledger. Leave a field blank to include all values.</p></div>
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-            <label className="text-xs font-semibold text-slate-500">From<input type="date" value={analyticsFilters.startDate} onChange={e=>setAnalyticsFilters(f=>({...f,startDate:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"/></label>
-            <label className="text-xs font-semibold text-slate-500">Through<input type="date" value={analyticsFilters.endDate} onChange={e=>setAnalyticsFilters(f=>({...f,endDate:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"/></label>
-            <label className="text-xs font-semibold text-slate-500">Agent<select value={analyticsFilters.agentId} onChange={e=>setAnalyticsFilters(f=>({...f,agentId:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"><option value="">All agents</option>{(data.collectionFilters?.agents||[]).map(a=><option key={a.id} value={a.id}>{a.full_name}</option>)}</select></label>
-            <label className="text-xs font-semibold text-slate-500">Chit / route<select value={analyticsFilters.groupId} onChange={e=>setAnalyticsFilters(f=>({...f,groupId:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"><option value="">All chits</option>{(data.collectionFilters?.groups||[]).map(g=><option key={g.id} value={g.id}>{g.group_name} ({g.group_code})</option>)}</select></label>
-            <label className="text-xs font-semibold text-slate-500">Frequency<select value={analyticsFilters.frequency} onChange={e=>setAnalyticsFilters(f=>({...f,frequency:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"><option value="">All</option><option value="DAILY">Daily</option><option value="MONTHLY">Monthly</option></select></label>
-            <label className="text-xs font-semibold text-slate-500">Payment method<select value={analyticsFilters.paymentMethod} onChange={e=>setAnalyticsFilters(f=>({...f,paymentMethod:e.target.value}))} className="mt-1 w-full rounded-lg border p-2 dark:bg-slate-800"><option value="">All methods</option><option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank transfer</option><option value="CHEQUE">Cheque</option></select></label>
-          </div>
-          <div className="flex gap-2"><button type="button" onClick={()=>loadData(true,analyticsFilters)} className="rounded-xl bg-blue-600 px-4 py-2 text-white text-sm font-bold">Apply filters</button><button type="button" onClick={()=>{const clear={startDate:'',endDate:'',agentId:'',groupId:'',frequency:'',paymentMethod:''};setAnalyticsFilters(clear);loadData(true,clear);}} className="rounded-xl border px-4 py-2 text-sm font-bold dark:border-slate-700">Clear all</button></div>
-        </section>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Personal Account Information */}
           <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
