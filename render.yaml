@@ -22,3 +22,4 @@ services:
         value: chitfund_db
       - key: DB_SSL
         value: "true"
+

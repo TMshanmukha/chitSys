@@ -783,7 +783,7 @@ export default function AuctionsPage() {
               )}
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.group_code}) — ₹{Number(g.total_pool_amount).toLocaleString('en-IN')} [{g.frequency === 'DAILY' ? 'Daily' : 'Monthly'}]
+                  {g.group_name} · ₹{Number(g.total_pool_amount).toLocaleString('en-IN')} Pool ({g.frequency === 'DAILY' ? 'Daily' : 'Monthly'})
                 </option>
               ))}
             </select>

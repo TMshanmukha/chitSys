@@ -243,6 +243,11 @@ export default function LeaveManagementPage() {
         .filter((x) => x.covering_agent_id);
 
       if (decision === 'APPROVED' && picks.length && list.length !== picks.length) {
+        setToast({
+          title: 'Route Coverage Required!',
+          message: 'Please assign all absent route tasks to an agent or administrator before approving this leave request.',
+          type: 'error',
+        });
         setMessage('Select a covering agent or administrator for each route before approving.');
         setBusy(false);
         return;
@@ -401,7 +406,7 @@ export default function LeaveManagementPage() {
               <option value="ALL">All Chit Schemes</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.group_code})
+                  {g.group_name}
                 </option>
               ))}
             </select>
@@ -858,7 +863,69 @@ export default function LeaveManagementPage() {
                       {eligibleGroups.length === 0 ? (
                         <p className="text-xs text-slate-400 italic">This agent has no active routes assigned.</p>
                       ) : (
-                        eligibleGroups.map((g) => {
+                        <>
+                          {eligibleGroups.length > 1 && (
+                            <div className="p-3.5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                <div>
+                                  <span className="text-xs font-bold text-slate-900 dark:text-white font-heading block">
+                                    Bulk Assign All Routes ({eligibleGroups.length} Routes)
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    Select one agent/admin to cover all chits of this absent agent at once
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <select
+                                  id={`bulk-assign-${l.id}`}
+                                  defaultValue=""
+                                  className="flex-1 sm:w-56 rounded-xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900 p-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="">-- Choose Covering Agent / Admin --</option>
+                                  {usersList
+                                    .filter((u) => u.id !== l.agent_id && (u.is_active === 1 || u.is_active === true))
+                                    .map((u) => (
+                                      <option key={u.id} value={u.id}>
+                                        {u.full_name} ({u.role === 'SUPER_ADMIN' || u.role === 'ADMIN' ? 'Admin' : 'Agent'})
+                                      </option>
+                                    ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const selectEl = document.getElementById(`bulk-assign-${l.id}`);
+                                    const targetId = selectEl?.value;
+                                    if (!targetId) {
+                                      setToast({
+                                        title: 'Select Agent',
+                                        message: 'Please choose an agent from the dropdown first to assign all routes.',
+                                        type: 'error',
+                                      });
+                                      return;
+                                    }
+                                    const updated = { ...assignments };
+                                    eligibleGroups.forEach((g) => {
+                                      updated[`${l.id}:${g.id}`] = targetId;
+                                    });
+                                    setAssignments(updated);
+                                    const targetUser = usersList.find((u) => String(u.id) === String(targetId));
+                                    setToast({
+                                      title: 'All Routes Assigned',
+                                      message: `Assigned all ${eligibleGroups.length} routes to ${targetUser?.full_name || 'selected user'}. You can now approve.`,
+                                      type: 'success',
+                                    });
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shrink-0 cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Assign All</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {eligibleGroups.map((g) => {
                           const current = coverage.find(
                             (c) => Number(c.leave_id) === Number(l.id) && Number(c.group_id) === Number(g.id)
                           );
@@ -874,7 +941,7 @@ export default function LeaveManagementPage() {
                             >
                               <div>
                                 <span className="font-extrabold text-slate-900 dark:text-white block font-heading">
-                                  {g.group_name} ({g.group_code})
+                                  {g.group_name}
                                 </span>
                                 <span className="text-[11px] text-slate-500 font-mono">
                                   Installment: ₹{Number(g.installment_amount).toLocaleString('en-IN')} · {g.frequency}
@@ -901,7 +968,8 @@ export default function LeaveManagementPage() {
                               </div>
                             </div>
                           );
-                        })
+                        })}
+                        </>
                       )}
 
                       <div className="flex items-center gap-2 pt-2 flex-wrap">
@@ -1037,7 +1105,7 @@ export default function LeaveManagementPage() {
                 <div className="p-4 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <div className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base font-heading">
-                      {row.group_name} <span className="font-mono text-xs text-slate-400">({row.group_code})</span>
+                      {row.group_name}
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       Absent Agent: <strong>{row.absent_agent_name}</strong> · Covering Handler:{' '}

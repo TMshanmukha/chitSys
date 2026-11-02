@@ -2640,7 +2640,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   <option value="">Select Chit Group Route</option>
                   {routesData.groups.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.group_name} ({g.group_code}) — ₹{g.installment_amount} {g.frequency === 'DAILY' ? '• Daily (Everyday)' : `• Monthly (Due: ${g.cycle_due || 'Anchor Date'})`}
+                      {g.group_name} · ₹{g.installment_amount} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
                     </option>
                   ))}
                 </select>

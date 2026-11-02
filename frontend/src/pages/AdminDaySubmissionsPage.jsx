@@ -253,7 +253,7 @@ export default function AdminDaySubmissionsPage() {
               <option value="ALL">All Chit Schemes</option>
               {groupsList.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.group_code})
+                  {g.group_name}
                 </option>
               ))}
             </select>

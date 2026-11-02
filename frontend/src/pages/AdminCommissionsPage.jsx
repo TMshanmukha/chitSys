@@ -388,7 +388,7 @@ export default function AdminCommissionsPage() {
               <option value="">All Chit Schemes</option>
               {(data.collectionFilters?.groups || []).map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.group_code})
+                  {g.group_name}
                 </option>
               ))}
             </select>

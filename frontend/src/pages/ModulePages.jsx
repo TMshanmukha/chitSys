@@ -2132,7 +2132,7 @@ export function AgentsPage() {
                   <option value="">-- Choose Chit Scheme Group --</option>
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.group_name} ({g.group_code}) [{g.frequency}] - {g.location_name || 'All Stops'}
+                      {g.group_name} · ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'} ({g.location_name || 'All Stops'})
                     </option>
                   ))}
                 </select>
@@ -2613,7 +2613,7 @@ export function MembersPage() {
                   <option value="">-- Choose Chit Scheme --</option>
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.group_name} ({g.group_code}) [{g.frequency}] — Installment: ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')}/{g.frequency === 'DAILY' ? 'day' : 'month'}
+                      {g.group_name} · ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
                     </option>
                   ))}
                 </select>
@@ -2860,7 +2860,7 @@ export function MembersPage() {
    4. COLLECTIONS & RECEIPT MANAGEMENT
    ========================================================================= */
 export function CollectionsPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [collections, setCollections] = useState([]);
   const [groups, setGroups] = useState([]);
   const [members, setMembers] = useState([]);
@@ -2920,7 +2920,8 @@ export function CollectionsPage() {
     if (!group || !member) return;
     setForm((current) => ({ ...current, group_id: String(groupId), member_id: String(memberId), amount: amount || String(group.installment_amount || ''), collection_date: date || current.collection_date, notes: `Admin collection for absent agent ${searchParams.get('absent_agent') || ''}`.trim() }));
     setShowModal(true);
-  }, [groups, members, searchParams]);
+    setSearchParams({}, { replace: true });
+  }, [groups, members, searchParams, setSearchParams]);
 
   const handleGroupSelect = (groupId) => {
     setForm((prev) => ({ ...prev, group_id: groupId }));
@@ -2941,6 +2942,7 @@ export function CollectionsPage() {
         setSuccess('Payment collected and recorded in MySQL!');
         setGeneratedReceipt(res.data.receipt);
         setShowModal(false);
+        setSearchParams({}, { replace: true });
         setForm({
           group_id: '',
           member_id: '',
@@ -3136,7 +3138,7 @@ export function CollectionsPage() {
                   <option value="">-- Choose Chit Scheme Group --</option>
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.group_name} ({g.group_code}) [{g.frequency}] — ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')}/{g.frequency === 'DAILY' ? 'day' : 'month'}
+                      {g.group_name} · ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
                     </option>
                   ))}
                 </select>
@@ -3155,7 +3157,7 @@ export function CollectionsPage() {
                   <option value="">-- Choose Enrolled Member --</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.full_name} ({m.phone}) - Code: {m.member_code}
+                      {m.full_name}{m.phone ? ` · ${m.phone}` : ''}
                     </option>
                   ))}
                 </select>

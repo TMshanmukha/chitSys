@@ -226,7 +226,7 @@ export default function AdminDashboard() {
               <option value="">All Chit Schemes</option>
               {(data?.availableFilters?.groups || data?.groupsList || []).map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.group_code})
+                  {g.group_name}
                 </option>
               ))}
             </select>
