@@ -72,11 +72,6 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(defaultTab || 'tasks'); // 'tasks' | 'routes' | 'profile' | 'history'
 
-  useEffect(() => {
-    if (defaultTab && defaultTab !== activeTab) {
-      setActiveTab(defaultTab);
-    }
-  }, [defaultTab]);
 
   const handleTabSwitch = (tab) => {
     setActiveTab(tab);
@@ -1084,7 +1079,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                       }`}
                       title="Collect from any assigned subscriber anytime (Flexible real-life mode)"
                     >
-                      🌐 All Assigned ({allAssignedTasks.length})
+                      🌐 All Assigned ({routesData.members?.length || 0})
                     </button>
                     <button
                       type="button"

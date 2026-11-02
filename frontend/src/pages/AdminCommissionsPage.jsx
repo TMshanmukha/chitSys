@@ -28,6 +28,9 @@ import {
   Layers,
   ArrowUpRight,
   Sparkles,
+  Filter,
+  RotateCcw,
+  Sliders,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';

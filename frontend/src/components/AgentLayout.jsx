@@ -12,11 +12,7 @@ import {
   Sun,
   Moon,
   LogOut,
-  Building2,
   CalendarDays,
-  PlusCircle,
-  Receipt,
-  PackageCheck,
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 
@@ -156,3 +152,4 @@ export default function AgentLayout() {
     </div>
   );
 }
+

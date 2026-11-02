@@ -8,14 +8,12 @@ import {
   CalendarDays,
   X,
   Building2,
-  Receipt,
   LogOut,
   Sun,
   Moon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useNotifications } from '../context/NotificationContext';
 
 const AGENT_NAV_ITEMS = [
   {
@@ -218,3 +216,4 @@ export default function AgentSidebar({ isOpen, onClose }) {
     </>
   );
 }
+

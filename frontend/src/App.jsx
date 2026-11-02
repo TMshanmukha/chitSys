@@ -85,11 +85,11 @@ export default function App() {
             >
               <Route index element={<Navigate to="/agent/tasks" replace />} />
               <Route path="dashboard" element={<Navigate to="/agent/tasks" replace />} />
-              <Route path="tasks" element={<AgentDashboard defaultTab="tasks" />} />
-              <Route path="routes" element={<AgentDashboard defaultTab="routes" />} />
+              <Route path="tasks" element={<AgentDashboard key="tasks" defaultTab="tasks" />} />
+              <Route path="routes" element={<AgentDashboard key="routes" defaultTab="routes" />} />
               <Route path="leaves" element={<LeaveManagementPage />} />
-              <Route path="history" element={<AgentDashboard defaultTab="history" />} />
-              <Route path="profile" element={<AgentDashboard defaultTab="profile" />} />
+              <Route path="history" element={<AgentDashboard key="history" defaultTab="history" />} />
+              <Route path="profile" element={<AgentDashboard key="profile" defaultTab="profile" />} />
             </Route>
 
             {/* 404 Route */}
