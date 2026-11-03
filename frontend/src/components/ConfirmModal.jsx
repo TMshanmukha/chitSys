@@ -83,16 +83,16 @@ export default function ConfirmModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-modal-title"
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn overflow-y-auto"
       onClick={() => {
         if (!isLoading) onClose();
       }}
     >
       <div
-        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-all transform animate-confirmScale"
+        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-all transform animate-confirmScale my-auto max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6">
+        <div className="p-6 flex-1 overflow-y-auto min-h-0">
           <div className="flex items-start gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${currentVariant.bgIcon}`}>
               <IconComponent className="w-6 h-6" />
@@ -131,7 +131,7 @@ export default function ConfirmModal({
         </div>
 
         {/* Modal Action Buttons */}
-        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3 shrink-0">
           <button
             type="button"
             id="confirm-modal-cancel-btn"

@@ -2645,7 +2645,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
         isOpen={showCollectModal}
         onClose={() => setShowCollectModal(false)}
       >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden my-auto max-h-[88vh] sm:max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -2662,7 +2662,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               </button>
             </div>
 
-            <form onSubmit={handleRecordCollection} className="p-4 sm:p-5 space-y-3.5">
+            <form onSubmit={handleRecordCollection} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="p-4 sm:p-5 space-y-3.5 flex-1 overflow-y-auto overscroll-contain">
               {collectError && (
                 <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900/50 text-red-700 dark:text-rose-300 text-xs">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
@@ -2903,12 +2904,14 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
+              </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              {/* Sticky Action Footer */}
+              <div className="p-3.5 sm:p-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-xs flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowCollectModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
