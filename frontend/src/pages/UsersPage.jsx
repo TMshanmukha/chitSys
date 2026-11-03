@@ -885,7 +885,7 @@ export default function UsersPage() {
                     if (!g) return null;
                     return (
                       <option key={g.id} value={g.id}>
-                        {g.group_name} ({g.group_code}) [{g.frequency}] · {g.chit_type?.replace(/_/g, ' ')} · {g.location_name}
+                        {g.group_name} · ₹{parseFloat(g.installment_amount || 0).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'} · {g.location_name || 'All Stops'}
                       </option>
                     );
                   })}

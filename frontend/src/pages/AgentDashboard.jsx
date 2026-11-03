@@ -789,41 +789,50 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
           </div>
         </div>
 
-        {/* Metrics Grid */}
+        {/* Metrics Grid - Responsive & Overflow Protected for Big Figures */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate">
               Today's Collections
             </span>
-            <div className="text-xl sm:text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">
+            <div
+              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 truncate font-mono tracking-tight"
+              title={`₹${Number(routesData.summary?.todayTotal || 0).toLocaleString('en-IN')}`}
+            >
               ₹{Number(routesData.summary?.todayTotal || 0).toLocaleString('en-IN')}
             </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-              <Receipt className="w-3 h-3 text-slate-400" />
-              <span>{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
+            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
+              <Receipt className="w-3 h-3 text-slate-400 shrink-0" />
+              <span className="truncate">{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate">
               Cash on Hand
             </span>
-            <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+            <div
+              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate font-mono tracking-tight"
+              title={`₹${Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}`}
+            >
               ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}
             </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">To reconcile with admin</span>
+            <span className="text-[11px] text-slate-400 mt-1 block truncate">To reconcile with admin</span>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
-            <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 block uppercase tracking-wider">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+            <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 block uppercase tracking-wider truncate">
               UPI / Digital Collected
             </span>
-            <div className="text-xl sm:text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-1">
+            <div
+              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-purple-600 dark:text-purple-400 mt-1 truncate font-mono tracking-tight"
+              title={`₹${Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}`}
+            >
               ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
             </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-              <CreditCard className="w-3 h-3 text-purple-500" />
-              <span>GPay, PhonePe & Netbanking</span>
+            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
+              <CreditCard className="w-3 h-3 text-purple-500 shrink-0" />
+              <span className="truncate">GPay, PhonePe & Netbanking</span>
             </div>
           </div>
 
@@ -831,17 +840,17 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             onClick={() => {
               handleTabSwitch('tasks');
             }}
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-blue-400 transition-colors"
+            className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-blue-400 transition-colors min-w-0 overflow-hidden flex flex-col justify-between"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate">
                 Today's Tasks
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 shrink-0">
                 {taskProgressPercent}%
               </span>
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">
+            <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-slate-900 dark:text-white mt-1 truncate font-mono">
               {completedTasksCount} / {totalTasksCount}
             </div>
             <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
@@ -856,21 +865,21 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             onClick={() => {
               handleTabSwitch('profile');
             }}
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-purple-400 transition-colors"
+            className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-purple-400 transition-colors min-w-0 overflow-hidden col-span-2 sm:col-span-1 flex flex-col justify-between"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate">
                 Assigned Routes
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                All Schemes Active
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 shrink-0">
+                Active
               </span>
             </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">
-              {activeProfileRoutes.length} <span className="text-xs font-semibold text-slate-400">Routes Assigned</span>
+            <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-slate-800 dark:text-slate-100 mt-1 truncate">
+              {activeProfileRoutes.length} <span className="text-xs font-semibold text-slate-400">Routes</span>
             </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">
-              {(routesData.summary?.dailyGroupsCount || 0)} Daily • {(routesData.summary?.monthlyGroupsCount || 0)} Monthly (Collect Anytime) →
+            <span className="text-[11px] text-slate-400 mt-1 block truncate">
+              {(routesData.summary?.dailyGroupsCount || 0)} Daily • {(routesData.summary?.monthlyGroupsCount || 0)} Monthly →
             </span>
           </div>
         </div>

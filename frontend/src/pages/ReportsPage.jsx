@@ -633,7 +633,7 @@ export default function ReportsPage() {
               <option value="ALL">All Chit Schemes & Routes</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.group_code}) — {g.chit_type === 'DAILY_CHIT' ? 'Daily Chit' : 'Monthly Chit'}
+                  {g.group_name} · ₹{parseFloat(g.installment_amount || 0).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
                 </option>
               ))}
             </select>

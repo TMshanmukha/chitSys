@@ -853,7 +853,7 @@ export default function AuctionsPage() {
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
                     Winner receives (<strong>Pool Amount − Bid Discount − Admin Commission</strong>).
-                    Admin receives <strong>5% commission on the chit value</strong>, which is deducted directly from the winner's prize.
+                    Admin receives <strong>5% commission strictly on the Winner Prize (Pool Amount − Bid Discount)</strong> (NOT on the full chit prize value), which is deducted directly from the winner's prize.
                     For Auction Chits, the full bid discount is divided equally among members and credited to their passbooks (reducing next installment).
                   </p>
                 </div>

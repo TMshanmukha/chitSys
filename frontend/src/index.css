@@ -538,3 +538,21 @@ input[type="number"] {
 
 
 
+
+/* Large numbers & financial figures protection against mobile overflow */
+.currency-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.num-adaptive {
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
