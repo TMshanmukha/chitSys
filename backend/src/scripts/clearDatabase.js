@@ -4,51 +4,60 @@ import { sslConfig } from '../config/db.js';
 import { logger } from '../utils/logger.js';
 import bcrypt from 'bcryptjs';
 
-const tablesToTruncate = [
-  'member_dividends',
-  'payouts',
-  'auctions',
-  'collections',
-  'agent_tracking_logs',
-  'route_stops',
-  'group_memberships',
-  'agent_group_assignments',
-  'chit_groups',
-  'members',
-  'cash_handovers',
-  'admin_commission_withdrawals',
-  'notifications',
-  'audit_logs',
-  'token_revocations',
-];
-
 async function purgeDatabase(connection, dbLabel) {
   logger.info(`🧹 Resetting database [${dbLabel}]...`);
 
   await connection.query('SET FOREIGN_KEY_CHECKS = 0');
 
-  for (const table of tablesToTruncate) {
-    try {
-      await connection.query(`TRUNCATE TABLE \`${table}\``);
-      logger.info(`  ✓ Truncated table: ${table}`);
-    } catch (err) {
-      logger.warn(`  ⚠️ Table ${table} truncate error: ${err.message}`);
+  // Discover all tables dynamically in this database
+  const [tableRows] = await connection.query('SHOW TABLES');
+  if (tableRows && tableRows.length > 0) {
+    const tableKey = Object.keys(tableRows[0])[0];
+    const allTables = tableRows.map((r) => r[tableKey]);
+
+    const preservedTables = new Set([
+      'schema_migrations',
+      'users',
+      'role_permissions',
+      'admin_personal_profiles',
+    ]);
+
+    for (const table of allTables) {
+      if (!preservedTables.has(table)) {
+        try {
+          await connection.query(`TRUNCATE TABLE \`${table}\``);
+          logger.info(`  ✓ Truncated table: ${table}`);
+        } catch (err) {
+          try {
+            await connection.query(`DELETE FROM \`${table}\``);
+            logger.info(`  ✓ Cleared rows from table: ${table}`);
+          } catch (delErr) {
+            logger.warn(`  ⚠️ Table ${table} clear warning: ${delErr.message}`);
+          }
+        }
+      }
     }
   }
 
-  // Delete non-admin users, keeping only the primary admin account
+  // Delete all non-admin users, keeping only the primary admin account
   await connection.query("DELETE FROM users WHERE username != 'admin'");
-  logger.info("  ✓ Deleted non-admin users. Retained primary admin user.");
+  logger.info("  ✓ Deleted non-admin users and agents. Retained primary admin user.");
 
-  // Verify admin user exists; if missing, seed standard admin account
+  // Ensure default admin user exists and reset password to 'admin'
+  const defaultHash = await bcrypt.hash('admin', 12);
   const [adminRows] = await connection.query("SELECT id, username, role FROM users WHERE username = 'admin' LIMIT 1");
   if (adminRows.length === 0) {
-    const defaultHash = await bcrypt.hash('admin', 12);
     await connection.query(
       "INSERT INTO users (id, full_name, username, password_hash, role, phone, is_active) VALUES (1, 'Administrator Foreman', 'admin', ?, 'SUPER_ADMIN', '9876543210', 1)",
       [defaultHash]
     );
-    logger.info("  ✓ Seeded default admin account (username: 'admin', role: 'SUPER_ADMIN')");
+    logger.info("  ✓ Seeded default admin account (username: 'admin', password: 'admin', role: 'SUPER_ADMIN')");
+  } else {
+    await connection.query(
+      "UPDATE users SET password_hash = ?, is_active = 1, role = 'SUPER_ADMIN', full_name = 'Administrator Foreman' WHERE username = 'admin'",
+      [defaultHash]
+    );
+    logger.info("  ✓ Reset admin account credentials to default (username: 'admin', password: 'admin')");
   }
 
   // Reset admin personal profile
@@ -95,14 +104,16 @@ async function purgeDatabase(connection, dbLabel) {
 
   // Verify final table row counts
   const [tables] = await connection.query('SHOW TABLES');
-  const tableKey = Object.keys(tables[0])[0];
-  const counts = {};
-  for (const t of tables) {
-    const tableName = t[tableKey];
-    const [c] = await connection.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
-    counts[tableName] = c[0].count;
+  if (tables && tables.length > 0) {
+    const tableKey = Object.keys(tables[0])[0];
+    const counts = {};
+    for (const t of tables) {
+      const tableName = t[tableKey];
+      const [c] = await connection.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
+      counts[tableName] = c[0].count;
+    }
+    logger.info(`✅ [${dbLabel}] Table counts after purge:`, counts);
   }
-  logger.info(`✅ [${dbLabel}] Table counts after purge:`, counts);
 }
 
 export async function clearAllDatabaseExceptAdmin() {
@@ -123,9 +134,10 @@ export async function clearAllDatabaseExceptAdmin() {
     }
   } catch (err) {
     logger.error(`❌ Failed to clear configured env database: ${err.message}`);
+    throw err;
   }
 
-  // 2. Also check if local MySQL on localhost:3306 has chitfund_db, and clear it as well
+  // 2. Also check if local MySQL on localhost:3306 has chitfund_db, and clear it as well if running
   const localPasswords = ['admin', 'root', '', 'password'];
   for (const pwd of localPasswords) {
     try {
@@ -143,11 +155,11 @@ export async function clearAllDatabaseExceptAdmin() {
         await connLocal.end();
       }
     } catch (_) {
-      // Try next password or local MySQL not running on this password
+      // Local MySQL not running on this password, continue
     }
   }
 
-  logger.info('🎉 Database purge completed across both Cloud and Local MySQL databases!');
+  logger.info('🎉 Database purge completed! Clean fresh slate initialized.');
 }
 
 if (process.argv[1]?.includes('clearDatabase.js')) {
