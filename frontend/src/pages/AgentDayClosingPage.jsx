@@ -27,6 +27,9 @@ export default function AgentDayClosingPage() {
   const [workDate, setWorkDate] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [unsubmittedDays, setUnsubmittedDays] = useState([]);
+  const [submittingAllDays, setSubmittingAllDays] = useState(false);
   const [data, setData] = useState(null);
   const [agentNotes, setAgentNotes] = useState('');
   const [error, setError] = useState('');
@@ -40,6 +43,14 @@ export default function AgentDayClosingPage() {
       setError('');
       setSuccessMsg('');
       const targetDate = date || workDate;
+
+      // Fetch unsubmitted past shifts
+      try {
+        const unres = await api.get('/agent/day-unsubmitted');
+        if (unres.data?.success) {
+          setUnsubmittedDays(unres.data.unsubmitted || []);
+        }
+      } catch (_) {}
 
       // Primary call to preview endpoint with fallback
       try {
@@ -85,10 +96,14 @@ export default function AgentDayClosingPage() {
     fetchDayData(workDate);
   }, [workDate]);
 
-  const handleSubmitDayWork = async (e) => {
+  const handleSubmitDayWork = (e) => {
     e?.preventDefault();
     if (submitting) return;
+    setShowConfirmModal(true);
+  };
 
+  const executeSubmitDayWork = async () => {
+    setShowConfirmModal(false);
     try {
       setSubmitting(true);
       setError('');
@@ -118,6 +133,40 @@ export default function AgentDayClosingPage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSubmitAllUnsubmittedDays = async () => {
+    if (!unsubmittedDays.length || submittingAllDays) return;
+    setSubmittingAllDays(true);
+    setError('');
+    setSuccessMsg('');
+    try {
+      let count = 0;
+      for (const item of unsubmittedDays) {
+        await api.post('/agent/day-submit', {
+          work_date: item.work_date,
+          agent_notes: `Submitted in batch for ${item.work_date}. Separate verified accounting ledger.`,
+        });
+        count++;
+      }
+      setToast({
+        title: 'All Shifts Submitted!',
+        message: `Successfully submitted ${count} previous day shifts for Admin verification.`,
+        type: 'success',
+      });
+      setSuccessMsg(`Successfully submitted ${count} previous day shifts for Admin verification.`);
+      await fetchDayData(workDate);
+    } catch (err) {
+      const errText = getFriendlyErrorMessage(err, 'Failed submitting past shifts. Please retry individually.');
+      setError(errText);
+      setToast({
+        title: 'Batch Submission Failed',
+        message: errText,
+        type: 'error',
+      });
+    } finally {
+      setSubmittingAllDays(false);
     }
   };
 
@@ -583,19 +632,7 @@ export default function AgentDayClosingPage() {
         </div>
 
         <form onSubmit={handleSubmitDayWork} className="space-y-4">
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <div>
-              <span className="font-bold text-amber-900 dark:text-amber-200 block">
-                Total Physical Cash to Hand Over:
-              </span>
-              <span className="text-[11px] text-amber-700 dark:text-amber-300">
-                Please match currency note bundles before handing over to the Admin.
-              </span>
-            </div>
-            <div className="text-xl sm:text-2xl font-black text-amber-700 dark:text-amber-300 font-heading">
-              ₹{Number(data?.cashCollected || 0).toLocaleString('en-IN')}
-            </div>
-          </div>
+
 
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -631,6 +668,63 @@ export default function AgentDayClosingPage() {
           </div>
         </form>
       </section>
+
+      {/* Confirmation Modal for Day Submit */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 animate-scaleUp">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 shrink-0">
+                <Send className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white font-heading">
+                  Confirm Day Closing & Cash Handover?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Date: <span className="font-bold text-slate-900 dark:text-white">{workDate}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-xs space-y-2">
+              <div className="flex items-baseline justify-between font-bold text-amber-900 dark:text-amber-200">
+                <span>Physical Cash to Hand Over:</span>
+                <span className="text-sm font-black font-mono">₹{Number(data?.cashCollected || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex items-baseline justify-between text-slate-600 dark:text-slate-300">
+                <span>Digital / UPI Collected:</span>
+                <span className="font-mono">₹{Number(data?.upiCollected || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="border-t border-amber-200 dark:border-amber-800 pt-1.5 flex items-baseline justify-between font-extrabold text-slate-900 dark:text-white">
+                <span>Total Inflow:</span>
+                <span className="font-mono text-sm">₹{Number(data?.totalCollected || 0).toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Once submitted, collection entries for this date will be <strong>locked for Admin verification</strong>. If you need to record additional collections later, you can request Admin to unlock this shift.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer"
+              >
+                Cancel / Review
+              </button>
+              <button
+                type="button"
+                onClick={executeSubmitDayWork}
+                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md shadow-amber-500/20 cursor-pointer transition-colors"
+              >
+                Yes, Submit to Admin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

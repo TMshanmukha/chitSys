@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Star,
   Award,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
@@ -1120,6 +1121,50 @@ export default function LeaveManagementPage() {
                     <div className="w-36 h-2 mt-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                       <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
                     </div>
+                  </div>
+                </div>
+
+                {/* 4 Financial Status Cards for this Chit Scheme (Matching User Design) */}
+                <div className="p-4 grid grid-cols-2 lg:grid-cols-4 gap-3 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                  {/* Card 1: Expected Target */}
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-2xs min-w-0">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block truncate">
+                      Expected Target
+                    </span>
+                    <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-0.5 block font-mono tracking-tight truncate">
+                      ₹{Number(row.expected_target || (Number(row.installment_amount || 0) * (row.total_tasks || 0))).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  {/* Card 2: Cash on Hand */}
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs min-w-0">
+                    <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 block truncate">
+                      Cash on Hand
+                    </span>
+                    <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block font-mono tracking-tight truncate">
+                      ₹{Number(row.cash_collected || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  {/* Card 3: UPI / Online */}
+                  <div className="p-3.5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 shadow-2xs min-w-0">
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-purple-800 dark:text-purple-300 truncate">
+                      <CreditCard className="w-3.5 h-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+                      <span className="truncate">UPI / Online</span>
+                    </div>
+                    <span className="text-base sm:text-lg font-black text-purple-600 dark:text-purple-400 mt-0.5 block font-mono tracking-tight truncate">
+                      ₹{Number(row.upi_collected || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  {/* Card 4: Pending Amount */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-2xs min-w-0">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block truncate">
+                      Pending Amount
+                    </span>
+                    <span className="text-base sm:text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5 block font-mono tracking-tight truncate">
+                      ₹{Number(row.pending_amount !== undefined ? row.pending_amount : Math.max(0, (Number(row.expected_target || 0) - (Number(row.cash_collected || 0) + Number(row.upi_collected || 0))))).toLocaleString('en-IN')}
+                    </span>
                   </div>
                 </div>
 

@@ -522,6 +522,29 @@ export async function getMyDaySubmissions(req, res, next) {
 
     const [rows] = await pool.query(query, params);
 
+    // Query active agents with unsubmitted shift handovers in the last 7 days
+    const [unsubmittedAgents] = await pool.query(
+      `SELECT c.collection_date as work_date, u.id as agent_id, u.full_name as agent_name, u.username as agent_username, u.phone as agent_phone,
+              COALESCE(SUM(CASE WHEN (c.payment_method = 'CASH' OR c.payment_method IS NULL) THEN c.amount ELSE 0 END), 0) as cash_collected,
+              COALESCE(SUM(CASE WHEN (c.payment_method != 'CASH' AND c.payment_method IS NOT NULL) THEN c.amount ELSE 0 END), 0) as upi_collected,
+              COALESCE(SUM(c.amount), 0) as total_collected,
+              COUNT(c.id) as receipts_count
+       FROM collections c
+       JOIN users u ON c.agent_id = u.id
+       WHERE c.collection_date >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)
+         AND c.collection_date <= CURRENT_DATE
+         AND c.verification_status != 'CANCELLED'
+         AND u.role = 'COLLECTION_AGENT'
+         AND NOT EXISTS (
+           SELECT 1 FROM agent_day_submissions ads
+           WHERE ads.agent_id = c.agent_id
+             AND ads.work_date = c.collection_date
+             AND ads.status IN ('PENDING_APPROVAL', 'APPROVED')
+         )
+       GROUP BY c.collection_date, u.id, u.full_name, u.username, u.phone
+       ORDER BY c.collection_date DESC, total_collected DESC`
+    );
+
     const formatted = rows.map((r) => {
       let parsedBreakdown = null;
       try {
@@ -779,6 +802,126 @@ export async function approveAndCloseDaySubmission(req, res, next) {
   } catch (error) {
     await connection.rollback();
     connection.release();
+    next(error);
+  }
+}
+
+
+/**
+ * Return any unsubmitted days in the past 14 days for the logged-in agent.
+ * Enables submitting past forgotten days separately so date amounts never mix!
+ */
+export async function getMyUnsubmittedDays(req, res, next) {
+  try {
+    const agentId = req.user.id;
+    const [datesWithCollections] = await pool.query(
+      `SELECT DISTINCT c.collection_date as work_date
+       FROM collections c
+       WHERE c.agent_id = ?
+         AND c.collection_date >= DATE_SUB(CURRENT_DATE, INTERVAL 14 DAY)
+         AND c.collection_date <= CURRENT_DATE
+         AND c.verification_status != 'CANCELLED'
+         AND NOT EXISTS (
+           SELECT 1 FROM agent_day_submissions ads
+           WHERE ads.agent_id = c.agent_id
+             AND ads.work_date = c.collection_date
+             AND ads.status IN ('PENDING_APPROVAL', 'APPROVED')
+         )
+       ORDER BY c.collection_date ASC`,
+      [agentId]
+    );
+
+    const unsubmitted = [];
+    for (const row of datesWithCollections) {
+      const dateStr = typeof row.work_date === 'string'
+        ? row.work_date.slice(0, 10)
+        : new Date(row.work_date).toISOString().slice(0, 10);
+      try {
+        const data = await calculateDayWorkData(agentId, dateStr);
+        unsubmitted.push({
+          work_date: dateStr,
+          cash_collected: data.cashCollected,
+          upi_collected: data.upiCollected,
+          cheque_collected: data.chequeCollected,
+          total_collected: data.totalCollected,
+          total_receipts: data.totalReceipts,
+          total_stops_visited: data.totalStopsVisited,
+          total_stops_pending: data.totalStopsPending,
+          groups_count: (data.chitBreakdown || []).length,
+          chitBreakdown: data.chitBreakdown || [],
+        });
+      } catch (err) {
+        console.error('Error calculating day work for unsubmitted date', dateStr, err);
+      }
+    }
+
+    res.json({ success: true, unsubmitted });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Admin action: Unlock a day submission so an agent can collect additional payments and resubmit.
+ */
+export async function unlockDaySubmissionForAdmin(req, res, next) {
+  try {
+    const { id } = req.params;
+    const [sub] = await pool.query(
+      `SELECT ads.*, u.full_name as agent_name FROM agent_day_submissions ads JOIN users u ON ads.agent_id = u.id WHERE ads.id = ?`,
+      [id]
+    );
+    if (!sub.length) return res.status(404).json({ success: false, message: 'Submission record not found.' });
+
+    const submission = sub[0];
+    const workDateStr = typeof submission.work_date === 'string'
+      ? submission.work_date.slice(0, 10)
+      : new Date(submission.work_date).toISOString().slice(0, 10);
+
+    await pool.query(
+      `UPDATE agent_day_submissions 
+       SET status = 'REJECTED_DISCREPANCY', 
+           admin_remarks = CONCAT(COALESCE(admin_remarks, ''), ' [Unlocked by Admin for additional collections]')
+       WHERE id = ?`,
+      [id]
+    );
+
+    await createNotification({
+      userId: submission.agent_id,
+      title: 'Day Shift Unlocked for Collections',
+      message: `Admin has unlocked your day shift for ${workDateStr}. You can now record additional collections and resubmit when ready.`,
+      type: 'COLLECTION',
+      link: '/agent/day-closing'
+    });
+
+    res.json({
+      success: true,
+      message: `Day shift for ${workDateStr} unlocked. ${submission.agent_name} can now record collections and resubmit.`
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Admin action: Send a prompt notification to an agent who hasn't submitted day closing.
+ */
+export async function remindAgentUnsubmittedShift(req, res, next) {
+  try {
+    const { agentId, workDate } = req.body;
+    const [agent] = await pool.query('SELECT full_name FROM users WHERE id = ?', [agentId]);
+    if (!agent.length) return res.status(404).json({ success: false, message: 'Agent not found' });
+
+    await createNotification({
+      userId: agentId,
+      title: 'Action Required: Submit Day Closing',
+      message: `Admin notice: Your collections and cash handover for ${workDate} have not been submitted. Please complete your shift submission.`,
+      type: 'COLLECTION',
+      link: '/agent/day-closing'
+    });
+
+    res.json({ success: true, message: `Reminder sent to ${agent[0].full_name}.` });
+  } catch (error) {
     next(error);
   }
 }

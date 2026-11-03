@@ -101,6 +101,19 @@ export async function recordCollection(req, res, next) {
 
     if (req.user.role === 'COLLECTION_AGENT') {
       const finalDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date)) ? req.body.collection_date : new Date().toISOString().slice(0, 10);
+
+      // Check if day submission has already been filed or approved for this date - lock collections!
+      const [lockedDay] = await pool.execute(
+        `SELECT id, status FROM agent_day_submissions WHERE agent_id = ? AND work_date = ? AND status IN ('PENDING_APPROVAL', 'APPROVED') LIMIT 1`,
+        [req.user.id, finalDate]
+      );
+      if (lockedDay.length > 0) {
+        return res.status(403).json({
+          success: false,
+          message: `Collections for ${finalDate} have been submitted to Admin for shift closing and are locked. If you need to record additional payments, please request Admin to unlock your shift.`
+        });
+      }
+
       const [access] = await pool.execute(
         `SELECT 1 FROM agent_group_assignments WHERE agent_id=? AND group_id=? AND is_active=1
          UNION SELECT 1 FROM agent_leave_coverages c JOIN agent_leaves l ON l.id=c.leave_id

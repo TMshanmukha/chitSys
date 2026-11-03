@@ -97,6 +97,8 @@ router.post('/tracking/log-activity', logAgentStopActivity);
 // Agent Day Submissions, Cash Counting & Day Closing Approvals
 router.get('/day-submissions', listDaySubmissionsForAdmin);
 router.post('/day-submissions/:id/approve', approveAndCloseDaySubmission);
+router.post('/day-submissions/:id/unlock', unlockDaySubmissionForAdmin);
+router.post('/day-submissions/remind', remindAgentUnsubmittedShift);
 router.get('/leaves', listLeaves);
 router.post('/leaves', createLeave);
 router.get('/leaves/coverage-history', listCoverageHistory);

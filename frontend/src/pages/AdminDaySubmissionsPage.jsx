@@ -21,6 +21,8 @@ import {
   Search,
   Check,
   X,
+  LockOpen,
+  AlertTriangle,
 } from 'lucide-react';
 import api from '../api/client';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
@@ -39,6 +41,8 @@ export default function AdminDaySubmissionsPage() {
   const [summary, setSummary] = useState({});
   const [agentsList, setAgentsList] = useState([]);
   const [groupsList, setGroupsList] = useState([]);
+  const [unsubmittedAgents, setUnsubmittedAgents] = useState([]);
+  const [remindingAgentId, setRemindingAgentId] = useState(null);
 
   // Multi-Factor Filters
   const [filters, setFilters] = useState({
@@ -79,6 +83,7 @@ export default function AdminDaySubmissionsPage() {
       if (res.data?.success) {
         setSubmissions(res.data.data?.submissions || []);
         setSummary(res.data.data?.summary || {});
+        setUnsubmittedAgents(res.data.data?.unsubmittedAgents || []);
       }
       setAgentsList(agentsRes.data?.data || []);
       setGroupsList(groupsRes.data?.data || []);
@@ -93,6 +98,36 @@ export default function AdminDaySubmissionsPage() {
   useEffect(() => {
     loadSubmissions();
   }, [filters]);
+
+  const handleUnlockSubmission = async (id) => {
+    try {
+      setSubmittingAction(true);
+      setError('');
+      const res = await api.post(`/admin/day-submissions/${id}/unlock`);
+      if (res.data?.success) {
+        setSuccessMsg(res.data.message || 'Day shift unlocked. Agent can now record additional collections.');
+        loadSubmissions();
+      }
+    } catch (err) {
+      setError(getFriendlyErrorMessage(err, 'Failed to unlock submission.'));
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const handleRemindAgent = async (agentId, workDate) => {
+    try {
+      setRemindingAgentId(agentId);
+      const res = await api.post('/admin/day-submissions/remind', { agentId, workDate });
+      if (res.data?.success) {
+        setSuccessMsg(res.data.message || 'Reminder sent to agent successfully.');
+      }
+    } catch (err) {
+      setError(getFriendlyErrorMessage(err, 'Could not send reminder.'));
+    } finally {
+      setRemindingAgentId(null);
+    }
+  };
 
   const handleAction = async (sub, actionStatus) => {
     const form = verifyForms[sub.id] || {
@@ -640,7 +675,18 @@ export default function AdminDaySubmissionsPage() {
                         />
                       </div>
 
-                      <div className="flex items-center justify-end gap-3 pt-2">
+                      <div className="flex items-center justify-end gap-3 pt-2 flex-wrap">
+                        <button
+                          type="button"
+                          disabled={submittingAction}
+                          onClick={() => handleUnlockSubmission(sub.id)}
+                          className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title="Unlock shift so agent can record additional collections"
+                        >
+                          <LockOpen className="w-4 h-4" />
+                          <span>Unlock for Re-collection</span>
+                        </button>
+
                         <button
                           type="button"
                           disabled={submittingAction}

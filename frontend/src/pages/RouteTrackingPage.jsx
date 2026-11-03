@@ -1381,13 +1381,21 @@ export default function RouteTrackingPage() {
                 let chitsList = [];
                 if (sub.chit_breakdown_json) {
                   try {
-                    chitsList = typeof sub.chit_breakdown_json === 'string'
+                    const raw = typeof sub.chit_breakdown_json === 'string'
                       ? JSON.parse(sub.chit_breakdown_json)
                       : sub.chit_breakdown_json;
+                    if (Array.isArray(raw)) chitsList = raw;
+                    else if (raw && typeof raw === 'object') {
+                      if (Array.isArray(raw.chitBreakdown)) chitsList = raw.chitBreakdown;
+                      else if (Array.isArray(raw.items)) chitsList = raw.items;
+                      else if (Array.isArray(raw.chits)) chitsList = raw.chits;
+                      else chitsList = Object.values(raw).filter(v => v && typeof v === 'object' && (v.group_id || v.groupId));
+                    }
                   } catch (_) {
                     chitsList = [];
                   }
                 }
+                if (!Array.isArray(chitsList)) chitsList = [];
 
                 const cashAmt = Number(sub.cash_collected || 0);
                 const upiAmt = Number(sub.upi_collected || 0);

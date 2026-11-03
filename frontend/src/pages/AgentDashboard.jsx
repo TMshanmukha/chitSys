@@ -81,6 +81,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
   // Day Submit & Shift Closing Handover State
   const [showDaySubmitModal, setShowDaySubmitModal] = useState(false);
+  const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
+  const [unsubmittedDays, setUnsubmittedDays] = useState([]);
+  const [submittingAllDays, setSubmittingAllDays] = useState(false);
   const [daySubmitDate, setDaySubmitDate] = useState(new Date().toISOString().slice(0, 10));
   const [daySubmitNotes, setDaySubmitNotes] = useState('');
   const [submittingDayWork, setSubmittingDayWork] = useState(false);
@@ -426,6 +429,17 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     }
   };
 
+  const fetchUnsubmittedDays = async () => {
+    try {
+      const res = await api.get('/agent/day-unsubmitted');
+      if (res.data?.success) {
+        setUnsubmittedDays(res.data.unsubmitted || []);
+      }
+    } catch (_) {
+      setUnsubmittedDays([]);
+    }
+  };
+
   const fetchDaySubmissionStatus = async (date) => {
     try {
       setLoadingDaySubmission(true);
@@ -446,8 +460,13 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     }
   };
 
-  const handleSubmitDayWork = async (e) => {
-    e.preventDefault();
+  const handleSubmitDayWork = (e) => {
+    if (e) e.preventDefault();
+    setShowSubmitConfirmModal(true);
+  };
+
+  const executeSubmitDayWork = async () => {
+    setShowSubmitConfirmModal(false);
     setSubmittingDayWork(true);
     setDaySubmitError('');
     setDaySubmitSuccess('');
@@ -459,12 +478,38 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       if (res.data?.success) {
         setDaySubmitSuccess(res.data.message || 'Day work submitted successfully for Admin counting and closing.');
         await fetchDaySubmissionStatus(daySubmitDate);
+        fetchUnsubmittedDays();
         loadAgentData();
       }
     } catch (err) {
       setDaySubmitError(getFriendlyErrorMessage(err, 'Failed to submit day work. Please try again.'));
     } finally {
       setSubmittingDayWork(false);
+    }
+  };
+
+  const handleSubmitAllUnsubmittedDays = async () => {
+    if (!unsubmittedDays.length || submittingAllDays) return;
+    setSubmittingAllDays(true);
+    setDaySubmitError('');
+    setDaySubmitSuccess('');
+    try {
+      let count = 0;
+      for (const item of unsubmittedDays) {
+        await api.post('/agent/day-submit', {
+          work_date: item.work_date,
+          agent_notes: `Submitted in batch for ${item.work_date}. Separate verified accounting ledger.`,
+        });
+        count++;
+      }
+      setDaySubmitSuccess(`Successfully submitted ${count} previous day shifts for Admin verification.`);
+      await fetchDaySubmissionStatus(daySubmitDate);
+      fetchUnsubmittedDays();
+      loadAgentData();
+    } catch (err) {
+      setDaySubmitError(getFriendlyErrorMessage(err, 'Failed submitting past shifts. Please retry individually.'));
+    } finally {
+      setSubmittingAllDays(false);
     }
   };
 
@@ -757,6 +802,12 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             <button
               type="button"
               onClick={() => {
+                const isTodayShiftSubmitted = currentDaySubmission?.status === 'PENDING_APPROVAL' || currentDaySubmission?.status === 'APPROVED';
+                if (isTodayShiftSubmitted) {
+                  setCollectError("Today's collections have been submitted to Admin and are locked. If you need to record additional collections, please ask Admin to unlock your shift in Day Closings.");
+                  setShowCollectModal(true);
+                  return;
+                }
                 setCollectForm({
                   group_id: routesData.groups[0]?.id ? String(routesData.groups[0].id) : '',
                   member_id: '',
@@ -770,10 +821,23 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 scrollToFormOrModal('agent-collect-modal');
               }}
               disabled={routesData.groups.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer disabled:cursor-not-allowed"
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer ${
+                (currentDaySubmission?.status === 'PENDING_APPROVAL' || currentDaySubmission?.status === 'APPROVED')
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white disabled:cursor-not-allowed'
+              }`}
             >
-              <PlusCircle className="w-4 h-4" />
-              <span>Record Field Collection</span>
+              {(currentDaySubmission?.status === 'PENDING_APPROVAL' || currentDaySubmission?.status === 'APPROVED') ? (
+                <>
+                  <ShieldCheck className="w-4 h-4 text-amber-200" />
+                  <span>Shift Submitted (Locked)</span>
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Record Field Collection</span>
+                </>
+              )}
             </button>
             <button
               type="button"
@@ -3448,6 +3512,64 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               </div>
             )}
 
+            {/* Unsubmitted Past Shifts Warning Banner (Separated by Date) */}
+            {unsubmittedDays && unsubmittedDays.length > 0 && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 shadow-sm space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200 dark:border-amber-800/80 pb-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div>
+                      <h4 className="font-extrabold text-sm text-amber-900 dark:text-amber-200 font-heading">
+                        Unsubmitted Past Shifts Detected ({unsubmittedDays.length} Days Pending)
+                      </h4>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Amounts for previous dates and today remain completely segregated.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSubmitAllUnsubmittedDays}
+                    disabled={submittingAllDays}
+                    className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {submittingAllDays ? 'Submitting All...' : 'Submit All Separately'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {unsubmittedDays.map((unsub) => (
+                    <div
+                      key={unsub.work_date}
+                      className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs space-y-1 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white font-heading">
+                        <span>{unsub.work_date}</span>
+                        <span className="font-mono text-amber-600 dark:text-amber-400">Cash: ₹{unsub.cash_collected.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span>UPI: ₹{unsub.upi_collected.toLocaleString('en-IN')}</span>
+                        <span>Total: ₹{unsub.total_collected.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDaySubmitDate(unsub.work_date);
+                            fetchDaySubmissionStatus(unsub.work_date);
+                          }}
+                          className="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-200 text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          Review & Submit Date →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* KPI Summary Cards */}
             {(() => {
               const liveCash = (routesData.members || [])
@@ -3625,7 +3747,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   });
                 }
 
-                if (!breakdownItems || breakdownItems.length === 0) {
+                if (!Array.isArray(breakdownItems) || breakdownItems.length === 0) {
                   return (
                     <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-500">
                       No active chits assigned for this date.
@@ -3636,15 +3758,21 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 return (
                   <div className="space-y-2.5">
                     {breakdownItems.map((chit) => {
-                      const isExpanded = expandedChitSubmitId === chit.group_id;
-                      const hasCollections = Number(chit.total_collected || 0) > 0;
+                      const chitGid = chit.group_id || chit.groupId;
+                      const isExpanded = expandedChitSubmitId === chitGid;
+                      const totalAmt = Number(chit.total_collected ?? chit.totalCollected ?? 0);
+                      const cashAmt = Number(chit.cash_collected ?? chit.cashCollected ?? 0);
+                      const upiAmt = Number(chit.upi_collected ?? chit.upiCollected ?? 0);
+                      const paidList = Array.isArray(chit.paid_roster || chit.paidMembers) ? (chit.paid_roster || chit.paidMembers) : [];
+                      const unpaidList = Array.isArray(chit.unpaid_roster || chit.unpaidMembers) ? (chit.unpaid_roster || chit.unpaidMembers) : [];
+                      const hasCollections = totalAmt > 0;
                       return (
                         <div
-                          key={chit.group_id}
+                          key={chitGid}
                           className="rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 overflow-hidden"
                         >
                           <div
-                            onClick={() => setExpandedChitSubmitId(isExpanded ? null : chit.group_id)}
+                            onClick={() => setExpandedChitSubmitId(isExpanded ? null : chitGid)}
                             className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
                           >
                             <div className="flex items-center gap-3">
@@ -3659,11 +3787,11 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                               </span>
                               <div>
                                 <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                  <span>{chit.group_name}</span>
-                                  <span className="text-xs text-slate-400 font-mono">({chit.group_code})</span>
+                                  <span>{chit.group_name || chit.groupName}</span>
+                                  <span className="text-xs text-slate-400 font-mono">({chit.group_code || chit.groupCode})</span>
                                 </div>
                                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                  Installment: ₹{Number(chit.installment_amount || 0).toLocaleString('en-IN')} • Paid: {chit.paid_members_count} / {chit.total_members} subscribers
+                                  Installment: ₹{Number(chit.installment_amount || 0).toLocaleString('en-IN')} • Paid: {chit.paid_members_count ?? paidList.length} / {chit.total_members ?? (paidList.length + unpaidList.length)} subscribers
                                 </div>
                               </div>
                             </div>
@@ -3671,10 +3799,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                             <div className="flex items-center gap-4">
                               <div className="text-right">
                                 <div className="text-sm font-black text-indigo-600 dark:text-indigo-400">
-                                  ₹{Number(chit.total_collected || 0).toLocaleString('en-IN')}
+                                  ₹{totalAmt.toLocaleString('en-IN')}
                                 </div>
                                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                  Cash: ₹{Number(chit.cash_collected || 0).toLocaleString('en-IN')} | UPI: ₹{Number(chit.upi_collected || 0).toLocaleString('en-IN')}
+                                  Cash: ₹{cashAmt.toLocaleString('en-IN')} | UPI: ₹{upiAmt.toLocaleString('en-IN')}
                                 </div>
                               </div>
                               <button
@@ -3693,29 +3821,29 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                               <div>
                                 <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                   <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Paid Subscribers ({chit.paid_roster?.length || 0})</span>
+                                  <span>Paid Subscribers ({paidList.length})</span>
                                 </div>
-                                {(!chit.paid_roster || chit.paid_roster.length === 0) ? (
+                                {(!paidList || paidList.length === 0) ? (
                                   <div className="text-xs text-slate-400 italic py-1">No payments collected for this chit today yet.</div>
                                 ) : (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {chit.paid_roster.map((p, idx) => (
+                                    {paidList.map((p, idx) => (
                                       <div
                                         key={idx}
                                         className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between text-xs"
                                       >
                                         <div>
                                           <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                            <span>{p.full_name}</span>
-                                            <span className="text-[10px] text-slate-400 font-mono">T#{p.ticket_number}</span>
+                                            <span>{p.full_name || p.memberName}</span>
+                                            <span className="text-[10px] text-slate-400 font-mono">T#{p.ticket_number || p.ticketNumber}</span>
                                           </div>
                                           <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
-                                            <span className="font-medium text-emerald-600 dark:text-emerald-400">{p.payment_method}</span>
-                                            {p.receipt_number && <span>• Rcpt #{p.receipt_number}</span>}
+                                            <span className="font-medium text-emerald-600 dark:text-emerald-400">{p.payment_method || p.paymentMethod || 'CASH'}</span>
+                                            {(p.receipt_number || p.receiptNumber) && <span>• Rcpt #{p.receipt_number || p.receiptNumber}</span>}
                                           </div>
                                         </div>
                                         <div className="text-right font-black text-emerald-600 dark:text-emerald-400">
-                                          ₹{Number(p.amount_paid || 0).toLocaleString('en-IN')}
+                                          ₹{Number(p.amount_paid ?? p.amount ?? 0).toLocaleString('en-IN')}
                                         </div>
                                       </div>
                                     ))}
@@ -3731,14 +3859,14 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                       <>
                                         <Clock className="w-3.5 h-3.5 text-blue-600" />
                                         <span className="text-blue-700 dark:text-blue-400">
-                                          Monthly Cycle Subscribers & Status ({chit.unpaid_roster?.length || 0})
+                                          Monthly Cycle Subscribers & Status ({unpaidList.length})
                                         </span>
                                       </>
                                     ) : (
                                       <>
                                         <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
                                         <span className="text-rose-700 dark:text-rose-400">
-                                          Unpaid Subscribers Today ({chit.unpaid_roster?.length || 0})
+                                          Unpaid Subscribers Today ({unpaidList.length})
                                         </span>
                                       </>
                                     )}
@@ -3749,13 +3877,13 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                     </span>
                                   )}
                                 </div>
-                                {(!chit.unpaid_roster || chit.unpaid_roster.length === 0) ? (
+                                {(!unpaidList || unpaidList.length === 0) ? (
                                   <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium py-1">
                                     ✓ All subscribers in this chit scheme have cleared their installments!
                                   </div>
                                 ) : (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {chit.unpaid_roster.map((u, idx) => {
+                                    {unpaidList.map((u, idx) => {
                                       const isMonthlyTimeLeft = chit.frequency === 'MONTHLY' && (u.hasTimeRemaining || u.statusType === 'TIME_REMAINING_NO_WORRY');
                                       return (
                                         <div
@@ -3768,8 +3896,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                         >
                                           <div>
                                             <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                              <span>{u.full_name}</span>
-                                              <span className="text-[10px] text-slate-400 font-mono">T#{u.ticket_number}</span>
+                                              <span>{u.full_name || u.memberName}</span>
+                                              <span className="text-[10px] text-slate-400 font-mono">T#{u.ticket_number || u.ticketNumber}</span>
                                             </div>
                                             <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
                                               {u.phone && <span>Ph: {u.phone}</span>}
@@ -3783,7 +3911,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                           </div>
                                           <div className="text-right">
                                             <div className={`text-xs font-black ${isMonthlyTimeLeft ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                              ₹{Number(u.pending_amount || 0).toLocaleString('en-IN')}
+                                              ₹{Number(u.pending_amount ?? u.amount ?? 0).toLocaleString('en-IN')}
                                             </div>
                                             <div className={`text-[10px] font-semibold uppercase ${isMonthlyTimeLeft ? 'text-blue-500' : 'text-rose-500'}`}>
                                               {isMonthlyTimeLeft ? 'Cycle Target' : (u.isDeadlineToday ? 'Deadline Today' : 'Pending Due')}

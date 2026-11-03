@@ -45,14 +45,17 @@ export async function listCoverageHistory(req, res, next) {
        LEFT JOIN group_memberships gm ON gm.group_id=g.id AND gm.status='ACTIVE'
        LEFT JOIN members m ON m.id=gm.member_id
        LEFT JOIN (
-         SELECT c.group_id,c.member_id,c.collection_date,SUM(c.amount) AS total_paid,
+         SELECT c.group_id,c.member_id,c.collection_date,
+                 SUM(c.amount) AS total_paid,
+                 SUM(CASE WHEN (c.payment_method = 'CASH' OR c.payment_method IS NULL) THEN c.amount ELSE 0 END) AS cash_paid,
+                 SUM(CASE WHEN (c.payment_method != 'CASH' AND c.payment_method IS NOT NULL) THEN c.amount ELSE 0 END) AS upi_paid,
                 GROUP_CONCAT(DISTINCT CONCAT(handler.full_name, IF(handler.role IN ('ADMIN','SUPER_ADMIN'), ' (Admin)', ' (Agent)')) ORDER BY handler.full_name SEPARATOR ', ') AS handler_names
          FROM collections c LEFT JOIN users handler ON handler.id=c.agent_id
          WHERE c.verification_status!='CANCELLED'
          GROUP BY c.group_id,c.member_id,c.collection_date
        ) col ON col.group_id=g.id AND col.member_id=gm.member_id AND col.collection_date=l.leave_date
        WHERE ${clauses.join(' AND ')}
-       GROUP BY l.id,l.leave_date,l.agent_id,absent.full_name,c.group_id,g.group_name,g.group_code,c.covering_agent_id,coverer.full_name
+       GROUP BY l.id,l.leave_date,l.agent_id,absent.full_name,c.group_id,g.group_name,g.group_code,g.installment_amount,c.covering_agent_id,coverer.full_name
        ORDER BY l.leave_date DESC,l.id DESC,g.group_name ASC`, params);
     res.json({success:true,history:rows.map(row=>({...row,
       completed_tasks:Number(row.completed_tasks||0),total_tasks:Number(row.total_tasks||0),
