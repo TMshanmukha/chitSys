@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import {
@@ -31,6 +31,9 @@ import {
   Check,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  Gavel,
   UserPlus,
   AlertTriangle,
   Info,
@@ -2975,34 +2978,79 @@ export function CollectionsPage() {
     }
   };
 
-  // Filtered Task Stops
-  const filteredTasks = adminTasks.filter((task) => {
-    if (taskFilter === 'PENDING' && task.is_paid) return false;
-    if (taskFilter === 'COLLECTED' && !task.is_paid) return false;
-    if (taskFilter === 'DAILY' && task.frequency !== 'DAILY') return false;
-    if (taskFilter === 'MONTHLY' && task.frequency !== 'MONTHLY') return false;
-    if (taskFilter === 'COVERED' && !task.is_covered_today) return false;
-    if (taskSearch.trim()) {
-      const q = taskSearch.toLowerCase();
-      const matchName = (task.member_name || '').toLowerCase().includes(q);
-      const matchPhone = (task.member_phone || '').includes(q);
-      const matchGroup = (task.group_name || '').toLowerCase().includes(q);
-      const matchTicket = String(task.ticket_number || '').includes(q);
-      if (!matchName && !matchPhone && !matchGroup && !matchTicket) return false;
-    }
-    return true;
-  });
+  const [expandedChitId, setExpandedChitId] = useState(null);
 
-  const handleQuickCollect = (task) => {
-    setForm((prev) => ({
-      ...prev,
-      group_id: String(task.group_id),
-      member_id: String(task.member_id),
-      amount: String(task.remaining_due || task.installment_amount),
-      notes: task.is_covered_today ? `Office collection covering for ${task.absent_agent_name || 'agent on leave'}` : '',
-    }));
+  // Group collection tasks by Chit Scheme so chits are displayed cleanly instead of all members mixed together
+  const chitsSummary = useMemo(() => {
+    return groups.map((g) => {
+      const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(g.id));
+      const totalMembers = tasksForGroup.length;
+      const paidTasks = tasksForGroup.filter((t) => t.is_paid);
+      const pendingTasks = tasksForGroup.filter((t) => !t.is_paid);
+      const chitTarget = Number(g.installment_amount || 0) * totalMembers;
+      const chitCollected = tasksForGroup.reduce((sum, t) => sum + (Number(t.paid_amount) || 0), 0);
+      const progressPct = chitTarget > 0 ? Math.min(100, Math.round((chitCollected / chitTarget) * 100)) : 0;
+      const isCovered = tasksForGroup.some((t) => t.is_covered_today);
+      const handlerName = tasksForGroup[0]?.current_handler_name || (g.agent_name || 'Admin / Office');
+
+      return {
+        ...g,
+        totalMembers,
+        paidCount: paidTasks.length,
+        pendingCount: pendingTasks.length,
+        chitTarget,
+        chitCollected,
+        progressPct,
+        isCovered,
+        handlerName,
+        tasks: tasksForGroup,
+      };
+    });
+  }, [groups, adminTasks]);
+
+  // Filtered chits by frequency, status, or search
+  const filteredChits = useMemo(() => {
+    return chitsSummary.filter((chit) => {
+      if (taskFilter === 'PENDING' && chit.pendingCount === 0) return false;
+      if (taskFilter === 'COLLECTED' && chit.pendingCount > 0) return false;
+      if (taskFilter === 'DAILY' && chit.frequency !== 'DAILY') return false;
+      if (taskFilter === 'MONTHLY' && chit.frequency !== 'MONTHLY') return false;
+      if (taskFilter === 'COVERED' && !chit.isCovered) return false;
+      if (taskSearch.trim()) {
+        const q = taskSearch.toLowerCase();
+        const matchName = (chit.group_name || '').toLowerCase().includes(q);
+        const matchCode = (chit.group_code || '').toLowerCase().includes(q);
+        const matchHandler = (chit.handlerName || '').toLowerCase().includes(q);
+        if (!matchName && !matchCode && !matchHandler) return false;
+      }
+      return true;
+    });
+  }, [chitsSummary, taskFilter, taskSearch]);
+
+  const handleOpenChitCollection = (chit, member = null) => {
+    const defaultAmount = member
+      ? String(member.remaining_due > 0 ? member.remaining_due : member.installment_amount)
+      : String(chit.installment_amount || '');
+
+    setForm({
+      group_id: String(chit.id),
+      member_id: member ? String(member.member_id) : '',
+      amount: defaultAmount,
+      payment_method: 'CASH',
+      payment_reference: '',
+      notes: member?.is_covered_today ? `Office collection covering for ${member.absent_agent_name || 'agent on leave'}` : '',
+      collection_date: new Date().toISOString().slice(0, 10),
+      allow_advance: true,
+      allow_off_cycle: true,
+    });
+    setError('');
     setShowModal(true);
     scrollToFormOrModal('record-payment-modal');
+  };
+
+  const handleQuickCollect = (task) => {
+    const parentGroup = groups.find((g) => String(g.id) === String(task.group_id));
+    handleOpenChitCollection(parentGroup || { id: task.group_id, installment_amount: task.installment_amount }, task);
   };
 
   return (
@@ -3043,8 +3091,8 @@ export function CollectionsPage() {
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Today's Route Tasks & Stops ({tasksSummary.pendingCount || 0} Pending)</span>
+            <Layers className="w-4 h-4" />
+            <span>Active Chit Schemes & Collections (${chitsSummary.length} Schemes)</span>
           </button>
           <button
             type="button"
@@ -3056,24 +3104,24 @@ export function CollectionsPage() {
             }`}
           >
             <Receipt className="w-4 h-4" />
-            <span>Collections History & Receipts ({collections.length})</span>
+            <span>Collections History & Receipts (${collections.length})</span>
           </button>
         </div>
       </div>
 
-      {/* SECTION 1: TODAY'S TASKS & COLLECTION STOPS (Same as Agent Terminal) */}
+      {/* SECTION 1: CHIT SCHEMES GRID (Clicking any Chit opens its specific Collection Form) */}
       {activeSection === 'tasks' && (
         <section className="space-y-4 animate-fadeIn">
           {/* Target & Progress Island */}
           <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Target Progress</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Collections Target</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading">
                   ₹{Number(tasksSummary.totalCollected || 0).toLocaleString('en-IN')}
                 </span>
                 <span className="text-xs text-slate-400 font-medium">
-                  of ₹{Number(tasksSummary.totalTarget || 0).toLocaleString('en-IN')} target
+                  collected of ₹{Number(tasksSummary.totalTarget || 0).toLocaleString('en-IN')} target
                 </span>
               </div>
             </div>
@@ -3091,16 +3139,16 @@ export function CollectionsPage() {
             </div>
           </div>
 
-          {/* Filters & Search Row */}
+          {/* Scheme Filters & Search Row */}
           <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
-                { id: 'ALL', label: `All Stops (${adminTasks.length})` },
-                { id: 'PENDING', label: `Pending (${tasksSummary.pendingCount || 0})` },
-                { id: 'COLLECTED', label: `Collected (${tasksSummary.completedCount || 0})` },
-                { id: 'DAILY', label: 'Daily Chits' },
-                { id: 'MONTHLY', label: 'Monthly Chits' },
-                { id: 'COVERED', label: `Covered on Leave (${adminTasks.filter(t => t.is_covered_today).length})` },
+                { id: 'ALL', label: `All Schemes (${chitsSummary.length})` },
+                { id: 'PENDING', label: `Pending Dues (${chitsSummary.filter(c => c.pendingCount > 0).length})` },
+                { id: 'COLLECTED', label: `Fully Cleared (${chitsSummary.filter(c => c.pendingCount === 0 && c.totalMembers > 0).length})` },
+                { id: 'DAILY', label: `Daily Route (${chitsSummary.filter(c => c.frequency === 'DAILY').length})` },
+                { id: 'MONTHLY', label: `Monthly Auction (${chitsSummary.filter(c => c.frequency === 'MONTHLY').length})` },
+                { id: 'COVERED', label: `Covered on Leave (${chitsSummary.filter(c => c.isCovered).length})` },
               ].map((f) => (
                 <button
                   key={f.id}
@@ -3121,7 +3169,7 @@ export function CollectionsPage() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search member, phone, chit..."
+                placeholder="Search chit scheme name, code..."
                 value={taskSearch}
                 onChange={(e) => setTaskSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -3129,88 +3177,153 @@ export function CollectionsPage() {
             </div>
           </div>
 
-          {/* Task Stop Cards Grid */}
-          {filteredTasks.length === 0 ? (
+          {/* Chit Schemes Cards Grid */}
+          {filteredChits.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
-              No collection tasks matching current filter criteria.
+              No chit schemes match the selected filter criteria.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {filteredTasks.map((t) => (
-                <article
-                  key={`${t.group_id}:${t.member_id}`}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 shadow-xs ${
-                    t.is_paid
-                      ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-800'
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-extrabold text-sm text-slate-900 dark:text-white font-heading">
-                            {t.member_name}
-                          </span>
-                          <span className="text-[11px] font-mono text-slate-400">· #{t.ticket_number}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredChits.map((chit) => {
+                const isExpanded = expandedChitId === chit.id;
+                const isFullyCollected = chit.pendingCount === 0 && chit.totalMembers > 0;
+
+                return (
+                  <article
+                    key={chit.id}
+                    className={`rounded-3xl border transition-all overflow-hidden flex flex-col justify-between shadow-xs ${
+                      isFullyCollected
+                        ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-800'
+                    }`}
+                  >
+                    {/* Chit Card Header */}
+                    <div className="p-5 space-y-3.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-extrabold text-base text-slate-900 dark:text-white font-heading">
+                              {chit.group_name}
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400">· {chit.group_code}</span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            ₹{parseFloat(chit.installment_amount || 0).toLocaleString('en-IN')} / {chit.frequency === 'DAILY' ? 'Day' : 'Month'}
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          {t.member_phone || 'No phone'}
-                        </p>
-                      </div>
 
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border shrink-0 ${
-                          t.is_paid
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
-                            : t.is_partial
-                            ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800'
-                            : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
-                        }`}
-                      >
-                        {t.is_paid ? '✓ Paid' : t.is_partial ? 'Partial' : 'Pending'}
-                      </span>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-700 dark:text-slate-300 truncate">
-                          {t.group_name}
-                        </span>
-                        <span className="font-bold text-slate-900 dark:text-white font-mono">
-                          ₹{t.installment_amount.toLocaleString('en-IN')}
+                        <span
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border shrink-0 flex items-center gap-1 ${
+                            chit.frequency === 'DAILY'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-900'
+                              : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-900'
+                          }`}
+                        >
+                          {chit.frequency === 'DAILY' ? <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> : <Gavel className="w-3 h-3 text-purple-500" />}
+                          <span>{chit.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Auction'}</span>
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-400 flex items-center justify-between">
-                        <span>{t.cycle_label}</span>
-                        <span>{t.is_paid ? 'Cleared' : `Due: ₹${t.remaining_due.toLocaleString('en-IN')}`}</span>
+
+                      {/* Handler & Progress Stats */}
+                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 font-medium">Route Custodian:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {chit.isCovered ? `🛡️ Covering (${chit.handlerName})` : chit.handlerName}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 font-medium">Subscribers Cleared:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                            {chit.paidCount} of {chit.totalMembers} Paid ({chit.pendingCount} Pending)
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 font-medium">Collections:</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                            ₹{chit.chitCollected.toLocaleString('en-IN')} / ₹{chit.chitTarget.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${chit.progressPct}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {t.is_covered_today && (
-                      <div className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
-                        <Shield className="w-3 h-3 text-indigo-500 shrink-0" />
-                        <span>Covering for {t.absent_agent_name || 'Agent on Leave'}</span>
-                      </div>
-                    )}
-                  </div>
+                    {/* Action Bar: Collect Payment & Toggle Subscribers List */}
+                    <div className="p-4 pt-0 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenChitCollection(chit)}
+                          className="flex-1 py-2.5 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer font-heading"
+                        >
+                          <PlusCircle className="w-4 h-4" />
+                          <span>Collect Payment</span>
+                        </button>
 
-                  {!t.is_paid ? (
-                    <button
-                      type="button"
-                      onClick={() => handleQuickCollect(t)}
-                      className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer font-heading"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5" />
-                      <span>Collect ₹{t.remaining_due.toLocaleString('en-IN')}</span>
-                    </button>
-                  ) : (
-                    <div className="py-1.5 text-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                      ✓ Collected Today
+                        {chit.tasks.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedChitId(isExpanded ? null : chit.id)}
+                            className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                            title="View subscribers enrolled in this chit"
+                          >
+                            <span>Subscribers ({chit.tasks.length})</span>
+                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Inline Expanded Subscribers for this Chit Scheme */}
+                      {isExpanded && chit.tasks.length > 0 && (
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2 animate-fadeIn max-h-56 overflow-y-auto">
+                          {chit.tasks.map((task) => (
+                            <div
+                              key={`${task.group_id}:${task.member_id}`}
+                              className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between gap-2 text-xs"
+                            >
+                              <div>
+                                <span className="font-bold text-slate-900 dark:text-white block">
+                                  {task.member_name}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  #{task.ticket_number} {task.member_phone ? `· ${task.member_phone}` : ''}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    task.is_paid
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                      : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                  }`}
+                                >
+                                  {task.is_paid ? 'Paid' : `Due: ₹${task.remaining_due.toLocaleString('en-IN')}`}
+                                </span>
+                                {!task.is_paid && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenChitCollection(chit, task)}
+                                    className="p-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"
+                                    title="Record payment for this subscriber"
+                                  >
+                                    <PlusCircle className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
@@ -3359,21 +3472,51 @@ export function CollectionsPage() {
               </div>
             )}
 
+            {/* Selected Chit Scheme Highlight Banner */}
+            {(() => {
+              const selectedGroup = groups.find((g) => String(g.id) === String(form.group_id));
+              if (!selectedGroup) return null;
+              return (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                      Selected Chit Scheme
+                    </span>
+                    <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                      {selectedGroup.group_name}
+                    </h4>
+                    <span className="text-xs text-slate-500 font-medium">
+                      {selectedGroup.frequency === 'DAILY' ? 'Daily Route Scheme' : 'Monthly Auction Scheme'} · Code: {selectedGroup.group_code}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Installment Due</span>
+                    <span className="text-base sm:text-lg font-black text-blue-600 dark:text-blue-400 font-mono">
+                      ₹{parseFloat(selectedGroup.installment_amount || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
             <form onSubmit={handleRecordCollection} className="space-y-5">
               <div>
                 <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Chit Group Scheme *
+                  Chit Scheme *
                 </label>
                 <select
                   required
                   value={form.group_id}
-                  onChange={(e) => handleGroupSelect(e.target.value)}
+                  onChange={(e) => {
+                    handleGroupSelect(e.target.value);
+                    setForm((prev) => ({ ...prev, member_id: '' }));
+                  }}
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 >
                   <option value="">-- Choose Chit Scheme Group --</option>
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.group_name} · ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
+                      {g.group_name} ({g.group_code}) · ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
                     </option>
                   ))}
                 </select>
@@ -3381,20 +3524,43 @@ export function CollectionsPage() {
 
               <div>
                 <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Member Participant *
+                  Subscriber Participant (Enrolled in Selected Chit) *
                 </label>
                 <select
                   required
                   value={form.member_id}
-                  onChange={(e) => setForm({ ...form, member_id: e.target.value })}
+                  onChange={(e) => {
+                    const chosenId = e.target.value;
+                    const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(form.group_id));
+                    const chosenTask = tasksForGroup.find((t) => String(t.member_id) === String(chosenId));
+                    const selectedGroup = groups.find((g) => String(g.id) === String(form.group_id));
+                    setForm((prev) => ({
+                      ...prev,
+                      member_id: chosenId,
+                      amount: chosenTask ? String(chosenTask.remaining_due > 0 ? chosenTask.remaining_due : chosenTask.installment_amount) : (selectedGroup ? String(selectedGroup.installment_amount) : prev.amount),
+                    }));
+                  }}
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 >
-                  <option value="">-- Choose Enrolled Member --</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.full_name}{m.phone ? ` · ${m.phone}` : ''}
-                    </option>
-                  ))}
+                  <option value="">
+                    {form.group_id ? '-- Choose Subscriber --' : '-- First Select a Chit Scheme above --'}
+                  </option>
+                  {(() => {
+                    if (!form.group_id) return null;
+                    const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(form.group_id));
+                    if (tasksForGroup.length > 0) {
+                      return tasksForGroup.map((t) => (
+                        <option key={t.member_id} value={t.member_id}>
+                          {t.member_name} · Ticket #{t.ticket_number} {t.member_phone ? `· 📞 ${t.member_phone}` : ''} {t.is_paid ? '✓ (Already Paid Today)' : `(Due: ₹${Number(t.remaining_due || t.installment_amount).toLocaleString('en-IN')})`}
+                        </option>
+                      ));
+                    }
+                    return members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.full_name} {m.phone ? `· ${m.phone}` : ''}
+                      </option>
+                    ));
+                  })()}
                 </select>
               </div>
 
