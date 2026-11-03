@@ -18,7 +18,7 @@ import { listAgents, createAgent, updateAgent, toggleAgentStatus, assignAgentToG
 import { listCollections, recordCollection, getCollectionSummary, getAdminCollectionTasks } from '../controllers/collectionController.js';
 import { listAuctions, conductAuction, updateAuctionPayout, getAuctionSummary, getSchemeAuctionBreakdown } from '../controllers/auctionController.js';
 import { getRouteTrackingOverview, logAgentStopActivity, populateRouteStopsFromMembers } from '../controllers/trackingController.js';
-import { listDaySubmissionsForAdmin, approveAndCloseDaySubmission } from '../controllers/daySubmissionController.js';
+import { listDaySubmissionsForAdmin, approveAndCloseDaySubmission, unlockDaySubmissionForAdmin, remindAgentUnsubmittedShift } from '../controllers/daySubmissionController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 import { listLeaves, createLeave, reviewLeave, listCoverageHistory } from '../controllers/leaveController.js';
