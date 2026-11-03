@@ -48,6 +48,8 @@ import {
   PackageCheck,
   Send,
   Banknote,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { formatDate, formatTime, formatDateTime } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
@@ -104,6 +106,59 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
   // Separation of Daily vs Monthly Chits
   const [routeCategoryFilter, setRouteCategoryFilter] = useState('ALL'); // 'ALL' | 'DAILY_CHIT' | 'MONTHLY_CHIT'
+
+  // Optimization for 100+ Chit Schemes: Pagination, Accordion Collapsing & View Mode
+  const [tasksGroupPage, setTasksGroupPage] = useState(1);
+  const [tasksGroupPageSize, setTasksGroupPageSize] = useState(5);
+  const [collapsedTaskGroups, setCollapsedTaskGroups] = useState(new Set());
+  const [tasksViewMode, setTasksViewMode] = useState('cards'); // 'cards' | 'table'
+
+  useEffect(() => {
+    setTasksGroupPage(1);
+  }, [taskFilter, taskSearch, taskFrequencyFilter, taskChitFilter, scheduleViewMode]);
+
+  const toggleTaskGroup = (groupId) => {
+    setCollapsedTaskGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const toggleAllTaskGroups = () => {
+    if (collapsedTaskGroups.size > 0) {
+      setCollapsedTaskGroups(new Set());
+    } else {
+      setCollapsedTaskGroups(new Set((routesData.groups || []).map((g) => g.id)));
+    }
+  };
+
+  // Optimization for Assigned Routes Tab
+  const [routesPage, setRoutesPage] = useState(1);
+  const [routesPageSize, setRoutesPageSize] = useState(4);
+  const [collapsedRoutes, setCollapsedRoutes] = useState(new Set());
+
+  useEffect(() => {
+    setRoutesPage(1);
+  }, [routeCategoryFilter]);
+
+  const toggleRouteCollapse = (groupId) => {
+    setCollapsedRoutes((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const toggleAllRoutes = () => {
+    if (collapsedRoutes.size > 0) {
+      setCollapsedRoutes(new Set());
+    } else {
+      setCollapsedRoutes(new Set((routesData.groups || []).map((g) => g.id)));
+    }
+  };
 
   // Per-Chit Separation States (Ensures every chit differs and is never mixed)
   const [taskChitFilter, setTaskChitFilter] = useState('ALL'); // 'ALL' | groupId
@@ -309,6 +364,20 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       return (item?.tasks?.length || 0) > 0;
     });
   }, [routesData.groups, filteredTasks, taskChitFilter, isCollectionDayForMonthly]);
+
+  const paginatedTasksByGroup = useMemo(() => {
+    return tasksByGroup.slice(
+      (tasksGroupPage - 1) * tasksGroupPageSize,
+      tasksGroupPage * tasksGroupPageSize
+    );
+  }, [tasksByGroup, tasksGroupPage, tasksGroupPageSize]);
+
+  const paginatedRoutes = useMemo(() => {
+    return displayedGroups.slice(
+      (routesPage - 1) * routesPageSize,
+      routesPage * routesPageSize
+    );
+  }, [displayedGroups, routesPage, routesPageSize]);
 
   // Calculate distinct financial stats for any single chit scheme
   const getGroupStats = (group) => {
@@ -1256,6 +1325,52 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               })}
             </div>
 
+            {/* Task Management Control Toolbar for 100+ Chits */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleAllTaskGroups}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  {collapsedTaskGroups.size > 0 ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+                  <span>{collapsedTaskGroups.size > 0 ? 'Expand All Chits' : 'Collapse All Chits'}</span>
+                </button>
+                <span className="text-xs text-slate-400 font-medium">
+                  Showing <strong className="text-slate-800 dark:text-slate-200">{paginatedTasksByGroup.length}</strong> of{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">{tasksByGroup.length}</strong> Chit Schemes
+                </span>
+              </div>
+
+              {/* View Switcher: Detailed Cards vs Compact Waypoint Table */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setTasksViewMode('cards')}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    tasksViewMode === 'cards'
+                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                  title="Detailed Stop Cards View"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTasksViewMode('table')}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    tasksViewMode === 'table'
+                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                  title="Compact Waypoint Table View (Zero Scroll Fatigue)"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
             {/* Task Items List Partitioned Strictly by Chit Scheme */}
             {tasksByGroup.length === 0 ? (
               <div className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
@@ -1273,9 +1388,114 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                     : 'All assigned stops on this route have been addressed.'}
                 </p>
               </div>
+            ) : tasksViewMode === 'table' ? (
+              /* High-Density Compact Waypoints Table */
+              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/80 text-slate-500 border-b border-slate-200 dark:border-slate-800 font-semibold uppercase tracking-wider text-[11px]">
+                        <th className="py-3 px-4">Stop #</th>
+                        <th className="py-3 px-4">Subscriber Member</th>
+                        <th className="py-3 px-4">Chit Scheme</th>
+                        <th className="py-3 px-4 text-right">Target / Due</th>
+                        <th className="py-3 px-4 text-center">Status</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {paginatedTasksByGroup.flatMap(({ group, tasks: groupTasks }) => groupTasks).map((task) => {
+                        const remainingDue = task.rawMember?.remaining_balance !== undefined && task.rawMember?.remaining_balance !== null
+                          ? Number(task.rawMember.remaining_balance)
+                          : task.expectedAmount;
+                        return (
+                          <tr key={`${task.groupId}-${task.memberId}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="py-3 px-4 font-mono font-bold text-slate-500">
+                              #{task.stopOrder}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-900 dark:text-white font-heading">{task.memberName}</div>
+                              <div className="text-[11px] text-slate-400 font-mono flex items-center gap-2">
+                                <span>Ticket #{task.ticketNumber}</span>
+                                {task.memberPhone && (
+                                  <a href={`tel:${task.memberPhone}`} className="hover:text-blue-600 transition-colors">
+                                    · {task.memberPhone}
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="font-semibold text-slate-700 dark:text-slate-300 block">{task.groupName}</span>
+                              <span className="text-[10px] font-mono text-slate-400">{task.groupCode}</span>
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono font-bold">
+                              {task.isPaid ? (
+                                <span className="text-emerald-600 dark:text-emerald-400">
+                                  ₹{Number(task.rawMember?.total_cycle_collected || task.expectedAmount).toLocaleString('en-IN')}
+                                </span>
+                              ) : (
+                                <span className="text-rose-600 dark:text-rose-400">
+                                  ₹{remainingDue.toLocaleString('en-IN')}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {task.isPaid ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                                  ✓ PAID
+                                </span>
+                              ) : task.isPartial ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+                                  🟡 PARTIAL
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
+                                  NOT PAID
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {!task.isPaid && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => openCollectForMember(task.groupId, task.memberId, remainingDue)}
+                                      className="py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs transition-all cursor-pointer"
+                                    >
+                                      Collect
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openNoteForMember(task.rawGroup, task.rawMember)}
+                                      className="py-1 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-semibold transition-all cursor-pointer"
+                                      title="Add Unpaid Remark"
+                                    >
+                                      Remark
+                                    </button>
+                                  </>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => openMemberInfo(task.rawGroup, task.rawMember)}
+                                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 cursor-pointer"
+                                  title="View Member Profile"
+                                >
+                                  <User className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             ) : (
-              <div className="space-y-6">
-                {tasksByGroup.map(({ group, tasks: groupTasks }) => {
+              <div className="space-y-4">
+                {paginatedTasksByGroup.map(({ group, tasks: groupTasks }) => {
+                  const isCollapsed = collapsedTaskGroups.has(group.id);
                   const isDaily = group.frequency === 'DAILY';
                   const isDouble =
                     group.chit_type === 'DOUBLE_CHIT' ||
@@ -1294,9 +1514,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                       key={group.id}
                       className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden"
                     >
-                      {/* Distinct Chit Scheme Header Bar */}
+                      {/* Distinct Chit Scheme Header Bar (Interactive Accordion) */}
                       <div
-                        className={`p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        onClick={() => toggleTaskGroup(group.id)}
+                        className={`p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none transition-all hover:brightness-95 ${
                           isDaily
                             ? 'bg-gradient-to-r from-emerald-50/80 to-teal-50/40 dark:from-emerald-950/30 dark:to-teal-950/10 border-emerald-200/80 dark:border-emerald-900/40'
                             : isDouble
@@ -1375,11 +1596,16 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                               style={{ width: `${groupPercent}%` }}
                             />
                           </div>
+
+                          <div className="w-7 h-7 rounded-lg bg-white/70 dark:bg-slate-800/80 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-2xs">
+                            {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Stops under this Chit */}
-                      <div className="p-3 sm:p-4 space-y-2.5">
+                      {/* Stops under this Chit (Collapsible) */}
+                      {!isCollapsed && (
+                      <div className="p-3 sm:p-4 space-y-2.5 animate-fadeIn">
                         {groupTasks.map((task) => (
                           <div
                             key={`${task.groupId}-${task.memberId}`}
@@ -1552,9 +1778,24 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                           </div>
                         ))}
                       </div>
+                      )}
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Pagination for Tasks Chit Groups */}
+            {tasksByGroup.length > 0 && (
+              <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                <Pagination
+                  currentPage={tasksGroupPage}
+                  totalItems={tasksByGroup.length}
+                  pageSize={tasksGroupPageSize}
+                  onPageChange={setTasksGroupPage}
+                  onPageSizeChange={setTasksGroupPageSize}
+                  pageSizeOptions={[3, 5, 10, 20]}
+                />
               </div>
             )}
 
@@ -1631,13 +1872,30 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 </button>
               </div>
 
+              {/* Toolbar for Assigned Routes (100+ Chits) */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={toggleAllRoutes}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  {collapsedRoutes.size > 0 ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+                  <span>{collapsedRoutes.size > 0 ? 'Expand All Routes' : 'Collapse All Routes'}</span>
+                </button>
+                <span className="text-xs text-slate-400 font-medium">
+                  Showing <strong className="text-slate-800 dark:text-slate-200">{paginatedRoutes.length}</strong> of{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">{displayedGroups.length}</strong> Assigned Routes
+                </span>
+              </div>
+
               {/* Displayed Chit Group Routes */}
               {displayedGroups.length === 0 ? (
                 <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
                   <p className="text-xs text-slate-400">No chit groups found in this category.</p>
                 </div>
               ) : (
-                displayedGroups.map((group) => {
+                paginatedRoutes.map((group) => {
+                  const isRouteCollapsed = collapsedRoutes.has(group.id);
                   const groupMembers = routesData.members.filter((m) => m.group_id === group.id);
                   const installmentAmt = Number(group.installment_amount || 0);
                   const paidCount = groupMembers.filter((m) => Boolean(m.is_paid) && installmentAmt > 0).length;
@@ -1877,6 +2135,19 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                     </div>
                   );
                 })
+              )}
+
+              {displayedGroups.length > 0 && (
+                <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                  <Pagination
+                    currentPage={routesPage}
+                    totalItems={displayedGroups.length}
+                    pageSize={routesPageSize}
+                    onPageChange={setRoutesPage}
+                    onPageSizeChange={setRoutesPageSize}
+                    pageSizeOptions={[4, 8, 16]}
+                  />
+                </div>
               )}
             </div>
           )

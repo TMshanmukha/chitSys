@@ -6,6 +6,10 @@ import {
   Send,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  LayoutGrid,
+  List,
   Palmtree,
   ClipboardCheck,
   ArrowUpRight,
@@ -28,6 +32,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import Toast from '../components/Toast';
+import Pagination from '../components/Pagination';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
 const ymd = (d) =>
@@ -57,6 +62,22 @@ export default function LeaveManagementPage() {
   const [message, setMessage] = useState('');
   const [toast, setToast] = useState(null);
   const [searchHistory, setSearchHistory] = useState('');
+  const [coveragePage, setCoveragePage] = useState(1);
+  const [coveragePageSize, setCoveragePageSize] = useState(5);
+  const [expandedCoverageStops, setExpandedCoverageStops] = useState(new Set());
+
+  useEffect(() => {
+    setCoveragePage(1);
+  }, [searchHistory]);
+
+  const toggleCoverageStops = (key) => {
+    setExpandedCoverageStops((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // Multi-Factor Filter States
   const [filterAgent, setFilterAgent] = useState('ALL');
@@ -1044,12 +1065,20 @@ export default function LeaveManagementPage() {
           </div>
         </div>
 
-        {filteredHistory.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-            No approved leave coverage tasks found for this view.
-          </div>
-        ) : (
-          filteredHistory.map((row, i) => {
+        {(() => {
+          const paginatedHistory = filteredHistory.slice((coveragePage - 1) * coveragePageSize, coveragePage * coveragePageSize);
+          if (filteredHistory.length === 0) {
+            return (
+              <div className="p-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                No approved leave coverage tasks found for this view.
+              </div>
+            );
+          }
+          return (
+            <div className="space-y-4">
+              {paginatedHistory.map((row, i) => {
+                const itemKey = `${row.leave_id}-${row.group_id}-${i}`;
+                const isStopsExpanded = expandedCoverageStops.has(itemKey);
             const pct = row.total_tasks ? Math.round((row.completed_tasks * 100) / row.total_tasks) : 0;
             const isAbsentAgentViewing = !admin && Number(row.absent_agent_id) === Number(user?.id);
             const isCoveringAgentViewing = !admin && Number(row.covering_agent_id) === Number(user?.id);
@@ -1168,78 +1197,110 @@ export default function LeaveManagementPage() {
                   </div>
                 </div>
 
-                <div className="p-4 grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1 font-heading">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Completed Tasks · Official Receipts</span>
-                    </div>
-
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {row.completed_by.length > 0 ? (
-                        row.completed_by.map((line, j) => (
-                          <div
-                            key={j}
-                            className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5"
-                          >
-                            <span className="text-emerald-600 font-bold">✓</span>
-                            <span>{line}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-3 text-center text-xs text-slate-400">No route collections recorded yet.</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1 font-heading">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>Pending Unpaid Stops</span>
-                    </div>
-
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {row.pending_tasks.length > 0 ? (
-                        row.pending_tasks.map((task) => (
-                          <div
-                            key={task.member_id}
-                            className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs flex items-center justify-between gap-2"
-                          >
-                            <div>
-                              <span className="font-bold text-slate-800 dark:text-slate-200 block font-heading">
-                                {task.member_name}
-                              </span>
-                              <span className="text-[11px] text-slate-500 font-mono">
-                                {task.paid_so_far > 0
-                                  ? `₹${task.paid_so_far.toLocaleString('en-IN')} received, ₹${task.remaining_due.toLocaleString('en-IN')} due`
-                                  : `₹${task.remaining_due.toLocaleString('en-IN')} due`}
-                                {task.recorded_by ? ` · By ${task.recorded_by}` : ''}
-                              </span>
-                            </div>
-
-                            {admin && (
-                              <a
-                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline shrink-0 cursor-pointer"
-                                href={`/admin/collections?group_id=${row.group_id}&member_id=${task.member_id}&collection_date=${String(row.leave_date).slice(0, 10)}&amount=${task.remaining_due}&absent_agent=${encodeURIComponent(row.absent_agent_name)}`}
-                              >
-                                <span>Record Collection</span>
-                                <ArrowUpRight className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-3 text-center text-xs text-emerald-600 font-bold">
-                          All assigned route subscriber stops were completed! ✓
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                {/* Collapsible Subscriber Stops Breakdown Toggle Bar */}
+                <div className="px-4 py-2.5 bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Route Waypoint Stops (<strong>{row.completed_tasks}</strong> completed · <strong>{row.total_tasks - row.completed_tasks}</strong> pending)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleCoverageStops(itemKey)}
+                    className="px-3 py-1 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <span>{isStopsExpanded ? 'Hide Stop Breakdown' : 'View Stop Breakdown'}</span>
+                    {isStopsExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
+
+                {isStopsExpanded && (
+                  <div className="p-4 grid md:grid-cols-2 gap-4 animate-fadeIn border-t border-slate-100 dark:border-slate-800">
+                    <div className="space-y-2">
+                      <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1 font-heading">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Completed Tasks · Official Receipts</span>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {row.completed_by.length > 0 ? (
+                          row.completed_by.map((line, j) => (
+                            <div
+                              key={j}
+                              className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5"
+                            >
+                              <span className="text-emerald-600 font-bold">✓</span>
+                              <span>{line}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-xs text-slate-400">No route collections recorded yet.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1 font-heading">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Pending Unpaid Stops</span>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {row.pending_tasks.length > 0 ? (
+                          row.pending_tasks.map((task) => (
+                            <div
+                              key={task.member_id}
+                              className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs flex items-center justify-between gap-2"
+                            >
+                              <div>
+                                <span className="font-bold text-slate-800 dark:text-slate-200 block font-heading">
+                                  {task.member_name}
+                                </span>
+                                <span className="text-[11px] text-slate-500 font-mono">
+                                  {task.paid_so_far > 0
+                                    ? `₹${task.paid_so_far.toLocaleString('en-IN')} received, ₹${task.remaining_due.toLocaleString('en-IN')} due`
+                                    : `₹${task.remaining_due.toLocaleString('en-IN')} due`}
+                                  {task.recorded_by ? ` · By ${task.recorded_by}` : ''}
+                                </span>
+                              </div>
+
+                              {admin && (
+                                <a
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline shrink-0 cursor-pointer"
+                                  href={`/admin/collections?group_id=${row.group_id}&member_id=${task.member_id}&collection_date=${String(row.leave_date).slice(0, 10)}&amount=${task.remaining_due}&absent_agent=${encodeURIComponent(row.absent_agent_name)}`}
+                                >
+                                  <span>Record Collection</span>
+                                  <ArrowUpRight className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-xs text-emerald-600 font-bold">
+                            All assigned route subscriber stops were completed! ✓
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </article>
             );
-          })
-        )}
+          })}
+
+          {filteredHistory.length > 0 && (
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs mt-4">
+              <Pagination
+                currentPage={coveragePage}
+                totalItems={filteredHistory.length}
+                pageSize={coveragePageSize}
+                onPageChange={setCoveragePage}
+                onPageSizeChange={setCoveragePageSize}
+                pageSizeOptions={[3, 5, 10, 20]}
+              />
+            </div>
+          )}
+        </div>
+        );
+      })()}
       </section>
     </div>
   );

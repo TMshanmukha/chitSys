@@ -33,6 +33,8 @@ import {
   ChevronLeft,
   ChevronDown,
   ChevronUp,
+  LayoutGrid,
+  List,
   Gavel,
   UserPlus,
   AlertTriangle,
@@ -90,6 +92,8 @@ export function ChitGroupsPage() {
   // Pagination for Chit Scheme Cards Grid
   const [groupsPage, setGroupsPage] = useState(1);
   const [groupsPageSize, setGroupsPageSize] = useState(6);
+  const [groupsViewMode, setGroupsViewMode] = useState('grid'); // 'grid' | 'table'
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
 
   useEffect(() => {
     setGroupsPage(1);
@@ -349,6 +353,15 @@ export function ChitGroupsPage() {
   };
 
   const filteredGroups = groups.filter((g) => {
+    if (groupSearchQuery.trim()) {
+      const q = groupSearchQuery.toLowerCase();
+      const match =
+        (g.group_name || '').toLowerCase().includes(q) ||
+        (g.group_code || '').toLowerCase().includes(q) ||
+        (g.location_name || '').toLowerCase().includes(q) ||
+        (g.assigned_agents || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
     if (schemeTab === 'ALL') return true;
     const isDaily = g.frequency === 'DAILY' || g.route_category === 'DAILY_ROUTE';
     const isMonthly = g.frequency === 'MONTHLY' || g.route_category === 'MONTHLY_ROUTE';
@@ -420,6 +433,56 @@ export function ChitGroupsPage() {
           <span>{success}</span>
         </div>
       )}
+
+      {/* Search & View Switcher Toolbar for 100+ Chit Schemes */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search scheme name, code, territory, or agent..."
+            value={groupSearchQuery}
+            onChange={(e) => {
+              setGroupSearchQuery(e.target.value);
+              setGroupsPage(1);
+            }}
+            className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="flex items-center justify-between sm:justify-end gap-3 text-xs">
+          <span className="text-slate-400 font-medium">
+            Showing <strong className="text-slate-800 dark:text-slate-200">{filteredGroups.length}</strong> schemes
+          </span>
+
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setGroupsViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                groupsViewMode === 'grid'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+              title="Grid Cards View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setGroupsViewMode('table')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                groupsViewMode === 'table'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+              title="Compact Table View (Optimal for 100+ Schemes)"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Filter Tabs with Automatic Window Move */}
       <div id="chit-groups-list" className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold scroll-mt-6">
@@ -510,7 +573,90 @@ export function ChitGroupsPage() {
         </button>
       </div>
 
-      {/* Groups Grid */}
+      {/* Groups Grid or High-Density Compact Table */}
+      {groupsViewMode === 'table' ? (
+        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50/80 dark:bg-slate-800/80 text-slate-500 border-b border-slate-200 dark:border-slate-800 font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-4">Scheme Code</th>
+                  <th className="py-3 px-4">Group Name & Area</th>
+                  <th className="py-3 px-4">Type & Frequency</th>
+                  <th className="py-3 px-4 text-right">Installment</th>
+                  <th className="py-3 px-4 text-right">Total Pool</th>
+                  <th className="py-3 px-4 text-center">Members</th>
+                  <th className="py-3 px-4">Custodian Agent</th>
+                  <th className="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan="8" className="py-12 text-center text-slate-400">Loading chit schemes...</td>
+                  </tr>
+                ) : filteredGroups.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="py-12 text-center text-slate-400">No chit schemes match the filter or search criteria.</td>
+                  </tr>
+                ) : (
+                  paginatedGroups.map((g) => {
+                    const isDaily = g.frequency === 'DAILY' || g.route_category === 'DAILY_ROUTE';
+                    return (
+                      <tr
+                        key={g.id}
+                        onClick={() => {
+                          setSelectedHistoryGroupId(g.id);
+                          setShowHistoryModal(true);
+                          scrollToFormOrModal('chit-history-modal');
+                        }}
+                        className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                      >
+                        <td className="py-3 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">
+                          {g.group_code}
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                          <div>{g.group_name}</div>
+                          <div className="text-[11px] text-slate-400 font-normal flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-400" />
+                            <span>{g.location_name || 'Main Area'}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                            isDaily
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200'
+                              : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200'
+                          }`}>
+                            {isDaily ? '🚚 Daily' : '🏛️ Monthly'} · {g.chit_type === 'DOUBLE_CHIT' ? 'Double' : 'Auction'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
+                          ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          ₹{parseFloat(g.total_pool_amount).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-4 text-center font-mono">
+                          <span className="font-bold text-slate-900 dark:text-white">{g.enrolled_members}</span> / {g.total_members_limit}
+                        </td>
+                        <td className="py-3 px-4 font-medium text-slate-600 dark:text-slate-400">
+                          {g.assigned_agents || <span className="text-slate-400 italic">Unassigned</span>}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-blue-600 dark:text-blue-400 font-bold hover:underline">
+                            Ledger →
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           <div className="col-span-full py-12 text-center text-slate-400">Loading chit schemes...</div>
@@ -616,6 +762,7 @@ export function ChitGroupsPage() {
           })
         )}
       </div>
+      )}
 
       {filteredGroups.length > 0 && (
         <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
@@ -2885,6 +3032,15 @@ export function CollectionsPage() {
   const [collectionsPage, setCollectionsPage] = useState(1);
   const [collectionsPageSize, setCollectionsPageSize] = useState(10);
 
+  // Pagination & View Mode for Chit Schemes in Collections
+  const [chitsPage, setChitsPage] = useState(1);
+  const [chitsPageSize, setChitsPageSize] = useState(6);
+  const [chitsViewMode, setChitsViewMode] = useState('grid'); // 'grid' | 'table'
+
+  useEffect(() => {
+    setChitsPage(1);
+  }, [taskFilter, taskSearch]);
+
   const [form, setForm] = useState({
     group_id: '',
     member_id: '',
@@ -3027,6 +3183,10 @@ export function CollectionsPage() {
     });
   }, [chitsSummary, taskFilter, taskSearch]);
 
+  const paginatedChits = useMemo(() => {
+    return filteredChits.slice((chitsPage - 1) * chitsPageSize, chitsPage * chitsPageSize);
+  }, [filteredChits, chitsPage, chitsPageSize]);
+
   const handleOpenChitCollection = (chit, member = null) => {
     const defaultAmount = member
       ? String(member.remaining_due > 0 ? member.remaining_due : member.installment_amount)
@@ -3165,26 +3325,123 @@ export function CollectionsPage() {
               ))}
             </div>
 
-            <div className="relative w-full md:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search chit scheme name, code..."
-                value={taskSearch}
-                onChange={(e) => setTaskSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search chit scheme name, code..."
+                  value={taskSearch}
+                  onChange={(e) => setTaskSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* View Mode Toggle: Grid Cards vs Compact Table */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setChitsViewMode('grid')}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    chitsViewMode === 'grid'
+                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                  title="Grid View (Cards)"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChitsViewMode('table')}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    chitsViewMode === 'table'
+                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                  title="Compact Table View (Optimal for 100+ Schemes)"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Chit Schemes Cards Grid */}
+          {/* Chit Schemes: Cards Grid or Compact Table (Optimized for 100+ Schemes) */}
           {filteredChits.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
               No chit schemes match the selected filter criteria.
             </div>
+          ) : chitsViewMode === 'table' ? (
+            <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/80 text-slate-500 border-b border-slate-200 dark:border-slate-800 font-semibold uppercase tracking-wider text-[11px]">
+                      <th className="py-3 px-4">Chit Scheme</th>
+                      <th className="py-3 px-4">Frequency</th>
+                      <th className="py-3 px-4">Route Custodian</th>
+                      <th className="py-3 px-4">Subscribers Cleared</th>
+                      <th className="py-3 px-4">Collections / Target</th>
+                      <th className="py-3 px-4 text-right">Quick Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {paginatedChits.map((chit) => {
+                      return (
+                        <tr key={chit.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-slate-900 dark:text-white font-heading">{chit.group_name}</div>
+                            <div className="text-[11px] font-mono text-slate-400">
+                              {chit.group_code} · ₹{parseFloat(chit.installment_amount || 0).toLocaleString('en-IN')}/{chit.frequency === 'DAILY' ? 'day' : 'month'}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                              chit.frequency === 'DAILY'
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                                : 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                            }`}>
+                              {chit.frequency === 'DAILY' ? 'Daily' : 'Monthly'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                            {chit.isCovered ? `🛡️ Covering (${chit.handlerName})` : chit.handlerName}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${chit.progressPct}%` }} />
+                              </div>
+                              <span className="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                {chit.paidCount}/{chit.totalMembers} ({chit.progressPct}%)
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            ₹{chit.chitCollected.toLocaleString('en-IN')}{' '}
+                            <span className="text-slate-400 font-normal">/ ₹{chit.chitTarget.toLocaleString('en-IN')}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenChitCollection(chit)}
+                              className="py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs inline-flex items-center gap-1 shadow-2xs transition-all cursor-pointer font-heading"
+                            >
+                              <PlusCircle className="w-3.5 h-3.5" />
+                              <span>Collect</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChits.map((chit) => {
+              {paginatedChits.map((chit) => {
                 const isExpanded = expandedChitId === chit.id;
                 const isFullyCollected = chit.pendingCount === 0 && chit.totalMembers > 0;
 
@@ -3324,6 +3581,19 @@ export function CollectionsPage() {
                   </article>
                 );
               })}
+            </div>
+          )}
+
+          {filteredChits.length > 0 && (
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+              <Pagination
+                currentPage={chitsPage}
+                totalItems={filteredChits.length}
+                pageSize={chitsPageSize}
+                onPageChange={setChitsPage}
+                onPageSizeChange={setChitsPageSize}
+                pageSizeOptions={[6, 9, 12, 24, 48]}
+              />
             </div>
           )}
         </section>
