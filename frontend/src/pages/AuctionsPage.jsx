@@ -99,6 +99,7 @@ export default function AuctionsPage() {
     draw_number: '1',
     auction_type: 'AUCTION',
     pool_source: 'REGULAR',
+    include_reserve: false,
     custom_pool_amount: '',
     winning_member_id: '',
     winning_ticket_number: '',
@@ -217,6 +218,7 @@ export default function AuctionsPage() {
       winning_member_id: '',
       winning_ticket_number: '',
       pool_source: 'REGULAR',
+      include_reserve: false,
       custom_pool_amount: '',
       commission_percent: String(groupObj?.foreman_commission_percent || '5.0'),
       custom_foreman_commission: '',
@@ -275,7 +277,7 @@ export default function AuctionsPage() {
   // Selected group object in modal form
   const selectedGroup = groups.find((g) => String(g.id) === String(form.group_id));
   const isDoubleChitScheme = selectedGroup?.chit_type === 'DOUBLE_CHIT';
-  const isAuctioningReserve = isDoubleChitScheme && form.pool_source === 'SAVED_RESERVE';
+  const isAuctioningReserve = isDoubleChitScheme && (String(form.draw_number) === '2' || form.pool_source === 'SAVED_RESERVE');
   const isDraw1 = String(form.draw_number) === '1';
 
   // Live Calculations in Modal
@@ -283,10 +285,19 @@ export default function AuctionsPage() {
   const baseInstallment = selectedGroup ? parseFloat(selectedGroup.installment_amount) : 0;
   const totalMembers = selectedGroup ? parseInt(selectedGroup.total_members_limit || 20, 10) : 20;
 
-  // Effective pool being auctioned: either standard group pool or saved chit reserve
+  // Regular auction rule: regular pool/collected + saved reserve can be auctioned
+  // Double auction rule: only the reserved amount is used to auction
+  const regularAuctionablePool = groupPoolAmount + (availableReserve || 0);
+  const doubleAuctionablePool = availableReserve || 0;
+
+  // Effective pool being auctioned:
+  // - For double auction (Draw #2): strictly the reserved amount (availableReserve or custom <= availableReserve)
+  // - For regular auction (Draw #1 or standard): regular pool, or regular pool + reserve if include_reserve is active
   const effectivePool = isAuctioningReserve
-    ? (parseFloat(form.custom_pool_amount) || availableReserve || 0)
-    : groupPoolAmount;
+    ? (parseFloat(form.custom_pool_amount) || doubleAuctionablePool || 0)
+    : (form.include_reserve || form.pool_source === 'REGULAR_PLUS_RESERVE')
+      ? (parseFloat(form.custom_pool_amount) || regularAuctionablePool)
+      : (parseFloat(form.custom_pool_amount) || groupPoolAmount);
 
   const bidDiscount = parseFloat(form.bid_discount || 0);
 
@@ -375,6 +386,23 @@ export default function AuctionsPage() {
   const hasDraw2CustomNet = form.draw2_is_custom_net_payable_enabled;
   const hasDraw2CustomReserve = form.draw2_is_custom_reserve_enabled;
   const hasAnyOverrides = hasCustomCommission || hasCustomNetPrize || hasCustomDividend || hasCustomReserve || hasCustomDue || (form.conduct_draw2 && (hasDraw2CustomCommission || hasDraw2CustomNet || hasDraw2CustomReserve));
+
+  // Boundary check flags to avoid mistyped numbers
+  const isBidDiscountOverPool = parseFloat(form.bid_discount || 0) > effectivePool && effectivePool > 0;
+  const isBidDiscountNegative = parseFloat(form.bid_discount || 0) < 0;
+  const isCommissionPercentOver100 = parseFloat(form.commission_percent || 0) > 100 || parseFloat(form.commission_percent || 0) < 0;
+  const isForemanCommOverPrize = effectiveForemanCommission > grossWinnerPrize && grossWinnerPrize > 0;
+  const isNetPrizeOverPrize = effectiveNetPayablePrize > grossWinnerPrize && grossWinnerPrize > 0;
+  const isReserveAuctionOverAvailable = isAuctioningReserve && effectivePool > availableReserve;
+  const isDividendOverBid = !isDoubleChitScheme && effectiveTotalDividend > bidDiscount && bidDiscount > 0;
+  const isReserveOverBid = isDoubleChitScheme && effectiveDoubleChitReserve > bidDiscount && bidDiscount > 0;
+  const isDraw2BidOverPool = form.conduct_draw2 && draw2BidDiscount > draw2EffectivePool && draw2EffectivePool > 0;
+  const isDraw2CommOverPrize = form.conduct_draw2 && draw2EffectiveForemanCommission > draw2GrossWinnerPrize && draw2GrossWinnerPrize > 0;
+  const isDraw2NetOverPrize = form.conduct_draw2 && draw2EffectiveNetPayablePrize > draw2GrossWinnerPrize && draw2GrossWinnerPrize > 0;
+
+  const hasBoundaryErrors = isBidDiscountOverPool || isBidDiscountNegative || isCommissionPercentOver100 ||
+    isForemanCommOverPrize || isNetPrizeOverPrize || isReserveAuctionOverAvailable || isDividendOverBid || isReserveOverBid ||
+    isDraw2BidOverPool || isDraw2CommOverPrize || isDraw2NetOverPrize;
 
   const handleResetCalculations = () => {
     setForm((prev) => ({
@@ -538,6 +566,52 @@ export default function AuctionsPage() {
       }
     }
 
+    // Strict boundary checks to avoid mistyped numbers
+    const bidDiscountNum = parseFloat(form.bid_discount || 0);
+    if (isNaN(bidDiscountNum) || bidDiscountNum < 0) {
+      setError('Winning bid discount must be a valid non-negative number.');
+      return;
+    }
+    if (bidDiscountNum > effectivePool) {
+      setError(`Winning bid discount (₹${bidDiscountNum.toLocaleString('en-IN')}) cannot exceed the auction pool amount (₹${effectivePool.toLocaleString('en-IN')}).`);
+      return;
+    }
+    if (isAuctioningReserve && (effectivePool <= 0 || effectivePool > availableReserve)) {
+      setError(`In Double Auction (Draw #2), auction pool cannot exceed available saved reserve of ₹${availableReserve.toLocaleString('en-IN')}.`);
+      return;
+    }
+    if (effectiveForemanCommission > grossWinnerPrize) {
+      setError(`Admin commission (₹${effectiveForemanCommission.toLocaleString('en-IN')}) cannot exceed gross winner prize (₹${grossWinnerPrize.toLocaleString('en-IN')}).`);
+      return;
+    }
+    if (effectiveNetPayablePrize > grossWinnerPrize) {
+      setError(`Net payable prize (₹${effectiveNetPayablePrize.toLocaleString('en-IN')}) cannot exceed gross winner prize (₹${grossWinnerPrize.toLocaleString('en-IN')}).`);
+      return;
+    }
+    if (parseFloat(form.commission_percent || 0) > 100 || parseFloat(form.commission_percent || 0) < 0) {
+      setError('Commission rate (%) must be between 0% and 100%.');
+      return;
+    }
+    if (!isDoubleChitScheme && effectiveTotalDividend > bidDiscountNum) {
+      setError(`Total dividend (₹${effectiveTotalDividend.toLocaleString('en-IN')}) cannot exceed winning bid discount (₹${bidDiscountNum.toLocaleString('en-IN')}).`);
+      return;
+    }
+    if (isDoubleChitScheme && effectiveDoubleChitReserve > bidDiscountNum) {
+      setError(`Chit reserve (₹${effectiveDoubleChitReserve.toLocaleString('en-IN')}) cannot exceed winning bid discount (₹${bidDiscountNum.toLocaleString('en-IN')}).`);
+      return;
+    }
+    if (isDoubleChitScheme && form.conduct_draw2) {
+      const d2Bid = parseFloat(form.draw2_bid_discount || 0);
+      if (d2Bid > draw2EffectivePool) {
+        setError(`Draw #2 winning bid discount cannot exceed Draw #2 pool amount (₹${draw2EffectivePool.toLocaleString('en-IN')}).`);
+        return;
+      }
+      if (draw2EffectiveForemanCommission > draw2GrossWinnerPrize) {
+        setError('Draw #2 admin commission cannot exceed Draw #2 gross winner prize.');
+        return;
+      }
+    }
+
     setShowAuctionConfirm(true);
   };
 
@@ -551,8 +625,8 @@ export default function AuctionsPage() {
         period_number: parseInt(form.period_number, 10),
         draw_number: parseInt(form.draw_number, 10),
         auction_type: form.auction_type,
-        pool_source: form.pool_source || 'REGULAR',
-        custom_pool_amount: form.custom_pool_amount ? parseFloat(form.custom_pool_amount) : null,
+        pool_source: form.include_reserve ? 'REGULAR_PLUS_RESERVE' : (form.pool_source || 'REGULAR'),
+        custom_pool_amount: form.custom_pool_amount ? parseFloat(form.custom_pool_amount) : (form.include_reserve ? effectivePool : (isAuctioningReserve ? effectivePool : null)),
         winning_member_id: parseInt(form.winning_member_id, 10),
         winning_ticket_number: parseInt(form.winning_ticket_number, 10),
         bid_discount: parseFloat(form.bid_discount || 0),
@@ -1702,7 +1776,7 @@ export default function AuctionsPage() {
 
               {/* Scheme Details Banner */}
               {selectedGroup && (
-                <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 text-sm space-y-2">
+                <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 text-sm space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 dark:border-blue-900/60 pb-2">
                     <span className="text-slate-600 dark:text-slate-400 font-medium">Scheme Model:</span>
                     <span className="font-bold text-blue-700 dark:text-blue-300 inline-flex items-center gap-1.5 font-heading">
@@ -1710,14 +1784,18 @@ export default function AuctionsPage() {
                       {selectedGroup.chit_type === 'DOUBLE_CHIT' ? '🎰 Double Chit Scheme' : '🔨 Standard Auction Scheme'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 pt-1">
                     <div>
-                      <span className="text-slate-500 block text-xs">Total Pool Value</span>
-                      <strong className="text-slate-900 dark:text-white font-extrabold text-base font-heading">₹{effectivePool.toLocaleString('en-IN')}</strong>
+                      <span className="text-slate-500 block text-xs">Scheme Base Pool</span>
+                      <strong className="text-slate-900 dark:text-white font-extrabold text-base font-heading">₹{groupPoolAmount.toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Total Collected</span>
                       <strong className="text-emerald-600 dark:text-emerald-400 font-extrabold text-base font-heading">₹{groupTotalCollected.toLocaleString('en-IN')}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Saved Reserve</span>
+                      <strong className="text-purple-600 dark:text-purple-400 font-extrabold text-base font-heading">₹{availableReserve.toLocaleString('en-IN')}</strong>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Base Installment</span>
@@ -1730,6 +1808,33 @@ export default function AuctionsPage() {
                     <div>
                       <span className="text-slate-500 block text-xs">Subscribers</span>
                       <strong className="text-slate-900 dark:text-white font-extrabold text-base font-heading">{totalMembers} Members</strong>
+                    </div>
+                  </div>
+
+                  {/* Total Auctionable Pool Information Card */}
+                  <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-100/80 via-indigo-50/90 to-purple-100/80 dark:from-blue-950/40 dark:via-slate-800/80 dark:to-purple-950/40 border border-blue-200 dark:border-blue-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-start gap-2.5">
+                      <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-xs font-black text-slate-900 dark:text-white font-heading block">
+                          Total Auctionable Pool Information
+                        </span>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                          {isAuctioningReserve ? (
+                            <>Double Auction (Draw #2) Rule: <strong>Only the saved reserve amount (₹{availableReserve.toLocaleString('en-IN')})</strong> is used to auction.</>
+                          ) : (
+                            <>Regular Auction Rule: <strong>Regular Amount (₹{groupPoolAmount.toLocaleString('en-IN')}) + Saved Reserve (₹{availableReserve.toLocaleString('en-IN')})</strong> can be auctioned (Total Auctionable: <strong>₹{regularAuctionablePool.toLocaleString('en-IN')}</strong>).</>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right shrink-0 pl-6 sm:pl-0">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block font-heading">
+                        {isAuctioningReserve ? 'Reserve Available' : 'Regular Pool + Reserve'}
+                      </span>
+                      <strong className="text-base sm:text-xl font-black text-indigo-600 dark:text-indigo-400 font-heading">
+                        ₹{(isAuctioningReserve ? doubleAuctionablePool : regularAuctionablePool).toLocaleString('en-IN')}
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -1745,6 +1850,7 @@ export default function AuctionsPage() {
                     type="number"
                     min="1"
                     required
+                    onWheel={(e) => e.target.blur()}
                     value={form.period_number}
                     onChange={(e) => setForm({ ...form, period_number: e.target.value })}
                     className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-base font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
@@ -1763,14 +1869,14 @@ export default function AuctionsPage() {
                         setForm({
                           ...form,
                           draw_number: val,
-                          pool_source: val === '2' ? 'SAVED_RESERVE' : 'REGULAR',
-                          custom_pool_amount: val === '2' ? (form.custom_pool_amount || (availableReserve > 0 ? String(availableReserve) : '0')) : '',
+                          pool_source: val === '2' ? 'SAVED_RESERVE' : (form.include_reserve ? 'REGULAR_PLUS_RESERVE' : 'REGULAR'),
+                          custom_pool_amount: val === '2' ? (availableReserve > 0 ? String(availableReserve) : '0') : '',
                         });
                       }}
                       className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     >
                       <option value="1">Draw #1 (Regular Scheme Chit Pool)</option>
-                      <option value="2">Draw #2 (Auction Saved Chit Pool Reserve)</option>
+                      <option value="2">Draw #2 (Double Auction: Saved Chit Reserve Only)</option>
                     </select>
                   </div>
                 ) : (
@@ -1790,82 +1896,64 @@ export default function AuctionsPage() {
                 )}
               </div>
 
-              {/* Double Chit Auction Pool Source Selection */}
-              {isDoubleChitScheme && (
-                <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 space-y-3">
+              {/* Pool Mode Controls (Replaces the removed section cleanly) */}
+              {isAuctioningReserve ? (
+                <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/70 space-y-2.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-purple-900 dark:text-purple-200 flex items-center gap-1.5 font-heading">
-                      <Sparkles className="w-4 h-4 text-purple-600" />
-                      Double Chit Pool Mode & Saved Reserve
-                    </span>
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/80 text-purple-800 dark:text-purple-200 font-mono">
-                      Accumulated Saved Chit Reserve: ₹{availableReserve.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, pool_source: 'REGULAR', draw_number: 1 }))}
-                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                        form.pool_source !== 'SAVED_RESERVE'
-                          ? 'border-purple-600 bg-white dark:bg-slate-800 shadow-xs ring-2 ring-purple-600/30'
-                          : 'border-slate-200 dark:border-slate-700 bg-purple-50/40 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1.5 font-heading">
-                        <span>🎯</span> Regular Scheme Chit Pool (Draw #1)
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                        Auctioning full scheme pool of ₹{groupPoolAmount.toLocaleString('en-IN')}. Bid discount is saved to chit reserve.
+                    <div>
+                      <span className="text-xs font-bold text-purple-900 dark:text-purple-200 font-heading flex items-center gap-1.5">
+                        <span>⚡</span> Double Auction Mode (Draw #2)
+                      </span>
+                      <p className="text-[11px] text-purple-700/90 dark:text-purple-300/90 mt-0.5">
+                        Rule: For Double Auction, only the accumulated saved reserve is used to auction.
                       </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setForm((prev) => ({
-                        ...prev,
-                        pool_source: 'SAVED_RESERVE',
-                        draw_number: 2,
-                        custom_pool_amount: prev.custom_pool_amount || (availableReserve > 0 ? String(availableReserve) : '0'),
-                      }))}
-                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                        form.pool_source === 'SAVED_RESERVE'
-                          ? 'border-purple-600 bg-white dark:bg-slate-800 shadow-xs ring-2 ring-purple-600/30'
-                          : 'border-slate-200 dark:border-slate-700 bg-purple-50/40 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      <div className="font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 flex items-center gap-1.5 font-heading">
-                        <span>⚡</span> Option to Auction Saved Chit Reserve (Draw #2)
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                        Auction the accumulated saved reserve in this chit scheme.
-                      </p>
-                    </button>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <span className="text-[10px] uppercase font-bold text-purple-500 block">Available Reserve</span>
+                      <strong className="text-sm sm:text-base font-black text-purple-700 dark:text-purple-300 font-mono">
+                        ₹{availableReserve.toLocaleString('en-IN')}
+                      </strong>
+                    </div>
                   </div>
-
-                  {form.pool_source === 'SAVED_RESERVE' && (
-                    <div className="p-3 bg-white dark:bg-slate-800/90 rounded-xl border border-purple-200 dark:border-purple-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-purple-900 dark:text-purple-200 font-heading">
-                          Reserve Pool Amount to Auction (₹) *
-                        </label>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Specify reserve amount to put up for bidding (Defaults to total accumulated reserve)
-                        </p>
-                      </div>
-                      <input
-                        type="number"
-                        step="any"
-                        required
-                        value={form.custom_pool_amount}
-                        onChange={(e) => setForm({ ...form, custom_pool_amount: e.target.value })}
-                        placeholder={String(availableReserve)}
-                        className="w-full sm:w-56 px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl text-base font-black text-purple-700 dark:text-purple-300 focus:ring-2 focus:ring-purple-600 focus:outline-none font-heading"
-                      />
+                  {availableReserve <= 0 && (
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 text-xs">
+                      ⚠️ Note: No saved reserve is currently accumulated in this chit. Please conduct Draw #1 first to accumulate chit reserve.
                     </div>
                   )}
                 </div>
+              ) : (
+                availableReserve > 0 && (
+                  <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 font-heading flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-blue-600" />
+                        <span>Include Saved Chit Reserve in this Auction (+₹{availableReserve.toLocaleString('en-IN')})?</span>
+                      </span>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Regular Pool (₹{groupPoolAmount.toLocaleString('en-IN')}) + Saved Reserve (₹{availableReserve.toLocaleString('en-IN')}) = <strong>₹{regularAuctionablePool.toLocaleString('en-IN')}</strong> can be auctioned.
+                      </p>
+                    </div>
+                    <label className="inline-flex items-center gap-2 cursor-pointer shrink-0 p-2 px-3.5 rounded-xl bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 shadow-2xs hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(form.include_reserve)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setForm((prev) => ({
+                            ...prev,
+                            include_reserve: checked,
+                            pool_source: checked ? 'REGULAR_PLUS_RESERVE' : 'REGULAR',
+                            custom_pool_amount: '',
+                          }));
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-blue-700 dark:text-blue-300 font-heading">
+                        {form.include_reserve ? 'Reserve Included ✓' : '+ Include Reserve'}
+                      </span>
+                    </label>
+                  </div>
+                )
               )}
 
               {/* Winner Selection (Strict Disqualification of Previous Winners) */}
@@ -1918,13 +2006,35 @@ export default function AuctionsPage() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
+                    max={effectivePool}
+                    onWheel={(e) => e.target.blur()}
                     required
                     value={form.bid_discount}
                     onChange={(e) => setForm({ ...form, bid_discount: e.target.value })}
                     placeholder="e.g. 25000"
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-base font-black text-blue-600 dark:text-blue-400 focus:ring-2 focus:ring-blue-600 focus:outline-none font-heading"
+                    className={`w-full px-4 py-3 bg-white dark:bg-slate-800 border rounded-xl text-base font-black focus:ring-2 focus:outline-none font-heading ${
+                      isBidDiscountOverPool || isBidDiscountNegative
+                        ? 'border-red-500 text-red-600 focus:ring-red-500 bg-red-50/20'
+                        : 'border-slate-300 dark:border-slate-700 text-blue-600 dark:text-blue-400 focus:ring-blue-600'
+                    }`}
                   />
-                  <p className="text-xs text-slate-400 mt-1">Discount sacrificed by winner from total pool</p>
+                  <div className="flex items-center justify-between text-xs mt-1">
+                    <span className="text-slate-400">Boundary: Min ₹0 — Max ₹{effectivePool.toLocaleString('en-IN')} (Pool)</span>
+                    {selectedGroup?.max_bid_percent && (
+                      <span className="text-slate-400 font-medium">Max cap ({selectedGroup.max_bid_percent}%): ₹{((effectivePool * Number(selectedGroup.max_bid_percent)) / 100).toLocaleString('en-IN')}</span>
+                    )}
+                  </div>
+                  {isBidDiscountOverPool && (
+                    <p className="text-xs text-red-600 dark:text-red-400 font-bold mt-1">
+                      ⚠️ Bid discount cannot exceed the auction pool (₹{effectivePool.toLocaleString('en-IN')}).
+                    </p>
+                  )}
+                  {isBidDiscountNegative && (
+                    <p className="text-xs text-red-600 dark:text-red-400 font-bold mt-1">
+                      ⚠️ Bid discount cannot be negative.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -2014,6 +2124,7 @@ export default function AuctionsPage() {
                         step="0.1"
                         min="0"
                         max="100"
+                        onWheel={(e) => e.target.blur()}
                         value={form.commission_percent}
                         onChange={(e) => setForm({ ...form, commission_percent: e.target.value })}
                         className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-base font-bold text-amber-600 dark:text-amber-400 focus:ring-2 focus:ring-blue-600 focus:outline-none"
@@ -2050,6 +2161,9 @@ export default function AuctionsPage() {
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
+                          max={grossWinnerPrize}
+                          onWheel={(e) => e.target.blur()}
                           value={form.custom_foreman_commission}
                           onChange={(e) => setForm({ ...form, custom_foreman_commission: e.target.value })}
                           placeholder={String(autoForemanCommission)}
@@ -2096,6 +2210,9 @@ export default function AuctionsPage() {
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
+                          max={grossWinnerPrize}
+                          onWheel={(e) => e.target.blur()}
                           value={form.custom_net_payable}
                           onChange={(e) => setForm({ ...form, custom_net_payable: e.target.value })}
                           placeholder={String(autoNetPayablePrize)}
@@ -2144,6 +2261,9 @@ export default function AuctionsPage() {
                           <input
                             type="number"
                             step="0.01"
+                            min="0"
+                            max={bidDiscount}
+                            onWheel={(e) => e.target.blur()}
                             value={form.custom_total_dividend}
                             onChange={(e) => {
                               const total = e.target.value;
@@ -2221,6 +2341,9 @@ export default function AuctionsPage() {
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
+                          max={bidDiscount}
+                          onWheel={(e) => e.target.blur()}
                           value={form.custom_double_chit_reserve}
                           onChange={(e) => setForm({ ...form, custom_double_chit_reserve: e.target.value })}
                           placeholder={String(autoDoubleChitReserve)}
@@ -2263,6 +2386,8 @@ export default function AuctionsPage() {
                       <input
                         type="number"
                         step="0.01"
+                        min="0"
+                        onWheel={(e) => e.target.blur()}
                         value={form.custom_next_installment}
                         onChange={(e) => setForm({ ...form, custom_next_installment: e.target.value })}
                         placeholder={String(autoNextInstallment)}
@@ -2698,6 +2823,13 @@ export default function AuctionsPage() {
                 />
               </div>
 
+              {hasBoundaryErrors && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-rose-950/40 border border-red-300 dark:border-rose-800 text-red-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>Please correct out-of-boundary numbers (e.g. bid discount exceeding pool or commission exceeding prize) before submitting.</span>
+                </div>
+              )}
+
               <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
@@ -2708,7 +2840,7 @@ export default function AuctionsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || hasBoundaryErrors}
                   className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer font-heading"
                 >
                   {submitting ? (

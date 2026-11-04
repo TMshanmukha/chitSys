@@ -25,7 +25,7 @@ const auctionSchema = z.object({
   winning_ticket_number: z.number().int().positive('Winning ticket number is required'),
   bid_discount: z.number().min(0, 'Bid discount cannot be negative'),
   auction_date: z.string().min(8, 'Auction date is required'),
-  pool_source: z.enum(['REGULAR', 'SAVED_RESERVE']).optional().default('REGULAR'),
+  pool_source: z.enum(['REGULAR', 'SAVED_RESERVE', 'REGULAR_PLUS_RESERVE']).optional().default('REGULAR'),
   custom_pool_amount: z.number().min(0).optional().nullable(),
   custom_commission_percent: z.number().min(0).max(100).optional().nullable(),
   custom_foreman_commission: z.number().min(0).optional().nullable(),
@@ -264,11 +264,41 @@ export async function conductAuction(req, res, next) {
     const groupPoolAmount = parseFloat(group.total_pool_amount);
 
     let effectivePoolAmount = groupPoolAmount;
-    if (isDoubleChit && validated.pool_source === 'SAVED_RESERVE' && validated.custom_pool_amount && parseFloat(validated.custom_pool_amount) > 0) {
+    // Fetch accumulated saved reserve for this scheme
+    const [reserveRows] = await pool.execute(
+      'SELECT COALESCE(SUM(double_chit_reserve), 0) as totalReserve FROM auctions WHERE group_id = ?',
+      [validated.group_id]
+    );
+    const accumulatedReserve = parseFloat(reserveRows[0]?.totalReserve || 0);
+
+    if (validated.custom_pool_amount && parseFloat(validated.custom_pool_amount) > 0) {
+      effectivePoolAmount = parseFloat(validated.custom_pool_amount);
+    } else if (validated.pool_source === 'SAVED_RESERVE' || validated.draw_number === 2) {
+      // In Double Auction (Draw #2), only the reserved amount is used to auction
+      effectivePoolAmount = accumulatedReserve;
+    } else if (validated.pool_source === 'REGULAR_PLUS_RESERVE') {
+      // Regular auction rule: regular pool + saved reserve
+      effectivePoolAmount = groupPoolAmount + accumulatedReserve;
+    } else if (isDoubleChit && validated.pool_source === 'SAVED_RESERVE' && validated.custom_pool_amount && parseFloat(validated.custom_pool_amount) > 0) {
       effectivePoolAmount = parseFloat(validated.custom_pool_amount);
     }
 
     const bidDiscount = parseFloat(validated.bid_discount || 0);
+
+    // Boundary checkings: Avoid mistyped numbers
+    if (bidDiscount > effectivePoolAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Winning bid discount (₹${bidDiscount.toLocaleString('en-IN')}) cannot exceed the auction pool amount (₹${effectivePoolAmount.toLocaleString('en-IN')}).`,
+      });
+    }
+
+    if ((validated.pool_source === 'SAVED_RESERVE' || validated.draw_number === 2) && effectivePoolAmount > accumulatedReserve) {
+      return res.status(400).json({
+        success: false,
+        message: `Double auction pool (₹${effectivePoolAmount.toLocaleString('en-IN')}) cannot exceed available saved reserve (₹${accumulatedReserve.toLocaleString('en-IN')}).`,
+      });
+    }
 
     // Gross Winner Prize = Effective Pool - Bid Discount (Prize before Admin commission deduction)
     const grossWinnerPrize = Math.max(0, parseFloat((effectivePoolAmount - bidDiscount).toFixed(2)));
@@ -284,11 +314,25 @@ export async function conductAuction(req, res, next) {
       ? parseFloat(validated.custom_foreman_commission)
       : defaultForemanCommission;
 
+    if (foremanCommission > grossWinnerPrize) {
+      return res.status(400).json({
+        success: false,
+        message: `Admin commission (₹${foremanCommission.toLocaleString('en-IN')}) cannot exceed gross winner prize (₹${grossWinnerPrize.toLocaleString('en-IN')}).`,
+      });
+    }
+
     // Net prize money payable to winning subscriber = Gross Winner Prize - Admin Commission, with Admin override support
     const defaultNetPayable = Math.max(0, parseFloat((grossWinnerPrize - foremanCommission).toFixed(2)));
     const netPayableAmount = validated.custom_net_payable !== null && validated.custom_net_payable !== undefined
       ? parseFloat(validated.custom_net_payable)
       : defaultNetPayable;
+
+    if (netPayableAmount > grossWinnerPrize) {
+      return res.status(400).json({
+        success: false,
+        message: `Net payable prize (₹${netPayableAmount.toLocaleString('en-IN')}) cannot exceed gross winner prize (₹${grossWinnerPrize.toLocaleString('en-IN')}).`,
+      });
+    }
 
     // Total members in group (denominator for dividend share)
     const totalMembers = parseInt(group.total_members_limit || 20, 10);
