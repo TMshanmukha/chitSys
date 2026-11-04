@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { formatDate } from '../utils/dateUtils';
 import {
   Bell,
   CheckCheck,
@@ -74,7 +75,7 @@ export default function NotificationBell() {
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    return formatDate(date);
   };
 
   const handleItemClick = (notification) => {

@@ -1,12 +1,12 @@
 /**
  * Centralized Date Formatting Utilities
- * Standardized to DD/MM/YYYY across the ChitFund Pro application.
+ * Standardized to DD-MM-YYYY across the ChitFund Pro application.
  */
 
 /**
- * Formats any date input into DD/MM/YYYY
+ * Formats any date input into DD-MM-YYYY
  * @param {string|Date|number|null|undefined} dateInput 
- * @returns {string} Formatted date like '27/10/2026'
+ * @returns {string} Formatted date like '27-10-2026'
  */
 export function formatDate(dateInput) {
   if (!dateInput) return '-';
@@ -15,7 +15,7 @@ export function formatDate(dateInput) {
     // If it's a simple YYYY-MM-DD string, parse directly to avoid timezone shift
     if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
       const [year, month, day] = dateInput.split('-');
-      return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+      return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
     }
 
     const d = new Date(dateInput);
@@ -25,17 +25,17 @@ export function formatDate(dateInput) {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
 
-    return `${day}/${month}/${year}`;
+    return `${day}-${month}-${year}`;
   } catch {
     return String(dateInput);
   }
 }
 
 /**
- * Formats any date input into DD/MM/YYYY, HH:mm (or 12-hour format)
+ * Formats any date input into DD-MM-YYYY, HH:mm AM/PM (12-hour format)
  * @param {string|Date|number|null|undefined} dateInput 
  * @param {boolean} includeSeconds 
- * @returns {string} Formatted date like '27/10/2026, 08:30 PM'
+ * @returns {string} Formatted date like '27-10-2026, 08:30 PM'
  */
 export function formatDateTime(dateInput, includeSeconds = false) {
   if (!dateInput) return '-';
@@ -57,10 +57,10 @@ export function formatDateTime(dateInput, includeSeconds = false) {
 
     if (includeSeconds) {
       const seconds = String(d.getSeconds()).padStart(2, '0');
-      return `${day}/${month}/${year}, ${formattedHours}:${minutes}:${seconds} ${ampm}`;
+      return `${day}-${month}-${year}, ${formattedHours}:${minutes}:${seconds} ${ampm}`;
     }
 
-    return `${day}/${month}/${year}, ${formattedHours}:${minutes} ${ampm}`;
+    return `${day}-${month}-${year}, ${formattedHours}:${minutes} ${ampm}`;
   } catch {
     return String(dateInput);
   }

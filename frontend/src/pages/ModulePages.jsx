@@ -1569,7 +1569,7 @@ export function ChitGroupsPage() {
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
                       <span className="text-blue-200/80 block text-[11px] font-medium">Start Date</span>
                       <strong className="text-white font-mono text-sm sm:text-base font-bold">
-                        {form.start_date}
+                        {formatDate(form.start_date)}
                       </strong>
                     </div>
 

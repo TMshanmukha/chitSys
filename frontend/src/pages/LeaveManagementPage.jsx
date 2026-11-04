@@ -34,15 +34,11 @@ import api from '../api/client';
 import Toast from '../components/Toast';
 import Pagination from '../components/Pagination';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
+import { formatDate } from '../utils/dateUtils';
 
 const ymd = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const label = (date) =>
-  new Date(`${String(date).slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+const label = (date) => formatDate(date);
 
 export default function LeaveManagementPage() {
   const { user } = useAuth();

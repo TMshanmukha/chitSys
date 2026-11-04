@@ -27,6 +27,7 @@ import {
 import api from '../api/client';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Toast from '../components/Toast';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 
 export default function AdminDaySubmissionsPage() {
   const [loading, setLoading] = useState(true);
@@ -138,7 +139,7 @@ export default function AdminDaySubmissionsPage() {
 
     const confirmMsg =
       actionStatus === 'APPROVED'
-        ? `Approve and close day shift for ${sub.agent_name} on ${sub.work_date}?\n\nVerified Cash Count: ₹${Number(form.cash ?? sub.cash_collected).toLocaleString('en-IN')}\nVerified UPI: ₹${Number(form.upi ?? sub.upi_collected).toLocaleString('en-IN')}`
+        ? `Approve and close day shift for ${sub.agent_name} on ${formatDate(sub.work_date)}?\n\nVerified Cash Count: ₹${Number(form.cash ?? sub.cash_collected).toLocaleString('en-IN')}\nVerified UPI: ₹${Number(form.upi ?? sub.upi_collected).toLocaleString('en-IN')}`
         : `Flag cash discrepancy for ${sub.agent_name}?\n\nDiscrepancy Note: ${form.notes || 'No note'}`;
 
     if (!window.confirm(confirmMsg)) return;
@@ -473,11 +474,11 @@ export default function AdminDaySubmissionsPage() {
                       <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
                         <span className="flex items-center gap-1 font-mono">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Shift Date: {String(sub.work_date).slice(0, 10)}</span>
+                          <span>Shift Date: {formatDate(sub.work_date)}</span>
                         </span>
                         <span>·</span>
                         <span className="font-mono">
-                          Submitted: {sub.submitted_at ? new Date(sub.submitted_at).toLocaleTimeString() : 'N/A'}
+                          Submitted: {sub.submitted_at ? formatDateTime(sub.submitted_at) : 'N/A'}
                         </span>
                         {sub.approved_by_name && (
                           <>

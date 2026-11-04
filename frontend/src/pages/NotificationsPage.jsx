@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { formatDate, formatDateTime as formatAppDateTime } from '../utils/dateUtils';
 import {
   Bell,
   CheckCheck,
@@ -45,18 +46,10 @@ export default function NotificationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('ALL'); // 'ALL' | 'UNREAD' | 'AUCTION' | 'COLLECTION' | 'ROUTE' | 'SCHEME'
 
-  // Format timestamps
+  // Format timestamps standardized to DD-MM-YYYY
   const formatDateTime = (timestamp) => {
     if (!timestamp) return 'Just now';
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    return formatAppDateTime(timestamp);
   };
 
   const formatRelativeTime = (timestamp) => {
@@ -66,7 +59,7 @@ export default function NotificationsPage() {
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    return formatDate(date);
   };
 
   // Helper to categorize and provide detailed explanation for any notification

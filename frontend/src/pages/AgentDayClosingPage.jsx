@@ -21,6 +21,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Toast from '../components/Toast';
+import { formatDate } from '../utils/dateUtils';
 
 export default function AgentDayClosingPage() {
   const { user } = useAuth();
@@ -146,7 +147,7 @@ export default function AgentDayClosingPage() {
       for (const item of unsubmittedDays) {
         await api.post('/agent/day-submit', {
           work_date: item.work_date,
-          agent_notes: `Submitted in batch for ${item.work_date}. Separate verified accounting ledger.`,
+          agent_notes: `Submitted in batch for ${formatDate(item.work_date)}. Separate verified accounting ledger.`,
         });
         count++;
       }

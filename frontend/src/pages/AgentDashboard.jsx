@@ -567,7 +567,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       for (const item of unsubmittedDays) {
         await api.post('/agent/day-submit', {
           work_date: item.work_date,
-          agent_notes: `Submitted in batch for ${item.work_date}. Separate verified accounting ledger.`,
+          agent_notes: `Submitted in batch for ${formatDate(item.work_date)}. Separate verified accounting ledger.`,
         });
         count++;
       }
@@ -3376,7 +3376,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Date:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-mono">{receiptModal?.date}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-mono">{formatDate(receiptModal?.date)}</span>
               </div>
             </div>
 
@@ -3819,7 +3819,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                       className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs space-y-1 shadow-2xs"
                     >
                       <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white font-heading">
-                        <span>{unsub.work_date}</span>
+                        <span>{formatDate(unsub.work_date)}</span>
                         <span className="font-mono text-amber-600 dark:text-amber-400">Cash: ₹{unsub.cash_collected.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex items-center justify-between text-[11px] text-slate-500">
@@ -4328,7 +4328,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             icon={Receipt}
             subtext={
               isAdvancePayment
-                ? `Advance Payment Notice: ₹${enteredAmt.toLocaleString('en-IN')} will be safely recorded as advance payment credit for ${selectedMem?.full_name || 'this subscriber'} on date ${collectForm.collection_date || 'today'}.`
+                ? `Advance Payment Notice: ₹${enteredAmt.toLocaleString('en-IN')} will be safely recorded as advance payment credit for ${selectedMem?.full_name || 'this subscriber'} on date ${formatDate(collectForm.collection_date) || 'today'}.`
                 : isPartial
                 ? `Partial Payment Notice: ₹${enteredAmt.toLocaleString('en-IN')} will be recorded. The remaining deficit balance of ₹${balanceAfter.toLocaleString('en-IN')} will remain as Pending Due on this subscriber and chit scheme.`
                 : "This action will issue an official collection receipt and immediately update the member's node to PAID (Green) across the entire system."
