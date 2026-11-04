@@ -2332,10 +2332,6 @@ export function MembersPage() {
   const [membersPage, setMembersPage] = useState(1);
   const [membersPageSize, setMembersPageSize] = useState(10);
 
-  useEffect(() => {
-    setMembersPage(1);
-  }, [search]);
-
   // Passbook state
   const [showPassbookModal, setShowPassbookModal] = useState(false);
   const [passbookData, setPassbookData] = useState(null);
@@ -2349,6 +2345,10 @@ export function MembersPage() {
     kyc_type: 'Aadhaar',
     kyc_number: '',
   });
+
+  useEffect(() => {
+    setMembersPage(1);
+  }, [search]);
 
   const loadData = async () => {
     try {
@@ -3037,10 +3037,6 @@ export function CollectionsPage() {
   const [chitsPageSize, setChitsPageSize] = useState(6);
   const [chitsViewMode, setChitsViewMode] = useState('grid'); // 'grid' | 'table'
 
-  useEffect(() => {
-    setChitsPage(1);
-  }, [taskFilter, taskSearch]);
-
   const [form, setForm] = useState({
     group_id: '',
     member_id: '',
@@ -3052,6 +3048,10 @@ export function CollectionsPage() {
     allow_advance: true,
     allow_off_cycle: true,
   });
+
+  useEffect(() => {
+    setChitsPage(1);
+  }, [taskFilter, taskSearch]);
 
   const loadData = async () => {
     try {
