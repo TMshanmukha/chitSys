@@ -95,10 +95,6 @@ export function ChitGroupsPage() {
   const [groupsViewMode, setGroupsViewMode] = useState('grid'); // 'grid' | 'table'
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
 
-  useEffect(() => {
-    setGroupsPage(1);
-  }, [schemeTab]);
-
   const [form, setForm] = useState({
     group_code: 'DLY-AUC-101',
     group_name: '',
@@ -115,6 +111,10 @@ export function ChitGroupsPage() {
     start_date: new Date().toISOString().slice(0, 10),
     assigned_agent_id: '',
   });
+
+  useEffect(() => {
+    setGroupsPage(1);
+  }, [schemeTab]);
 
   const loadData = async () => {
     try {

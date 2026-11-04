@@ -62,6 +62,11 @@ export default function LeaveManagementPage() {
   const [coveragePageSize, setCoveragePageSize] = useState(5);
   const [expandedCoverageStops, setExpandedCoverageStops] = useState(new Set());
 
+  // Multi-Factor Filter States
+  const [filterAgent, setFilterAgent] = useState('ALL');
+  const [filterGroup, setFilterGroup] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'APPROVED' | 'PENDING' | 'WORKING'
+
   useEffect(() => {
     setCoveragePage(1);
   }, [searchHistory]);
@@ -74,11 +79,6 @@ export default function LeaveManagementPage() {
       return next;
     });
   };
-
-  // Multi-Factor Filter States
-  const [filterAgent, setFilterAgent] = useState('ALL');
-  const [filterGroup, setFilterGroup] = useState('ALL');
-  const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'APPROVED' | 'PENDING' | 'WORKING'
 
   const todayYmd = useMemo(() => ymd(new Date()), []);
 

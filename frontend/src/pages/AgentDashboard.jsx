@@ -100,6 +100,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [taskFilter, setTaskFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'COMPLETED' | 'REMARKS'
   const [taskFrequencyFilter, setTaskFrequencyFilter] = useState('ALL'); // 'ALL' | 'DAILY' | 'MONTHLY'
   const [taskSearch, setTaskSearch] = useState('');
+  const [taskChitFilter, setTaskChitFilter] = useState('ALL'); // 'ALL' | groupId
+  const [scheduleViewMode, setScheduleViewMode] = useState('ALL');
 
   // Pagination for Recent Collections history tab
   const [historyPage, setHistoryPage] = useState(1);
@@ -114,55 +116,12 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [collapsedTaskGroups, setCollapsedTaskGroups] = useState(new Set());
   const [tasksViewMode, setTasksViewMode] = useState('cards'); // 'cards' | 'table'
 
-  useEffect(() => {
-    setTasksGroupPage(1);
-  }, [taskFilter, taskSearch, taskFrequencyFilter, taskChitFilter, scheduleViewMode]);
-
-  const toggleTaskGroup = (groupId) => {
-    setCollapsedTaskGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  };
-
-  const toggleAllTaskGroups = () => {
-    if (collapsedTaskGroups.size > 0) {
-      setCollapsedTaskGroups(new Set());
-    } else {
-      setCollapsedTaskGroups(new Set((routesData.groups || []).map((g) => g.id)));
-    }
-  };
-
   // Optimization for Assigned Routes Tab
   const [routesPage, setRoutesPage] = useState(1);
   const [routesPageSize, setRoutesPageSize] = useState(4);
   const [collapsedRoutes, setCollapsedRoutes] = useState(new Set());
 
-  useEffect(() => {
-    setRoutesPage(1);
-  }, [routeCategoryFilter]);
-
-  const toggleRouteCollapse = (groupId) => {
-    setCollapsedRoutes((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  };
-
-  const toggleAllRoutes = () => {
-    if (collapsedRoutes.size > 0) {
-      setCollapsedRoutes(new Set());
-    } else {
-      setCollapsedRoutes(new Set((routesData.groups || []).map((g) => g.id)));
-    }
-  };
-
   // Per-Chit Separation States (Ensures every chit differs and is never mixed)
-  const [taskChitFilter, setTaskChitFilter] = useState('ALL'); // 'ALL' | groupId
   const [profileChitFilter, setProfileChitFilter] = useState('ALL'); // 'ALL' | 'DAILY' | 'AUCTION' | 'DOUBLE'
   const [expandedProfileChitId, setExpandedProfileChitId] = useState(null);
 
@@ -193,9 +152,6 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     notes: '',
   });
 
-  // Schedule View Mode: 'ALL' (All Assigned Routes & Subscribers) vs 'TODAY_SCHEDULED' (Strict Daily + Monthly on 1st)
-  const [scheduleViewMode, setScheduleViewMode] = useState('ALL');
-
   // Unpaid Note / Remark Modal
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [selectedMemberForNote, setSelectedMemberForNote] = useState(null);
@@ -206,6 +162,49 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   // Member Information Form Modal (Triggered by pressing a member node)
   const [showMemberInfoModal, setShowMemberInfoModal] = useState(false);
   const [selectedMemberForInfo, setSelectedMemberForInfo] = useState(null);
+
+  // Effects: declared safely after all state declarations
+  useEffect(() => {
+    setTasksGroupPage(1);
+  }, [taskFilter, taskSearch, taskFrequencyFilter, taskChitFilter, scheduleViewMode]);
+
+  useEffect(() => {
+    setRoutesPage(1);
+  }, [routeCategoryFilter]);
+
+  const toggleTaskGroup = (groupId) => {
+    setCollapsedTaskGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const toggleAllTaskGroups = () => {
+    if (collapsedTaskGroups.size > 0) {
+      setCollapsedTaskGroups(new Set());
+    } else {
+      setCollapsedTaskGroups(new Set((routesData.groups || []).map((g) => g.id)));
+    }
+  };
+
+  const toggleRouteCollapse = (groupId) => {
+    setCollapsedRoutes((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const toggleAllRoutes = () => {
+    if (collapsedRoutes.size > 0) {
+      setCollapsedRoutes(new Set());
+    } else {
+      setCollapsedRoutes(new Set((routesData.groups || []).map((g) => g.id)));
+    }
+  };
 
   const openMemberInfo = (group, member) => {
     setSelectedMemberForInfo({ group, member });

@@ -84,14 +84,6 @@ export default function AuctionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    setSubscriberPage(1);
-  }, [subscriberSearch, subscriberFilter]);
-
   // Auction Form state
   const [form, setForm] = useState({
     group_id: '',
@@ -141,6 +133,14 @@ export default function AuctionsPage() {
   const groupDetailsRequest = useRef(0);
   const [showAuctionGroupPicker, setShowAuctionGroupPicker] = useState(false);
   const [auctionGroupSearch, setAuctionGroupSearch] = useState('');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setSubscriberPage(1);
+  }, [subscriberSearch, subscriberFilter]);
 
   const loadData = async () => {
     try {

@@ -43,10 +43,6 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, roleFilter]);
-
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -75,6 +71,10 @@ export default function UsersPage() {
 
   // Route assignment form
   const [selectedGroupId, setSelectedGroupId] = useState('');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, roleFilter]);
 
   const loadData = async () => {
     try {

@@ -75,14 +75,6 @@ export default function ReportsPage() {
   const [membersPage, setMembersPage] = useState(1);
   const [membersPageSize, setMembersPageSize] = useState(10);
 
-  // Reset pagination to first page when search, filter, or active tab changes
-  useEffect(() => {
-    setCollectionsPage(1);
-    setDefaultersPage(1);
-    setAuctionsPage(1);
-    setMembersPage(1);
-  }, [searchQuery, selectedGroupId, periodFilter, schemeTypeFilter, cycleFilter, standingFilter, memberSort, activeTab]);
-
   // Modals
   const [selectedAuctionVoucher, setSelectedAuctionVoucher] = useState(null);
   const [selectedMemberPassbook, setSelectedMemberPassbook] = useState(null);
@@ -103,6 +95,14 @@ export default function ReportsPage() {
   });
   const [advanceSubmitting, setAdvanceSubmitting] = useState(false);
   const [advanceSuccess, setAdvanceSuccess] = useState('');
+
+  // Reset pagination to first page when search, filter, or active tab changes
+  useEffect(() => {
+    setCollectionsPage(1);
+    setDefaultersPage(1);
+    setAuctionsPage(1);
+    setMembersPage(1);
+  }, [searchQuery, selectedGroupId, periodFilter, schemeTypeFilter, cycleFilter, standingFilter, memberSort, activeTab]);
 
   const handleOpenAdminAdvance = (defaulter) => {
     setAdvanceSuccess('');
