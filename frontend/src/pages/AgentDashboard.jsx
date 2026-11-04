@@ -92,6 +92,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [daySubmitSuccess, setDaySubmitSuccess] = useState('');
   const [daySubmitError, setDaySubmitError] = useState('');
   const [currentDaySubmission, setCurrentDaySubmission] = useState(null);
+  const isTodayShiftSubmitted = currentDaySubmission?.status === 'PENDING_APPROVAL' || currentDaySubmission?.status === 'APPROVED';
   const [loadingDaySubmission, setLoadingDaySubmission] = useState(false);
   const [expandedChitSubmitId, setExpandedChitSubmitId] = useState(null);
 
@@ -603,7 +604,11 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       payment_reference: '',
       notes: isAlreadyPaid ? 'Advance collection for upcoming cycle' : '',
     });
-    setCollectError('');
+    if (isTodayShiftSubmitted) {
+      setCollectError("Today's collections have been submitted to Admin and are locked. If you need to record additional collections, please ask Admin to unlock your shift in Day Closings.");
+    } else {
+      setCollectError('');
+    }
     setShowCollectModal(true);
     scrollToFormOrModal('agent-collect-modal');
   };
@@ -619,7 +624,11 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       payment_reference: '',
       notes: '',
     });
-    setCollectError('');
+    if (isTodayShiftSubmitted) {
+      setCollectError("Today's collections have been submitted to Admin and are locked. If you need to record additional collections, please ask Admin to unlock your shift in Day Closings.");
+    } else {
+      setCollectError('');
+    }
     setShowCollectModal(true);
     scrollToFormOrModal('agent-collect-modal');
   };
@@ -658,6 +667,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const handleRecordCollection = (e) => {
     e.preventDefault();
     setCollectError('');
+    if (isTodayShiftSubmitted) {
+      setCollectError("Today's collections have been submitted to Admin and are locked. Please ask Admin to unlock your shift in Day Closings before recording additional collections.");
+      return;
+    }
     if (!collectForm.group_id || !collectForm.member_id || !collectForm.amount) {
       setCollectError('Please select both the Chit Group, Member, and enter an amount.');
       return;
@@ -675,6 +688,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   // Execute Confirmed Collection
   const executeConfirmedCollection = async () => {
     setCollectError('');
+    if (isTodayShiftSubmitted) {
+      setCollectError("Today's collections have been submitted to Admin and are locked.");
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -2942,6 +2959,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 </div>
               )}
 
+              <fieldset disabled={isTodayShiftSubmitted} className="space-y-3.5 disabled:opacity-75">
+
               {/* Group Selector */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -3175,6 +3194,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
+              </fieldset>
               </div>
 
               {/* Sticky Action Footer */}
@@ -3186,20 +3206,36 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Recording...</span>
-                    </>
-                  ) : (
-                    <span>Submit & Mark Paid</span>
-                  )}
-                </button>
+                {isTodayShiftSubmitted ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                      <ShieldCheck className="w-4 h-4" />
+                      Shift Locked
+                    </span>
+                    <button
+                      type="button"
+                      disabled
+                      className="px-4 py-2 rounded-xl bg-slate-300 dark:bg-slate-700 text-slate-500 text-xs font-semibold cursor-not-allowed flex items-center gap-1.5"
+                    >
+                      🔒 Collection Locked
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Recording...</span>
+                      </>
+                    ) : (
+                      <span>Submit & Mark Paid</span>
+                    )}
+                  </button>
+                )}
               </div>
             </form>
           </div>

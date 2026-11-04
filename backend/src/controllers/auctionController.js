@@ -283,6 +283,21 @@ export async function conductAuction(req, res, next) {
       effectivePoolAmount = parseFloat(validated.custom_pool_amount);
     }
 
+    // Requirement: For regular auction, the total pool amount must be fully collected in the scheme
+    if (validated.pool_source !== 'SAVED_RESERVE' && validated.draw_number !== 2) {
+      const [collSumRows] = await pool.execute(
+        "SELECT COALESCE(SUM(amount), 0) as totalCollected FROM collections WHERE group_id = ? AND verification_status != 'CANCELLED'",
+        [validated.group_id]
+      );
+      const actualCollected = parseFloat(collSumRows[0]?.totalCollected || 0);
+      if (actualCollected < groupPoolAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `Total chit pool of ₹${groupPoolAmount.toLocaleString('en-IN')} must be fully collected before conducting the auction. Currently collected: ₹${actualCollected.toLocaleString('en-IN')} (Shortfall: ₹${(groupPoolAmount - actualCollected).toLocaleString('en-IN')}). Please record member collections or have Admin cover the pending dues first.`,
+        });
+      }
+    }
+
     const bidDiscount = parseFloat(validated.bid_discount || 0);
 
     // Boundary checkings: Avoid mistyped numbers

@@ -1162,7 +1162,7 @@ export default function LeaveManagementPage() {
                   </div>
 
                   {/* Card 2: Cash on Hand */}
-                  <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs min-w-0">
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/60 shadow-2xs min-w-0">
                     <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 block truncate">
                       Cash on Hand
                     </span>
@@ -1189,6 +1189,19 @@ export default function LeaveManagementPage() {
                     </span>
                     <span className="text-base sm:text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5 block font-mono tracking-tight truncate">
                       ₹{Number(row.pending_amount !== undefined ? row.pending_amount : Math.max(0, (Number(row.expected_target || 0) - (Number(row.cash_collected || 0) + Number(row.upi_collected || 0))))).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar matching agent route card */}
+                <div className="px-4 py-2.5 bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-500 dark:text-slate-400">Progress</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">
+                      {row.completed_tasks}/{row.total_tasks} Paid ({pct}%)
                     </span>
                   </div>
                 </div>

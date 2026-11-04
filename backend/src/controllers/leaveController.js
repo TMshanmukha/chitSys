@@ -33,9 +33,13 @@ export async function listCoverageHistory(req, res, next) {
     if (isAdmin && agent_id) { clauses.push('l.agent_id=?'); params.push(agent_id); }
     const [rows] = await pool.query(
       `SELECT l.id AS leave_id,l.leave_date,l.agent_id AS absent_agent_id,absent.full_name AS absent_agent_name,
-              c.group_id,g.group_name,g.group_code,c.covering_agent_id,coverer.full_name AS covering_agent_name,
+              c.group_id,g.group_name,g.group_code,g.installment_amount,c.covering_agent_id,coverer.full_name AS covering_agent_name,
               COUNT(DISTINCT gm.member_id) AS total_tasks,
               COUNT(DISTINCT CASE WHEN col.total_paid>=g.installment_amount THEN gm.member_id END) AS completed_tasks,
+              COALESCE(SUM(col.cash_paid), 0) AS cash_collected,
+              COALESCE(SUM(col.upi_paid), 0) AS upi_collected,
+              (COUNT(DISTINCT gm.member_id) * g.installment_amount) AS expected_target,
+              GREATEST((COUNT(DISTINCT gm.member_id) * g.installment_amount) - (COALESCE(SUM(col.cash_paid), 0) + COALESCE(SUM(col.upi_paid), 0)), 0) AS pending_amount,
               GROUP_CONCAT(DISTINCT CASE WHEN col.total_paid>=g.installment_amount THEN CONCAT(m.full_name,' — ',col.handler_names) END ORDER BY m.full_name SEPARATOR '||') AS completed_by,
               GROUP_CONCAT(DISTINCT CASE WHEN col.total_paid<g.installment_amount OR col.total_paid IS NULL THEN CONCAT(m.id,':',m.full_name,':',COALESCE(col.total_paid,0),':',GREATEST(g.installment_amount-COALESCE(col.total_paid,0),0),':',COALESCE(col.handler_names,'')) END ORDER BY m.full_name SEPARATOR '||') AS pending_tasks
        FROM agent_leaves l JOIN users absent ON absent.id=l.agent_id
@@ -59,6 +63,10 @@ export async function listCoverageHistory(req, res, next) {
        ORDER BY l.leave_date DESC,l.id DESC,g.group_name ASC`, params);
     res.json({success:true,history:rows.map(row=>({...row,
       completed_tasks:Number(row.completed_tasks||0),total_tasks:Number(row.total_tasks||0),
+      cash_collected:Number(row.cash_collected||0),upi_collected:Number(row.upi_collected||0),
+      expected_target:Number(row.expected_target||(Number(row.installment_amount||0)*Number(row.total_tasks||0))),
+      pending_amount:Number(row.pending_amount||0),
+      installment_amount:Number(row.installment_amount||0),
       completed_by:row.completed_by?row.completed_by.split('||'):[],
       pending_tasks:row.pending_tasks?row.pending_tasks.split('||').map(task=>{const [memberId,memberName,amount,remaining,...handlers]=task.split(':');return {member_id:Number(memberId),member_name:memberName,paid_so_far:Number(amount||0),remaining_due:Number(remaining||0),recorded_by:handlers.join(':')}}):[]
     }))});

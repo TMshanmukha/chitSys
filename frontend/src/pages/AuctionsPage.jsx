@@ -400,6 +400,9 @@ export default function AuctionsPage() {
   const isDraw2CommOverPrize = form.conduct_draw2 && draw2EffectiveForemanCommission > draw2GrossWinnerPrize && draw2GrossWinnerPrize > 0;
   const isDraw2NetOverPrize = form.conduct_draw2 && draw2EffectiveNetPayablePrize > draw2GrossWinnerPrize && draw2GrossWinnerPrize > 0;
 
+  const isPoolIncomplete = Boolean(selectedGroup && !isAuctioningReserve && groupTotalCollected < groupPoolAmount);
+  const poolShortfall = Math.max(0, groupPoolAmount - groupTotalCollected);
+
   const hasBoundaryErrors = isBidDiscountOverPool || isBidDiscountNegative || isCommissionPercentOver100 ||
     isForemanCommOverPrize || isNetPrizeOverPrize || isReserveAuctionOverAvailable || isDividendOverBid || isReserveOverBid ||
     isDraw2BidOverPool || isDraw2CommOverPrize || isDraw2NetOverPrize;
@@ -466,6 +469,35 @@ export default function AuctionsPage() {
     subscriberPage * subscriberPageSize
   );
 
+  const handleOpenAdminCoverFromAuctionModal = () => {
+    if (!form.group_id) return;
+    setAdvanceSuccess('');
+    setError('');
+    const targetGroup = groups.find((g) => String(g.id) === String(form.group_id));
+    const shortfall = Math.max(0, groupPoolAmount - groupTotalCollected);
+    const chosenMember = groupMembers[0] || null;
+
+    setAdminAdvanceModal({
+      member_id: chosenMember?.member_id || chosenMember?.id,
+      ticket_number: chosenMember?.ticket_number || '1',
+      full_name: chosenMember?.full_name || 'Group Subscriber',
+      phone: chosenMember?.phone || '',
+      base_installment: targetGroup?.installment_amount || 0,
+      pending_amount: shortfall || targetGroup?.installment_amount || 0,
+      group_name: targetGroup?.group_name,
+      group_code: targetGroup?.group_code,
+      fromAuctionModal: true,
+    });
+
+    setAdminAdvanceForm({
+      group_id: form.group_id,
+      member_id: String(chosenMember?.member_id || chosenMember?.id || ''),
+      amount: String(shortfall > 0 ? shortfall : (targetGroup?.installment_amount || 0)),
+      payment_method: 'CASH',
+      notes: `[ADMIN_FUNDED] Admin cover for ${targetGroup?.group_name || 'scheme'} auction pool deficit - Pending Member Recovery`,
+    });
+  };
+
   const handleOpenAdminAdvance = (sub) => {
     setAdvanceSuccess('');
     setError('');
@@ -497,6 +529,9 @@ export default function AuctionsPage() {
         setAdvanceSuccess(res.data.message || 'Amount added successfully by Admin!');
         if (selectedSchemeId) {
           await loadSchemeBreakdown(selectedSchemeId);
+        }
+        if (form.group_id) {
+          await handleGroupChange(form.group_id);
         }
         await loadData();
       }
@@ -537,6 +572,15 @@ export default function AuctionsPage() {
     setError('');
     if (!form.group_id || !form.winning_member_id || !form.winning_ticket_number) {
       setError('Please select a Chit Scheme, winning subscriber, and ticket number.');
+      return;
+    }
+
+    // Business Rule: For regular auction, the total pool amount must be fully collected in the scheme
+    if (!isAuctioningReserve && groupTotalCollected < groupPoolAmount) {
+      const shortfall = groupPoolAmount - groupTotalCollected;
+      setError(
+        `Total chit pool of ₹${groupPoolAmount.toLocaleString('en-IN')} must be fully collected before conducting the auction. Currently collected: ₹${groupTotalCollected.toLocaleString('en-IN')} (Shortfall: ₹${shortfall.toLocaleString('en-IN')}). Please use the "Admin Add / Cover Pending Due" button to fund the deficit or record member collections.`
+      );
       return;
     }
 
@@ -1840,6 +1884,40 @@ export default function AuctionsPage() {
                 </div>
               )}
 
+              {/* Pool Collection Shortfall Alert & Quick Admin Cover Flow */}
+              {selectedGroup && !isAuctioningReserve && groupTotalCollected < groupPoolAmount && (
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 space-y-3 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-sm font-black font-heading text-amber-900 dark:text-amber-100">
+                          Pool Collection Incomplete — Shortfall: ₹{poolShortfall.toLocaleString('en-IN')}
+                        </div>
+                        <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
+                          Only <strong>₹{groupTotalCollected.toLocaleString('en-IN')}</strong> of the required <strong>₹{groupPoolAmount.toLocaleString('en-IN')}</strong> pool has been collected so far.
+                          The complete chit pool must be collected before conducting the auction.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleOpenAdminCoverFromAuctionModal}
+                      className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer font-heading"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                      <span>Admin Add / Cover Pending Due</span>
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-amber-800 dark:text-amber-300/90 bg-amber-100/70 dark:bg-amber-900/30 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800/50 flex items-center gap-2">
+                    <span className="shrink-0">💡</span>
+                    <span>
+                      Admin can add/cover this missing amount on behalf of member(s). This credits the chit fund pool so the auction proceeds, and records a pending recovery under <strong>Auction Advances & Member Dues</strong>.
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Month / Period & Draw Number */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -2830,6 +2908,13 @@ export default function AuctionsPage() {
                 </div>
               )}
 
+              {isPoolIncomplete && (
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>Total chit pool must be fully collected (Shortfall: ₹{poolShortfall.toLocaleString('en-IN')}) or covered by Admin before conducting auction.</span>
+                </div>
+              )}
+
               <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
@@ -2840,7 +2925,7 @@ export default function AuctionsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || hasBoundaryErrors}
+                  disabled={submitting || hasBoundaryErrors || isPoolIncomplete}
                   className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer font-heading"
                 >
                   {submitting ? (
@@ -3074,7 +3159,7 @@ export default function AuctionsPage() {
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">Chit Scheme:</span>
                 <span className="font-extrabold text-blue-900 dark:text-blue-300 font-heading">
-                  {schemeBreakdown?.group?.group_name || 'Selected Group'} ({schemeBreakdown?.group?.group_code})
+                  {adminAdvanceModal.group_name || schemeBreakdown?.group?.group_name || 'Selected Group'} ({adminAdvanceModal.group_code || schemeBreakdown?.group?.group_code})
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -3084,20 +3169,66 @@ export default function AuctionsPage() {
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Standard Installment Due:</span>
+                <span className="text-slate-500 font-medium">Standard Installment:</span>
                 <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
                   ₹{Number(adminAdvanceModal.base_installment || schemeBreakdown?.group?.installment_amount || 0).toLocaleString('en-IN')}
                 </span>
               </div>
               <div className="flex justify-between items-center border-t border-blue-200/60 dark:border-blue-900/40 pt-1.5">
-                <span className="text-rose-600 dark:text-rose-400 font-bold">Unpaid / Deficit Pending:</span>
+                <span className="text-rose-600 dark:text-rose-400 font-bold">Pool Deficit / Amount Due:</span>
                 <span className="font-mono font-black text-rose-600 dark:text-rose-400 text-sm">
                   ₹{Number(adminAdvanceModal.pending_amount || adminAdvanceModal.base_installment || 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
 
+            {/* Tracking Notice */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+              <div className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <span>🛡️</span>
+                <span>Tracked in Admin Advances & Member Dues</span>
+              </div>
+              <p>
+                This amount credits the chit fund pool so the auction proceeds. It is recorded as a member advance in <strong>Admin Commissions & Advances (/commissions)</strong> and the <strong>Member Installment & Dues Ledger</strong> below for tracking until the subscriber repays Admin.
+              </p>
+            </div>
+
             <form onSubmit={handleSubmitAdminAdvance} className="space-y-4">
+              {adminAdvanceModal.fromAuctionModal && groupMembers.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
+                    Assign Recovery Dues to Subscriber *
+                  </label>
+                  <select
+                    value={adminAdvanceForm.member_id}
+                    onChange={(e) => {
+                      const mem = groupMembers.find((m) => String(m.member_id || m.id) === String(e.target.value));
+                      setAdminAdvanceForm({
+                        ...adminAdvanceForm,
+                        member_id: e.target.value,
+                        notes: `[ADMIN_FUNDED] Admin cover on behalf of ${mem?.full_name || 'Member'} (Ticket #${mem?.ticket_number || ''}) - Pending Member Recovery`,
+                      });
+                      if (mem) {
+                        setAdminAdvanceModal((prev) => ({
+                          ...prev,
+                          member_id: mem.member_id || mem.id,
+                          ticket_number: mem.ticket_number,
+                          full_name: mem.full_name,
+                          phone: mem.phone,
+                        }));
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  >
+                    {groupMembers.map((m) => (
+                      <option key={m.member_id || m.id} value={m.member_id || m.id}>
+                        #{m.ticket_number} - {m.full_name} ({m.phone})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
                   Amount Added by Admin (₹) *
