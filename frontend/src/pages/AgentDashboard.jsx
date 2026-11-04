@@ -372,13 +372,6 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     );
   }, [tasksByGroup, tasksGroupPage, tasksGroupPageSize]);
 
-  const paginatedRoutes = useMemo(() => {
-    return displayedGroups.slice(
-      (routesPage - 1) * routesPageSize,
-      routesPage * routesPageSize
-    );
-  }, [displayedGroups, routesPage, routesPageSize]);
-
   // Calculate distinct financial stats for any single chit scheme
   const getGroupStats = (group) => {
     const groupMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
@@ -802,6 +795,13 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     }
     return true;
   });
+
+  const paginatedRoutes = useMemo(() => {
+    return displayedGroups.slice(
+      (routesPage - 1) * routesPageSize,
+      routesPage * routesPageSize
+    );
+  }, [displayedGroups, routesPage, routesPageSize]);
 
   const paginatedHistory = recentCollections.slice(
     (historyPage - 1) * historyPageSize,
