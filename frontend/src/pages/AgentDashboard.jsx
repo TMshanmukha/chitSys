@@ -163,6 +163,30 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [showMemberInfoModal, setShowMemberInfoModal] = useState(false);
   const [selectedMemberForInfo, setSelectedMemberForInfo] = useState(null);
 
+  // Member Pending Amount Tab States (Overdue Dues Tracker)
+  const [pendingChitSearch, setPendingChitSearch] = useState('');
+  const [pendingFrequencyFilter, setPendingFrequencyFilter] = useState('ALL'); // 'ALL' | 'DAILY' | 'MONTHLY'
+  const [pendingSort, setPendingSort] = useState('HIGHEST_DUE'); // 'HIGHEST_DUE' | 'MOST_MEMBERS' | 'NAME_ASC'
+  const [pendingChitsPage, setPendingChitsPage] = useState(1);
+  const [pendingChitsPageSize, setPendingChitsPageSize] = useState(6);
+
+  // Modal 1: Selected Chit Scheme -> Relative Members Roster
+  const [selectedPendingGroup, setSelectedPendingGroup] = useState(null);
+  const [memberSearchInChit, setMemberSearchInChit] = useState('');
+  const [memberStatusFilterInChit, setMemberStatusFilterInChit] = useState('ALL'); // 'ALL' | 'NOT_PAID' | 'PARTIAL'
+
+  // Modal 2: Selected Member -> Itemized Pending Dates Breakdown & Direct Collection Form
+  const [selectedPendingMember, setSelectedPendingMember] = useState(null);
+  const [memberPendingBreakdown, setMemberPendingBreakdown] = useState(null);
+  const [loadingBreakdown, setLoadingBreakdown] = useState(false);
+  const [pendingCollectAmount, setPendingCollectAmount] = useState('');
+  const [pendingCollectMethod, setPendingCollectMethod] = useState('CASH');
+  const [pendingCollectRef, setPendingCollectRef] = useState('');
+  const [pendingCollectDate, setPendingCollectDate] = useState(new Date().toISOString().slice(0, 10));
+  const [pendingCollectNotes, setPendingCollectNotes] = useState('');
+  const [submittingPendingCollect, setSubmittingPendingCollect] = useState(false);
+  const [pendingCollectError, setPendingCollectError] = useState('');
+
   // Effects: declared safely after all state declarations
   useEffect(() => {
     setTasksGroupPage(1);
@@ -171,6 +195,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   useEffect(() => {
     setRoutesPage(1);
   }, [routeCategoryFilter]);
+
+  useEffect(() => {
+    setPendingChitsPage(1);
+  }, [pendingChitSearch, pendingFrequencyFilter, pendingSort]);
 
   const toggleTaskGroup = (groupId) => {
     setCollapsedTaskGroups((prev) => {
@@ -210,6 +238,193 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     setSelectedMemberForInfo({ group, member });
     setShowMemberInfoModal(true);
     scrollToFormOrModal('agent-member-info-modal');
+  };
+
+  // Pending Dues across all assigned chits
+  const pendingChitsData = useMemo(() => {
+    const list = [];
+    (routesData.groups || []).forEach((group) => {
+      const gMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
+      const overdueMembers = gMembers.filter((m) => {
+        const rem = m.remaining_balance !== undefined && m.remaining_balance !== null ? Number(m.remaining_balance) : 0;
+        return rem > 0 || !m.is_paid;
+      });
+      const totalPending = overdueMembers.reduce((sum, m) => {
+        const rem = m.remaining_balance !== undefined && m.remaining_balance !== null ? Number(m.remaining_balance) : 0;
+        return sum + (rem > 0 ? rem : Number(group.installment_amount || 0));
+      }, 0);
+
+      list.push({
+        group,
+        overdueMembers,
+        totalPending,
+        totalMembersCount: gMembers.length,
+        hasPending: overdueMembers.length > 0 && totalPending > 0,
+      });
+    });
+    return list;
+  }, [routesData.groups, routesData.members]);
+
+  const chitsWithPending = useMemo(() => {
+    return pendingChitsData.filter((item) => item.hasPending);
+  }, [pendingChitsData]);
+
+  const totalAllPendingAmount = useMemo(() => {
+    return chitsWithPending.reduce((sum, item) => sum + item.totalPending, 0);
+  }, [chitsWithPending]);
+
+  const totalPendingMembersCount = useMemo(() => {
+    return chitsWithPending.reduce((sum, item) => sum + item.overdueMembers.length, 0);
+  }, [chitsWithPending]);
+
+  const filteredPendingChits = useMemo(() => {
+    let result = chitsWithPending;
+
+    if (pendingChitSearch.trim()) {
+      const q = pendingChitSearch.toLowerCase();
+      result = result.filter(
+        (item) =>
+          (item.group.group_name || '').toLowerCase().includes(q) ||
+          (item.group.group_code || '').toLowerCase().includes(q) ||
+          (item.group.location_name || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (pendingFrequencyFilter !== 'ALL') {
+      result = result.filter((item) => item.group.frequency === pendingFrequencyFilter);
+    }
+
+    if (pendingSort === 'HIGHEST_DUE') {
+      result = [...result].sort((a, b) => b.totalPending - a.totalPending);
+    } else if (pendingSort === 'MOST_MEMBERS') {
+      result = [...result].sort((a, b) => b.overdueMembers.length - a.overdueMembers.length);
+    } else if (pendingSort === 'NAME_ASC') {
+      result = [...result].sort((a, b) => (a.group.group_name || '').localeCompare(b.group.group_name || ''));
+    }
+
+    return result;
+  }, [chitsWithPending, pendingChitSearch, pendingFrequencyFilter, pendingSort]);
+
+  const membersInSelectedPendingGroup = useMemo(() => {
+    if (!selectedPendingGroup) return [];
+    const gMembers = (routesData.members || []).filter((m) => m.group_id === selectedPendingGroup.id);
+    let result = gMembers.filter((m) => {
+      const rem = m.remaining_balance !== undefined && m.remaining_balance !== null ? Number(m.remaining_balance) : 0;
+      return rem > 0 || !m.is_paid;
+    });
+
+    if (memberSearchInChit.trim()) {
+      const q = memberSearchInChit.toLowerCase();
+      result = result.filter(
+        (m) =>
+          (m.full_name || '').toLowerCase().includes(q) ||
+          (m.phone || '').toLowerCase().includes(q) ||
+          String(m.ticket_number || '').includes(q)
+      );
+    }
+
+    if (memberStatusFilterInChit === 'NOT_PAID') {
+      result = result.filter((m) => Number(m.collected_amount || 0) === 0);
+    } else if (memberStatusFilterInChit === 'PARTIAL') {
+      result = result.filter((m) => Number(m.collected_amount || 0) > 0);
+    }
+
+    return result;
+  }, [selectedPendingGroup, routesData.members, memberSearchInChit, memberStatusFilterInChit]);
+
+  // Open itemized pending dates breakdown & collection form
+  const handleOpenPendingMember = async (group, member) => {
+    setSelectedPendingMember(member);
+    setPendingCollectError('');
+    setLoadingBreakdown(true);
+    setMemberPendingBreakdown(null);
+
+    const defaultAmt = (member.remaining_balance !== undefined && Number(member.remaining_balance) > 0)
+      ? String(member.remaining_balance)
+      : String(group.installment_amount || '');
+    setPendingCollectAmount(defaultAmt);
+    setPendingCollectDate(new Date().toISOString().slice(0, 10));
+    setPendingCollectMethod('CASH');
+    setPendingCollectRef('');
+    setPendingCollectNotes('');
+
+    try {
+      const res = await api.get(`/agent/members/${member.member_id}/pending-dues?group_id=${group.id}`);
+      if (res.data?.success) {
+        setMemberPendingBreakdown(res.data.data);
+        if (res.data.data.total_pending > 0) {
+          setPendingCollectAmount(String(res.data.data.total_pending));
+        }
+      }
+    } catch (err) {
+      setMemberPendingBreakdown({
+        member,
+        group,
+        pending_dates: [
+          {
+            date: new Date().toISOString().slice(0, 10),
+            due_amount: Number(group.installment_amount || 0),
+            paid_amount: Number(member.collected_amount || 0),
+            pending_amount: Number(member.remaining_balance || group.installment_amount || 0),
+            status: Number(member.collected_amount || 0) > 0 ? 'PARTIAL' : 'NOT_PAID',
+            label: group.frequency === 'DAILY' ? "Current Day Due" : "Current Cycle Due",
+          }
+        ],
+        total_pending: Number(member.remaining_balance || group.installment_amount || 0),
+        installment_amount: Number(group.installment_amount || 0),
+      });
+    } finally {
+      setLoadingBreakdown(false);
+    }
+  };
+
+  // Direct collection submit for pending member
+  const handleExecutePendingCollection = async (e) => {
+    e.preventDefault();
+    // Real-life field operations: agent can always record collections, re-submittal will update day handover
+    const amt = parseFloat(pendingCollectAmount);
+    if (isNaN(amt) || amt <= 0) {
+      setPendingCollectError('Please enter a valid positive collection amount.');
+      return;
+    }
+
+    setSubmittingPendingCollect(true);
+    setPendingCollectError('');
+
+    try {
+      const res = await api.post('/agent/collections', {
+        group_id: parseInt(selectedPendingGroup.id, 10),
+        member_id: parseInt(selectedPendingMember.member_id, 10),
+        amount: amt,
+        payment_method: pendingCollectMethod,
+        payment_reference: pendingCollectRef || null,
+        collection_date: pendingCollectDate || new Date().toISOString().slice(0, 10),
+        notes: pendingCollectNotes ? `[PENDING_RECOVERY] ${pendingCollectNotes}` : '[PENDING_RECOVERY] Overdue settlement',
+        allow_off_cycle: true,
+        allow_advance: true,
+      });
+
+      if (res.data?.success) {
+        const recordedReceipt = res.data.receipt;
+        setReceiptModal({
+          ...recordedReceipt,
+          groupName: selectedPendingGroup?.group_name || 'Chit Group',
+          groupCode: selectedPendingGroup?.group_code || '',
+          memberName: selectedPendingMember?.full_name || 'Member',
+          memberPhone: selectedPendingMember?.phone || '',
+          agentName: user?.full_name || 'Field Agent',
+        });
+
+        setSelectedPendingMember(null);
+        setMemberPendingBreakdown(null);
+
+        await loadAgentData();
+      }
+    } catch (err) {
+      setPendingCollectError(getFriendlyErrorMessage(err, 'Failed to record collection. Please check details and try again.'));
+    } finally {
+      setSubmittingPendingCollect(false);
+    }
   };
 
   // Today's Tasks calculations across all assigned routes and members:
@@ -603,11 +818,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       payment_reference: '',
       notes: isAlreadyPaid ? 'Advance collection for upcoming cycle' : '',
     });
-    if (isTodayShiftSubmitted) {
-      setCollectError("Today's collections have been submitted to Admin and are locked. If you need to record additional collections, please ask Admin to unlock your shift in Day Closings.");
-    } else {
-      setCollectError('');
-    }
+    setCollectError('');
     setShowCollectModal(true);
     scrollToFormOrModal('agent-collect-modal');
   };
@@ -623,11 +834,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       payment_reference: '',
       notes: '',
     });
-    if (isTodayShiftSubmitted) {
-      setCollectError("Today's collections have been submitted to Admin and are locked. If you need to record additional collections, please ask Admin to unlock your shift in Day Closings.");
-    } else {
-      setCollectError('');
-    }
+    setCollectError('');
     setShowCollectModal(true);
     scrollToFormOrModal('agent-collect-modal');
   };
@@ -666,10 +873,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const handleRecordCollection = (e) => {
     e.preventDefault();
     setCollectError('');
-    if (isTodayShiftSubmitted) {
-      setCollectError("Today's collections have been submitted to Admin and are locked. Please ask Admin to unlock your shift in Day Closings before recording additional collections.");
-      return;
-    }
+    // Allow agent collection regardless of shift status, re-handover updates submission
     if (!collectForm.group_id || !collectForm.member_id || !collectForm.amount) {
       setCollectError('Please select both the Chit Group, Member, and enter an amount.');
       return;
@@ -687,10 +891,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   // Execute Confirmed Collection
   const executeConfirmedCollection = async () => {
     setCollectError('');
-    if (isTodayShiftSubmitted) {
-      setCollectError("Today's collections have been submitted to Admin and are locked.");
-      return;
-    }
+    // Allow agent collection regardless of shift status
     setSubmitting(true);
 
     try {
@@ -887,12 +1088,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             <button
               type="button"
               onClick={() => {
-                const isTodayShiftSubmitted = currentDaySubmission?.status === 'PENDING_APPROVAL' || currentDaySubmission?.status === 'APPROVED';
-                if (isTodayShiftSubmitted) {
-                  setCollectError("Today's collections have been submitted to Admin and are locked. If you need to record additional collections, please ask Admin to unlock your shift in Day Closings.");
-                  setShowCollectModal(true);
-                  return;
-                }
+                // Allow opening modal directly without error lock
                 setCollectForm({
                   group_id: routesData.groups[0]?.id ? String(routesData.groups[0].id) : '',
                   member_id: '',
@@ -1061,6 +1257,27 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             ) : null}
           </button>
 
+          {/* Tab: Member Pending Amount */}
+          <button
+            type="button"
+            onClick={() => {
+              handleTabSwitch('pending-dues');
+            }}
+            className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'pending-dues'
+                ? 'border-rose-600 text-rose-600 dark:text-rose-400 font-bold'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <AlertCircle className="w-4 h-4 text-rose-500" />
+            <span>Member Pending Amount</span>
+            {totalPendingMembersCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white shadow-xs">
+                ₹{totalAllPendingAmount.toLocaleString('en-IN')}
+              </span>
+            )}
+          </button>
+
           {/* Tab 2: Assigned Routes & 2D Map */}
           <button
             type="button"
@@ -1131,6 +1348,35 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
              TAB 1: TODAY'S TASKS & COLLECTION STOPS (Planner so agent never forgets)
              ========================================================================= */
           <div className="space-y-4">
+            {/* Quick Shortcut Form / Banner: Member Pending Amount */}
+            {chitsWithPending.length > 0 && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-orange-500/10 border border-rose-200 dark:border-rose-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 shrink-0">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 font-heading">
+                      ⚡ Member Pending Amount Shortcut
+                    </div>
+                    <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-0.5">
+                      ₹{totalAllPendingAmount.toLocaleString('en-IN')} Total Overdue across {chitsWithPending.length} Chit Schemes ({totalPendingMembersCount} Subscribers)
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Inspect which date is pending, how much is owed, and collect directly with customizable amounts.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTabSwitch('pending-dues')}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer font-heading"
+                >
+                  <span>Open Pending Portal</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             {/* Top Task Progress & Summary Card */}
             <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2167,6 +2413,227 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               )}
             </div>
           )
+        ) : activeTab === 'pending-dues' ? (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header & Quick Summary */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white font-heading flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-rose-600" />
+                  <span>Member Pending Amount Portal</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Track overdue subscriber amounts scheme-by-scheme, review itemized missed dates, and collect with flexible amounts.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span>Refresh Balances</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Metric KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 rounded-2xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 shadow-2xs">
+                <span className="text-xs font-bold text-rose-800 dark:text-rose-300 block">Total Unpaid Overdue</span>
+                <span className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 mt-1 block font-mono">
+                  ₹{totalAllPendingAmount.toLocaleString('en-IN')}
+                </span>
+                <span className="text-[11px] text-rose-700/80 dark:text-rose-400/80 mt-0.5 block">
+                  Sum of all pending member balances
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 shadow-2xs">
+                <span className="text-xs font-bold text-amber-800 dark:text-amber-300 block">Overdue Subscribers</span>
+                <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 block font-mono">
+                  {totalPendingMembersCount} Members
+                </span>
+                <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-0.5 block">
+                  Subscribers with remaining installment deficit
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 shadow-2xs">
+                <span className="text-xs font-bold text-blue-800 dark:text-blue-300 block">Chit Schemes with Deficit</span>
+                <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 block font-mono">
+                  {chitsWithPending.length} of {routesData.groups?.length || 0} Schemes
+                </span>
+                <span className="text-[11px] text-blue-700/80 dark:text-blue-400/80 mt-0.5 block">
+                  Assigned groups requiring payment follow-up
+                </span>
+              </div>
+            </div>
+
+            {/* Filter Controls Bar */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                {/* Search Chit */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={pendingChitSearch}
+                    onChange={(e) => setPendingChitSearch(e.target.value)}
+                    placeholder="Search chit name, code, or area location..."
+                    className="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  />
+                  {pendingChitSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setPendingChitSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Frequency Filter */}
+                <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto pb-1 sm:pb-0">
+                  {['ALL', 'DAILY', 'MONTHLY'].map((freq) => (
+                    <button
+                      key={freq}
+                      type="button"
+                      onClick={() => setPendingFrequencyFilter(freq)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        pendingFrequencyFilter === freq
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {freq === 'ALL' ? 'All Schemes' : freq === 'DAILY' ? '⚡ Daily Chits' : '🏛️ Monthly Chits'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sort Dropdown */}
+                <div className="shrink-0">
+                  <select
+                    value={pendingSort}
+                    onChange={(e) => setPendingSort(e.target.value)}
+                    className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  >
+                    <option value="HIGHEST_DUE">Highest Overdue First</option>
+                    <option value="MOST_MEMBERS">Most Overdue Members</option>
+                    <option value="NAME_ASC">Chit Scheme (A-Z)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Chit Scheme Cards Grid */}
+            {filteredPendingChits.length === 0 ? (
+              <div className="p-8 text-center rounded-3xl bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                  {pendingChitSearch ? 'No Matching Schemes Found' : 'No Pending Dues!'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                  {pendingChitSearch
+                    ? 'Try adjusting your search query or frequency filter.'
+                    : 'All subscribers in your assigned chit schemes have cleared their installments in full. Great job!'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredPendingChits
+                    .slice((pendingChitsPage - 1) * pendingChitsPageSize, pendingChitsPage * pendingChitsPageSize)
+                    .map((item) => {
+                      const { group, overdueMembers, totalPending, totalMembersCount } = item;
+                      const isDaily = group.frequency === 'DAILY';
+
+                      return (
+                        <div
+                          key={group.id}
+                          onClick={() => {
+                            setSelectedPendingGroup(group);
+                            setMemberSearchInChit('');
+                            setMemberStatusFilterInChit('ALL');
+                          }}
+                          className="group relative p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-400 dark:hover:border-rose-700 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-4"
+                        >
+                          {/* Card Top */}
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                {group.group_code}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  isDaily
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                                    : 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                                }`}
+                              >
+                                {isDaily ? '⚡ Daily Route' : '🏛️ Monthly Chit'}
+                              </span>
+                            </div>
+
+                            <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors font-heading truncate">
+                              {group.group_name}
+                            </h3>
+
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                              <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                              <span className="truncate">{group.location_name || 'General Field Area'}</span>
+                              <span>·</span>
+                              <span>₹{Number(group.installment_amount).toLocaleString('en-IN')}/installment</span>
+                            </div>
+                          </div>
+
+                          {/* Card Middle: Dues Highlight */}
+                          <div className="p-3.5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/50 flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-400 block font-heading">
+                                Total Scheme Overdue
+                              </span>
+                              <strong className="text-lg font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight">
+                                ₹{totalPending.toLocaleString('en-IN')}
+                              </strong>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-heading">
+                                Pending Subs
+                              </span>
+                              <strong className="text-sm font-bold text-slate-900 dark:text-white font-mono">
+                                {overdueMembers.length} / {totalMembersCount}
+                              </strong>
+                            </div>
+                          </div>
+
+                          {/* Card Footer Button */}
+                          <button
+                            type="button"
+                            className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-rose-600 dark:hover:bg-rose-500 text-white dark:text-slate-900 hover:text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer font-heading"
+                          >
+                            <span>View Pending Subscribers ({overdueMembers.length})</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <Pagination
+                  currentPage={pendingChitsPage}
+                  totalItems={filteredPendingChits.length}
+                  pageSize={pendingChitsPageSize}
+                  onPageChange={setPendingChitsPage}
+                  onPageSizeChange={setPendingChitsPageSize}
+                  pageSizeOptions={[6, 12, 24]}
+                />
+              </div>
+            )}
+          </div>
         ) : activeTab === 'profile' ? (
           /* =========================================================================
              TAB 3: AGENT PROFILE & ROUTE HUB (Directory of routes & useful tools)
@@ -2958,7 +3425,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 </div>
               )}
 
-              <fieldset disabled={isTodayShiftSubmitted} className="space-y-3.5 disabled:opacity-75">
+              <div className="space-y-3.5">
 
               {/* Group Selector */}
               <div>
@@ -3193,7 +3660,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
-              </fieldset>
+              </div>
               </div>
 
               {/* Sticky Action Footer */}
@@ -3205,36 +3672,26 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 >
                   Cancel
                 </button>
-                {isTodayShiftSubmitted ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
-                      <ShieldCheck className="w-4 h-4" />
-                      Shift Locked
-                    </span>
-                    <button
-                      type="button"
-                      disabled
-                      className="px-4 py-2 rounded-xl bg-slate-300 dark:bg-slate-700 text-slate-500 text-xs font-semibold cursor-not-allowed flex items-center gap-1.5"
-                    >
-                      🔒 Collection Locked
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Recording...</span>
-                      </>
-                    ) : (
-                      <span>Submit & Mark Paid</span>
-                    )}
-                  </button>
+                {isTodayShiftSubmitted && (
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium hidden sm:inline-flex items-center gap-1">
+                    <Info className="w-3.5 h-3.5" />
+                    Shift submitted. You can re-submit updated handover in Day Closings.
+                  </span>
                 )}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Recording...</span>
+                    </>
+                  ) : (
+                    <span>Submit & Mark Paid</span>
+                  )}
+                </button>
               </div>
             </form>
           </div>
@@ -3366,6 +3823,483 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 </button>
               </div>
             </form>
+          </div>
+        </ModalPortal>
+      )}
+
+
+      {/* ========================================================================= */}
+      {/* MODAL 1: Relative Members of Selected Chit Scheme with Search              */}
+      {/* ========================================================================= */}
+      {selectedPendingGroup && (
+        <ModalPortal
+          id="pending-chit-members-modal"
+          isOpen={Boolean(selectedPendingGroup)}
+          onClose={() => setSelectedPendingGroup(null)}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-2xl bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base font-heading">
+                    Pending Subscribers · {selectedPendingGroup.group_name}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {selectedPendingGroup.group_code} · ₹{Number(selectedPendingGroup.installment_amount).toLocaleString('en-IN')}/installment · {membersInSelectedPendingGroup.length} Overdue
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPendingGroup(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search & Filter Controls */}
+            <div className="space-y-2 shrink-0">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={memberSearchInChit}
+                  onChange={(e) => setMemberSearchInChit(e.target.value)}
+                  placeholder="Search member name, phone number, or ticket #..."
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+                {memberSearchInChit && (
+                  <button
+                    type="button"
+                    onClick={() => setMemberSearchInChit('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={() => setMemberStatusFilterInChit('ALL')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                    memberStatusFilterInChit === 'ALL'
+                      ? 'bg-rose-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  All Overdue ({membersInSelectedPendingGroup.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMemberStatusFilterInChit('NOT_PAID')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                    memberStatusFilterInChit === 'NOT_PAID'
+                      ? 'bg-rose-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Unpaid (₹0 Paid)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMemberStatusFilterInChit('PARTIAL')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                    memberStatusFilterInChit === 'PARTIAL'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Partially Paid
+                </button>
+              </div>
+            </div>
+
+            {/* Subscribers List */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              {membersInSelectedPendingGroup.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                  No matching overdue subscribers found.
+                </div>
+              ) : (
+                membersInSelectedPendingGroup.map((mem) => {
+                  const rem = mem.remaining_balance !== undefined && mem.remaining_balance !== null
+                    ? Number(mem.remaining_balance)
+                    : Number(selectedPendingGroup.installment_amount || 0);
+
+                  return (
+                    <div
+                      key={mem.member_id}
+                      className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-rose-400 dark:hover:border-rose-700 transition-all"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center justify-center font-black font-mono text-xs shrink-0">
+                          #{mem.ticket_number}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-slate-900 dark:text-white text-sm font-heading flex items-center gap-2">
+                            <span>{mem.full_name}</span>
+                            {Number(mem.collected_amount || 0) > 0 ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                Partial (Paid ₹{Number(mem.collected_amount).toLocaleString('en-IN')})
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                                Unpaid
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                            <a
+                              href={`tel:${mem.phone}`}
+                              className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-mono"
+                            >
+                              <PhoneCall className="w-3 h-3" />
+                              <span>{mem.phone}</span>
+                            </a>
+                            {mem.address && <span className="truncate max-w-[200px]">· {mem.address}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-700">
+                        <div className="text-left sm:text-right">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-heading">
+                            Pending Due
+                          </span>
+                          <strong className="text-base font-black text-rose-600 dark:text-rose-400 font-mono">
+                            ₹{rem.toLocaleString('en-IN')}
+                          </strong>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPendingMember(selectedPendingGroup, mem)}
+                          className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer font-heading"
+                        >
+                          <span>View Dates & Collect</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedPendingGroup(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Close Scheme Roster
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: Itemized Pending Dates Breakdown & Direct Collection Form         */}
+      {/* ========================================================================= */}
+      {selectedPendingMember && (
+        <ModalPortal
+          id="pending-member-detail-modal"
+          isOpen={Boolean(selectedPendingMember)}
+          onClose={() => {
+            setSelectedPendingMember(null);
+            setMemberPendingBreakdown(null);
+          }}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-5 sm:p-6 space-y-4 my-auto max-h-[92vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-2xl bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base font-heading">
+                    #{selectedPendingMember.ticket_number} - {selectedPendingMember.full_name}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {selectedPendingGroup?.group_name} ({selectedPendingGroup?.group_code}) · {selectedPendingMember.phone}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPendingMember(null);
+                  setMemberPendingBreakdown(null);
+                }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              {pendingCollectError && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900/50 text-red-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                  <span>{pendingCollectError}</span>
+                </div>
+              )}
+
+              {/* Itemized Pending Dates Table Section */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-heading flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Itemized Pending Dates & Missed Amounts</span>
+                  </span>
+                  {memberPendingBreakdown && (
+                    <span className="text-xs font-mono font-bold text-slate-500">
+                      {memberPendingBreakdown.pending_dates?.length || 0} Unpaid Cycle(s)
+                    </span>
+                  )}
+                </div>
+
+                {loadingBreakdown ? (
+                  <div className="p-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                    <span>Auditing pending dates from server database...</span>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 font-heading text-slate-600 dark:text-slate-400">
+                        <tr>
+                          <th className="py-2 px-3">Pending Date</th>
+                          <th className="py-2 px-3">Target</th>
+                          <th className="py-2 px-3">Paid</th>
+                          <th className="py-2 px-3 text-right">Pending Due</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {(memberPendingBreakdown?.pending_dates || []).map((item, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                            <td className="py-2.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <div>{formatDate(item.date)}</div>
+                              <span className="text-[10px] text-slate-400 font-sans block">{item.label}</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-500 font-mono">
+                              ₹{Number(item.due_amount).toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-2.5 px-3 text-emerald-600 dark:text-emerald-400 font-mono">
+                              ₹{Number(item.paid_amount || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-rose-600 dark:text-rose-400">
+                              ₹{Number(item.pending_amount).toLocaleString('en-IN')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Summary Row */}
+                    <div className="p-3 bg-rose-50/70 dark:bg-rose-950/40 border-t border-rose-200 dark:border-rose-900/60 flex items-center justify-between text-xs">
+                      <span className="font-extrabold text-rose-900 dark:text-rose-200 font-heading">
+                        Total Amount Member Should Pay Now:
+                      </span>
+                      <strong className="text-base font-black text-rose-600 dark:text-rose-400 font-mono">
+                        ₹{Number(memberPendingBreakdown?.total_pending || selectedPendingMember.remaining_balance || selectedPendingGroup?.installment_amount || 0).toLocaleString('en-IN')}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Editable Collection Form */}
+              <form onSubmit={handleExecutePendingCollection} className="space-y-3.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="space-y-3.5">
+                  {/* Amount to Collect (Fully Editable) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading">
+                        Collection Amount (₹) *
+                      </label>
+                      <span className="text-[11px] text-slate-400">
+                        Editable — Subscriber can pay any amount
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="1"
+                      required
+                      onWheel={(e) => e.target.blur()}
+                      value={pendingCollectAmount}
+                      onChange={(e) => setPendingCollectAmount(e.target.value)}
+                      placeholder="e.g. 500"
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-base font-black text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    />
+
+                    {/* Quick sets */}
+                    <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingCollectAmount(
+                            String(
+                              memberPendingBreakdown?.total_pending ||
+                              selectedPendingMember.remaining_balance ||
+                              selectedPendingGroup?.installment_amount ||
+                              ''
+                            )
+                          )
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[11px] font-bold hover:bg-rose-200 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        Full Due (₹{Number(memberPendingBreakdown?.total_pending || selectedPendingMember.remaining_balance || 0).toLocaleString('en-IN')})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingCollectAmount(String(selectedPendingGroup?.installment_amount || ''))}
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold hover:bg-slate-200 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        1 Installment (₹{Number(selectedPendingGroup?.installment_amount || 0).toLocaleString('en-IN')})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingCollectAmount(
+                            String(Math.round(Number(selectedPendingGroup?.installment_amount || 0) / 2))
+                          )
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold hover:bg-slate-200 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        Half (₹{Math.round(Number(selectedPendingGroup?.installment_amount || 0) / 2).toLocaleString('en-IN')})
+                      </button>
+                    </div>
+
+                    {/* Live Balance Computation Box */}
+                    {(() => {
+                      const totalDue = Number(
+                        memberPendingBreakdown?.total_pending ||
+                        selectedPendingMember.remaining_balance ||
+                        selectedPendingGroup?.installment_amount ||
+                        0
+                      );
+                      const entered = Number(pendingCollectAmount || 0);
+                      const remAfter = Math.max(0, totalDue - entered);
+
+                      return (
+                        <div className="mt-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                          <span className="text-slate-500 dark:text-slate-400">
+                            Balance After This Collection:
+                          </span>
+                          <strong className={`font-mono font-bold ${remAfter === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            {remAfter === 0 ? '✓ Cleared in Full' : `₹${remAfter.toLocaleString('en-IN')} remaining`}
+                          </strong>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Payment Method & Reference */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Payment Method *
+                      </label>
+                      <select
+                        value={pendingCollectMethod}
+                        onChange={(e) => setPendingCollectMethod(e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                      >
+                        <option value="CASH">Cash</option>
+                        <option value="UPI">UPI / GPay / PhonePe</option>
+                        <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                        <option value="CHEQUE">Cheque</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Ref # / UPI UTR
+                      </label>
+                      <input
+                        type="text"
+                        value={pendingCollectRef}
+                        onChange={(e) => setPendingCollectRef(e.target.value)}
+                        placeholder="e.g. 329048293"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Collection Date */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Collection Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={pendingCollectDate}
+                      onChange={(e) => setPendingCollectDate(e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Collection Remarks / Notes
+                    </label>
+                    <input
+                      type="text"
+                      value={pendingCollectNotes}
+                      onChange={(e) => setPendingCollectNotes(e.target.value)}
+                      placeholder="e.g. Cleared 2 pending days at subscriber house"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPendingMember(null);
+                      setMemberPendingBreakdown(null);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={submittingPendingCollect}
+                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer font-heading"
+                  >
+                    {submittingPendingCollect ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Recording...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Submit & Mark Paid</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </ModalPortal>
       )}

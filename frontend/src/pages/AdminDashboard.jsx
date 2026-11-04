@@ -240,22 +240,20 @@ export default function AdminDashboard() {
           <button
             type="button"
             onClick={() => setQuickFrequency('')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              !overviewFilters.frequency
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${!overviewFilters.frequency
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
+              }`}
           >
             All Schemes ({totalGroups})
           </button>
           <button
             type="button"
             onClick={() => setQuickFrequency('DAILY')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              overviewFilters.frequency === 'DAILY'
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${overviewFilters.frequency === 'DAILY'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 hover:bg-blue-100 border border-blue-200 dark:border-blue-900/40'
-            }`}
+              }`}
           >
             <span className="w-2 h-2 rounded-full bg-blue-500"></span>
             Daily Chits ({dailyChitGroups})
@@ -263,11 +261,10 @@ export default function AdminDashboard() {
           <button
             type="button"
             onClick={() => setQuickFrequency('MONTHLY')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              overviewFilters.frequency === 'MONTHLY'
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${overviewFilters.frequency === 'MONTHLY'
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-900/40'
-            }`}
+              }`}
           >
             <Gavel className="w-3.5 h-3.5 text-purple-500" />
             Monthly Chits ({auctionChitGroups + doubleChitGroups})
@@ -1024,11 +1021,10 @@ export default function AdminDashboard() {
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                            c.payment_method === 'CASH'
+                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${c.payment_method === 'CASH'
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                          }`}
+                            }`}
                         >
                           {c.payment_method || 'CASH'}
                         </span>

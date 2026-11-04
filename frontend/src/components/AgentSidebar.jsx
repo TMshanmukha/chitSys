@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   CheckSquare,
+  AlertCircle,
   Compass,
   UserCheck,
   History,
@@ -36,6 +37,16 @@ const AGENT_NAV_ITEMS = [
     glowColor: 'rgba(6, 182, 212, 0.4)',
     hoverBg: 'hover:bg-cyan-50/70 dark:hover:bg-cyan-950/40',
     hoverText: 'hover:text-cyan-600 dark:hover:text-cyan-400',
+  },
+  {
+    name: 'Member Pending Amount',
+    path: '/agent/pending-dues',
+    icon: AlertCircle,
+    desc: 'Inspect overdue chits, missed dates & collect dues',
+    activeGradient: 'from-rose-600 to-amber-600',
+    glowColor: 'rgba(225, 29, 72, 0.4)',
+    hoverBg: 'hover:bg-rose-50/70 dark:hover:bg-rose-950/40',
+    hoverText: 'hover:text-rose-600 dark:hover:text-rose-400',
   },
   {
     name: 'Day Closing & Shift Submit',

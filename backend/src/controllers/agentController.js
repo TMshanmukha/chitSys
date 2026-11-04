@@ -508,3 +508,124 @@ export async function getMyAssignedRoutes(req, res, next) {
     next(error);
   }
 }
+
+export async function getMemberPendingBreakdown(req, res, next) {
+  try {
+    const memberId = parseInt(req.params.id, 10);
+    const groupId = parseInt(req.query.group_id, 10);
+
+    if (!memberId || !groupId) {
+      return res.status(400).json({ success: false, message: 'Member ID and Group ID are required.' });
+    }
+
+    // 1. Fetch Member
+    const [memberRows] = await pool.execute(
+      'SELECT id, member_code, full_name, phone, alternate_phone, address FROM members WHERE id = ?',
+      [memberId]
+    );
+    if (memberRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Member not found.' });
+    }
+    const member = memberRows[0];
+
+    // 2. Fetch Group & Membership
+    const [groupRows] = await pool.execute(
+      `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.installment_amount,
+              g.start_date, g.created_at, gm.ticket_number, gm.joined_date
+       FROM chit_groups g
+       JOIN group_memberships gm ON gm.group_id = g.id AND gm.member_id = ?
+       WHERE g.id = ? AND gm.status = 'ACTIVE'`,
+      [memberId, groupId]
+    );
+    if (groupRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chit scheme enrollment not found.' });
+    }
+    const group = groupRows[0];
+    const installmentAmt = parseFloat(group.installment_amount || 0);
+    const isDaily = group.frequency === 'DAILY';
+
+    // 3. Fetch all collections for this member in this group
+    const [colls] = await pool.execute(
+      `SELECT id, amount, payment_method, collection_date, notes
+       FROM collections
+       WHERE member_id = ? AND group_id = ? AND verification_status != 'CANCELLED'
+       ORDER BY collection_date ASC`,
+      [memberId, groupId]
+    );
+
+    const collByDate = {};
+    for (const c of colls) {
+      const dStr = typeof c.collection_date === 'string'
+        ? c.collection_date.slice(0, 10)
+        : new Date(c.collection_date).toISOString().slice(0, 10);
+      collByDate[dStr] = (collByDate[dStr] || 0) + parseFloat(c.amount || 0);
+    }
+
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const pendingDates = [];
+
+    if (isDaily) {
+      const startDateStr = group.joined_date || group.start_date || group.created_at;
+      const start = new Date(startDateStr);
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const effectiveStart = start < sixtyDaysAgo ? sixtyDaysAgo : start;
+
+      const cur = new Date(effectiveStart.toISOString().slice(0, 10) + 'T00:00:00Z');
+      const end = new Date(todayStr + 'T00:00:00Z');
+
+      while (cur <= end) {
+        const dStr = cur.toISOString().slice(0, 10);
+        const paidOnDate = collByDate[dStr] || 0;
+        if (paidOnDate < installmentAmt) {
+          const shortfall = installmentAmt - paidOnDate;
+          pendingDates.push({
+            date: dStr,
+            due_amount: installmentAmt,
+            paid_amount: paidOnDate,
+            pending_amount: shortfall,
+            status: paidOnDate > 0 ? 'PARTIAL' : 'NOT_PAID',
+            label: dStr === todayStr ? "Today's Due" : 'Past Daily Due',
+          });
+        }
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+    } else {
+      const cycleInfo = getMonthlyCycleInfo(group.start_date || group.created_at, todayStr);
+      let cyclePaid = 0;
+      for (const [dStr, amt] of Object.entries(collByDate)) {
+        if (cycleInfo && dStr >= cycleInfo.cycleStart && dStr <= cycleInfo.cycleDue) {
+          cyclePaid += amt;
+        }
+      }
+      if (cyclePaid < installmentAmt) {
+        pendingDates.push({
+          date: cycleInfo ? cycleInfo.cycleDue : todayStr,
+          due_amount: installmentAmt,
+          paid_amount: cyclePaid,
+          pending_amount: installmentAmt - cyclePaid,
+          status: cyclePaid > 0 ? 'PARTIAL' : 'NOT_PAID',
+          label: `Monthly Cycle (${cycleInfo?.cycleStart || ''} to ${cycleInfo?.cycleDue || ''})`,
+        });
+      }
+    }
+
+    pendingDates.reverse();
+
+    const totalPending = pendingDates.reduce((sum, item) => sum + item.pending_amount, 0);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        member,
+        group,
+        pending_dates: pendingDates,
+        total_pending: totalPending,
+        installment_amount: installmentAmt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}

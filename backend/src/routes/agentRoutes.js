@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getMyAssignedRoutes } from '../controllers/agentController.js';
+import { getMyAssignedRoutes, getMemberPendingBreakdown } from '../controllers/agentController.js';
 import { recordCollection, listCollections } from '../controllers/collectionController.js';
 import { logAgentStopActivity } from '../controllers/trackingController.js';
 import { submitAgentDayWork, getMyDaySubmissions,
@@ -16,6 +16,7 @@ router.use(requireRole('COLLECTION_AGENT', 'ADMIN', 'SUPER_ADMIN'));
 
 // Assigned Groups & Members
 router.get('/my-routes', getMyAssignedRoutes);
+router.get('/members/:id/pending-dues', getMemberPendingBreakdown);
 
 // Record payment from field
 router.post('/collections', recordCollection);

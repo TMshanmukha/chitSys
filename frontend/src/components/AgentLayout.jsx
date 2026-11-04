@@ -19,6 +19,7 @@ import ConfirmModal from './ConfirmModal';
 const AGENT_PAGE_TITLES = {
   '/agent/tasks': "Today's Route Tasks & Stops",
   '/agent/routes': 'Assigned Schemes & 2D Map',
+  '/agent/pending-dues': 'Member Pending Amount & Overdue Portal',
   '/agent/day-closing': 'Day Closing & Collections',
   '/agent/leaves': 'Leave Calendar & Coverage',
   '/agent/history': 'Receipts & Collection History',
