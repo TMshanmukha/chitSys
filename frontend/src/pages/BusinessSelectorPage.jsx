@@ -8,20 +8,22 @@ import {
   Moon,
 } from 'lucide-react';
 import FinLendLogo from '../components/FinLendLogo';
-import AnimatedFinLendBackground from '../components/AnimatedFinLendBackground';
 
 export default function BusinessSelectorPage() {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
-    document.title = 'Select Business Workspace | ChitFund Pro & FinLend Pro';
+    document.title = 'Select Business Workspace | FinLend Pro & ChitFund Pro';
   }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-800 dark:text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans transition-colors selection:bg-blue-500 selection:text-white">
-      {/* 100% Vector Animated Background */}
-      <AnimatedFinLendBackground />
+      {/* Clean, Soft Ambient Background Glows */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+      </div>
 
       {/* Top Header - Completely Transparent */}
       <header className="relative z-10 px-6 sm:px-12 py-5 flex items-center justify-between bg-transparent border-none shadow-none shrink-0">
