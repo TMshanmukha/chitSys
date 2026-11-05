@@ -211,6 +211,7 @@ export async function getMemberPassbook(req, res, next) {
     // 2. Enrolled groups (filtered by groupId if specified)
     let groupsQuery = `
       SELECT gm.id as membership_id, gm.ticket_number, gm.joined_date, gm.status as membership_status,
+             gm.is_prized, gm.prized_period,
              g.id as group_id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
              g.location_name, g.installment_amount, g.total_pool_amount, g.duration_periods
       FROM group_memberships gm
@@ -284,6 +285,30 @@ export async function getMemberPassbook(req, res, next) {
       0
     );
 
+    // Enrich enrolledGroups with scheme pending balance & liability
+    const enrichedEnrolledGroups = enrolledGroups.map((eg) => {
+      const groupCols = collections.filter((c) => String(c.group_code) === String(eg.group_code));
+      const groupPaid = groupCols.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+      const isPrized = eg.is_prized === 1;
+      const totalChitVal = parseFloat(eg.total_pool_amount || (parseFloat(eg.installment_amount) * (eg.duration_periods || 20)));
+      const pendingBalance = isPrized ? Math.max(0, totalChitVal - groupPaid) : 0;
+      const accumulatedSavings = !isPrized ? groupPaid : 0;
+
+      return {
+        ...eg,
+        total_paid_in_group: groupPaid,
+        total_chit_value: totalChitVal,
+        is_prized: isPrized,
+        pending_scheme_balance: pendingBalance,
+        accumulated_savings: accumulatedSavings,
+      };
+    });
+
+    const totalPendingSchemeLiability = enrichedEnrolledGroups.reduce(
+      (sum, eg) => sum + (eg.pending_scheme_balance || 0),
+      0
+    );
+
     // Totals
     const totalPaid = collections.reduce((acc, c) => acc + parseFloat(c.amount), 0);
     const totalPrizeMoneyWon = auctionsWon.reduce((acc, a) => acc + parseFloat(a.net_payable_amount), 0);
@@ -294,7 +319,8 @@ export async function getMemberPassbook(req, res, next) {
       success: true,
       data: {
         member,
-        enrolledGroups,
+        enrolledGroups: enrichedEnrolledGroups,
+        totalPendingSchemeLiability,
         collections,
         auctionsWon,
         dividendsLedger,

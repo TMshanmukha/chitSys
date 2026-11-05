@@ -1184,7 +1184,8 @@ export default function AuctionsPage() {
                           <th className="py-2.5 px-3">Subscriber Name & Phone</th>
                           <th className="py-2.5 px-3">Bidding Status</th>
                           <th className="py-2.5 px-3">Installment Due</th>
-                          <th className="py-2.5 px-3">Payment & Pending Status</th>
+                          <th className="py-2.5 px-3">Cycle Due / Paid</th>
+                          <th className="py-2.5 px-3">Chit Pending Liability</th>
                           <th className="py-2.5 px-3">Dividend Credited</th>
                           <th className="py-2.5 px-3 text-right">Admin Action</th>
                         </tr>
@@ -1276,6 +1277,27 @@ export default function AuctionsPage() {
                                 )}
                               </td>
 
+                              <td className="py-2.5 px-3">
+                                {isPrized ? (
+                                  <div>
+                                    <div className="font-extrabold text-amber-600 dark:text-amber-400 text-xs sm:text-sm font-heading">
+                                      ₹{Number(sub.scheme_pending_balance !== undefined ? sub.scheme_pending_balance : Math.max(0, (schemeBreakdown?.group?.total_pool_amount || 0) - (sub.total_paid_in_group || 0))).toLocaleString('en-IN')}
+                                    </div>
+                                    <span className="text-[10px] text-amber-700/80 dark:text-amber-300/80 font-semibold block">
+                                      Prized · ₹{Number(sub.total_paid_in_group || 0).toLocaleString('en-IN')} paid to date
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm font-heading">
+                                      ₹0 Pending
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 block">
+                                      Contributed ₹{Number(sub.total_paid_in_group || 0).toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
                               <td className="py-2.5 px-3">
                                 <div className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm font-heading">
                                   ₹{Number(sub.total_dividend_credited || 0).toLocaleString('en-IN')}

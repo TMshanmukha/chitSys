@@ -2884,15 +2884,32 @@ export function MembersPage() {
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {passbookData.enrolledGroups?.map((eg) => (
-                      <div key={eg.membership_id} className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                        <div>
-                          <div className="font-bold text-slate-900 dark:text-white">{eg.group_name}</div>
-                          <div className="text-[11px] text-slate-500">{eg.chit_type?.replace('_', ' ')} · Ticket #{eg.ticket_number}</div>
+                      <div key={eg.membership_id} className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-slate-900 dark:text-white">{eg.group_name}</div>
+                            <div className="text-[11px] text-slate-500">{eg.chit_type?.replace('_', ' ')} · Ticket #{eg.ticket_number}</div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">₹{Number(eg.installment_amount).toLocaleString('en-IN')}</span>
+                            <span className="text-[10px] text-slate-400 block">{eg.frequency}</span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <span className="font-extrabold text-blue-600 dark:text-blue-400">₹{Number(eg.installment_amount).toLocaleString('en-IN')}</span>
-                          <span className="text-[10px] text-slate-400 block">{eg.frequency}</span>
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                          <span className="text-slate-500">Contributed to Date:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">₹{Number(eg.total_paid_in_group || 0).toLocaleString('en-IN')}</span>
                         </div>
+                        {eg.is_prized ? (
+                          <div className="flex items-center justify-between text-xs bg-amber-50 dark:bg-amber-950/40 p-2 rounded-lg border border-amber-200 dark:border-amber-900/60 font-heading">
+                            <span className="text-amber-800 dark:text-amber-300 font-bold">Pending Chit Liability:</span>
+                            <span className="font-black text-amber-700 dark:text-amber-400 text-sm">₹{Number(eg.pending_scheme_balance || 0).toLocaleString('en-IN')}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span>Subscriber Status:</span>
+                            <span className="font-semibold">Unprized Contributor (₹0 Pending)</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

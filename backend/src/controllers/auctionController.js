@@ -822,10 +822,14 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
     );
 
     const baseInstallment = parseFloat(group.installment_amount);
+    const poolAmount = parseFloat(group.total_pool_amount || (baseInstallment * (group.duration_periods || 20)));
+
     const enrichedSubscribers = subscribers.map((sub) => {
       const paidInCycle = parseFloat(sub.cycle_paid || 0);
+      const totalPaidInGroup = parseFloat(sub.total_paid_in_group || 0);
       const hasAdvance = Boolean(sub.active_advance_id);
       const advanceAmount = hasAdvance ? parseFloat(sub.active_advance_amount || 0) : 0;
+      const isPrized = sub.is_prized === 1;
 
       let paymentStatus = 'PAID';
       let pendingAmount = 0;
@@ -838,11 +842,29 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
         pendingAmount = Math.max(0, baseInstallment - paidInCycle);
       }
 
+      // ChitFund Pro Scheme Liability & Pending Calculation:
+      // When a member wins an auction and lifts prize money (m1 in month 1, m2 in month 2, m3 in month 3...):
+      // The pending amount to complete the chit scheme is: Total Chit Value - Total Paid To Date!
+      // Example:
+      // - Month 1: Winner m1 lifts 1,00,000, paid 20,000 -> Pending Amount = 80,000
+      // - Month 2: Winner m2 lifts 1,00,000, paid 40,000 -> Pending Amount = 60,000
+      // - Month 3: Winner m3 lifts 1,00,000, paid 60,000 -> Pending Amount = 40,000
+      // If member has NOT won/lifted prize (unprized contributor):
+      // Pending liability = 0; Accumulated savings = totalPaidInGroup (giving amount * rounds paid).
+      const schemeTotalLiability = isPrized ? poolAmount : 0;
+      const schemePendingBalance = isPrized ? Math.max(0, poolAmount - totalPaidInGroup) : 0;
+      const accumulatedSavings = !isPrized ? totalPaidInGroup : 0;
+
       return {
         ...sub,
         base_installment: baseInstallment,
         cycle_paid: paidInCycle,
         pending_amount: pendingAmount,
+        total_paid_in_group: totalPaidInGroup,
+        scheme_total_liability: schemeTotalLiability,
+        scheme_pending_balance: schemePendingBalance,
+        accumulated_savings: accumulatedSavings,
+        is_prized: isPrized,
         is_admin_covered: hasAdvance,
         advance_id: sub.active_advance_id || null,
         advance_amount: advanceAmount,
