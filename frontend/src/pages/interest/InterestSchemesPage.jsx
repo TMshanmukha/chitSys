@@ -143,22 +143,28 @@ export default function InterestSchemesPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 sm:space-y-7 animate-fadeIn font-sans pb-10">
+      {/* Top Header Card */}
+      <div className="p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-heading">
-            Configurable Scheme Builder
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-heading">
+              Product Catalog
+            </span>
+            <span className="text-xs text-slate-400">· {schemes.length} Configured Schemes</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight font-heading mt-1">
+            Configurable Lending Schemes
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Create and manage financial lending products with flexible interest calculation rules.
+            Configure flexible lending products (Flat, Reducing Balance EMI, Bullet, Daily Balance) with custom rules.
           </p>
         </div>
 
         <button
           type="button"
           onClick={openBuilder}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition-all cursor-pointer font-heading"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.35)] cursor-pointer font-heading"
         >
           <Plus className="w-4 h-4" />
           <span>New Financial Scheme</span>
@@ -166,22 +172,22 @@ export default function InterestSchemesPage() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 text-rose-700 text-xs">
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs shadow-xs">
           {error}
         </div>
       )}
 
       {/* Schemes Grid */}
       {loading ? (
-        <div className="p-12 text-center">
+        <div className="p-12 text-center rounded-3xl bg-white/50 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/60 dark:border-white/5">
           <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-2" />
-          <p className="text-xs text-slate-500">Loading configurable lending schemes...</p>
+          <p className="text-xs text-slate-500 font-medium">Loading configurable lending schemes...</p>
         </div>
       ) : schemes.length === 0 ? (
-        <div className="p-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
-          <Percent className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No Schemes Created Yet</p>
-          <p className="text-xs text-slate-500 mt-1">Click New Financial Scheme to launch the 7-step builder.</p>
+        <div className="p-12 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
+          <Percent className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-300 font-heading">No Schemes Created Yet</p>
+          <p className="text-xs text-slate-500 mt-1">Click "New Financial Scheme" to launch the 7-step builder.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -194,18 +200,18 @@ export default function InterestSchemesPage() {
             return (
               <div
                 key={s.id}
-                className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-4 hover:border-indigo-500/50 transition-all"
+                className="p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-col justify-between space-y-4 hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(99,102,241,0.25)] hover:border-indigo-500/40 transition-all duration-300"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="font-mono text-xs font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    <span className="font-mono text-xs font-black px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                       {s.scheme_code}
                     </span>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
                         s.status === 'ACTIVE'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 border border-emerald-200 dark:border-emerald-800'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
                       }`}
                     >
                       {s.status}
@@ -215,14 +221,14 @@ export default function InterestSchemesPage() {
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white font-heading">
                     {s.scheme_name}
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                     {s.description || 'Configurable lending product with automated schedule breakdown.'}
                   </p>
 
                   {/* Method Tag & Rate */}
-                  <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1.5">
+                  <div className="mt-4 p-3.5 rounded-2xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5 space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-medium">Calculation Model:</span>
+                      <span className="text-slate-400 font-medium">Model:</span>
                       <strong className="text-slate-800 dark:text-slate-200 font-bold font-heading">
                         {isFlat && 'Flat Rate'}
                         {isReducing && 'Reducing Balance (EMI)'}
@@ -232,12 +238,12 @@ export default function InterestSchemesPage() {
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-400 font-medium">Interest Rate:</span>
-                      <strong className="text-indigo-600 dark:text-indigo-400 font-mono font-bold">
+                      <strong className="text-indigo-600 dark:text-indigo-400 font-mono font-black">
                         {s.interest_rate}% / {s.rate_period.toLowerCase()}
                       </strong>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-medium">Repayment Frequency:</span>
+                      <span className="text-slate-400 font-medium">Frequency:</span>
                       <strong className="text-slate-700 dark:text-slate-300 font-bold font-mono">
                         {s.repayment_frequency}
                       </strong>
@@ -245,7 +251,7 @@ export default function InterestSchemesPage() {
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                <div className="pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs text-slate-500">
                   <span>Tenure: {s.min_tenure_periods}–{s.max_tenure_periods} periods</span>
                   <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
                     Def: ₹{Number(s.default_principal).toLocaleString('en-IN')}

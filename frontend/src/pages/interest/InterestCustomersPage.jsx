@@ -112,15 +112,21 @@ export default function InterestCustomersPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 sm:space-y-7 animate-fadeIn font-sans pb-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-heading">
-            Borrower & Customer Directory
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-heading">
+              Borrower Directory
+            </span>
+            <span className="text-xs text-slate-400">· {customers.length} Profiles</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight font-heading mt-1">
+            Borrower & Customer KYC Hub
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage KYC documents, nominees, guarantors, multi-loan portfolios, and unified customer ledgers.
+            Manage borrower KYC documents, nominees, guarantors, active loan liabilities & double-entry ledgers.
           </p>
         </div>
 
@@ -131,7 +137,7 @@ export default function InterestCustomersPage() {
             setFormError('');
             setShowAddModal(true);
           }}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition-all cursor-pointer font-heading"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.35)] cursor-pointer font-heading"
         >
           <Plus className="w-4 h-4" />
           <span>Register New Customer</span>
@@ -145,77 +151,84 @@ export default function InterestCustomersPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search customer name, phone number, or code..."
-          className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+          placeholder="Search borrower name, phone number, customer code, or Aadhaar..."
+          className="w-full pl-10 pr-4 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs transition-all"
         />
       </div>
 
       {/* Customers List / Table */}
       {loading ? (
-        <div className="p-12 text-center">
+        <div className="p-12 text-center rounded-3xl bg-white/50 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/60 dark:border-white/5">
           <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-2" />
-          <p className="text-xs text-slate-500">Loading customer profiles...</p>
+          <p className="text-xs text-slate-500 font-medium">Loading customer profiles...</p>
         </div>
       ) : customers.length === 0 ? (
-        <div className="p-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
-          <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No Customers Found</p>
+        <div className="p-12 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
+          <Users className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-300 font-heading">No Customers Found</p>
           <p className="text-xs text-slate-500 mt-1">Register a new borrower to start originating loans.</p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
+              <thead className="bg-slate-50/70 dark:bg-white/[0.02] text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200/60 dark:border-white/5">
                 <tr>
-                  <th className="py-3 px-4">Code</th>
-                  <th className="py-3 px-4">Customer Name</th>
-                  <th className="py-3 px-4">Phone / Contact</th>
-                  <th className="py-3 px-4">City / Area</th>
-                  <th className="py-3 px-4">Active Loans</th>
-                  <th className="py-3 px-4">Total Outstanding</th>
-                  <th className="py-3 px-4">KYC</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4">Code</th>
+                  <th className="py-3.5 px-4">Borrower Name</th>
+                  <th className="py-3.5 px-4">Phone / Contact</th>
+                  <th className="py-3.5 px-4">City / Area</th>
+                  <th className="py-3.5 px-4">Active Loans</th>
+                  <th className="py-3.5 px-4">Total Outstanding</th>
+                  <th className="py-3.5 px-4">KYC</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-medium">
                 {customers.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                  <tr key={c.id} className="hover:bg-indigo-50/30 dark:hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                       {c.customer_code}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="font-extrabold text-slate-900 dark:text-white font-heading">{c.full_name}</div>
-                      {c.aadhaar_number && (
-                        <div className="text-[10px] text-slate-400 font-mono">Aadhaar: {c.aadhaar_number}</div>
-                      )}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                          {c.full_name ? c.full_name[0].toUpperCase() : 'B'}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-slate-900 dark:text-white font-heading">{c.full_name}</div>
+                          {c.aadhaar_number && (
+                            <div className="text-[10px] text-slate-400 font-mono">Aadhaar: {c.aadhaar_number}</div>
+                          )}
+                        </div>
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300 font-mono">
+                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 font-mono">
                       {c.phone}
                     </td>
-                    <td className="py-3 px-4 text-slate-500">
+                    <td className="py-3.5 px-4 text-slate-500">
                       {c.city || c.address || '—'}
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    <td className="py-3.5 px-4">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                         {c.active_loans_count || 0} Active
                       </span>
                     </td>
-                    <td className="py-3 px-4 font-mono font-black text-slate-900 dark:text-white">
+                    <td className="py-3.5 px-4 font-mono font-black text-slate-900 dark:text-white">
                       ₹{Number(c.total_principal_outstanding || 0).toLocaleString('en-IN')}
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
+                    <td className="py-3.5 px-4">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                         {c.kyc_status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right">
                       <button
                         type="button"
                         onClick={() => openCustomerProfile(c.id)}
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer font-heading"
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/[0.05] hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer font-heading shadow-2xs hover:-translate-y-0.5"
                       >
-                        View Profile & Ledger
+                        Profile & Ledger
                       </button>
                     </td>
                   </tr>

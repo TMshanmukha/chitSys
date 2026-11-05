@@ -14,3 +14,4 @@ UPDATE `users` u
 JOIN `interest_agent_assignments` iaa ON u.id = iaa.agent_id
 SET u.assigned_business = 'INTEREST'
 WHERE u.role = 'COLLECTION_AGENT';
+

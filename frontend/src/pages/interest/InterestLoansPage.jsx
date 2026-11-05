@@ -186,22 +186,28 @@ export default function InterestLoansPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 sm:space-y-7 animate-fadeIn font-sans pb-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-heading">
-            Loan Accounts & Active Portfolios
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-heading">
+              Loan Portfolios
+            </span>
+            <span className="text-xs text-slate-400">· {loans.length} Originated Accounts</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight font-heading mt-1">
+            Loan Accounts & Repayment Ledger
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Originate, disburse, monitor repayment schedules & inspect customer loan balances.
+            Originate, disburse, monitor amortization schedules & inspect borrower balances.
           </p>
         </div>
 
         <button
           type="button"
           onClick={openDisburseModal}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition-all cursor-pointer font-heading"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.35)] cursor-pointer font-heading"
         >
           <Plus className="w-4 h-4" />
           <span>Disburse New Loan</span>
@@ -216,20 +222,20 @@ export default function InterestLoansPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search loan account #, customer name, phone..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs sm:text-sm shadow-2xs"
+            placeholder="Search loan account #, borrower name, phone..."
+            className="w-full pl-10 pr-4 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl text-xs sm:text-sm shadow-2xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/[0.04] p-1 rounded-2xl border border-slate-200/60 dark:border-white/5">
           {['ALL', 'ACTIVE', 'OVERDUE', 'CLOSED'].map((st) => (
             <button
               key={st}
               type="button"
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-heading ${
                 statusFilter === st
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-xs'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -241,79 +247,79 @@ export default function InterestLoansPage() {
 
       {/* Loans Table */}
       {loading ? (
-        <div className="p-12 text-center">
+        <div className="p-12 text-center rounded-3xl bg-white/50 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/60 dark:border-white/5">
           <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-2" />
-          <p className="text-xs text-slate-500">Loading loan accounts...</p>
+          <p className="text-xs text-slate-500 font-medium">Loading loan accounts...</p>
         </div>
       ) : loans.length === 0 ? (
-        <div className="p-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
-          <Coins className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No Loans Found</p>
-          <p className="text-xs text-slate-500 mt-1">Click Disburse New Loan to originate your first loan account.</p>
+        <div className="p-12 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
+          <Coins className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-300 font-heading">No Loans Found</p>
+          <p className="text-xs text-slate-500 mt-1">Click "Disburse New Loan" to originate your first loan account.</p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
+              <thead className="bg-slate-50/70 dark:bg-white/[0.02] text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200/60 dark:border-white/5">
                 <tr>
-                  <th className="py-3 px-4">Account #</th>
-                  <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Scheme & Model</th>
-                  <th className="py-3 px-4">Principal</th>
-                  <th className="py-3 px-4">Installment</th>
-                  <th className="py-3 px-4">Outstanding</th>
-                  <th className="py-3 px-4">Disbursed Date</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4">Account #</th>
+                  <th className="py-3.5 px-4">Borrower</th>
+                  <th className="py-3.5 px-4">Scheme & Model</th>
+                  <th className="py-3.5 px-4">Principal</th>
+                  <th className="py-3.5 px-4">Installment</th>
+                  <th className="py-3.5 px-4">Outstanding</th>
+                  <th className="py-3.5 px-4">Disbursed Date</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-medium">
                 {loans.map((l) => (
-                  <tr key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                  <tr key={l.id} className="hover:bg-indigo-50/30 dark:hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                       {l.loan_account_number}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3.5 px-4">
                       <div className="font-extrabold text-slate-900 dark:text-white font-heading">{l.customer_name}</div>
                       <div className="text-[10px] text-slate-400 font-mono">{l.customer_phone}</div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-800 dark:text-slate-200">{l.scheme_name}</div>
-                      <span className="text-[10px] font-mono text-slate-500 uppercase">
+                      <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-semibold uppercase">
                         {l.calculation_method} · {l.repayment_frequency}
                       </span>
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
                       ₹{Number(l.principal_amount).toLocaleString('en-IN')}
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                       ₹{Number(l.installment_amount).toLocaleString('en-IN')}
                     </td>
-                    <td className="py-3 px-4 font-mono font-black text-rose-600 dark:text-rose-400">
+                    <td className="py-3.5 px-4 font-mono font-black text-rose-600 dark:text-rose-400">
                       ₹{Number(l.principal_outstanding).toLocaleString('en-IN')}
                     </td>
-                    <td className="py-3 px-4 text-slate-500">
+                    <td className="py-3.5 px-4 text-slate-500 font-mono">
                       {formatDate(l.disbursement_date)}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3.5 px-4">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                           l.loan_status === 'ACTIVE'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 border border-emerald-200 dark:border-emerald-800'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                             : l.loan_status === 'OVERDUE'
-                            ? 'bg-rose-50 dark:bg-rose-950/80 text-rose-600 border border-rose-200 dark:border-rose-800'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            ? 'bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-800 animate-pulse'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         {l.loan_status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right">
                       <button
                         type="button"
                         onClick={() => openLoanDetail(l.id)}
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer font-heading"
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/[0.05] hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer font-heading shadow-2xs hover:-translate-y-0.5"
                       >
                         Schedules & Ledger
                       </button>
