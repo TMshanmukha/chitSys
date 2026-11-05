@@ -169,6 +169,10 @@ export async function updateAgent(req, res, next) {
       updates.push('password_hash = ?');
       params.push(hash);
     }
+    if (req.body.assigned_business) {
+      updates.push('assigned_business = ?');
+      params.push(req.body.assigned_business);
+    }
 
     if (updates.length > 0) {
       params.push(id);

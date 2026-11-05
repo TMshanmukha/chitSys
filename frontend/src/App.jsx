@@ -38,6 +38,7 @@ import InterestCustomersPage from './pages/interest/InterestCustomersPage';
 import InterestLoansPage from './pages/interest/InterestLoansPage';
 import InterestCollectionsPage from './pages/interest/InterestCollectionsPage';
 import InterestReportsPage from './pages/interest/InterestReportsPage';
+import InterestUsersPage from './pages/interest/InterestUsersPage';
 import InterestAgentPortalPage from './pages/interest/InterestAgentPortalPage';
 
 import ScrollToTop from './components/ScrollToTop';
@@ -130,6 +131,8 @@ export default function App() {
                   <Route path="customers" element={<InterestCustomersPage />} />
                   <Route path="loans" element={<InterestLoansPage />} />
                   <Route path="collections" element={<InterestCollectionsPage />} />
+                  <Route path="users" element={<InterestUsersPage />} />
+                  <Route path="agents" element={<InterestUsersPage />} />
                   <Route path="reports" element={<InterestReportsPage />} />
                 </Route>
 
@@ -139,13 +142,18 @@ export default function App() {
                 <Route
                   path="/interest/agent"
                   element={
-                    <ProtectedRoute allowedRoles={['COLLECTION_AGENT']} businessScope="interest">
+                    <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'COLLECTION_AGENT']} businessScope="interest">
                       <InterestAgentPortalPage />
                     </ProtectedRoute>
                   }
                 >
                   <Route index element={<Navigate to="/interest/agent/collections" replace />} />
                   <Route path="collections" element={<InterestAgentPortalPage />} />
+                  <Route path="tasks" element={<InterestAgentPortalPage />} />
+                  <Route path="dashboard" element={<InterestAgentPortalPage />} />
+                  <Route path="borrowers" element={<InterestAgentPortalPage />} />
+                  <Route path="history" element={<InterestAgentPortalPage />} />
+                  <Route path="profile" element={<InterestAgentPortalPage />} />
                 </Route>
 
                 {/* 404 Route */}

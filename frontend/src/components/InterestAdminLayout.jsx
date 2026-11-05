@@ -21,6 +21,7 @@ import {
   Sparkles,
   ChevronRight,
   ShieldCheck,
+  UserCheck,
 } from 'lucide-react';
 
 const TITLE_MAP = {
@@ -48,6 +49,14 @@ const TITLE_MAP = {
     section: 'Analytics',
     title: 'Financial Statements & Audit Ledgers',
   },
+  '/interest/admin/users': {
+    section: 'Staff',
+    title: 'User Management (Agents)',
+  },
+  '/interest/admin/agents': {
+    section: 'Staff',
+    title: 'User Management (Agents)',
+  },
 };
 
 export default function InterestAdminLayout() {
@@ -68,6 +77,7 @@ export default function InterestAdminLayout() {
     { label: 'Customers & KYC', path: '/interest/admin/customers', icon: Users },
     { label: 'Loan Accounts', path: '/interest/admin/loans', icon: Coins },
     { label: 'Collections Center', path: '/interest/admin/collections', icon: Receipt },
+    { label: 'User Management (Agents)', path: '/interest/admin/users', icon: UserCheck },
     { label: 'Reports & Ledgers', path: '/interest/admin/reports', icon: FileBarChart2 },
   ];
 

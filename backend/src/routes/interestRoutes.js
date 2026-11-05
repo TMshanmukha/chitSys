@@ -15,6 +15,7 @@ import {
   getAgentAssignedCustomers,
   recordCollection,
   getCollectionReport,
+  getAgentSummary,
 } from '../controllers/interestController.js';
 
 const router = express.Router();
@@ -44,6 +45,7 @@ router.post('/loans', requireRole('SUPER_ADMIN', 'ADMIN'), createLoan);
 
 // Collections & Field Agent Workflows
 router.get('/agent/assigned-customers', getAgentAssignedCustomers);
+router.get('/agent/summary', getAgentSummary);
 router.post('/collections', recordCollection);
 router.get('/reports/collections', requireRole('SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'), getCollectionReport);
 

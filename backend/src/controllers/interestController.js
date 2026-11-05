@@ -913,3 +913,50 @@ export async function getCollectionReport(req, res) {
   }
 }
 
+/**
+ * ============================================================================
+ * 7. AGENT SUMMARY & SHIFT METRICS
+ * ============================================================================
+ */
+export async function getAgentSummary(req, res) {
+  try {
+    const agentId = req.user?.id;
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    // Today's collections for this agent
+    const [todayRows] = await pool.query(`
+      SELECT 
+        COALESCE(SUM(amount_collected), 0) as today_total,
+        COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'CASH' THEN amount_collected ELSE 0 END), 0) as today_cash,
+        COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'UPI' THEN amount_collected ELSE 0 END), 0) as today_upi,
+        COUNT(id) as today_count
+      FROM interest_collections
+      WHERE collected_by_user_id = ? AND collection_date = ? AND status = 'CONFIRMED'
+    `, [agentId, todayStr]);
+
+    // Recent 50 collections by this agent
+    const [recentCollections] = await pool.query(`
+      SELECT c.*, cust.full_name as customer_name, cust.phone as customer_phone,
+             l.loan_account_number, s.scheme_name
+      FROM interest_collections c
+      JOIN interest_customers cust ON c.customer_id = cust.id
+      JOIN interest_loans l ON c.loan_id = l.id
+      JOIN interest_schemes s ON l.scheme_id = s.id
+      WHERE c.collected_by_user_id = ? AND c.status = 'CONFIRMED'
+      ORDER BY c.collection_date DESC, c.id DESC
+      LIMIT 50
+    `, [agentId]);
+
+    res.json({
+      success: true,
+      data: {
+        summary: todayRows[0] || { today_total: 0, today_cash: 0, today_upi: 0, today_count: 0 },
+        recentCollections,
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to get agent summary', error);
+    res.status(500).json({ success: false, message: 'Failed to load agent summary' });
+  }
+}
+
