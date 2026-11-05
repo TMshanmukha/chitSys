@@ -35,3 +35,4 @@ export default function Keypad({ onKeyPress, onDelete, onClear }) {
     </div>
   );
 }
+

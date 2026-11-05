@@ -18,3 +18,4 @@ CREATE TABLE IF NOT EXISTS interest_user_profiles (
   CONSTRAINT fk_interest_user_profile_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
   UNIQUE KEY uq_interest_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
