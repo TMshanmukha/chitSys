@@ -47,6 +47,16 @@ import ScrollToTop from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
+  React.useEffect(() => {
+    try {
+      const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.type = 'image/svg+xml';
+      link.rel = 'icon';
+      link.href = '/favicon.svg?v=finlend_pro_20261106';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    } catch (_) {}
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>

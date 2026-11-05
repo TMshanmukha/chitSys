@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Menu, LogOut, Sun, Moon, Percent, ArrowRightLeft, Landmark } from 'lucide-react';
+import FinLendLogo from './FinLendLogo';
 import ConfirmModal from './ConfirmModal';
 import NotificationBell from './NotificationBell';
 
@@ -13,8 +14,8 @@ export default function Navbar({ onToggleSidebar, pageTitle }) {
 
   return (
     <>
-      {/* Floating Translucent Top Navbar Island (Separated from Body Page) */}
-      <header className="sticky top-3 z-30 mx-3 sm:mx-6 flex items-center justify-between h-16 px-4 sm:px-6 rounded-2xl bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-slate-200/60 dark:border-slate-800/60 text-slate-800 dark:text-slate-100 transition-all shadow-[0_8px_30px_rgba(0,0,0,0.04)] mb-4">
+      {/* Floating Transparent Top Navbar (Seamlessly Blends with Ambient Background) */}
+      <header className="sticky top-2 z-30 mx-3 sm:mx-6 flex items-center justify-between h-16 px-4 sm:px-6 rounded-2xl bg-transparent backdrop-blur-md border border-slate-200/50 dark:border-white/10 text-slate-800 dark:text-slate-100 transition-all mb-4">
         {/* Left: Mobile menu toggle and current title */}
         <div className="flex items-center gap-3">
           <button
@@ -46,7 +47,7 @@ export default function Navbar({ onToggleSidebar, pageTitle }) {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 hover:bg-indigo-100/90 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-200/80 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all shadow-2xs hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(99,102,241,0.25)] font-heading cursor-pointer"
               title="Switch to FinLend Pro (Interest Business & Loans)"
             >
-              <Percent className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <FinLendLogo size={16} variant="symbol" />
               <span className="hidden sm:inline">FinLend Pro</span>
               <span className="hidden md:inline px-1 py-0.2 rounded-md bg-indigo-200/60 dark:bg-indigo-900/60 text-[9px] text-indigo-800 dark:text-indigo-200 uppercase font-black">Loans</span>
             </Link>

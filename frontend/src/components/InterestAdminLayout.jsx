@@ -104,7 +104,7 @@ export default function InterestAdminLayout() {
       {/* DOCKED SIDEBAR: Clean, Flush to Left Screen Edge, No Floating Indentation */}
       {/* ========================================================================= */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 flex flex-col bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-r border-slate-200/70 dark:border-white/10 transition-transform duration-300 ease-in-out shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-64 flex flex-col bg-transparent backdrop-blur-2xl border-r border-slate-200/70 dark:border-white/10 transition-transform duration-300 ease-in-out shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >

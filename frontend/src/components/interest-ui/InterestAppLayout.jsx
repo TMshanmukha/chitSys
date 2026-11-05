@@ -40,8 +40,8 @@ export default function InterestAppLayout() {
 
       {/* Main Viewport Container */}
       <div className="flex-1 md:pl-64 flex flex-col min-w-0 z-10">
-        {/* Mobile Top Header (hidden on md:) - Transparent */}
-        <header className="md:hidden sticky top-0 z-30 h-14 px-4 flex items-center justify-between bg-transparent backdrop-blur-md border-b border-slate-200/40 dark:border-white/5 shrink-0">
+        {/* Mobile Top Header (hidden on md:) - Transparent, Single Book Mark */}
+        <header className="md:hidden sticky top-0 z-30 h-14 px-4 flex items-center justify-between bg-transparent border-none shadow-none shrink-0">
           <Link to="/interest/home" className="flex items-center gap-2.5">
             <FinLendLogo size={34} variant="app-icon" className="shrink-0" />
             <div>
@@ -51,21 +51,12 @@ export default function InterestAppLayout() {
             </div>
           </Link>
 
-          <div className="flex items-center gap-1.5">
-            {/* Switch to ChitFund Pro */}
-            <Link
-              to="/admin/dashboard"
-              className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60"
-              title="Switch to ChitFund Pro"
-            >
-              <Layers className="w-4 h-4" />
-            </Link>
-
+          <div className="flex items-center gap-2">
             {/* Theme Toggle */}
             <button
               type="button"
               onClick={toggleTheme}
-              className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300"
+              className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200/40 dark:hover:bg-white/10 transition-colors"
               aria-label="Toggle theme"
             >
               {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
@@ -75,7 +66,7 @@ export default function InterestAppLayout() {
             <button
               type="button"
               onClick={handleLogout}
-              className="p-1.5 rounded-lg text-rose-500"
+              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
               aria-label="Logout"
             >
               <LogOut className="w-4 h-4" />

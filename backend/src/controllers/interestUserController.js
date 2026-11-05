@@ -251,13 +251,28 @@ export async function getUserById(req, res) {
         p.id as profile_id, p.role, p.phone as profile_phone, p.assigned_area, p.daily_target,
         p.is_active, p.must_change_password, p.last_login_at, p.permissions
        FROM users u
-       JOIN interest_user_profiles p ON u.id = p.user_id
+       LEFT JOIN interest_user_profiles p ON u.id = p.user_id
        WHERE u.id = ? LIMIT 1`,
       [id]
     );
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User profile not found.' });
+      return res.status(404).json({ success: false, message: 'User not found in system.' });
+    }
+
+    if (!user.profile_id) {
+      // Auto-provision profile for this user
+      const defaultRole = (user.username === 'admin') ? 'OWNER' : 'AGENT';
+      const permsJson = JSON.stringify(DEFAULT_ROLE_PERMISSIONS[defaultRole] || DEFAULT_ROLE_PERMISSIONS.AGENT);
+      await pool.query(
+        `INSERT INTO interest_user_profiles (user_id, role, permissions, is_active, must_change_password)
+         VALUES (?, ?, ?, TRUE, FALSE)
+         ON DUPLICATE KEY UPDATE role = VALUES(role)`,
+        [id, defaultRole, permsJson]
+      );
+      user.role = defaultRole;
+      user.is_active = 1;
+      user.permissions = permsJson;
     }
 
     let perms = {};

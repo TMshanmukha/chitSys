@@ -22,6 +22,7 @@ import {
   Percent,
   ArrowRight,
 } from 'lucide-react';
+import FinLendLogo from './FinLendLogo';
 import { useNotifications } from '../context/NotificationContext';
 
 const NAV_ITEMS = [
@@ -240,9 +241,7 @@ export default function Sidebar({ isOpen, onClose }) {
             title="Switch to FinLend Pro (Interest Business & Loans)"
           >
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-xs">
-                <Landmark className="w-3.5 h-3.5" />
-              </div>
+              <FinLendLogo size={28} variant="app-icon" className="shrink-0" />
               <div className="text-left">
                 <span className="block text-xs font-bold text-slate-900 dark:text-white font-heading leading-tight">
                   FinLend Pro

@@ -244,7 +244,7 @@ export default function LoginPage() {
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <Percent className="w-3.5 h-3.5" />
+                  <FinLendLogo size={16} variant="symbol" />
                   <span>FinLend Pro</span>
                 </button>
               </div>
@@ -252,17 +252,17 @@ export default function LoginPage() {
 
             {/* Floating Brand Badge */}
             <div className="flex justify-center mb-3">
-              <div
-                className={`w-14 h-14 rounded-2xl p-0.5 shadow-lg flex items-center justify-center transform hover:scale-105 transition-transform duration-300 ${
-                  isInterest
-                    ? 'bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-700 shadow-indigo-500/30'
-                    : 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 shadow-emerald-500/30'
-                }`}
-              >
-                <div className="w-full h-full rounded-[14px] bg-slate-900/40 flex items-center justify-center text-white">
-                  {isInterest ? <Percent className="w-7 h-7" /> : <Layers className="w-7 h-7" />}
+              {isInterest ? (
+                <div className="transform hover:scale-105 transition-transform duration-300 drop-shadow-md">
+                  <FinLendLogo size={56} variant="app-icon" />
                 </div>
-              </div>
+              ) : (
+                <div className="w-14 h-14 rounded-2xl p-0.5 shadow-lg flex items-center justify-center transform hover:scale-105 transition-transform duration-300 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 shadow-emerald-500/30">
+                  <div className="w-full h-full rounded-[14px] bg-slate-900/40 flex items-center justify-center text-white">
+                    <Layers className="w-7 h-7" />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Heading */}
