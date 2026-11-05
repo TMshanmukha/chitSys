@@ -8,6 +8,7 @@ const loginSchema = z.object({
   }),
   username: z.string().optional(),
   password: z.string().min(1, 'Password or PIN is required.'),
+  business: z.enum(['chitfund', 'interest']).optional(),
 });
 
 export async function login(req, res, next) {
@@ -20,7 +21,7 @@ export async function login(req, res, next) {
       });
     }
 
-    const { role, username, password } = validation.data;
+    const { role, username, password, business } = validation.data;
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'] || '';
 
@@ -30,6 +31,7 @@ export async function login(req, res, next) {
       password,
       ipAddress,
       userAgent,
+      business,
     });
 
     // Set secure HttpOnly cookie
@@ -58,6 +60,7 @@ export async function me(req, res) {
       full_name: req.user.full_name,
       username: req.user.username,
       role: req.user.role,
+      assigned_business: req.user.assigned_business || 'ALL',
       phone: req.user.phone,
       last_login_at: req.user.last_login_at,
     },

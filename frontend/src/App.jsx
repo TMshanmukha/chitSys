@@ -97,7 +97,7 @@ export default function App() {
                 <Route
                   path="/agent"
                   element={
-                    <ProtectedRoute allowedRoles={['COLLECTION_AGENT']}>
+                    <ProtectedRoute allowedRoles={['COLLECTION_AGENT']} businessScope="chitfund">
                       <AgentLayout />
                     </ProtectedRoute>
                   }
@@ -139,7 +139,7 @@ export default function App() {
                 <Route
                   path="/interest/agent"
                   element={
-                    <ProtectedRoute allowedRoles={['COLLECTION_AGENT']}>
+                    <ProtectedRoute allowedRoles={['COLLECTION_AGENT']} businessScope="interest">
                       <InterestAgentPortalPage />
                     </ProtectedRoute>
                   }

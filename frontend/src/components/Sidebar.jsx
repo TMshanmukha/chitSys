@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Layers,
@@ -18,6 +18,9 @@ import {
   Bell,
   CalendarDays,
   ClipboardCheck,
+  Landmark,
+  Percent,
+  ArrowRight,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
@@ -228,6 +231,30 @@ export default function Sidebar({ isOpen, onClose }) {
             );
           })}
         </nav>
+
+        {/* FinLend Pro Quick Platform Switcher Banner */}
+        <div className="px-3 py-2 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/20 dark:bg-slate-900/20 backdrop-blur-md">
+          <Link
+            to="/interest/admin/dashboard"
+            className="flex items-center justify-between p-2.5 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-4px_rgba(99,102,241,0.3)] group cursor-pointer"
+            title="Switch to FinLend Pro (Interest Business & Loans)"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-xs">
+                <Landmark className="w-3.5 h-3.5" />
+              </div>
+              <div className="text-left">
+                <span className="block text-xs font-bold text-slate-900 dark:text-white font-heading leading-tight">
+                  FinLend Pro
+                </span>
+                <span className="block text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold leading-tight">
+                  Interest & Loans →
+                </span>
+              </div>
+            </div>
+            <ArrowRight className="w-3.5 h-3.5 text-indigo-500 group-hover:translate-x-1 transition-transform" />
+          </Link>
+        </div>
 
         {/* Clean, Rich Frosted Glass Footer */}
         <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 text-xs text-slate-500 dark:text-slate-400 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md">

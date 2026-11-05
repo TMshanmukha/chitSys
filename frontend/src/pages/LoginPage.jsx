@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import AnimatedChitBackground from '../components/AnimatedChitBackground';
+import AnimatedFinLendBackground from '../components/AnimatedFinLendBackground';
 import {
   ShieldCheck,
   UserCheck,
@@ -109,6 +111,7 @@ export default function LoginPage() {
         role: selectedRole,
         username: username.trim(),
         password,
+        business,
       });
 
       setSuccessMessage('Login verified. Accessing system dashboard...');
@@ -149,28 +152,15 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col justify-between items-center bg-slate-50 dark:bg-[#070b14] text-slate-800 dark:text-slate-100 p-4 sm:p-6 relative overflow-hidden transition-colors selection:bg-blue-500 selection:text-white">
-      {/* Dynamic Background Glows based on selected business */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />
-        {isInterest ? (
-          <>
-            <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl" />
-          </>
-        ) : (
-          <>
-            <div className="absolute -top-40 -left-40 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-teal-600/20 rounded-full blur-3xl" />
-          </>
-        )}
-      </div>
+      {/* 100% Vector Animated Background with Authentic Currency, Tokens & Symbols */}
+      {isInterest ? <AnimatedFinLendBackground /> : <AnimatedChitBackground />}
 
       {/* Top Header Bar */}
       <header className="w-full max-w-5xl flex items-center justify-between z-10 py-2">
         <div className="flex items-center gap-3">
           <Link
             to="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-xs transition-colors backdrop-blur-md"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">All Businesses</span>
@@ -197,8 +187,8 @@ export default function LoginPage() {
               <span
                 className={`hidden sm:inline-block ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                   isInterest
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
-                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                 }`}
               >
                 {isInterest ? 'Interest & Lending Engine' : 'Chit Fund & Auction Suite'}
@@ -212,27 +202,27 @@ export default function LoginPage() {
           type="button"
           onClick={toggleTheme}
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors cursor-pointer shadow-xs"
+          className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer shadow-xs backdrop-blur-md"
         >
           {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
         </button>
       </header>
 
-      {/* Main Form Container */}
+      {/* Main Form Container - Seamless Glass Without Harsh Night Mode Box */}
       <main className="w-full max-w-md my-auto z-10 py-6 px-1 sm:px-0">
         <div className="relative group">
           <div
-            className={`absolute -inset-2 rounded-[2.5rem] blur-2xl opacity-75 group-hover:opacity-100 transition duration-500 pointer-events-none ${
+            className={`absolute -inset-1 rounded-[2rem] blur-2xl opacity-60 group-hover:opacity-90 transition duration-500 pointer-events-none ${
               isInterest
                 ? 'bg-gradient-to-r from-indigo-600/30 via-violet-600/20 to-purple-500/30'
                 : 'bg-gradient-to-r from-emerald-600/30 via-teal-600/20 to-cyan-500/30'
             }`}
           />
 
-          <div className="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-[2.25rem] border border-white/80 dark:border-slate-800/80 shadow-2xl p-6 sm:p-8 transition-all">
-            {/* Top Business Switcher Track */}
+          <div className="relative bg-white/95 dark:bg-slate-900/70 backdrop-blur-2xl rounded-3xl border border-slate-200/70 dark:border-white/10 shadow-2xl p-6 sm:p-8 transition-all">
+            {/* Top Business Switcher Track (Seamless Pill) */}
             <div className="mb-6">
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-white/[0.04] rounded-2xl border border-slate-200/60 dark:border-white/5">
                 <button
                   type="button"
                   onClick={() => handleSwitchBusiness('chitfund')}
@@ -293,7 +283,7 @@ export default function LoginPage() {
               <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                 Select Access Role
               </label>
-              <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-950/80 rounded-2xl border border-slate-200/90 dark:border-slate-800/90">
+              <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-white/[0.04] rounded-2xl border border-slate-200/60 dark:border-white/5">
                 <button
                   type="button"
                   onClick={() => handleRoleChange('ADMIN')}
@@ -355,7 +345,7 @@ export default function LoginPage() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder={selectedRole === 'ADMIN' ? 'e.g. admin' : 'e.g. agent1'}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   />
                 </div>
               </div>
@@ -372,7 +362,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your secret password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50/80 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   />
                   <button
                     type="button"

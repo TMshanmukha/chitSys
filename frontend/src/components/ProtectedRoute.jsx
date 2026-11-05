@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-export default function ProtectedRoute({ children, allowedRoles }) {
+export default function ProtectedRoute({ children, allowedRoles, businessScope }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -22,10 +22,23 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Strict business segregation guard for collection agents
+  // Administrators (SUPER_ADMIN, ADMIN) have global multi-business access.
+  if (user.role === 'COLLECTION_AGENT' && businessScope) {
+    const assigned = (user.assigned_business || 'CHITFUND').toUpperCase();
+    if (businessScope === 'interest' && assigned === 'CHITFUND') {
+      return <Navigate to="/agent/dashboard" replace />;
+    }
+    if (businessScope === 'chitfund' && assigned === 'INTEREST') {
+      return <Navigate to="/interest/agent/collections" replace />;
+    }
+  }
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     // If agent tries to access admin route, redirect to agent dashboard
     if (user.role === 'COLLECTION_AGENT') {
-      return <Navigate to="/agent/dashboard" replace />;
+      const assigned = (user.assigned_business || 'CHITFUND').toUpperCase();
+      return <Navigate to={assigned === 'INTEREST' ? '/interest/agent/collections' : '/agent/dashboard'} replace />;
     }
     // If admin tries to access agent route, redirect to admin dashboard
     if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {

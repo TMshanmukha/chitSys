@@ -37,6 +37,7 @@ export async function authenticateUser({
   password,
   ipAddress,
   userAgent,
+  business,
 }) {
   const normalizedRole = selectedRole?.toUpperCase()?.trim();
 
@@ -67,7 +68,7 @@ export async function authenticateUser({
 
   // Retrieve user record by username
   const [rows] = await pool.execute(
-    'SELECT id, full_name, username, password_hash, role, is_active FROM users WHERE username = ? LIMIT 1',
+    'SELECT id, full_name, username, password_hash, role, assigned_business, is_active FROM users WHERE username = ? LIMIT 1',
     [targetUsername]
   );
 
@@ -104,6 +105,44 @@ export async function authenticateUser({
       status: 'WARNING',
     });
     throw new Error('Invalid credentials or unauthorized role for this portal.');
+  }
+
+  // Strict Business Segregation for Collection Agents
+  // Only Admin accounts (SUPER_ADMIN / ADMIN) have shared authority across both systems.
+  // Collection agents are bound strictly to their designated business portal.
+  if (user.role === 'COLLECTION_AGENT') {
+    const requestedBusiness = (business || 'chitfund').toLowerCase();
+    const assignedBusiness = (user.assigned_business || 'CHITFUND').toUpperCase();
+
+    if (requestedBusiness === 'interest' && assignedBusiness === 'CHITFUND') {
+      await recordAuditLog({
+        userId: user.id,
+        action: 'CROSS_BUSINESS_ACCESS_BLOCKED',
+        resource: 'AUTH',
+        details: { attemptedPortal: 'FinLend Pro', assignedBusiness },
+        ipAddress,
+        userAgent,
+        status: 'WARNING',
+      });
+      throw new Error(
+        'Access Denied: This collection agent account is assigned exclusively to ChitFund Pro. Access to FinLend Pro is restricted.'
+      );
+    }
+
+    if (requestedBusiness === 'chitfund' && assignedBusiness === 'INTEREST') {
+      await recordAuditLog({
+        userId: user.id,
+        action: 'CROSS_BUSINESS_ACCESS_BLOCKED',
+        resource: 'AUTH',
+        details: { attemptedPortal: 'ChitFund Pro', assignedBusiness },
+        ipAddress,
+        userAgent,
+        status: 'WARNING',
+      });
+      throw new Error(
+        'Access Denied: This collection agent account is assigned exclusively to FinLend Pro. Access to ChitFund Pro is restricted.'
+      );
+    }
   }
 
   // Check account active status
@@ -157,6 +196,7 @@ export async function authenticateUser({
       full_name: user.full_name,
       username: user.username,
       role: user.role,
+      assigned_business: user.assigned_business || 'CHITFUND',
     },
     token,
     tokenId,

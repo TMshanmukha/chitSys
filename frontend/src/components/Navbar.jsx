@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Menu, LogOut, Sun, Moon } from 'lucide-react';
+import { Menu, LogOut, Sun, Moon, Percent, ArrowRightLeft, Landmark } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import NotificationBell from './NotificationBell';
 
@@ -36,8 +37,21 @@ export default function Navbar({ onToggleSidebar, pageTitle }) {
           </div>
         </div>
 
-        {/* Right Actions: Live Notifications, Theme Toggle, User Profile, Logout */}
+        {/* Right Actions: Live Notifications, FinLend Pro Switcher, Theme Toggle, User Profile, Logout */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Quick Business Switcher Button to FinLend Pro (Loans & Interest) */}
+          {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+            <Link
+              to="/interest/admin/dashboard"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 hover:bg-indigo-100/90 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-200/80 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all shadow-2xs hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(99,102,241,0.25)] font-heading cursor-pointer"
+              title="Switch to FinLend Pro (Interest Business & Loans)"
+            >
+              <Percent className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden sm:inline">FinLend Pro</span>
+              <span className="hidden md:inline px-1 py-0.2 rounded-md bg-indigo-200/60 dark:bg-indigo-900/60 text-[9px] text-indigo-800 dark:text-indigo-200 uppercase font-black">Loans</span>
+            </Link>
+          )}
+
           {/* Real-Time Live Notification Center */}
           <NotificationBell />
 

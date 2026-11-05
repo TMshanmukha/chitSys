@@ -24,6 +24,7 @@ import {
 import { formatDate } from '../../utils/dateUtils';
 import ModalPortal from '../../components/ModalPortal';
 import { useNavigate, Link } from 'react-router-dom';
+import AnimatedFinLendBackground from '../../components/AnimatedFinLendBackground';
 
 export default function InterestAgentPortalPage() {
   const { user, logout } = useAuth();
@@ -126,16 +127,19 @@ export default function InterestAgentPortalPage() {
   const totalDueSum = assignedLoans.reduce((sum, l) => sum + Number(l.current_due_amount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+      {/* 100% Vector Animated Background with Floating Loan Slips, Interest %, Notes & Coins */}
+      <AnimatedFinLendBackground />
+
       {/* Agent Mobile Top Header */}
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
+      <header className="sticky top-0 z-40 bg-white/85 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-slate-200/60 dark:border-white/10 px-4 py-3 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
             FL
           </div>
           <div>
             <div className="font-extrabold text-sm text-slate-900 dark:text-white font-heading">
-              FinLend Pro <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-normal">· Agent Portal</span>
+              FinLend Pro <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">· Agent Portal</span>
             </div>
             <div className="text-[10px] text-slate-500">
               {user?.full_name || 'Agent'} · Today: {formatDate(new Date())}
@@ -144,15 +148,17 @@ export default function InterestAgentPortalPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quick Switch to ChitFund Agent Portal */}
-          <Link
-            to="/agent/tasks"
-            className="p-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1"
-            title="Switch to ChitFund Route Tasks"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">ChitFund Route</span>
-          </Link>
+          {/* Business Switcher for Admins Only (Agents are strictly bound to their business) */}
+          {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+            <Link
+              to="/agent/tasks"
+              className="p-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1 shadow-2xs hover:-translate-y-0.5 transition-all"
+              title="Switch to ChitFund Route Tasks"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">ChitFund Route</span>
+            </Link>
+          )}
 
           <button
             type="button"

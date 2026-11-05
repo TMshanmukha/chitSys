@@ -16,7 +16,7 @@ export async function listAgents(req, res, next) {
     const { role } = req.query;
     let query = `
       SELECT 
-        u.id, u.full_name, u.username, u.role, u.phone, u.is_active, u.last_login_at, u.created_at,
+        u.id, u.full_name, u.username, u.role, u.assigned_business, u.phone, u.is_active, u.last_login_at, u.created_at,
         COUNT(DISTINCT aga.id) as assigned_groups_count,
         CAST(GROUP_CONCAT(DISTINCT g.group_name SEPARATOR ', ') AS CHAR) as assigned_group_names,
         COALESCE(MAX(colls.today_cash), 0) as today_cash,
@@ -77,14 +77,17 @@ export async function createAgent(req, res, next) {
 
     const passwordHash = await bcrypt.hash(validated.password, 12);
 
+    const targetBusiness = targetRole === 'ADMIN' ? 'ALL' : (req.body.assigned_business === 'INTEREST' ? 'INTEREST' : 'CHITFUND');
+
     const [insertResult] = await pool.execute(
-      `INSERT INTO users (full_name, username, password_hash, role, phone, is_active, created_by)
-       VALUES (?, ?, ?, ?, ?, 1, ?)`,
+      `INSERT INTO users (full_name, username, password_hash, role, assigned_business, phone, is_active, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
       [
         validated.full_name.trim(),
         validated.username.toLowerCase().trim(),
         passwordHash,
         targetRole,
+        targetBusiness,
         validated.phone.trim(),
         req.user.id,
       ]

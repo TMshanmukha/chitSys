@@ -33,11 +33,11 @@ export function AuthProvider({ children }) {
   }, [checkAuth]);
 
   // Login action
-  const login = async ({ role, username, password }) => {
+  const login = async ({ role, username, password, business }) => {
     try {
       setAuthError(null);
       const payloadUsername = role === 'ADMIN' ? (username?.trim() || 'admin') : username?.trim();
-      const res = await api.post('/auth/login', { role, username: payloadUsername, password });
+      const res = await api.post('/auth/login', { role, username: payloadUsername, password, business });
       if (res.data?.success && res.data?.user) {
         if (res.data.token) {
           try {
