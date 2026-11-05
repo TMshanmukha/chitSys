@@ -132,6 +132,8 @@ export default function App() {
                   <Route path="collect" element={<FinLendCollectPage />} />
                   <Route path="customers" element={<FinLendCustomersPage />} />
                   <Route path="customers/:id" element={<FinLendPassbookPage />} />
+                  <Route path="users" element={<Navigate to="/interest/more/users" replace />} />
+                  <Route path="agents" element={<Navigate to="/interest/more/users" replace />} />
                   <Route path="reports" element={<FinLendReportsPage />} />
                   <Route path="more" element={<FinLendMorePage />} />
                   <Route path="more/loan-types" element={<FinLendLoanTypesPage />} />

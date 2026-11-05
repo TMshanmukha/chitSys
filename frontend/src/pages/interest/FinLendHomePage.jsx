@@ -230,24 +230,26 @@ export default function FinLendHomePage() {
         </button>
       </div>
 
-      {/* 2. Two Huge Action Buttons Side by Side (Hidden for Viewers) */}
+      {/* 2. Primary Action Cards (Sleek Horizontal VeeCredit Style) */}
       {!isViewer ? (
-        <div className="grid grid-cols-2 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
           {/* + New Loan */}
           <button
             type="button"
             onClick={() => setIsNewLoanOpen(true)}
-            className="group relative flex flex-col items-center justify-center py-4 sm:py-5 px-3 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all duration-200 cursor-pointer active:scale-[0.98]"
+            className="group relative flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all duration-200 cursor-pointer active:scale-[0.99]"
           >
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-              <Plus className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
+            <div className="text-left">
+              <div className="text-base sm:text-lg font-black font-heading tracking-tight flex items-center gap-1.5">
+                <span>+ New Loan</span>
+              </div>
+              <p className="text-xs text-indigo-100 font-medium mt-0.5">
+                Disburse new EMI or vaddi loan in 1 page
+              </p>
             </div>
-            <span className="text-sm sm:text-base font-extrabold tracking-tight font-heading">
-              + New Loan
-            </span>
-            <span className="text-[11px] text-indigo-200 font-normal hidden sm:inline mt-0.5">
-              1-page simple form
-            </span>
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Plus className="w-6 h-6 stroke-[2.5]" />
+            </div>
           </button>
 
           {/* ₹ Collect Money */}
@@ -257,17 +259,19 @@ export default function FinLendHomePage() {
               setSelectedBorrower(null);
               setIsCollectOpen(true);
             }}
-            className="group relative flex flex-col items-center justify-center py-4 sm:py-5 px-3 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold shadow-md shadow-emerald-600/20 hover:shadow-emerald-600/30 transition-all duration-200 cursor-pointer active:scale-[0.98]"
+            className="group relative flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-md shadow-emerald-600/20 hover:shadow-emerald-600/30 transition-all duration-200 cursor-pointer active:scale-[0.99]"
           >
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-              <Coins className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
+            <div className="text-left">
+              <div className="text-base sm:text-lg font-black font-heading tracking-tight flex items-center gap-1.5">
+                <span>₹ Collect Money</span>
+              </div>
+              <p className="text-xs text-emerald-100 font-medium mt-0.5">
+                1-tap quick receipt & WhatsApp share
+              </p>
             </div>
-            <span className="text-sm sm:text-base font-extrabold tracking-tight font-heading">
-              ₹ Collect Money
-            </span>
-            <span className="text-[11px] text-emerald-200 font-normal hidden sm:inline mt-0.5">
-              1-tap quick receipt
-            </span>
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Coins className="w-6 h-6 stroke-[2.5]" />
+            </div>
           </button>
         </div>
       ) : (
@@ -276,6 +280,32 @@ export default function FinLendHomePage() {
           <span className="px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300 font-bold uppercase text-[10px]">Viewer</span>
         </div>
       )}
+
+      {/* Staff & Route Banner */}
+      <div className="p-4 rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/90 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <UserCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white font-heading">
+              User Management & Field Agents
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Assign borrower accounts to agents, configure roles and track field collections
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/interest/more/users')}
+          className="px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40 text-xs font-bold font-heading flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+        >
+          <span>Open Staff Management</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
 
       {/* 3. Today Strip (3 cards only + progress bar) */}
       <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 shadow-xs">

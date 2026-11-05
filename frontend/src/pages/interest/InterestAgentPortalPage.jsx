@@ -334,11 +334,11 @@ export default function InterestAgentPortalPage() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-4 relative z-10 space-y-4">
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 relative z-10 space-y-5">
         
         {/* Progress Card (Only shown on Today and Handover tabs) */}
-        <div className="rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs">
-          <div className="flex items-center justify-between gap-4">
+        <div className="rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/90 dark:border-white/10 p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Today's Collection Progress
@@ -348,23 +348,23 @@ export default function InterestAgentPortalPage() {
                   {formatCurrency(summary.today_total)}
                 </span>
                 <span className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  of {formatCurrency(dailyTarget)}
+                  of {formatCurrency(dailyTarget)} Target
                 </span>
               </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-lg sm:text-xl font-extrabold text-indigo-600 dark:text-indigo-400 font-heading">
+            <div className="sm:text-right">
+              <span className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400 font-heading">
                 {progressPercent}%
               </span>
-              <p className="text-[11px] text-slate-400 font-medium">
-                {summary.today_count} Receipts
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                {summary.today_count} Receipts Recorded
               </p>
             </div>
           </div>
 
           {/* Progress bar */}
-          <div className="w-full bg-slate-100 dark:bg-white/10 h-3 rounded-full mt-3 overflow-hidden p-0.5">
+          <div className="w-full bg-slate-100 dark:bg-white/10 h-3 rounded-full mt-4 overflow-hidden p-0.5">
             <div
               className="bg-gradient-to-r from-indigo-600 to-emerald-500 h-full rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progressPercent}%` }}
@@ -372,22 +372,22 @@ export default function InterestAgentPortalPage() {
           </div>
 
           {/* 3 Metrics Strip */}
-          <div className="grid grid-cols-3 gap-2 text-center pt-4 mt-3 border-t border-slate-100 dark:border-white/5">
+          <div className="grid grid-cols-3 gap-2 text-center pt-4 mt-4 border-t border-slate-100 dark:border-white/5">
             <div>
-              <div className="text-[10px] sm:text-xs font-semibold text-slate-400">💵 Cash</div>
-              <div className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400 font-heading mt-0.5">
+              <div className="text-[11px] sm:text-xs font-semibold text-slate-400">💵 Cash in Hand</div>
+              <div className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 font-heading mt-0.5">
                 {formatCurrency(summary.today_cash)}
               </div>
             </div>
             <div className="border-x border-slate-100 dark:border-white/5">
-              <div className="text-[10px] sm:text-xs font-semibold text-slate-400">📱 UPI</div>
-              <div className="text-xs sm:text-sm font-bold text-indigo-600 dark:text-indigo-400 font-heading mt-0.5">
+              <div className="text-[11px] sm:text-xs font-semibold text-slate-400">📱 UPI / QR</div>
+              <div className="text-sm sm:text-base font-bold text-indigo-600 dark:text-indigo-400 font-heading mt-0.5">
                 {formatCurrency(summary.today_upi)}
               </div>
             </div>
             <div>
-              <div className="text-[10px] sm:text-xs font-semibold text-slate-400">⏳ Pending</div>
-              <div className="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400 font-heading mt-0.5">
+              <div className="text-[11px] sm:text-xs font-semibold text-slate-400">⏳ Route Remaining</div>
+              <div className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 font-heading mt-0.5">
                 {formatCurrency(Math.max(0, dailyTarget - Number(summary.today_total)))}
               </div>
             </div>
@@ -398,34 +398,46 @@ export default function InterestAgentPortalPage() {
         {/* TAB 1: TODAY (ASSIGNED ROUTE & COLLECTION)                                 */}
         {/* ========================================================================= */}
         {activeTab === 'today' && (
-          <div className="space-y-3.5 animate-fadeIn">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search borrower by name or phone..."
-                className="w-full h-11 pl-10 pr-4 rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-indigo-500 shadow-xs"
-              />
+          <div className="space-y-4 animate-fadeIn">
+            {/* Header & Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
+                  Assigned Route & Tasks
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {filteredLoans.length} borrowers assigned for today's collection
+                </p>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search borrower or phone..."
+                  className="w-full h-11 pl-10 pr-4 rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/90 dark:border-white/10 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-indigo-500 shadow-xs"
+                />
+              </div>
             </div>
 
             {/* Filter Pills */}
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
               {[
-                { id: 'ALL', label: 'All Dues' },
-                { id: 'PENDING', label: 'Pending' },
-                { id: 'OVERDUE', label: 'Overdue' },
-                { id: 'PAID', label: 'Paid' },
+                { id: 'ALL', label: 'All Tasks' },
+                { id: 'PENDING', label: 'Pending Dues' },
+                { id: 'OVERDUE', label: 'Overdue Dues' },
+                { id: 'PAID', label: 'Collected Today' },
               ].map((pill) => (
                 <button
                   key={pill.id}
                   type="button"
                   onClick={() => setFilter(pill.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     filter === pill.id
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-indigo-600 text-white shadow-xs font-heading'
                       : 'bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-slate-300'
                   }`}
                 >
@@ -434,11 +446,11 @@ export default function InterestAgentPortalPage() {
               ))}
             </div>
 
-            {/* Borrower Cards List */}
+            {/* Borrower Cards Grid (Responsive 2-column on laptop/desktop, 1-col on mobile) */}
             {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-24 rounded-2xl bg-slate-200 dark:bg-white/5 animate-pulse" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-28 rounded-2xl bg-slate-200 dark:bg-white/5 animate-pulse" />
                 ))}
               </div>
             ) : filteredLoans.length === 0 ? (
@@ -454,7 +466,7 @@ export default function InterestAgentPortalPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {filteredLoans.map((loan) => {
                   const due = Number(loan.current_due_amount || loan.installment_amount || 0);
                   const isPaid = due <= 0;
@@ -464,48 +476,59 @@ export default function InterestAgentPortalPage() {
                   return (
                     <div
                       key={loan.id}
-                      className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-4 shadow-xs flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-white/20 transition-all"
+                      className="rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/90 dark:border-white/10 p-4 sm:p-5 shadow-xs flex flex-col justify-between gap-3 hover:border-slate-300 dark:hover:border-white/20 transition-all"
                     >
-                      {/* Left: Avatar & Customer info */}
-                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                        <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-200/60 dark:border-indigo-800/40">
-                          {initial}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-bold text-sm text-slate-900 dark:text-white truncate font-heading">
-                            {loan.customer_name}
+                      {/* Top row: Avatar & Info */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-200/60 dark:border-indigo-800/40">
+                            {initial}
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            {loan.customer_phone ? (
-                              <a
-                                href={`tel:${loan.customer_phone}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex items-center gap-1 hover:text-indigo-600"
-                              >
-                                <PhoneCall className="w-3 h-3 text-slate-400" />
-                                <span>{loan.customer_phone}</span>
-                              </a>
-                            ) : (
-                              <span>No phone</span>
-                            )}
-                            {loan.area_name && (
-                              <>
-                                <span>•</span>
-                                <span className="truncate">{loan.area_name}</span>
-                              </>
-                            )}
+                          <div className="min-w-0 flex-1">
+                            <div className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate font-heading">
+                              {loan.customer_name}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              {loan.customer_phone ? (
+                                <a
+                                  href={`tel:${loan.customer_phone}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1 hover:text-indigo-600 font-semibold"
+                                >
+                                  <PhoneCall className="w-3 h-3 text-slate-400" />
+                                  <span>{loan.customer_phone}</span>
+                                </a>
+                              ) : (
+                                <span>No phone</span>
+                              )}
+                              <span>•</span>
+                              <span className="font-mono">{loan.loan_account_number}</span>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Status chip */}
+                        <span
+                          className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full shrink-0 ${
+                            isPaid
+                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40'
+                              : isOverdue
+                              ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40'
+                              : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40'
+                          }`}
+                        >
+                          {isPaid ? 'Collected' : isOverdue ? 'Overdue' : 'Due Today'}
+                        </span>
                       </div>
 
-                      {/* Right: Amount & Action */}
-                      <div className="flex items-center gap-3 shrink-0">
-                        <div className="text-right">
+                      {/* Bottom row: Amount & Huge Action button */}
+                      <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-white/5 mt-1">
+                        <div>
                           <div className="text-[11px] font-medium text-slate-400">
-                            {isPaid ? 'Paid' : isOverdue ? 'Overdue' : 'Due Today'}
+                            {isPaid ? 'Collected' : 'Due Amount'}
                           </div>
                           <div
-                            className={`text-sm sm:text-base font-extrabold font-heading ${
+                            className={`text-base sm:text-lg font-black font-heading ${
                               isPaid
                                 ? 'text-emerald-600 dark:text-emerald-400'
                                 : isOverdue
@@ -521,14 +544,14 @@ export default function InterestAgentPortalPage() {
                           <button
                             type="button"
                             onClick={() => openCollectSheet(loan)}
-                            className="h-10 px-4 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-extrabold text-xs shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1 font-heading"
+                            className="h-11 px-5 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 font-heading shrink-0"
                           >
-                            <Coins className="w-3.5 h-3.5" />
-                            <span>Collect</span>
+                            <Coins className="w-4 h-4" />
+                            <span>₹ Collect</span>
                           </button>
                         ) : (
-                          <div className="h-9 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          <div className="h-10 px-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
+                            <CheckCircle2 className="w-4 h-4" />
                             <span>Paid</span>
                           </div>
                         )}
