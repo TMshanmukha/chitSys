@@ -15,11 +15,9 @@ import {
   Share2,
 } from 'lucide-react';
 import ModalPortal from '../ModalPortal';
-import { useLanguage } from './LanguageContext';
 import { formatDate } from '../../utils/dateUtils';
 
 export default function NewLoanModal({ isOpen, onClose, onCreated }) {
-  const { t } = useLanguage();
 
   const [customers, setCustomers] = useState([]);
   const [schemes, setSchemes] = useState([]);
@@ -268,7 +266,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/10 shrink-0">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-heading">
-                {t('newLoan')}
+                New Loan
               </span>
               <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white font-heading">
                 {createdLoan ? 'Loan Approved & Disbursed' : 'Give New Loan'}
@@ -333,7 +331,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                   onClick={onClose}
                   className="w-full py-2.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center transition-colors font-heading cursor-pointer"
                 >
-                  {t('done')}
+                  Done
                 </button>
               </div>
             </div>
@@ -414,7 +412,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
               {/* Field 2: Amount Given */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1">
-                  2. {t('amountGiven')} (₹) *
+                  2. Amount Given (₹) *
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-400">
@@ -435,14 +433,14 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
               {/* Field 3: Pay Every (4 Big Pills) */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1.5">
-                  3. {t('payEvery')} *
+                  3. Pay Every *
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { key: 'DAILY', label: t('daily') },
-                    { key: 'WEEKLY', label: t('weekly') },
-                    { key: 'MONTHLY', label: t('monthly') },
-                    { key: 'MONTHLY_VADDI', label: t('monthlyVaddi') },
+                    { key: 'DAILY', label: 'Daily' },
+                    { key: 'WEEKLY', label: 'Weekly' },
+                    { key: 'MONTHLY', label: 'Monthly' },
+                    { key: 'MONTHLY_VADDI', label: 'Monthly Vaddi' },
                   ].map((p) => (
                     <button
                       key={p.key}
@@ -466,7 +464,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading">
-                      4. {t('interest')} *
+                      4. Interest *
                     </label>
                     {payEvery !== 'MONTHLY_VADDI' && (
                       <button
@@ -498,7 +496,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                 {payEvery !== 'MONTHLY_VADDI' ? (
                   <div>
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1">
-                      {t('forHowLong')} ({payEvery === 'DAILY' ? t('days') : payEvery === 'WEEKLY' ? t('weeks') : t('months')}) *
+                      Duration ({payEvery === 'DAILY' ? 'Days' : payEvery === 'WEEKLY' ? 'Weeks' : 'Months'}) *
                     </label>
                     <input
                       type="number"
@@ -601,7 +599,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                 ) : (
                   <>
                     <Coins className="w-5 h-5" />
-                    <span>{t('giveLoan')}</span>
+                    <span>Give Loan</span>
                   </>
                 )}
               </button>

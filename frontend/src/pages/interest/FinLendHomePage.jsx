@@ -17,13 +17,12 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { useLanguage } from '../../components/interest-ui/LanguageContext';
+import { formatCurrency, formatDate } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 import NewLoanModal from '../../components/interest-ui/NewLoanModal';
 
 export default function FinLendHomePage() {
   const { user } = useAuth();
-  const { t, formatCurrency, formatDate } = useLanguage();
   const navigate = useNavigate();
 
   const [metrics, setMetrics] = useState(null);
@@ -45,14 +44,14 @@ export default function FinLendHomePage() {
   // Greeting
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return t('goodMorning');
-    if (hour < 17) return t('goodAfternoon');
-    return t('goodEvening');
-  }, [t]);
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
 
   const todayDateFormatted = useMemo(() => {
-    return formatDate(new Date().toISOString());
-  }, [formatDate]);
+    return formatDate(new Date());
+  }, []);
 
   const loadData = async (isManual = false) => {
     try {
@@ -233,7 +232,7 @@ export default function FinLendHomePage() {
             <Plus className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
           </div>
           <span className="text-sm sm:text-base font-extrabold tracking-tight font-heading">
-            {t('newLoan')}
+            + New Loan
           </span>
           <span className="text-[11px] text-indigo-200 font-normal hidden sm:inline mt-0.5">
             1-page simple form
@@ -253,7 +252,7 @@ export default function FinLendHomePage() {
             <Coins className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
           </div>
           <span className="text-sm sm:text-base font-extrabold tracking-tight font-heading">
-            {t('collectMoney')}
+            ₹ Collect Money
           </span>
           <span className="text-[11px] text-emerald-200 font-normal hidden sm:inline mt-0.5">
             1-tap quick receipt
@@ -267,7 +266,7 @@ export default function FinLendHomePage() {
           {/* To Collect */}
           <div>
             <div className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
-              {t('toCollectToday')}
+              To Collect Today
             </div>
             <div className="text-base sm:text-2xl font-black text-slate-900 dark:text-white mt-1 font-heading">
               {formatCurrency(targetToday)}
@@ -277,7 +276,7 @@ export default function FinLendHomePage() {
           {/* Collected */}
           <div className="border-x border-slate-200/60 dark:border-white/10 px-2">
             <div className="text-[11px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              {t('collectedToday')}
+              Collected Today
             </div>
             <div className="text-base sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-heading">
               {formatCurrency(collectedToday)}
@@ -287,7 +286,7 @@ export default function FinLendHomePage() {
           {/* Pending */}
           <div>
             <div className="text-[11px] sm:text-xs font-semibold text-amber-600 dark:text-amber-400">
-              {t('pendingToday')}
+              Pending Today
             </div>
             <div className="text-base sm:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 font-heading">
               {formatCurrency(pendingToday)}
@@ -314,7 +313,7 @@ export default function FinLendHomePage() {
       <div className="space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-heading">
-            {t('todaysDue')}
+            Today's Due List
           </h2>
 
           {/* Search Box */}
@@ -341,7 +340,7 @@ export default function FinLendHomePage() {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            {t('pending')} ({categorizedLoans.pending.length})
+            Pending ({categorizedLoans.pending.length})
           </button>
           <button
             type="button"
@@ -352,7 +351,7 @@ export default function FinLendHomePage() {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            {t('paid')} ({categorizedLoans.paid.length})
+            Paid ({categorizedLoans.paid.length})
           </button>
           <button
             type="button"
@@ -363,7 +362,7 @@ export default function FinLendHomePage() {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            {t('overdue')} ({categorizedLoans.overdue.length})
+            Overdue ({categorizedLoans.overdue.length})
           </button>
         </div>
 
@@ -447,7 +446,7 @@ export default function FinLendHomePage() {
                         onClick={() => handleOpenCollectForLoan(loan)}
                         className="py-2 px-3 sm:px-4 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
                       >
-                        <span>{t('collect')}</span>
+                        <span>Collect</span>
                       </button>
                     ) : (
                       <div className="py-1.5 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center gap-1">
@@ -467,7 +466,7 @@ export default function FinLendHomePage() {
       <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white font-heading">
-            {t('collectedLast7Days')}
+            Collected Last 7 Days
           </div>
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
             Past 7 Days
@@ -518,7 +517,7 @@ export default function FinLendHomePage() {
         <div className="grid grid-cols-2 gap-4 flex-1">
           <div>
             <div className="text-[11px] text-slate-400 font-medium">
-              {t('totalGivenOut')}
+              Total Given Out
             </div>
             <div className="text-base sm:text-xl font-black mt-0.5 font-heading">
               {formatCurrency(loanStats.total_principal_outstanding || 0)}
@@ -526,7 +525,7 @@ export default function FinLendHomePage() {
           </div>
           <div>
             <div className="text-[11px] text-slate-400 font-medium">
-              {t('interestEarned')}
+              Interest Earned
             </div>
             <div className="text-base sm:text-xl font-black mt-0.5 text-emerald-400 font-heading">
               {formatCurrency(loanStats.total_interest_collected || 0)}
@@ -535,7 +534,7 @@ export default function FinLendHomePage() {
         </div>
 
         <div className="flex items-center gap-1 text-xs font-bold text-indigo-300 hover:text-white shrink-0">
-          <span>{t('viewReports')}</span>
+          <span>View Reports</span>
           <ArrowRight className="w-4 h-4" />
         </div>
       </div>
@@ -557,4 +556,3 @@ export default function FinLendHomePage() {
     </div>
   );
 }
-

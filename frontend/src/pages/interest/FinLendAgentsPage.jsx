@@ -16,11 +16,10 @@ import {
   Shield,
 } from 'lucide-react';
 import api from '../../api/client';
-import { useLanguage } from '../../components/interest-ui/LanguageContext';
+import { formatDate } from '../../utils/interestUtils';
 
 export default function FinLendAgentsPage() {
   const navigate = useNavigate();
-  const { t, formatDate } = useLanguage();
 
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -185,7 +184,7 @@ export default function FinLendAgentsPage() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-indigo-600 shadow-xs transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>{t('more')}</span>
+          <span>More</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -211,7 +210,7 @@ export default function FinLendAgentsPage() {
 
       <div>
         <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-          {t('agents')} & Staff
+          Agents & Staff
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
           Manage field collection staff, credentials and assigned business

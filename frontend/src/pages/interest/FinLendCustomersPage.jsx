@@ -14,10 +14,9 @@ import {
   FileText,
 } from 'lucide-react';
 import api from '../../api/client';
-import { useLanguage } from '../../components/interest-ui/LanguageContext';
+import { formatCurrency, formatDate } from '../../utils/interestUtils';
 
 export default function FinLendCustomersPage() {
-  const { t, formatCurrency, formatDate } = useLanguage();
   const navigate = useNavigate();
 
   const [customers, setCustomers] = useState([]);
@@ -120,7 +119,7 @@ export default function FinLendCustomersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-            {t('customers')}
+            Customers
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Total {customers.length} registered borrowers
@@ -143,7 +142,7 @@ export default function FinLendCustomersPage() {
             className="py-2.5 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer active:scale-95 font-heading"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>{t('addCustomer')}</span>
+            <span>Add Customer</span>
           </button>
         </div>
       </div>
@@ -221,7 +220,7 @@ export default function FinLendCustomersPage() {
 
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hidden sm:inline">
-                    {t('openPassbook')}
+                    Open Passbook
                   </span>
                   <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                     <ChevronRight className="w-4 h-4" />
@@ -240,7 +239,7 @@ export default function FinLendCustomersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black text-slate-900 dark:text-white font-heading">
-                  {t('addCustomer')}
+                  Add Customer
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Quick customer registration

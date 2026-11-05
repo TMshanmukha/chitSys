@@ -14,10 +14,8 @@ import {
   Building,
 } from 'lucide-react';
 import ModalPortal from '../ModalPortal';
-import { useLanguage } from './LanguageContext';
 
 export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, onCollected }) {
-  const { t } = useLanguage();
 
   const [search, setSearch] = useState('');
   const [loans, setLoans] = useState([]);
@@ -148,7 +146,7 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/10 shrink-0">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-heading">
-                {t('collectMoney')}
+                Collect Money
               </span>
               <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white font-heading">
                 {receipt ? 'Payment Confirmed' : 'Quick Collect'}
@@ -192,7 +190,7 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
                   className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm font-heading cursor-pointer transition-all hover:-translate-y-0.5"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>{t('sendWhatsAppReceipt')}</span>
+                  <span>Send WhatsApp Receipt</span>
                 </button>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -202,14 +200,14 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
                     className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors font-heading cursor-pointer"
                   >
                     <Printer className="w-4 h-4" />
-                    <span>{t('printReceipt')}</span>
+                    <span>Print Receipt</span>
                   </button>
                   <button
                     type="button"
                     onClick={onClose}
                     className="py-2.5 px-3 rounded-xl bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center transition-colors font-heading cursor-pointer"
                   >
-                    {t('done')}
+                    Done
                   </button>
                 </div>
               </div>
@@ -231,7 +229,7 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
                       type="text"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder={t('searchBorrower')}
+                      placeholder="Search borrower by name or phone..."
                       className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -348,9 +346,9 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { mode: 'CASH', label: t('cash'), icon: Banknote },
+                        { mode: 'CASH', label: 'Cash', icon: Banknote },
                         { mode: 'UPI', label: 'UPI / QR', icon: Smartphone },
-                        { mode: 'BANK', label: t('bank'), icon: Building },
+                        { mode: 'BANK', label: 'Bank Transfer', icon: Building },
                       ].map((item) => {
                         const Icon = item.icon;
                         const isSelected = paymentMode === item.mode;

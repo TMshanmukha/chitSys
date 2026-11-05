@@ -2,25 +2,22 @@ import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   Home,
-  HandCoins,
+  Coins,
   Users,
-  BarChart3,
+  FileText,
   MoreHorizontal,
   Landmark,
   Layers,
   Sun,
   Moon,
   LogOut,
-  Languages,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useLanguage } from './LanguageContext';
 
 export default function DesktopRail() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const { t, lang, toggleLanguage } = useLanguage();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -29,24 +26,21 @@ export default function DesktopRail() {
   };
 
   const navItems = [
-    { label: t('home'), path: '/interest/home', icon: Home },
-    { label: t('collect'), path: '/interest/collect', icon: HandCoins },
-    { label: t('customers'), path: '/interest/customers', icon: Users },
-    { label: t('reports'), path: '/interest/reports', icon: BarChart3 },
-    { label: t('more'), path: '/interest/more', icon: MoreHorizontal },
+    { label: 'Home', path: '/interest/home', icon: Home },
+    { label: 'Collect', path: '/interest/collect', icon: Coins },
+    { label: 'Customers', path: '/interest/customers', icon: Users },
+    { label: 'Reports', path: '/interest/reports', icon: FileText },
+    { label: 'More', path: '/interest/more', icon: MoreHorizontal },
   ];
 
   return (
-    <aside
-      className="hidden md:flex fixed top-0 bottom-0 left-0 z-40 w-60 flex-col bg-white/90 dark:bg-[#0c1220]/90 backdrop-blur-2xl border-r border-slate-200/80 dark:border-white/10 shadow-[4px_0_24px_rgba(0,0,0,0.03)]"
-      aria-label="Desktop Navigation"
-    >
+    <aside className="hidden md:flex flex-col fixed top-0 left-0 bottom-0 w-60 bg-white/95 dark:bg-[#0c1220]/95 backdrop-blur-2xl border-r border-slate-200/80 dark:border-white/10 z-40 shadow-xs">
       {/* Brand Header */}
-      <div className="h-16 px-5 flex items-center justify-between border-b border-slate-200/70 dark:border-white/10 shrink-0">
-        <Link to="/interest/home" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 group-hover:scale-105 transition-transform">
-            <Landmark className="w-5 h-5" />
-          </div>
+      <div className="h-16 px-5 flex items-center gap-3 border-b border-slate-200/70 dark:border-white/10 shrink-0">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-indigo-600/20 font-heading">
+          <Landmark className="w-5 h-5" />
+        </div>
+        <Link to="/interest/home" className="flex-1 min-w-0">
           <div>
             <div className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-heading leading-tight flex items-center gap-1">
               <span>FinLend</span>
@@ -98,21 +92,6 @@ export default function DesktopRail() {
 
       {/* Bottom Footer Actions */}
       <div className="p-3 border-t border-slate-200/70 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.01] space-y-2 shrink-0">
-        {/* Language Toggle */}
-        <button
-          type="button"
-          onClick={toggleLanguage}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <Languages className="w-4 h-4 text-indigo-500" />
-            <span>{lang === 'en' ? 'English' : 'తెలుగు (Telugu)'}</span>
-          </div>
-          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 uppercase font-black">
-            {lang === 'en' ? 'Change' : 'మార్చు'}
-          </span>
-        </button>
-
         {/* Switch to ChitFund Pro */}
         <Link
           to="/admin/dashboard"
@@ -120,7 +99,7 @@ export default function DesktopRail() {
           title="Switch to ChitFund Pro"
         >
           <Layers className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span className="truncate">{t('switchToChitFund')}</span>
+          <span className="truncate">Switch to ChitFund Pro</span>
         </Link>
 
         {/* User Pill & Dark Mode */}
@@ -161,4 +140,3 @@ export default function DesktopRail() {
     </aside>
   );
 }
-

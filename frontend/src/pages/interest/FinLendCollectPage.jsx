@@ -13,11 +13,10 @@ import {
   Check,
 } from 'lucide-react';
 import api from '../../api/client';
-import { useLanguage } from '../../components/interest-ui/LanguageContext';
+import { formatCurrency, formatDate, formatTime } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 
 export default function FinLendCollectPage() {
-  const { t, formatCurrency, formatDate, formatTime } = useLanguage();
 
   const [activeTab, setActiveTab] = useState('COLLECT'); // 'COLLECT' | 'RECEIPTS'
   const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'DUE_TODAY' | 'OVERDUE'
@@ -139,10 +138,10 @@ Thank you for your payment!`;
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-            {t('collect')}
+            Collect
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {t('collectedToday')}: <strong className="text-emerald-600 dark:text-emerald-400">{formatCurrency(totalCollectedToday)}</strong> ({todayReceipts.length} receipts)
+            Collected Today: <strong className="text-emerald-600 dark:text-emerald-400">{formatCurrency(totalCollectedToday)}</strong> ({todayReceipts.length} receipts)
           </p>
         </div>
 
@@ -167,7 +166,7 @@ Thank you for your payment!`;
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          {t('collectMoney')} ({assignedLoans.length})
+          Collect Money ({assignedLoans.length})
         </button>
 
         <button
@@ -179,7 +178,7 @@ Thank you for your payment!`;
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          {t('todaysReceipts')} ({todayReceipts.length})
+          Today's Receipts ({todayReceipts.length})
         </button>
       </div>
 
@@ -293,7 +292,7 @@ Thank you for your payment!`;
                       className="py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer active:scale-95 font-heading"
                     >
                       <Coins className="w-3.5 h-3.5" />
-                      <span>{t('collect')}</span>
+                      <span>Collect</span>
                     </button>
                   </div>
                 </div>

@@ -6,13 +6,11 @@ import AnimatedFinLendBackground from '../AnimatedFinLendBackground';
 import ErrorBoundary from '../ErrorBoundary';
 import DesktopRail from './DesktopRail';
 import BottomNav from './BottomNav';
-import { LanguageProvider, useLanguage } from './LanguageContext';
-import { Layers, Sun, Moon, LogOut, Landmark, Languages } from 'lucide-react';
+import { Layers, Sun, Moon, LogOut, Landmark } from 'lucide-react';
 
-function LayoutInner() {
+export default function InterestAppLayout() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const { t, lang, toggleLanguage } = useLanguage();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -42,16 +40,6 @@ function LayoutInner() {
         </Link>
 
         <div className="flex items-center gap-1.5">
-          {/* Language Toggle */}
-          <button
-            type="button"
-            onClick={toggleLanguage}
-            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-200/80 dark:border-white/10"
-            title="Toggle Language"
-          >
-            {lang === 'en' ? 'తెలుగు' : 'EN'}
-          </button>
-
           {/* Switch to ChitFund Pro */}
           <Link
             to="/admin/dashboard"
@@ -95,12 +83,3 @@ function LayoutInner() {
     </div>
   );
 }
-
-export default function InterestAppLayout() {
-  return (
-    <LanguageProvider>
-      <LayoutInner />
-    </LanguageProvider>
-  );
-}
-

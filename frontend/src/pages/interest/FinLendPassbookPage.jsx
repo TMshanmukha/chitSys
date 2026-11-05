@@ -18,14 +18,13 @@ import {
   Plus,
 } from 'lucide-react';
 import api from '../../api/client';
-import { useLanguage } from '../../components/interest-ui/LanguageContext';
+import { formatCurrency, formatDate, formatTime } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 import NewLoanModal from '../../components/interest-ui/NewLoanModal';
 
 export default function FinLendPassbookPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t, formatCurrency, formatDate, formatTime } = useLanguage();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -143,7 +142,7 @@ For questions or repayments, contact your manager.`;
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-indigo-600 shadow-xs transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>{t('customers')}</span>
+          <span>Customers</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -198,7 +197,7 @@ For questions or repayments, contact your manager.`;
             className="py-2.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-xs transition-colors font-heading"
           >
             <Coins className="w-4 h-4" />
-            <span>{t('collectMoney')}</span>
+            <span>Collect Money</span>
           </button>
 
           <button
@@ -207,7 +206,7 @@ For questions or repayments, contact your manager.`;
             className="py-2.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 shadow-xs transition-colors font-heading"
           >
             <Plus className="w-4 h-4" />
-            <span>{t('newLoan')}</span>
+            <span>New Loan</span>
           </button>
         </div>
       </div>
@@ -217,7 +216,7 @@ For questions or repayments, contact your manager.`;
         {/* Amount Taken */}
         <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-5 text-center shadow-xs">
           <div className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {t('amountTaken')}
+            Amount Taken
           </div>
           <div className="text-base sm:text-2xl font-black text-slate-900 dark:text-white mt-1 font-heading">
             {formatCurrency(summary.totalTaken)}
@@ -227,7 +226,7 @@ For questions or repayments, contact your manager.`;
         {/* Total Paid */}
         <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-5 text-center shadow-xs">
           <div className="text-[11px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            {t('totalPaid')}
+            Total Paid
           </div>
           <div className="text-base sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-heading">
             {formatCurrency(summary.totalPaid)}
@@ -237,7 +236,7 @@ For questions or repayments, contact your manager.`;
         {/* Balance to Close */}
         <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-5 text-center shadow-xs">
           <div className="text-[11px] sm:text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-            {t('balanceToClose')}
+            Balance to Close
           </div>
           <div className="text-base sm:text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1 font-heading">
             {formatCurrency(summary.balanceToClose)}
@@ -256,7 +255,7 @@ For questions or repayments, contact your manager.`;
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          {t('passbook')} ({ledger.length} entries)
+          Passbook ({ledger.length} entries)
         </button>
 
         <button

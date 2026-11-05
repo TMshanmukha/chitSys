@@ -7,17 +7,14 @@ import {
   BarChart3,
   MoreHorizontal,
 } from 'lucide-react';
-import { useLanguage } from './LanguageContext';
 
 export default function BottomNav() {
-  const { t } = useLanguage();
-
   const tabs = [
-    { label: t('home'), path: '/interest/home', icon: Home },
-    { label: t('collect'), path: '/interest/collect', icon: HandCoins },
-    { label: t('customers'), path: '/interest/customers', icon: Users },
-    { label: t('reports'), path: '/interest/reports', icon: BarChart3 },
-    { label: t('more'), path: '/interest/more', icon: MoreHorizontal },
+    { label: 'Home', path: '/interest/home', icon: Home },
+    { label: 'Collect', path: '/interest/collect', icon: HandCoins },
+    { label: 'Customers', path: '/interest/customers', icon: Users },
+    { label: 'Reports', path: '/interest/reports', icon: BarChart3 },
+    { label: 'More', path: '/interest/more', icon: MoreHorizontal },
   ];
 
   return (
@@ -63,4 +60,3 @@ export default function BottomNav() {
     </nav>
   );
 }
-

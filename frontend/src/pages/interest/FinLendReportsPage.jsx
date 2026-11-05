@@ -12,10 +12,9 @@ import {
   Printer,
 } from 'lucide-react';
 import api from '../../api/client';
-import { useLanguage } from '../../components/interest-ui/LanguageContext';
+import { formatCurrency, formatDate } from '../../utils/interestUtils';
 
 export default function FinLendReportsPage() {
-  const { t, formatCurrency, formatDate } = useLanguage();
 
   const [activeReport, setActiveReport] = useState('COLLECTIONS'); // 'COLLECTIONS' | 'PENDING' | 'SUMMARY'
   const [dateRange, setDateRange] = useState('THIS_MONTH'); // 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'ALL'
@@ -133,7 +132,7 @@ export default function FinLendReportsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-            {t('reports')}
+            Reports
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Operational collections & financial statements
@@ -156,7 +155,7 @@ export default function FinLendReportsPage() {
             className="py-2.5 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 shadow-xs transition-colors font-heading"
           >
             <Download className="w-4 h-4" />
-            <span>{t('exportReport')}</span>
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
@@ -181,7 +180,7 @@ export default function FinLendReportsPage() {
         <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 shadow-xs">
           <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4" />
-            <span>{t('totalGivenOut')}</span>
+            <span>Total Given Out</span>
           </div>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1 font-heading">
             {formatCurrency(totalPrincipalOut)}
@@ -195,7 +194,7 @@ export default function FinLendReportsPage() {
         <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 shadow-xs">
           <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
             <Coins className="w-4 h-4" />
-            <span>{t('interestEarned')}</span>
+            <span>Interest Earned</span>
           </div>
           <div className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1 font-heading">
             {formatCurrency(totalInterestEarned)}
