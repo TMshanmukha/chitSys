@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import pool from '../config/db.js';
 import { authenticateUser, revokeSession } from '../services/authService.js';
 import { getCookieOptions } from '../utils/jwt.js';
 
@@ -53,6 +54,15 @@ export async function login(req, res, next) {
 
 export async function me(req, res) {
   // `req.user` is set by requireAuth middleware
+  let interestProfile = null;
+  try {
+    const [[p]] = await pool.query(
+      'SELECT role, permissions, is_active, must_change_password FROM interest_user_profiles WHERE user_id = ?',
+      [req.user.id]
+    );
+    if (p) interestProfile = p;
+  } catch (_) {}
+
   res.status(200).json({
     success: true,
     user: {
@@ -63,6 +73,7 @@ export async function me(req, res) {
       assigned_business: req.user.assigned_business || 'ALL',
       phone: req.user.phone,
       last_login_at: req.user.last_login_at,
+      interest_profile: interestProfile,
     },
   });
 }

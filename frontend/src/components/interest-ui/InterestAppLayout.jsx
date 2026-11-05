@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -6,12 +6,16 @@ import AnimatedFinLendBackground from '../AnimatedFinLendBackground';
 import ErrorBoundary from '../ErrorBoundary';
 import DesktopRail from './DesktopRail';
 import BottomNav from './BottomNav';
+import FinLendChangePasswordModal from './FinLendChangePasswordModal';
 import { Layers, Sun, Moon, LogOut, Landmark } from 'lucide-react';
 
 export default function InterestAppLayout() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [pwdForcedClosed, setPwdForcedClosed] = useState(false);
+
+  const mustChangePassword = Boolean(user?.interest_profile?.must_change_password) && !pwdForcedClosed;
 
   const handleLogout = async () => {
     await logout();
@@ -20,6 +24,12 @@ export default function InterestAppLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+      {/* Forced Password Change Modal */}
+      <FinLendChangePasswordModal
+        isOpen={mustChangePassword}
+        onClose={() => setPwdForcedClosed(true)}
+        forced={true}
+      />
       {/* Dynamic Animated FinLend Vector Background */}
       <AnimatedFinLendBackground />
 

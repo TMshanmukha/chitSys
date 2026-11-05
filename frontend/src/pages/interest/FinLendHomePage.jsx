@@ -25,6 +25,16 @@ export default function FinLendHomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const userRole = user?.interest_profile?.role || (user?.role === 'COLLECTION_AGENT' ? 'AGENT' : 'OWNER');
+  const isViewer = userRole === 'VIEWER';
+  const isAgent = userRole === 'AGENT';
+
+  useEffect(() => {
+    if (isAgent) {
+      navigate('/interest/agent', { replace: true });
+    }
+  }, [isAgent, navigate]);
+
   const [metrics, setMetrics] = useState(null);
   const [assignedLoans, setAssignedLoans] = useState([]);
   const [todayCollections, setTodayCollections] = useState([]);
@@ -220,45 +230,52 @@ export default function FinLendHomePage() {
         </button>
       </div>
 
-      {/* 2. Two Huge Action Buttons Side by Side */}
-      <div className="grid grid-cols-2 gap-3.5 sm:gap-4">
-        {/* + New Loan */}
-        <button
-          type="button"
-          onClick={() => setIsNewLoanOpen(true)}
-          className="group relative flex flex-col items-center justify-center py-4 sm:py-5 px-3 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all duration-200 cursor-pointer active:scale-[0.98]"
-        >
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-            <Plus className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
-          </div>
-          <span className="text-sm sm:text-base font-extrabold tracking-tight font-heading">
-            + New Loan
-          </span>
-          <span className="text-[11px] text-indigo-200 font-normal hidden sm:inline mt-0.5">
-            1-page simple form
-          </span>
-        </button>
+      {/* 2. Two Huge Action Buttons Side by Side (Hidden for Viewers) */}
+      {!isViewer ? (
+        <div className="grid grid-cols-2 gap-3.5 sm:gap-4">
+          {/* + New Loan */}
+          <button
+            type="button"
+            onClick={() => setIsNewLoanOpen(true)}
+            className="group relative flex flex-col items-center justify-center py-4 sm:py-5 px-3 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all duration-200 cursor-pointer active:scale-[0.98]"
+          >
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+              <Plus className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
+            </div>
+            <span className="text-sm sm:text-base font-extrabold tracking-tight font-heading">
+              + New Loan
+            </span>
+            <span className="text-[11px] text-indigo-200 font-normal hidden sm:inline mt-0.5">
+              1-page simple form
+            </span>
+          </button>
 
-        {/* ₹ Collect Money */}
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedBorrower(null);
-            setIsCollectOpen(true);
-          }}
-          className="group relative flex flex-col items-center justify-center py-4 sm:py-5 px-3 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold shadow-md shadow-emerald-600/20 hover:shadow-emerald-600/30 transition-all duration-200 cursor-pointer active:scale-[0.98]"
-        >
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-            <Coins className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
-          </div>
-          <span className="text-sm sm:text-base font-extrabold tracking-tight font-heading">
-            ₹ Collect Money
-          </span>
-          <span className="text-[11px] text-emerald-200 font-normal hidden sm:inline mt-0.5">
-            1-tap quick receipt
-          </span>
-        </button>
-      </div>
+          {/* ₹ Collect Money */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedBorrower(null);
+              setIsCollectOpen(true);
+            }}
+            className="group relative flex flex-col items-center justify-center py-4 sm:py-5 px-3 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold shadow-md shadow-emerald-600/20 hover:shadow-emerald-600/30 transition-all duration-200 cursor-pointer active:scale-[0.98]"
+          >
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+              <Coins className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
+            </div>
+            <span className="text-sm sm:text-base font-extrabold tracking-tight font-heading">
+              ₹ Collect Money
+            </span>
+            <span className="text-[11px] text-emerald-200 font-normal hidden sm:inline mt-0.5">
+              1-tap quick receipt
+            </span>
+          </button>
+        </div>
+      ) : (
+        <div className="p-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
+          <span>Viewer Mode Active (Read Only). Creation and money collections are disabled.</span>
+          <span className="px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300 font-bold uppercase text-[10px]">Viewer</span>
+        </div>
+      )}
 
       {/* 3. Today Strip (3 cards only + progress bar) */}
       <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 shadow-xs">
@@ -441,13 +458,19 @@ export default function FinLendHomePage() {
                     </div>
 
                     {loan.statusTag !== 'PAID' ? (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenCollectForLoan(loan)}
-                        className="py-2 px-3 sm:px-4 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
-                      >
-                        <span>Collect</span>
-                      </button>
+                      !isViewer ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCollectForLoan(loan)}
+                          className="py-2 px-3 sm:px-4 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                        >
+                          <span>Collect</span>
+                        </button>
+                      ) : (
+                        <div className="py-1 px-2.5 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-white/10 text-slate-500">
+                          Due
+                        </div>
+                      )
                     ) : (
                       <div className="py-1.5 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />

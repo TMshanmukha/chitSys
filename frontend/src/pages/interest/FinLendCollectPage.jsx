@@ -160,11 +160,10 @@ Thank you for your payment!`;
         <button
           type="button"
           onClick={() => setActiveTab('COLLECT')}
-          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading ${
-            activeTab === 'COLLECT'
+          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading ${activeTab === 'COLLECT'
               ? 'bg-white dark:bg-[#0c1220] text-indigo-600 dark:text-indigo-400 shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
+            }`}
         >
           Collect Money ({assignedLoans.length})
         </button>
@@ -172,11 +171,10 @@ Thank you for your payment!`;
         <button
           type="button"
           onClick={() => setActiveTab('RECEIPTS')}
-          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading ${
-            activeTab === 'RECEIPTS'
+          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading ${activeTab === 'RECEIPTS'
               ? 'bg-white dark:bg-[#0c1220] text-emerald-600 dark:text-emerald-400 shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
+            }`}
         >
           Today's Receipts ({todayReceipts.length})
         </button>
@@ -206,33 +204,30 @@ Thank you for your payment!`;
             <button
               type="button"
               onClick={() => setFilterMode('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                filterMode === 'ALL'
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${filterMode === 'ALL'
                   ? 'bg-indigo-600 text-white'
                   : 'bg-white dark:bg-[#0c1220] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/10'
-              }`}
+                }`}
             >
               All ({assignedLoans.length})
             </button>
             <button
               type="button"
               onClick={() => setFilterMode('DUE_TODAY')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                filterMode === 'DUE_TODAY'
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${filterMode === 'DUE_TODAY'
                   ? 'bg-indigo-600 text-white'
                   : 'bg-white dark:bg-[#0c1220] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/10'
-              }`}
+                }`}
             >
               Due Today
             </button>
             <button
               type="button"
               onClick={() => setFilterMode('OVERDUE')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                filterMode === 'OVERDUE'
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${filterMode === 'OVERDUE'
                   ? 'bg-rose-600 text-white'
                   : 'bg-white dark:bg-[#0c1220] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/10'
-              }`}
+                }`}
             >
               Overdue
             </button>

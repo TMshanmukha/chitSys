@@ -40,6 +40,7 @@ import FinLendReportsPage from './pages/interest/FinLendReportsPage';
 import FinLendMorePage from './pages/interest/FinLendMorePage';
 import FinLendLoanTypesPage from './pages/interest/FinLendLoanTypesPage';
 import FinLendAgentsPage from './pages/interest/FinLendAgentsPage';
+import FinLendUsersPage from './pages/interest/FinLendUsersPage';
 import InterestAgentPortalPage from './pages/interest/InterestAgentPortalPage';
 
 import ScrollToTop from './components/ScrollToTop';
@@ -134,7 +135,9 @@ export default function App() {
                   <Route path="reports" element={<FinLendReportsPage />} />
                   <Route path="more" element={<FinLendMorePage />} />
                   <Route path="more/loan-types" element={<FinLendLoanTypesPage />} />
-                  <Route path="more/agents" element={<FinLendAgentsPage />} />
+                  <Route path="more/users" element={<FinLendUsersPage />} />
+                  <Route path="more/users/:id" element={<FinLendUsersPage />} />
+                  <Route path="more/agents" element={<FinLendUsersPage />} />
 
                   {/* Backward-compatibility redirects for any bookmarked / saved URLs */}
                   <Route path="admin" element={<Navigate to="/interest/home" replace />} />
@@ -143,8 +146,8 @@ export default function App() {
                   <Route path="admin/customers" element={<Navigate to="/interest/customers" replace />} />
                   <Route path="admin/loans" element={<Navigate to="/interest/home" replace />} />
                   <Route path="admin/schemes" element={<Navigate to="/interest/more/loan-types" replace />} />
-                  <Route path="admin/users" element={<Navigate to="/interest/more/agents" replace />} />
-                  <Route path="admin/agents" element={<Navigate to="/interest/more/agents" replace />} />
+                  <Route path="admin/users" element={<Navigate to="/interest/more/users" replace />} />
+                  <Route path="admin/agents" element={<Navigate to="/interest/more/users" replace />} />
                   <Route path="admin/reports" element={<Navigate to="/interest/reports" replace />} />
                 </Route>
 

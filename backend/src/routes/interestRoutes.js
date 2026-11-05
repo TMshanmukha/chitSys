@@ -1,6 +1,10 @@
 import express from 'express';
 import { requireAuth } from '../middleware/authMiddleware.js';
-import { requireRole } from '../middleware/roleMiddleware.js';
+import {
+  attachInterestProfile,
+  requireInterestRole,
+  requireInterestPermission,
+} from '../middleware/interestAuthMiddleware.js';
 import {
   getDashboardMetrics,
   getSchemes,
@@ -17,36 +21,59 @@ import {
   getCollectionReport,
   getAgentSummary,
 } from '../controllers/interestController.js';
+import {
+  listUsers,
+  createUser,
+  getUserById,
+  updateUser,
+  toggleUserActive,
+  resetPassword,
+  assignCustomers,
+  getUserActivity,
+  changeOwnPassword,
+} from '../controllers/interestUserController.js';
 
 const router = express.Router();
 
-// Require authenticated session for all interest routes
+// 1. Require authenticated session & attach FinLend profile for all routes
 router.use(requireAuth);
+router.use(attachInterestProfile);
 
-// Public/Shared Interest calculation preview (Used in scheme builder and loan originator)
+// 2. Financial calculation preview (Shared)
 router.post('/schemes/preview', previewSchemeCalculation);
 
-// Dashboard Metrics (Admin & Collection Manager)
-router.get('/dashboard', requireRole('SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'), getDashboardMetrics);
+// 3. Dashboard Metrics (Owner, Manager, Viewer)
+router.get('/dashboard', requireInterestPermission('can_view_reports'), getDashboardMetrics);
 
-// Schemes Management
+// 4. Schemes Management
 router.get('/schemes', getSchemes);
-router.post('/schemes', requireRole('SUPER_ADMIN', 'ADMIN'), createScheme);
+router.post('/schemes', requireInterestRole('OWNER', 'MANAGER'), createScheme);
 
-// Customer Management
+// 5. Customer Management
 router.get('/customers', getCustomers);
 router.get('/customers/:id', getCustomerById);
-router.post('/customers', requireRole('SUPER_ADMIN', 'ADMIN', 'COLLECTION_AGENT'), createCustomer);
+router.post('/customers', requireInterestPermission('can_edit_customers'), createCustomer);
 
-// Loan Accounts Management
+// 6. Loan Accounts Management
 router.get('/loans', getLoans);
 router.get('/loans/:id', getLoanById);
-router.post('/loans', requireRole('SUPER_ADMIN', 'ADMIN'), createLoan);
+router.post('/loans', requireInterestPermission('can_disburse_loans'), createLoan);
 
-// Collections & Field Agent Workflows
+// 7. Collections & Field Agent Workflows
 router.get('/agent/assigned-customers', getAgentAssignedCustomers);
 router.get('/agent/summary', getAgentSummary);
-router.post('/collections', recordCollection);
-router.get('/reports/collections', requireRole('SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'), getCollectionReport);
+router.post('/collections', requireInterestPermission('can_collect'), recordCollection);
+router.get('/reports/collections', requireInterestPermission('can_view_reports'), getCollectionReport);
+
+// 8. User Management System (Owner & Manager)
+router.get('/users', requireInterestRole('OWNER', 'MANAGER'), listUsers);
+router.post('/users', requireInterestRole('OWNER'), createUser);
+router.get('/users/:id', requireInterestRole('OWNER', 'MANAGER'), getUserById);
+router.put('/users/:id', requireInterestRole('OWNER'), updateUser);
+router.patch('/users/:id/active', requireInterestRole('OWNER'), toggleUserActive);
+router.post('/users/:id/reset-password', requireInterestRole('OWNER'), resetPassword);
+router.put('/users/:id/assign-customers', requireInterestRole('OWNER', 'MANAGER'), assignCustomers);
+router.get('/users/:id/activity', requireInterestRole('OWNER', 'MANAGER'), getUserActivity);
+router.post('/users/change-password', changeOwnPassword);
 
 export default router;

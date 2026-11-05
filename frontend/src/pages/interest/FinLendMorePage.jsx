@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Layers,
@@ -11,14 +11,21 @@ import {
   ShieldCheck,
   Landmark,
   UserCheck,
+  KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import RoleChip from '../../components/interest-ui/RoleChip';
+import FinLendChangePasswordModal from '../../components/interest-ui/FinLendChangePasswordModal';
 
 export default function FinLendMorePage() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [isPwdModalOpen, setIsPwdModalOpen] = useState(false);
+
+  const interestRole = user?.interest_profile?.role || (user?.role === 'COLLECTION_AGENT' ? 'AGENT' : 'OWNER');
+  const canManageUsers = interestRole === 'OWNER' || Boolean(user?.interest_profile?.permissions?.manage_users);
 
   const handleLogout = async () => {
     await logout();
@@ -37,6 +44,13 @@ export default function FinLendMorePage() {
         </p>
       </div>
 
+      {/* Change Password Modal */}
+      <FinLendChangePasswordModal
+        isOpen={isPwdModalOpen}
+        onClose={() => setIsPwdModalOpen(false)}
+        forced={false}
+      />
+
       {/* Profile Card */}
       <div className="rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs flex items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
@@ -47,9 +61,12 @@ export default function FinLendMorePage() {
             <div className="font-extrabold text-base text-slate-900 dark:text-white font-heading">
               {user?.full_name || 'Administrator'}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {user?.role} • FinLend Operations
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <RoleChip role={interestRole} />
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                FinLend Operations
+              </span>
+            </div>
           </div>
         </div>
 
@@ -86,36 +103,59 @@ export default function FinLendMorePage() {
             <ChevronRight className="w-5 h-5 text-slate-400" />
           </div>
 
-          {/* Agents Management */}
-          <div
-            onClick={() => navigate('/interest/more/agents')}
-            className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
-          >
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                <UserCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="font-bold text-sm text-slate-900 dark:text-white font-heading">
-                  Agents & Staff
+          {/* Users & Staff Permissions */}
+          {canManageUsers && (
+            <div
+              onClick={() => navigate('/interest/more/users')}
+              className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5" />
                 </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Field collection agents, routes & login credentials
+                <div>
+                  <div className="font-bold text-sm text-slate-900 dark:text-white font-heading">
+                    Users & Staff Permissions
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Roles, permissions, field agents & customer route assignments
+                  </div>
                 </div>
               </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400" />
-          </div>
+          )}
         </div>
       </div>
 
       {/* Section 2: Preferences & Cross-Business */}
       <div className="space-y-2.5">
         <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1">
-          Preferences & Navigation
+          Preferences & Security
         </h2>
 
         <div className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 overflow-hidden divide-y divide-slate-100 dark:divide-white/5 shadow-xs">
+          {/* Change Password */}
+          <div
+            onClick={() => setIsPwdModalOpen(true)}
+            className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-bold text-sm text-slate-900 dark:text-white font-heading">
+                  Change Password
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Update your personal login password
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400" />
+          </div>
+
           {/* Switch to ChitFund Pro */}
           <Link
             to="/admin/dashboard"
