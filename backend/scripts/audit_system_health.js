@@ -1,5 +1,5 @@
 import { pool } from '../src/config/db.js';
-import { calculateInterestLoan } from '../src/utils/interestEngine.js';
+import { calculateLoanSchedule } from '../src/services/interestCalculationEngine.js';
 import { authenticateUser } from '../src/services/authService.js';
 import router from '../src/routes/interestRoutes.js';
 import adminRouter from '../src/routes/adminRoutes.js';
@@ -32,6 +32,7 @@ async function runAudit() {
     // 2. SCHEMA VERIFICATION: FinLend Pro Tables
     console.log('\n2. Verifying FinLend Pro Schema (10 Tables):');
     const requiredInterestTables = [
+      'interest_businesses',
       'interest_schemes',
       'interest_customers',
       'interest_loans',
@@ -39,9 +40,8 @@ async function runAudit() {
       'interest_collections',
       'interest_agent_assignments',
       'interest_customer_ledgers',
-      'interest_preclosures',
-      'interest_settlements',
-      'interest_collaterals',
+      'interest_cash_submissions',
+      'interest_audit_logs',
     ];
 
     const [tableRows] = await pool.query('SHOW TABLES');
@@ -57,11 +57,11 @@ async function runAudit() {
       'users',
       'chit_groups',
       'members',
-      'member_enrollments',
+      'group_memberships',
       'collections',
       'auctions',
-      'auction_payouts',
-      'dividend_distributions',
+      'payouts',
+      'member_dividends',
       'audit_logs',
     ];
     for (const tbl of requiredChitTables) {
@@ -85,12 +85,14 @@ async function runAudit() {
     // 5. FINANCIAL CALCULATION ENGINE
     console.log('\n5. Verifying Financial Calculation Engine:');
     // Test 1: Flat Rate
-    const flatRes = calculateInterestLoan({
-      calculation_method: 'FLAT_RATE',
+    const flatRes = calculateLoanSchedule({
+      calculation_method: 'FLAT',
       principal: 100000,
-      annual_rate: 24, // 2% per month
-      tenure_months: 12,
+      interest_rate: 24, // 24% per annum = 2% per month
+      rate_period: 'ANNUAL',
       repayment_frequency: 'MONTHLY',
+      tenure_periods: 12,
+      start_date: '2026-01-01',
     });
     assert(flatRes.total_interest_expected === 24000, 'Flat rate 24% on ₹1,00,000 for 12 months = ₹24,000');
     assert(flatRes.total_payable === 124000, 'Total payable is ₹1,24,000');
@@ -98,23 +100,27 @@ async function runAudit() {
     assert(flatRes.schedules.length === 12, '12 monthly schedule rows generated');
 
     // Test 2: Reducing Balance EMI
-    const emiRes = calculateInterestLoan({
-      calculation_method: 'REDUCING_BALANCE_EMI',
+    const emiRes = calculateLoanSchedule({
+      calculation_method: 'REDUCING_BALANCE',
       principal: 100000,
-      annual_rate: 18,
-      tenure_months: 12,
+      interest_rate: 18,
+      rate_period: 'ANNUAL',
       repayment_frequency: 'MONTHLY',
+      tenure_periods: 12,
+      start_date: '2026-01-01',
     });
     assert(emiRes.installment_amount > 9000 && emiRes.installment_amount < 9500, 'Reducing EMI properly amortized');
     assert(emiRes.schedules.length === 12, '12 reducing schedules with principal breakdown generated');
 
     // Test 3: Bullet Loan
-    const bulletRes = calculateInterestLoan({
-      calculation_method: 'INTEREST_ONLY_BULLET',
+    const bulletRes = calculateLoanSchedule({
+      calculation_method: 'INTEREST_ONLY',
       principal: 50000,
-      annual_rate: 24,
-      tenure_months: 6,
+      interest_rate: 24,
+      rate_period: 'ANNUAL',
       repayment_frequency: 'MONTHLY',
+      tenure_periods: 6,
+      start_date: '2026-01-01',
     });
     assert(bulletRes.installment_amount === 1000, 'Bullet loan monthly interest = ₹1,000');
     assert(bulletRes.schedules[bulletRes.schedules.length - 1].principal_due === 50000, 'Bullet loan repays principal in last installment');
@@ -137,4 +143,3 @@ async function runAudit() {
 }
 
 runAudit();
-

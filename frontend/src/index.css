@@ -385,56 +385,227 @@ html.dark table td {
   color: #e2e8f0 !important;
 }
 
-/* Crisp Text Readability in Dark Mode */
-html.dark .text-slate-900 {
+/* ========================================================================== */
+/* COMPREHENSIVE NIGHT MODE CONTRAST & VISIBILITY ENGINE                      */
+/* Guarantees 100% visible, luminous, crisp text across all components       */
+/* ========================================================================== */
+
+/* Neutral Typography (Slate, Gray, Zinc, Neutral) */
+html.dark .text-slate-950,
+html.dark .text-slate-900,
+html.dark .text-gray-950,
+html.dark .text-gray-900,
+html.dark .text-zinc-950,
+html.dark .text-zinc-900,
+html.dark .text-neutral-950,
+html.dark .text-neutral-900 {
   color: #ffffff !important;
 }
-html.dark .text-slate-800 {
-  color: #f1f5f9 !important;
+
+html.dark .text-slate-800,
+html.dark .text-gray-800,
+html.dark .text-zinc-800,
+html.dark .text-neutral-800 {
+  color: #f8fafc !important;
 }
-html.dark .text-slate-700 {
+
+html.dark .text-slate-700,
+html.dark .text-gray-700,
+html.dark .text-zinc-700,
+html.dark .text-neutral-700 {
   color: #e2e8f0 !important;
 }
-html.dark .text-slate-600 {
+
+html.dark .text-slate-600,
+html.dark .text-gray-600,
+html.dark .text-zinc-600,
+html.dark .text-neutral-600 {
   color: #cbd5e1 !important;
 }
-html.dark .text-slate-500 {
-  color: #94a3b8 !important;
-}
-html.dark .text-slate-400 {
+
+html.dark .text-slate-500,
+html.dark .text-gray-500,
+html.dark .text-zinc-500,
+html.dark .text-neutral-500 {
   color: #94a3b8 !important;
 }
 
-/* Vibrant, Luminous Status & Financial Badges in Dark Mode */
+html.dark .text-slate-400,
+html.dark .text-gray-400,
+html.dark .text-zinc-400,
+html.dark .text-neutral-400 {
+  color: #94a3b8 !important;
+}
+
+/* Tinted Colored Texts (Automatically brightened in Dark Mode) */
+/* Indigo */
+html.dark .text-indigo-950,
+html.dark .text-indigo-900,
+html.dark .text-indigo-800,
+html.dark .text-indigo-700 {
+  color: #a5b4fc !important;
+}
+html.dark .text-indigo-600 {
+  color: #818cf8 !important;
+}
+
+/* Purple */
+html.dark .text-purple-950,
+html.dark .text-purple-900,
+html.dark .text-purple-800,
+html.dark .text-purple-700 {
+  color: #c4b5fd !important;
+}
+html.dark .text-purple-600 {
+  color: #a78bfa !important;
+}
+
+/* Blue & Sky */
+html.dark .text-blue-950,
+html.dark .text-blue-900,
+html.dark .text-blue-800,
+html.dark .text-blue-700 {
+  color: #93c5fd !important;
+}
+html.dark .text-sky-950,
+html.dark .text-sky-900,
+html.dark .text-sky-800,
+html.dark .text-sky-700 {
+  color: #7dd3fc !important;
+}
+
+/* Emerald & Green & Teal */
+html.dark .text-emerald-950,
+html.dark .text-emerald-900,
+html.dark .text-emerald-800,
+html.dark .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+html.dark .text-emerald-600 {
+  color: #34d399 !important;
+}
+html.dark .text-teal-950,
+html.dark .text-teal-900,
+html.dark .text-teal-800,
+html.dark .text-teal-700 {
+  color: #5eead4 !important;
+}
+
+/* Amber & Yellow */
+html.dark .text-amber-950,
+html.dark .text-amber-900,
+html.dark .text-amber-800,
+html.dark .text-amber-700 {
+  color: #fde047 !important;
+}
+html.dark .text-amber-600 {
+  color: #facc15 !important;
+}
+
+/* Rose & Red */
+html.dark .text-rose-950,
+html.dark .text-rose-900,
+html.dark .text-rose-800,
+html.dark .text-rose-700,
+html.dark .text-red-950,
+html.dark .text-red-900,
+html.dark .text-red-800,
+html.dark .text-red-700 {
+  color: #fda4af !important;
+}
+html.dark .text-rose-600,
+html.dark .text-red-600 {
+  color: #fb7185 !important;
+}
+
+/* Form Elements, Labels, Tables in Dark Mode */
+html.dark label {
+  color: #e2e8f0 !important;
+}
+
+html.dark table thead th {
+  color: #cbd5e1 !important;
+  font-weight: 700 !important;
+}
+
+html.dark table tbody td {
+  color: #f1f5f9 !important;
+}
+
+html.dark select option {
+  background-color: #0d131f !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Tinted Light Badge Backgrounds in Dark Mode (Eliminates blinding light boxes) */
+html.dark .bg-indigo-50,
+html.dark div[class*="bg-indigo-950"],
+html.dark span[class*="bg-indigo-950"] {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
 html.dark .bg-emerald-50,
 html.dark div[class*="bg-emerald-950"],
 html.dark span[class*="bg-emerald-950"] {
-  background-color: rgba(16, 185, 129, 0.07) !important; color: #10b981 !important; border-color: rgba(16, 185, 129, 0.18) !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
 }
 
 html.dark .bg-blue-50,
 html.dark div[class*="bg-blue-950"],
 html.dark span[class*="bg-blue-950"] {
-  background-color: rgba(59, 130, 246, 0.07) !important; color: #60a5fa !important; border-color: rgba(59, 130, 246, 0.18) !important;
+  background-color: rgba(59, 130, 246, 0.12) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.25) !important;
 }
 
 html.dark .bg-purple-50,
 html.dark div[class*="bg-purple-950"],
 html.dark span[class*="bg-purple-950"] {
-  background-color: rgba(99, 102, 241, 0.07) !important; color: #818cf8 !important; border-color: rgba(99, 102, 241, 0.18) !important;
+  background-color: rgba(168, 85, 247, 0.12) !important;
+  color: #c4b5fd !important;
+  border-color: rgba(168, 85, 247, 0.25) !important;
 }
 
 html.dark .bg-amber-50,
 html.dark div[class*="bg-amber-950"],
 html.dark span[class*="bg-amber-950"] {
-  background-color: rgba(245, 158, 11, 0.07) !important; color: #f59e0b !important; border-color: rgba(245, 158, 11, 0.18) !important;
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: #fde047 !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
 }
 
 html.dark .bg-rose-50,
 html.dark .bg-red-50,
 html.dark div[class*="bg-rose-950"],
 html.dark span[class*="bg-rose-950"] {
-  background-color: rgba(244, 63, 94, 0.07) !important; color: #f43f5e !important; border-color: rgba(244, 63, 94, 0.18) !important;
+  background-color: rgba(244, 63, 94, 0.12) !important;
+  color: #fda4af !important;
+  border-color: rgba(244, 63, 94, 0.25) !important;
+}
+
+html.dark .bg-sky-50,
+html.dark div[class*="bg-sky-950"],
+html.dark span[class*="bg-sky-950"] {
+  background-color: rgba(14, 165, 233, 0.12) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(14, 165, 233, 0.25) !important;
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-slate-200,
+html.dark div[class*="bg-slate-100"],
+html.dark div[class*="bg-slate-200"] {
+  background-color: #161f31 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Interaction Animations: Moving, Selecting, Confirmation & Final Success */
