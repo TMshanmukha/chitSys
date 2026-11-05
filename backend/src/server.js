@@ -13,6 +13,7 @@ import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import agentRoutes from './routes/agentRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import interestRoutes from './routes/interestRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -123,6 +124,7 @@ app.use(['/api/auth', '/auth'], authRoutes);
 app.use(['/api/admin', '/admin'], adminRoutes);
 app.use(['/api/agent', '/agent'], agentRoutes);
 app.use(['/api/notifications', '/notifications'], notificationRoutes);
+app.use(['/api/interest', '/interest'], interestRoutes);
 
 
 // Serve frontend static assets (Vite production build)

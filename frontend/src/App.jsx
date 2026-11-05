@@ -5,6 +5,9 @@ import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
+import BusinessSelectorPage from './pages/BusinessSelectorPage';
+
+// ChitFund Pro Components & Pages
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import AgentDashboard from './pages/AgentDashboard';
@@ -25,11 +28,20 @@ import NotFound from './pages/NotFound';
 import LeaveManagementPage from './pages/LeaveManagementPage';
 import AgentDayClosingPage from './pages/AgentDayClosingPage';
 import AdminDaySubmissionsPage from './pages/AdminDaySubmissionsPage';
+import AgentLayout from './components/AgentLayout';
+
+// FinLend Pro Components & Pages
+import InterestAdminLayout from './components/InterestAdminLayout';
+import InterestDashboardPage from './pages/interest/InterestDashboardPage';
+import InterestSchemesPage from './pages/interest/InterestSchemesPage';
+import InterestCustomersPage from './pages/interest/InterestCustomersPage';
+import InterestLoansPage from './pages/interest/InterestLoansPage';
+import InterestCollectionsPage from './pages/interest/InterestCollectionsPage';
+import InterestReportsPage from './pages/interest/InterestReportsPage';
+import InterestAgentPortalPage from './pages/interest/InterestAgentPortalPage';
 
 import ScrollToTop from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
-
-import AgentLayout from './components/AgentLayout';
 
 export default function App() {
   return (
@@ -41,66 +53,105 @@ export default function App() {
               {/* Automatic smooth window move to top on every page transition */}
               <ScrollToTop />
               <Routes>
-            {/* Default entry redirect */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+                {/* Dual-Business Enterprise Landing Portal */}
+                <Route path="/" element={<BusinessSelectorPage />} />
 
-            {/* Authentication Screen */}
-            <Route path="/login" element={<LoginPage />} />
+                {/* Authentication Screen (Supports ?business=chitfund and ?business=interest) */}
+                <Route path="/login" element={<LoginPage />} />
 
-            {/* Protected Admin Routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="tracking" element={<RouteTrackingPage />} />
-              <Route path="chit-groups" element={<ChitGroupsPage />} />
-              <Route path="auctions" element={<AuctionsPage />} />
-              <Route path="users" element={<UsersPage />} />
-              <Route path="agents" element={<UsersPage />} />
-              <Route path="leaves" element={<LeaveManagementPage />} />
-              <Route path="day-reviews" element={<AdminDaySubmissionsPage />} />
-              <Route path="members" element={<MembersPage />} />
-              <Route path="collections" element={<CollectionsPage />} />
-              <Route path="profile" element={<AdminCommissionsPage />} />
-              <Route path="commissions" element={<AdminCommissionsPage />} />
-              <Route path="earnings" element={<AdminCommissionsPage />} />
-              <Route path="reports" element={<ReportsPage />} />
-              <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="audit" element={<AuditLogsPage />} />
-              <Route path="logs" element={<AuditLogsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
+                {/* ========================================================================= */}
+                {/* BUSINESS A: CHITFUND PRO PROTECTED ADMIN ROUTES                           */}
+                {/* ========================================================================= */}
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                      <AdminLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                  <Route path="dashboard" element={<AdminDashboard />} />
+                  <Route path="tracking" element={<RouteTrackingPage />} />
+                  <Route path="chit-groups" element={<ChitGroupsPage />} />
+                  <Route path="auctions" element={<AuctionsPage />} />
+                  <Route path="users" element={<UsersPage />} />
+                  <Route path="agents" element={<UsersPage />} />
+                  <Route path="leaves" element={<LeaveManagementPage />} />
+                  <Route path="day-reviews" element={<AdminDaySubmissionsPage />} />
+                  <Route path="members" element={<MembersPage />} />
+                  <Route path="collections" element={<CollectionsPage />} />
+                  <Route path="profile" element={<AdminCommissionsPage />} />
+                  <Route path="commissions" element={<AdminCommissionsPage />} />
+                  <Route path="earnings" element={<AdminCommissionsPage />} />
+                  <Route path="reports" element={<ReportsPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
+                  <Route path="audit" element={<AuditLogsPage />} />
+                  <Route path="logs" element={<AuditLogsPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
 
-            {/* Protected Agent Portal with Dedicated Sidebar & Menu Pages */}
-            <Route
-              path="/agent"
-              element={
-                <ProtectedRoute allowedRoles={['COLLECTION_AGENT']}>
-                  <AgentLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/agent/tasks" replace />} />
-              <Route path="dashboard" element={<Navigate to="/agent/tasks" replace />} />
-              <Route path="tasks" element={<AgentDashboard key="tasks" defaultTab="tasks" />} />
-              <Route path="routes" element={<AgentDashboard key="routes" defaultTab="routes" />} />
-              <Route path="pending-dues" element={<AgentDashboard key="pending-dues" defaultTab="pending-dues" />} />
-              <Route path="leaves" element={<LeaveManagementPage />} />
-              <Route path="day-closing" element={<AgentDayClosingPage />} />
-              <Route path="history" element={<AgentDashboard key="history" defaultTab="history" />} />
-              <Route path="profile" element={<AgentDashboard key="profile" defaultTab="profile" />} />
-            </Route>
+                {/* ========================================================================= */}
+                {/* BUSINESS A: CHITFUND PRO PROTECTED AGENT ROUTES                           */}
+                {/* ========================================================================= */}
+                <Route
+                  path="/agent"
+                  element={
+                    <ProtectedRoute allowedRoles={['COLLECTION_AGENT']}>
+                      <AgentLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/agent/tasks" replace />} />
+                  <Route path="dashboard" element={<Navigate to="/agent/tasks" replace />} />
+                  <Route path="tasks" element={<AgentDashboard key="tasks" defaultTab="tasks" />} />
+                  <Route path="routes" element={<AgentDashboard key="routes" defaultTab="routes" />} />
+                  <Route path="pending-dues" element={<AgentDashboard key="pending-dues" defaultTab="pending-dues" />} />
+                  <Route path="leaves" element={<LeaveManagementPage />} />
+                  <Route path="day-closing" element={<AgentDayClosingPage />} />
+                  <Route path="history" element={<AgentDashboard key="history" defaultTab="history" />} />
+                  <Route path="profile" element={<AgentDashboard key="profile" defaultTab="profile" />} />
+                </Route>
 
-            {/* 404 Route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+                {/* ========================================================================= */}
+                {/* BUSINESS B: FINLEND PRO PROTECTED ADMIN ROUTES (INTEREST BUSINESS)        */}
+                {/* ========================================================================= */}
+                <Route
+                  path="/interest/admin"
+                  element={
+                    <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                      <InterestAdminLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/interest/admin/dashboard" replace />} />
+                  <Route path="dashboard" element={<InterestDashboardPage />} />
+                  <Route path="schemes" element={<InterestSchemesPage />} />
+                  <Route path="customers" element={<InterestCustomersPage />} />
+                  <Route path="loans" element={<InterestLoansPage />} />
+                  <Route path="collections" element={<InterestCollectionsPage />} />
+                  <Route path="reports" element={<InterestReportsPage />} />
+                </Route>
+
+                {/* ========================================================================= */}
+                {/* BUSINESS B: FINLEND PRO PROTECTED AGENT ROUTES                            */}
+                {/* ========================================================================= */}
+                <Route
+                  path="/interest/agent"
+                  element={
+                    <ProtectedRoute allowedRoles={['COLLECTION_AGENT']}>
+                      <InterestAgentPortalPage />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/interest/agent/collections" replace />} />
+                  <Route path="collections" element={<InterestAgentPortalPage />} />
+                </Route>
+
+                {/* 404 Route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
           </ErrorBoundary>
         </NotificationProvider>
       </AuthProvider>
