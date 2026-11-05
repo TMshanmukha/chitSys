@@ -152,7 +152,7 @@ export default function InterestCollectionsPage() {
         <button
           type="button"
           onClick={openRecordModal}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(16,185,129,0.35)] cursor-pointer font-heading"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-sm cursor-pointer font-heading"
         >
           <Plus className="w-4 h-4" />
           <span>Record Collection (Paid)</span>
@@ -162,7 +162,7 @@ export default function InterestCollectionsPage() {
       {/* Summary KPI Strip */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
-          <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(16,185,129,0.3)] transition-all duration-300">
+          <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block font-heading">
               Total Recovered
             </span>
@@ -174,7 +174,7 @@ export default function InterestCollectionsPage() {
             </span>
           </div>
 
-          <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(99,102,241,0.3)] transition-all duration-300">
+          <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block font-heading">
               Principal Recovered
             </span>
@@ -186,7 +186,7 @@ export default function InterestCollectionsPage() {
             </span>
           </div>
 
-          <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(168,85,247,0.3)] transition-all duration-300">
+          <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block font-heading">
               Interest Income Realized
             </span>
@@ -482,7 +482,7 @@ export default function InterestCollectionsPage() {
                 <button
                   type="submit"
                   disabled={submittingCollect}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold cursor-pointer flex items-center gap-1.5 shadow-[0_8px_20px_-4px_rgba(99,102,241,0.5)] font-heading"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold cursor-pointer flex items-center gap-1.5 shadow-sm font-heading"
                 >
                   {submittingCollect ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                   <span>Submit & Generate Receipt</span>
@@ -503,7 +503,7 @@ export default function InterestCollectionsPage() {
           <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 rounded-3xl max-w-md w-full shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-6 sm:p-7 space-y-4 my-auto">
             {/* Success Header */}
             <div className="text-center pb-3 border-b border-slate-200/70 dark:border-white/10">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center mb-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center mb-2 shadow-xs">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h3 className="font-black text-slate-900 dark:text-white text-lg font-heading">

@@ -88,14 +88,14 @@
   /* PREMIUM OBSIDIAN DARK MODE ROOT (Clean, velvety midnight canvas)           */
   /* -------------------------------------------------------------------------- */
   html.dark {
-    background-color: #070b14;
-    color: #f8fafc;
+    background-color: #080b12;
+    color: #f1f5f9;
     color-scheme: dark;
   }
 
   html.dark body {
-    background-color: #070b14;
-    color: #f8fafc;
+    background-color: #080b12;
+    color: #f1f5f9;
   }
 
   #root {
@@ -138,9 +138,9 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 }
 
 html.dark .glass-panel {
-  background: #0d1424 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  background: #0d131f !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6) !important;
 }
 
 .menu-hover-lift {
@@ -246,9 +246,9 @@ html.dark .card-interactive-elevate:hover {
 }
 
 html.dark .glass-box {
-  background: #0e1628 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  background: #0d131f !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Universal Card & Panel Styling (Excluding Modals & Forms so they never bleed into muddy cement gray) */
@@ -275,8 +275,8 @@ html.dark div[class*="rounded-xl bg-slate-900"],
 html.dark div[class*="rounded-3xl bg-slate-900"],
 html.dark div[class*="rounded-2xl bg-slate-900/80"],
 html.dark div[class*="rounded-xl bg-slate-900/80"] {
-  background-color: #0e1628 !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  background-color: #0d131f !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
   box-shadow: 0 6px 24px -4px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -290,8 +290,8 @@ html.dark div[class*="bg-slate-800"],
 html.dark div[class*="bg-slate-800/80"],
 html.dark div[class*="bg-slate-800/60"],
 html.dark div[class*="bg-slate-800/40"] {
-  background-color: #131d33 !important;
-  border-color: rgba(255, 255, 255, 0.07) !important;
+  background-color: #121826 !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Floating Navigation Bars (Sidebar, Header Navbar) */
@@ -306,7 +306,7 @@ html.dark div[class*="bg-slate-800/40"] {
 html.dark .floating-glass-bar,
 html.dark aside,
 html.dark header {
-  background: rgba(11, 18, 32, 0.94) !important;
+  background: rgba(13, 19, 31, 0.95) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
@@ -333,17 +333,17 @@ html.dark .modal-card,
 html.dark div[class*="fixed inset-0"] > div[class*="rounded-2xl"],
 html.dark div[class*="fixed inset-0"] > div[class*="rounded-3xl"],
 html.dark #chit-scheme-modal > div {
-  background-color: #0b1329 !important;
+  background-color: #0d131f !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
 }
 
 /* Form Controls in Dark Mode: High-contrast, clean, responsive */
 html.dark input:not([type="checkbox"]):not([type="radio"]),
 html.dark select,
 html.dark textarea {
-  background-color: #0b111f !important;
-  border-color: #24334d !important;
+  background-color: #0b101b !important;
+  border-color: #1e283d !important;
   color: #ffffff !important;
 }
 
@@ -364,7 +364,7 @@ html.dark textarea:focus {
 html.dark table thead,
 html.dark table thead tr {
   background-color: #090e1b !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 html.dark table thead th {
@@ -409,42 +409,32 @@ html.dark .text-slate-400 {
 html.dark .bg-emerald-50,
 html.dark div[class*="bg-emerald-950"],
 html.dark span[class*="bg-emerald-950"] {
-  background-color: rgba(16, 185, 129, 0.16) !important;
-  color: #34d399 !important;
-  border-color: rgba(16, 185, 129, 0.32) !important;
+  background-color: rgba(16, 185, 129, 0.07) !important; color: #10b981 !important; border-color: rgba(16, 185, 129, 0.18) !important;
 }
 
 html.dark .bg-blue-50,
 html.dark div[class*="bg-blue-950"],
 html.dark span[class*="bg-blue-950"] {
-  background-color: rgba(59, 130, 246, 0.16) !important;
-  color: #60a5fa !important;
-  border-color: rgba(59, 130, 246, 0.32) !important;
+  background-color: rgba(59, 130, 246, 0.07) !important; color: #60a5fa !important; border-color: rgba(59, 130, 246, 0.18) !important;
 }
 
 html.dark .bg-purple-50,
 html.dark div[class*="bg-purple-950"],
 html.dark span[class*="bg-purple-950"] {
-  background-color: rgba(168, 85, 247, 0.16) !important;
-  color: #c084fc !important;
-  border-color: rgba(168, 85, 247, 0.32) !important;
+  background-color: rgba(99, 102, 241, 0.07) !important; color: #818cf8 !important; border-color: rgba(99, 102, 241, 0.18) !important;
 }
 
 html.dark .bg-amber-50,
 html.dark div[class*="bg-amber-950"],
 html.dark span[class*="bg-amber-950"] {
-  background-color: rgba(245, 158, 11, 0.16) !important;
-  color: #fbbf24 !important;
-  border-color: rgba(245, 158, 11, 0.32) !important;
+  background-color: rgba(245, 158, 11, 0.07) !important; color: #f59e0b !important; border-color: rgba(245, 158, 11, 0.18) !important;
 }
 
 html.dark .bg-rose-50,
 html.dark .bg-red-50,
 html.dark div[class*="bg-rose-950"],
 html.dark span[class*="bg-rose-950"] {
-  background-color: rgba(244, 63, 94, 0.16) !important;
-  color: #fb7185 !important;
-  border-color: rgba(244, 63, 94, 0.32) !important;
+  background-color: rgba(244, 63, 94, 0.07) !important; color: #f43f5e !important; border-color: rgba(244, 63, 94, 0.18) !important;
 }
 
 /* Interaction Animations: Moving, Selecting, Confirmation & Final Success */

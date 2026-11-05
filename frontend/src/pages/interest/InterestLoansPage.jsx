@@ -207,7 +207,7 @@ export default function InterestLoansPage() {
         <button
           type="button"
           onClick={openDisburseModal}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.35)] cursor-pointer font-heading"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-sm cursor-pointer font-heading"
         >
           <Plus className="w-4 h-4" />
           <span>Disburse New Loan</span>

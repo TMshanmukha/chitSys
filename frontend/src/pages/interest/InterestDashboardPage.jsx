@@ -168,7 +168,7 @@ export default function InterestDashboardPage() {
       {/* 2. Rich 4-KPI Metric Cards Grid (With 3D Hover Lift & Colored Glow Shadows) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {/* Card 1: Principal Outstanding */}
-        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(99,102,241,0.3)] transition-all duration-300 relative overflow-hidden group">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300 relative overflow-hidden group">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold font-heading">
             <span>Principal Outstanding</span>
             <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
@@ -188,7 +188,7 @@ export default function InterestDashboardPage() {
         </div>
 
         {/* Card 2: Interest Collected */}
-        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(16,185,129,0.3)] transition-all duration-300 relative overflow-hidden group">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300 relative overflow-hidden group">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold font-heading">
             <span>Interest Income Realized</span>
             <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
@@ -196,7 +196,7 @@ export default function InterestDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5">
-            <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight block">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight block">
               ₹{totalInterestCollected.toLocaleString('en-IN')}
             </span>
             <div className="flex items-center gap-1.5 mt-1 text-xs text-emerald-600 dark:text-emerald-400 font-bold font-heading">
@@ -207,7 +207,7 @@ export default function InterestDashboardPage() {
         </div>
 
         {/* Card 3: Today's Collection */}
-        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(14,165,233,0.3)] transition-all duration-300 relative overflow-hidden group">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300 relative overflow-hidden group">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold font-heading">
             <span>Today's Recovery</span>
             <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
@@ -215,7 +215,7 @@ export default function InterestDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5">
-            <span className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400 font-mono tracking-tight block">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight block">
               ₹{totalTodayCollected.toLocaleString('en-IN')}
             </span>
             <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
@@ -227,7 +227,7 @@ export default function InterestDashboardPage() {
         </div>
 
         {/* Card 4: Overdue Recovery */}
-        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(244,63,94,0.3)] transition-all duration-300 relative overflow-hidden group">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300 relative overflow-hidden group">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold font-heading">
             <span>At-Risk / Overdue</span>
             <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/60 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
@@ -235,7 +235,7 @@ export default function InterestDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5">
-            <span className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight block">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight block">
               ₹{totalOverdue.toLocaleString('en-IN')}
             </span>
             <span className="text-xs text-rose-600/90 dark:text-rose-400/90 font-bold block mt-1 font-heading">

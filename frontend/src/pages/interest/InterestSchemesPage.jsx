@@ -164,7 +164,7 @@ export default function InterestSchemesPage() {
         <button
           type="button"
           onClick={openBuilder}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(99,102,241,0.35)] cursor-pointer font-heading"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-sm cursor-pointer font-heading"
         >
           <Plus className="w-4 h-4" />
           <span>New Financial Scheme</span>
@@ -200,7 +200,7 @@ export default function InterestSchemesPage() {
             return (
               <div
                 key={s.id}
-                className="p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-col justify-between space-y-4 hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(99,102,241,0.25)] hover:border-indigo-500/40 transition-all duration-300"
+                className="p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-col justify-between space-y-4 hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] hover:border-indigo-500/40 transition-all duration-300"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">

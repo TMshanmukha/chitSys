@@ -122,7 +122,7 @@ export default function InterestReportsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
-        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(99,102,241,0.3)] transition-all duration-300">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading block">
             Total Collections
           </span>
@@ -134,7 +134,7 @@ export default function InterestReportsPage() {
           </span>
         </div>
 
-        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(16,185,129,0.3)] transition-all duration-300">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading block">
             Principal Recovered
           </span>
@@ -144,7 +144,7 @@ export default function InterestReportsPage() {
           <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 block">Capital Returned to Business</span>
         </div>
 
-        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_16px_32px_-6px_rgba(168,85,247,0.3)] transition-all duration-300">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/70 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-md dark:hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)] transition-all duration-300">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading block">
             Interest Earned
           </span>
