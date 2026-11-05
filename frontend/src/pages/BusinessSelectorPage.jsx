@@ -19,8 +19,8 @@ export default function BusinessSelectorPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#080b12] text-slate-800 dark:text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans transition-colors selection:bg-blue-500 selection:text-white">
-      {/* Top Header */}
-      <header className="relative z-10 px-6 sm:px-12 py-4 flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 bg-white/40 dark:bg-white/[0.01] backdrop-blur-md shrink-0">
+      {/* Top Header - Completely Transparent */}
+      <header className="relative z-10 px-6 sm:px-12 py-5 flex items-center justify-between bg-transparent border-none shadow-none shrink-0">
         <div className="flex items-center gap-3">
           {/* Dual Brand Representation */}
           <div className="flex items-center -space-x-2">
@@ -44,7 +44,7 @@ export default function BusinessSelectorPage() {
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-xs"
+          className="p-2 rounded-xl bg-transparent hover:bg-slate-200/40 dark:hover:bg-white/10 border border-slate-300/50 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
           aria-label="Toggle theme"
         >
           {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}

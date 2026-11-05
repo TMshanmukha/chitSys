@@ -156,12 +156,12 @@ export default function LoginPage() {
       {/* 100% Vector Animated Background with Authentic Currency, Tokens & Symbols */}
       {isInterest ? <AnimatedFinLendBackground /> : <AnimatedChitBackground />}
 
-      {/* Top Header Bar */}
-      <header className="w-full max-w-5xl flex items-center justify-between z-10 py-2">
+      {/* Top Header Bar - Completely Transparent */}
+      <header className="w-full max-w-5xl flex items-center justify-between z-10 py-3 bg-transparent border-none shadow-none">
         <div className="flex items-center gap-3">
           <Link
             to="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-xs transition-colors backdrop-blur-md"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-transparent hover:bg-slate-200/40 dark:hover:bg-white/10 border border-slate-300/50 dark:border-white/15 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">All Businesses</span>
@@ -186,8 +186,8 @@ export default function LoginPage() {
               <span
                 className={`hidden sm:inline-block ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                   isInterest
-                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
-                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                    ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-400/20'
+                    : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-400/20'
                 }`}
               >
                 {isInterest ? 'Interest & Lending Engine' : 'Chit Fund & Auction Suite'}
@@ -196,12 +196,12 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Theme Toggle Button */}
+        {/* Theme Toggle Button - Transparent */}
         <button
           type="button"
           onClick={toggleTheme}
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer shadow-xs backdrop-blur-md"
+          className="p-2 rounded-xl bg-transparent hover:bg-slate-200/40 dark:hover:bg-white/10 border border-slate-300/50 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
         >
           {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
         </button>

@@ -40,8 +40,8 @@ export default function InterestAppLayout() {
 
       {/* Main Viewport Container */}
       <div className="flex-1 md:pl-64 flex flex-col min-w-0 z-10">
-        {/* Mobile Top Header (hidden on md:) */}
-        <header className="md:hidden sticky top-0 z-30 h-14 px-4 flex items-center justify-between bg-white/90 dark:bg-[#0c1220]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 shadow-xs shrink-0">
+        {/* Mobile Top Header (hidden on md:) - Transparent */}
+        <header className="md:hidden sticky top-0 z-30 h-14 px-4 flex items-center justify-between bg-transparent backdrop-blur-md border-b border-slate-200/40 dark:border-white/5 shrink-0">
           <Link to="/interest/home" className="flex items-center gap-2.5">
             <FinLendLogo size={34} variant="app-icon" className="shrink-0" />
             <div>

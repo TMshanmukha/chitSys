@@ -268,8 +268,8 @@ export default function InterestAgentPortalPage() {
         forced={true}
       />
 
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 h-16 px-4 sm:px-6 flex items-center justify-between bg-white/90 dark:bg-[#0c1220]/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 shadow-xs">
+      {/* Top Header - Transparent */}
+      <header className="sticky top-0 z-30 h-16 px-4 sm:px-6 flex items-center justify-between bg-transparent backdrop-blur-md border-b border-slate-200/40 dark:border-white/5">
         <div className="flex items-center gap-3">
           <FinLendLogo size={40} variant="app-icon" className="shrink-0" />
           <div>
