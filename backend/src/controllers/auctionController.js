@@ -894,7 +894,7 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
     const totalPrizeMoneyDisbursed = auctions.reduce((acc, a) => acc + parseFloat(a.net_payable_amount || 0), 0);
 
     const totalCollected = subscribers.reduce((acc, s) => acc + parseFloat(s.total_paid_in_group || 0), 0);
-    const poolAmount = parseFloat(group.total_pool_amount);
+    // poolAmount already declared above
     const isPoolFullyCollected = totalCollected >= poolAmount;
     const collectionShortfall = Math.max(0, poolAmount - totalCollected);
     const collectionPercentage = poolAmount > 0 ? Math.min(100, Math.round((totalCollected / poolAmount) * 100)) : 100;
