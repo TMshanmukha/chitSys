@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -13,19 +13,31 @@ export default function BusinessSelectorPage() {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
 
+  useEffect(() => {
+    document.title = 'Select Business Workspace | ChitFund Pro & FinLend Pro';
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#080b12] text-slate-800 dark:text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans transition-colors selection:bg-blue-500 selection:text-white">
       {/* Top Header */}
       <header className="relative z-10 px-6 sm:px-12 py-4 flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 bg-white/40 dark:bg-white/[0.01] backdrop-blur-md shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-indigo-600 flex items-center justify-center font-black text-white text-base shadow-sm font-heading">
-            CP
+          {/* Dual Brand Representation */}
+          <div className="flex items-center -space-x-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-xs z-10 border-2 border-white dark:border-[#080b12]" title="ChitFund Pro">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div className="z-20" title="FinLend Pro">
+              <FinLendLogo size={36} variant="app-icon" className="shadow-xs" />
+            </div>
           </div>
           <div>
-            <div className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight font-heading leading-tight">
-              ChitFund Pro Suite
+            <div className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight font-heading leading-tight flex items-center gap-2">
+              <span>Business Workspace Portal</span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Enterprise Financial Systems</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              ChitFund Pro & FinLend Pro
+            </p>
           </div>
         </div>
 
