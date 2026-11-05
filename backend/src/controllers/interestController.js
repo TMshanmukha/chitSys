@@ -912,3 +912,4 @@ export async function getCollectionReport(req, res) {
     res.status(500).json({ success: false, message: 'Failed to fetch collection report' });
   }
 }
+

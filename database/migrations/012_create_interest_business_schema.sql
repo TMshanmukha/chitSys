@@ -265,3 +265,4 @@ VALUES
 (2, 'Standard Monthly EMI (Reducing Balance)', 'EMI-REDUCE-12M', 'Standard reducing balance amortization where interest is charged strictly on remaining unpaid balance.', 'REDUCING_BALANCE', 18.0000, 'ANNUAL', 'MONTHLY', 10000.00, 1000000.00, 50000.00, 3, 36, 12, 'ACTIVE'),
 (3, 'Periodic Interest-Only (Bullet Repayment)', 'VADDI-BULLET-MO', 'Monthly interest payment only (Vaddi Vyaparam), with full principal repaid at maturity.', 'INTEREST_ONLY', 2.0000, 'MONTHLY', 'MONTHLY', 10000.00, 500000.00, 100000.00, 1, 24, 6, 'ACTIVE'),
 (4, 'Daily Outstanding Balance Interest', 'DOB-FLEX-DAILY', 'Daily interest computed on the actual end-of-day outstanding principal with flexible repayments.', 'DAILY_BALANCE', 0.1000, 'DAILY', 'DAILY', 1000.00, 200000.00, 25000.00, 7, 180, 60, 'ACTIVE');
+
