@@ -612,3 +612,4 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
     </ModalPortal>
   );
 }
+

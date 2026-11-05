@@ -557,3 +557,4 @@ export default function FinLendHomePage() {
     </div>
   );
 }
+

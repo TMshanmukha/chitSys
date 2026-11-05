@@ -370,3 +370,4 @@ Thank you for your payment!`;
     </div>
   );
 }
+
