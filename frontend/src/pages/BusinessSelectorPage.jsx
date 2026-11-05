@@ -8,6 +8,7 @@ import {
   Moon,
 } from 'lucide-react';
 import FinLendLogo from '../components/FinLendLogo';
+import AnimatedFinLendBackground from '../components/AnimatedFinLendBackground';
 
 export default function BusinessSelectorPage() {
   const navigate = useNavigate();
@@ -18,19 +19,15 @@ export default function BusinessSelectorPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#080b12] text-slate-800 dark:text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans transition-colors selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-800 dark:text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans transition-colors selection:bg-blue-500 selection:text-white">
+      {/* 100% Vector Animated Background */}
+      <AnimatedFinLendBackground />
+
       {/* Top Header - Completely Transparent */}
       <header className="relative z-10 px-6 sm:px-12 py-5 flex items-center justify-between bg-transparent border-none shadow-none shrink-0">
         <div className="flex items-center gap-3">
-          {/* Dual Brand Representation */}
-          <div className="flex items-center -space-x-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-xs z-10 border-2 border-white dark:border-[#080b12]" title="ChitFund Pro">
-              <Layers className="w-4 h-4" />
-            </div>
-            <div className="z-20" title="FinLend Pro">
-              <FinLendLogo size={36} variant="app-icon" className="shadow-xs" />
-            </div>
-          </div>
+          {/* Sole Book Logo (No Overlapping Icons) */}
+          <FinLendLogo size={38} variant="app-icon" className="shrink-0" />
           <div>
             <div className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight font-heading leading-tight flex items-center gap-2">
               <span>Business Workspace Portal</span>
