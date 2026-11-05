@@ -64,7 +64,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated) {
       if (business === 'interest') {
-        if (isAdmin) navigate('/interest/admin/dashboard', { replace: true });
+        if (isAdmin) navigate('/interest/home', { replace: true });
         else if (isAgent) navigate('/interest/agent/collections', { replace: true });
       } else {
         if (isAdmin) navigate('/admin/dashboard', { replace: true });
@@ -129,7 +129,7 @@ export default function LoginPage() {
       setTimeout(() => {
         if (res.user.role === 'SUPER_ADMIN' || res.user.role === 'ADMIN') {
           if (business === 'interest') {
-            navigate('/interest/admin/dashboard', { replace: true });
+            navigate('/interest/home', { replace: true });
           } else {
             navigate('/admin/dashboard', { replace: true });
           }

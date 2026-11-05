@@ -30,15 +30,16 @@ import AgentDayClosingPage from './pages/AgentDayClosingPage';
 import AdminDaySubmissionsPage from './pages/AdminDaySubmissionsPage';
 import AgentLayout from './components/AgentLayout';
 
-// FinLend Pro Components & Pages
-import InterestAdminLayout from './components/InterestAdminLayout';
-import InterestDashboardPage from './pages/interest/InterestDashboardPage';
-import InterestSchemesPage from './pages/interest/InterestSchemesPage';
-import InterestCustomersPage from './pages/interest/InterestCustomersPage';
-import InterestLoansPage from './pages/interest/InterestLoansPage';
-import InterestCollectionsPage from './pages/interest/InterestCollectionsPage';
-import InterestReportsPage from './pages/interest/InterestReportsPage';
-import InterestUsersPage from './pages/interest/InterestUsersPage';
+// FinLend Pro Components & Pages (VeeCredit-style Simplified UI)
+import InterestAppLayout from './components/interest-ui/InterestAppLayout';
+import FinLendHomePage from './pages/interest/FinLendHomePage';
+import FinLendCollectPage from './pages/interest/FinLendCollectPage';
+import FinLendCustomersPage from './pages/interest/FinLendCustomersPage';
+import FinLendPassbookPage from './pages/interest/FinLendPassbookPage';
+import FinLendReportsPage from './pages/interest/FinLendReportsPage';
+import FinLendMorePage from './pages/interest/FinLendMorePage';
+import FinLendLoanTypesPage from './pages/interest/FinLendLoanTypesPage';
+import FinLendAgentsPage from './pages/interest/FinLendAgentsPage';
 import InterestAgentPortalPage from './pages/interest/InterestAgentPortalPage';
 
 import ScrollToTop from './components/ScrollToTop';
@@ -115,25 +116,36 @@ export default function App() {
                 </Route>
 
                 {/* ========================================================================= */}
-                {/* BUSINESS B: FINLEND PRO PROTECTED ADMIN ROUTES (INTEREST BUSINESS)        */}
+                {/* BUSINESS B: FINLEND PRO PROTECTED ADMIN ROUTES (SIMPLIFIED VEECREDIT UI) */}
                 {/* ========================================================================= */}
                 <Route
-                  path="/interest/admin"
+                  path="/interest"
                   element={
                     <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
-                      <InterestAdminLayout />
+                      <InterestAppLayout />
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<Navigate to="/interest/admin/dashboard" replace />} />
-                  <Route path="dashboard" element={<InterestDashboardPage />} />
-                  <Route path="schemes" element={<InterestSchemesPage />} />
-                  <Route path="customers" element={<InterestCustomersPage />} />
-                  <Route path="loans" element={<InterestLoansPage />} />
-                  <Route path="collections" element={<InterestCollectionsPage />} />
-                  <Route path="users" element={<InterestUsersPage />} />
-                  <Route path="agents" element={<InterestUsersPage />} />
-                  <Route path="reports" element={<InterestReportsPage />} />
+                  <Route index element={<Navigate to="/interest/home" replace />} />
+                  <Route path="home" element={<FinLendHomePage />} />
+                  <Route path="collect" element={<FinLendCollectPage />} />
+                  <Route path="customers" element={<FinLendCustomersPage />} />
+                  <Route path="customers/:id" element={<FinLendPassbookPage />} />
+                  <Route path="reports" element={<FinLendReportsPage />} />
+                  <Route path="more" element={<FinLendMorePage />} />
+                  <Route path="more/loan-types" element={<FinLendLoanTypesPage />} />
+                  <Route path="more/agents" element={<FinLendAgentsPage />} />
+
+                  {/* Backward-compatibility redirects for any bookmarked / saved URLs */}
+                  <Route path="admin" element={<Navigate to="/interest/home" replace />} />
+                  <Route path="admin/dashboard" element={<Navigate to="/interest/home" replace />} />
+                  <Route path="admin/collections" element={<Navigate to="/interest/collect" replace />} />
+                  <Route path="admin/customers" element={<Navigate to="/interest/customers" replace />} />
+                  <Route path="admin/loans" element={<Navigate to="/interest/home" replace />} />
+                  <Route path="admin/schemes" element={<Navigate to="/interest/more/loan-types" replace />} />
+                  <Route path="admin/users" element={<Navigate to="/interest/more/agents" replace />} />
+                  <Route path="admin/agents" element={<Navigate to="/interest/more/agents" replace />} />
+                  <Route path="admin/reports" element={<Navigate to="/interest/reports" replace />} />
                 </Route>
 
                 {/* ========================================================================= */}
