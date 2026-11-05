@@ -292,11 +292,11 @@ export default function FinLendUsersPage() {
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => navigate('/interest/more')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-indigo-600 shadow-xs transition-colors cursor-pointer"
+          onClick={() => navigate('/interest/home')}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-indigo-600 shadow-xs transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>More</span>
+          <span>Back to Home</span>
         </button>
 
         <div className="flex items-center gap-2">

@@ -298,7 +298,7 @@ export async function getUserById(req, res) {
        WHERE collected_by_user_id = ? 
          AND payment_method = 'CASH'
          AND status = 'CONFIRMED'
-         AND handover_status = 'PENDING'`,
+         AND COALESCE(is_verified_by_admin, 0) = 0`,
       [id]
     );
 
