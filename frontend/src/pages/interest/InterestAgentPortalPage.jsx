@@ -39,6 +39,7 @@ import Keypad from '../../components/interest-ui/Keypad';
 import BigButton from '../../components/interest-ui/BigButton';
 import FinLendChangePasswordModal from '../../components/interest-ui/FinLendChangePasswordModal';
 import AnimatedFinLendBackground from '../../components/AnimatedFinLendBackground';
+import FinLendLogo from '../../components/FinLendLogo';
 
 export default function InterestAgentPortalPage() {
   const { user, logout } = useAuth();
@@ -270,9 +271,7 @@ export default function InterestAgentPortalPage() {
       {/* Top Header */}
       <header className="sticky top-0 z-30 h-16 px-4 sm:px-6 flex items-center justify-between bg-white/90 dark:bg-[#0c1220]/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md shadow-indigo-600/20 font-heading">
-            <Landmark className="w-5 h-5" />
-          </div>
+          <FinLendLogo size={40} variant="app-icon" className="shrink-0" />
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-heading">

@@ -7,13 +7,13 @@ import {
   UserCheck,
   FileText,
   MoreHorizontal,
-  Landmark,
   Layers,
   Sun,
   Moon,
   LogOut,
   Shield,
 } from 'lucide-react';
+import FinLendLogo from '../FinLendLogo';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import RoleChip from './RoleChip';
@@ -46,9 +46,7 @@ export default function DesktopRail() {
     <aside className="hidden md:flex flex-col fixed top-0 left-0 bottom-0 w-64 bg-white dark:bg-[#0c1220] border-r border-slate-200/90 dark:border-white/10 z-40 shadow-xs select-none">
       {/* Brand Header */}
       <div className="h-16 px-5 flex items-center gap-3 border-b border-slate-200/80 dark:border-white/10 shrink-0">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-indigo-600/20 font-heading shrink-0">
-          <Landmark className="w-5 h-5" />
-        </div>
+        <FinLendLogo size={40} variant="app-icon" className="shrink-0" />
         <Link to="/interest/home" className="flex-1 min-w-0">
           <div>
             <div className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-heading leading-tight flex items-center gap-1.5">

@@ -7,7 +7,8 @@ import ErrorBoundary from '../ErrorBoundary';
 import DesktopRail from './DesktopRail';
 import BottomNav from './BottomNav';
 import FinLendChangePasswordModal from './FinLendChangePasswordModal';
-import { Layers, Sun, Moon, LogOut, Landmark } from 'lucide-react';
+import FinLendLogo from '../FinLendLogo';
+import { Layers, Sun, Moon, LogOut } from 'lucide-react';
 
 export default function InterestAppLayout() {
   const { user, logout } = useAuth();
@@ -42,9 +43,7 @@ export default function InterestAppLayout() {
         {/* Mobile Top Header (hidden on md:) */}
         <header className="md:hidden sticky top-0 z-30 h-14 px-4 flex items-center justify-between bg-white/90 dark:bg-[#0c1220]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 shadow-xs shrink-0">
           <Link to="/interest/home" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-xs font-heading">
-              <Landmark className="w-4 h-4" />
-            </div>
+            <FinLendLogo size={34} variant="app-icon" className="shrink-0" />
             <div>
               <span className="font-extrabold text-sm text-slate-900 dark:text-white font-heading">
                 FinLend Pro

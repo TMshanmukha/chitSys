@@ -24,6 +24,7 @@ import {
   Percent,
   ArrowLeft,
 } from 'lucide-react';
+import FinLendLogo from '../components/FinLendLogo';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
 export default function LoginPage() {
@@ -167,15 +168,13 @@ export default function LoginPage() {
           </Link>
 
           <div className="flex items-center gap-2">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md ${
-                isInterest
-                  ? 'bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-indigo-500/20'
-                  : 'bg-gradient-to-tr from-emerald-600 to-teal-600 shadow-emerald-500/20'
-              }`}
-            >
-              {isInterest ? <Landmark className="w-5 h-5" /> : <Layers className="w-5 h-5" />}
-            </div>
+            {isInterest ? (
+              <FinLendLogo size={36} variant="app-icon" />
+            ) : (
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md bg-gradient-to-tr from-emerald-600 to-teal-600 shadow-emerald-500/20">
+                <Layers className="w-5 h-5" />
+              </div>
+            )}
             <div>
               <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-heading">
                 {isInterest ? (

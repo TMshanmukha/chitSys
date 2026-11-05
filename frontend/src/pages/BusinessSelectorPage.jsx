@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import {
   Layers,
-  Landmark,
   ArrowRight,
   Sun,
   Moon,
 } from 'lucide-react';
+import FinLendLogo from '../components/FinLendLogo';
 
 export default function BusinessSelectorPage() {
   const navigate = useNavigate();
@@ -87,9 +87,7 @@ export default function BusinessSelectorPage() {
             className="group relative rounded-2xl bg-white dark:bg-[#0d131f] border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_12px_28px_rgba(0,0,0,0.6)] hover:border-indigo-500/50 cursor-pointer"
           >
             <div className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/60 dark:border-indigo-800/40 group-hover:scale-105 transition-transform">
-                <Landmark className="w-6 h-6" />
-              </div>
+              <FinLendLogo size={48} variant="app-icon" className="group-hover:scale-105 transition-transform" />
 
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white font-heading">
