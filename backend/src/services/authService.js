@@ -63,7 +63,7 @@ export async function authenticateUser({
       userAgent,
       status: 'FAILURE',
     });
-    throw new Error('Invalid credentials. Please verify your login details.');
+    throw new Error('Invalid credentials. Please try with correct credentials.');
   }
 
   // Retrieve user record by username
@@ -82,7 +82,7 @@ export async function authenticateUser({
       status: 'FAILURE',
     });
     // Generic failure message to prevent user enumeration
-    throw new Error('Invalid credentials or unauthorized role for this portal.');
+    throw new Error('Invalid credentials. Please try with correct credentials.');
   }
 
   const user = rows[0];
@@ -104,7 +104,7 @@ export async function authenticateUser({
       userAgent,
       status: 'WARNING',
     });
-    throw new Error('Invalid credentials or unauthorized role for this portal.');
+    throw new Error('Invalid credentials. Please try with correct credentials.');
   }
 
   // Strict Business Segregation for Collection Agents
@@ -125,7 +125,7 @@ export async function authenticateUser({
         status: 'WARNING',
       });
       throw new Error(
-        'Access Denied: This collection agent account is assigned exclusively to ChitFund Pro. Access to FinLend Pro is restricted.'
+        'Invalid credentials. Please try with correct credentials.'
       );
     }
 
@@ -140,7 +140,7 @@ export async function authenticateUser({
         status: 'WARNING',
       });
       throw new Error(
-        'Access Denied: This collection agent account is assigned exclusively to FinLend Pro. Access to ChitFund Pro is restricted.'
+        'Invalid credentials. Please try with correct credentials.'
       );
     }
   }
@@ -171,7 +171,7 @@ export async function authenticateUser({
       userAgent,
       status: 'FAILURE',
     });
-    throw new Error('Invalid credentials or unauthorized role for this portal.');
+    throw new Error('Invalid credentials. Please try with correct credentials.');
   }
 
   // Update last login timestamp
