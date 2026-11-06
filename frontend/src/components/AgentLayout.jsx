@@ -17,14 +17,14 @@ import {
 import ConfirmModal from './ConfirmModal';
 
 const AGENT_PAGE_TITLES = {
-  '/agent/tasks': "Today's Route Tasks & Stops",
-  '/agent/routes': 'Assigned Schemes & 2D Map',
-  '/agent/pending-dues': 'Member Pending Amount & Overdue Portal',
-  '/agent/day-closing': 'Day Closing & Collections',
-  '/agent/leaves': 'Leave Calendar & Coverage',
-  '/agent/history': 'Receipts & Collection History',
-  '/agent/profile': 'Agent Profile & Route Hub',
-  '/agent/dashboard': 'Field Agent Terminal',
+  '/agent/tasks': "Today's Tasks",
+  '/agent/routes': 'Assigned Routes',
+  '/agent/pending-dues': 'Pending Dues',
+  '/agent/day-closing': 'Day Closing',
+  '/agent/leaves': 'Leave Calendar',
+  '/agent/history': 'Collection History',
+  '/agent/profile': 'My Profile',
+  '/agent/dashboard': 'Agent Portal',
 };
 
 export default function AgentLayout() {
@@ -73,7 +73,7 @@ export default function AgentLayout() {
                 </span>
               </div>
               <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400 font-sans">
-                Field Collection Terminal · {user?.full_name || 'Agent'}
+                {user?.full_name || 'Agent'}
               </p>
             </div>
           </div>

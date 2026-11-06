@@ -26,7 +26,7 @@ const envSchema = z.object({
   AUTO_MIGRATE: z.enum(['true', 'false']).default('true'),
 
   JWT_SECRET: z.string().min(16).default('c8f8b3c98d6e4a2b10984f728190d65b71234a9e5c1284d728198f6230129abc'),
-  JWT_EXPIRES_IN: z.string().default('2h'),
+  JWT_EXPIRES_IN: z.string().default('7d'),
   COOKIE_SECRET: z.string().default('98a123f890b45c2198034e782910fedcba1234567890abcdef1234567890abcd'),
 
   BOOTSTRAP_ADMIN_USERNAME: z.string().default('admin'),

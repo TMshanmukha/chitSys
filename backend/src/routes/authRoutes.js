@@ -11,7 +11,7 @@ router.post('/login', authRateLimiter, login);
 // Protected session check
 router.get('/me', requireAuth, me);
 
-// Protected logout
-router.post('/logout', requireAuth, logout);
+// Logout endpoint (clears cookie & token regardless of expiration)
+router.post('/logout', logout);
 
 export default router;

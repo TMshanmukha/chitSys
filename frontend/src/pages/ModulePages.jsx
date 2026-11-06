@@ -733,7 +733,10 @@ export function ChitGroupsPage() {
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                          ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')}
+                          <div>₹{parseFloat(g.installment_amount).toLocaleString('en-IN')}</div>
+                          <div className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
+                            Pending: ₹{Number(g.total_pending_amount || 0).toLocaleString('en-IN')}
+                          </div>
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                           ₹{parseFloat(g.total_pool_amount).toLocaleString('en-IN')}
@@ -862,6 +865,9 @@ export function ChitGroupsPage() {
                       <span className="font-bold text-slate-900 dark:text-white">
                         ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')}
                       </span>
+                      <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
+                        Total Pending: ₹{Number(g.total_pending_amount || 0).toLocaleString('en-IN')}
+                      </div>
                     </div>
                     <div>
                       <span className="text-slate-400 text-[11px] block">Total Pool</span>

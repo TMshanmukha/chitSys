@@ -138,9 +138,11 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
   if (!isOpen) return null;
 
   return (
-    <ModalPortal id="quick-collect-sheet" isOpen={isOpen} onClose={onClose}>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
-        <div className="w-full sm:max-w-md bg-white dark:bg-[#0c1220] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 max-h-[92vh] overflow-y-auto flex flex-col space-y-4 animate-scaleUp">
+    <ModalPortal id="quick-collect-sheet" isOpen={isOpen} onClose={onClose} preventBackdropClose={true}>
+      <div 
+        onClick={(e) => e.stopPropagation()} 
+        className="w-full sm:max-w-md bg-white dark:bg-[#0c1220] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 max-h-[92vh] overflow-y-auto flex flex-col space-y-4 animate-scaleUp my-auto"
+      >
           
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/10 shrink-0">
@@ -272,29 +274,50 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
                 </div>
               ) : (
                 /* Selected Borrower Mini Banner */
-                <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-900/60 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider font-heading">
-                      Selected Borrower
-                    </span>
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white font-heading">
-                      {selectedLoan.customer_name}
-                    </h4>
-                    <div className="flex items-center gap-2 text-[11px] font-mono text-slate-600 dark:text-slate-300 mt-0.5">
-                      <span>Due Today: <strong className="text-emerald-600 dark:text-emerald-400">₹{Number(selectedLoan.current_due_amount || selectedLoan.installment_amount).toLocaleString('en-IN')}</strong></span>
-                      <span>·</span>
-                      <span>Balance: ₹{Number(selectedLoan.principal_outstanding).toLocaleString('en-IN')}</span>
+                <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-900/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider font-heading">
+                        Selected Borrower
+                      </span>
+                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-white font-heading">
+                        {selectedLoan.customer_name}
+                      </h4>
+                      <div className="flex items-center gap-2 text-[11px] font-mono text-slate-600 dark:text-slate-300 mt-0.5 flex-wrap">
+                        <span>Due Today: <strong className="text-emerald-600 dark:text-emerald-400">₹{Number(selectedLoan.current_due_amount || selectedLoan.installment_amount).toLocaleString('en-IN')}</strong></span>
+                        <span>·</span>
+                        <span>Balance Left: ₹{Number(selectedLoan.principal_outstanding).toLocaleString('en-IN')}</span>
+                      </div>
                     </div>
+                    {!preselectedLoan && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLoan(null)}
+                        className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer font-heading"
+                      >
+                        Change
+                      </button>
+                    )}
                   </div>
-                  {!preselectedLoan && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLoan(null)}
-                      className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer font-heading"
-                    >
-                      Change
-                    </button>
-                  )}
+
+                  {/* Overdue & Multi-loan Badges */}
+                  <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-emerald-200/60 dark:border-emerald-900/40 text-[10px]">
+                    {Number(selectedLoan.overdue_amount || 0) > 0 && (
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 font-bold">
+                        ⚠️ Overdue: ₹{Number(selectedLoan.overdue_amount).toLocaleString('en-IN')} (cleared first)
+                      </span>
+                    )}
+                    {Number(selectedLoan.customer_total_loans_count || 1) > 1 && (
+                      <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 font-bold">
+                        Total Pending (All {selectedLoan.customer_total_loans_count} Loans): ₹{Number(selectedLoan.customer_total_pending_all_loans || 0).toLocaleString('en-IN')}
+                      </span>
+                    )}
+                    {selectedLoan.paid_until_date && (
+                      <span className="px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-950/70 text-teal-800 dark:text-teal-300 font-medium">
+                        Paid up to {selectedLoan.paid_until_date}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -302,9 +325,16 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
               {selectedLoan && (
                 <div className="space-y-3 pt-1">
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1">
-                      Enter Amount Received (₹)
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block">
+                        Enter Amount Received (₹)
+                      </label>
+                      {Number(amount) > Number(selectedLoan.current_due_amount || selectedLoan.installment_amount || 0) && Number(selectedLoan.installment_amount) > 0 && (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                          ✨ Pays ~{Math.floor(Number(amount) / Number(selectedLoan.installment_amount))} installments in advance
+                        </span>
+                      )}
+                    </div>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-400">
                         ₹
@@ -322,18 +352,27 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
                   </div>
 
                   {/* Quick Chips */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setAmount(String(selectedLoan.current_due_amount || selectedLoan.installment_amount || ''))}
-                      className="flex-1 py-1.5 px-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 transition-colors font-heading cursor-pointer"
+                      className="flex-1 min-w-[100px] py-1.5 px-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 transition-colors font-heading cursor-pointer"
                     >
-                      Due Amount
+                      Due: ₹{Number(selectedLoan.current_due_amount || selectedLoan.installment_amount || 0).toLocaleString('en-IN')}
                     </button>
+                    {Number(selectedLoan.installment_amount) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAmount(String(Number(selectedLoan.installment_amount) * 5))}
+                        className="flex-1 min-w-[100px] py-1.5 px-2 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-900/50 hover:bg-indigo-100 transition-colors font-heading cursor-pointer"
+                      >
+                        5 Days: ₹{(Number(selectedLoan.installment_amount) * 5).toLocaleString('en-IN')}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setAmount(String(selectedLoan.principal_outstanding || ''))}
-                      className="flex-1 py-1.5 px-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 transition-colors font-heading cursor-pointer"
+                      className="flex-1 min-w-[100px] py-1.5 px-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 transition-colors font-heading cursor-pointer"
                     >
                       Full Balance
                     </button>
@@ -412,7 +451,6 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
             </form>
           )}
         </div>
-      </div>
     </ModalPortal>
   );
 }

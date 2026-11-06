@@ -13,6 +13,11 @@ import {
   ChevronUp,
   MessageCircle,
   Share2,
+  Camera,
+  Image as ImageIcon,
+  Trash2,
+  Printer,
+  Receipt,
 } from 'lucide-react';
 import ModalPortal from '../ModalPortal';
 import { formatDate } from '../../utils/dateUtils';
@@ -23,20 +28,27 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
   const [schemes, setSchemes] = useState([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
 
-  // Core 4 Form Fields
+  // Core Form Fields
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [amountGiven, setAmountGiven] = useState('50000');
-  const [payEvery, setPayEvery] = useState('DAILY'); // 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'MONTHLY_VADDI'
-  const [interestType, setInterestType] = useState('PERCENT_MONTHLY'); // 'PERCENT_MONTHLY' | 'FIXED_PER_INST'
-  const [interestValue, setInterestValue] = useState('2'); // e.g. 2% per month or ₹500 flat
-  const [tenureCount, setTenureCount] = useState('100'); // e.g. 100 days, 20 weeks, 12 months
+  const [payEvery, setPayEvery] = useState('DAILY'); // 'DAILY' | 'INTEREST_ONLY'
+  const [interestValue, setInterestValue] = useState('2'); // e.g. 2%
+  const [tenureCount, setTenureCount] = useState('100'); // e.g. 100 days
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const getInitialEndDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 100);
+    return d.toISOString().slice(0, 10);
+  };
+  const [endDate, setEndDate] = useState(getInitialEndDate());
 
   // Inline Quick Add Customer
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
+  const [newCustPhoto, setNewCustPhoto] = useState('');
   const [savingCust, setSavingCust] = useState(false);
 
   // Collapsible Advanced
@@ -71,25 +83,51 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
     setError('');
   }, [isOpen]);
 
-  // Adjust default tenure when payEvery changes
-  const handlePayEveryChange = (val) => {
-    setPayEvery(val);
-    if (val === 'DAILY') {
-      setTenureCount('100');
-      setInterestType('FIXED_PER_INST');
-      setInterestValue('500'); // e.g. 50,000 gives 550 daily for 100 days
-    } else if (val === 'WEEKLY') {
-      setTenureCount('20');
-      setInterestType('PERCENT_MONTHLY');
-      setInterestValue('2');
-    } else if (val === 'MONTHLY') {
-      setTenureCount('12');
-      setInterestType('PERCENT_MONTHLY');
-      setInterestValue('2');
-    } else if (val === 'MONTHLY_VADDI') {
-      setTenureCount('12'); // open-ended or 12 month cycle
-      setInterestType('PERCENT_MONTHLY');
-      setInterestValue('2'); // 2% per month bullet
+  // Handle Date & Duration Changes
+  const handleStartDateChange = (val) => {
+    setStartDate(val);
+    if (val && endDate) {
+      const d1 = new Date(val);
+      const d2 = new Date(endDate);
+      const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 3600 * 24));
+      const days = diff > 0 ? diff : 1;
+      setTenureCount(String(days));
+    }
+  };
+
+  const handleEndDateChange = (val) => {
+    setEndDate(val);
+    if (startDate && val) {
+      const d1 = new Date(startDate);
+      const d2 = new Date(val);
+      const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 3600 * 24));
+      const days = diff > 0 ? diff : 1;
+      setTenureCount(String(days));
+    }
+  };
+
+  const handleDurationChange = (val) => {
+    const days = parseInt(val, 10) || 1;
+    setTenureCount(String(days));
+    if (startDate) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + days);
+      setEndDate(d.toISOString().slice(0, 10));
+    }
+  };
+
+  const handleNewCustPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size should be less than 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewCustPhoto(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -99,44 +137,27 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
     const N = Math.max(1, parseInt(tenureCount, 10) || 1);
     const rateVal = parseFloat(interestValue) || 0;
 
-    let totalInterest = 0;
-    let installmentAmt = 0;
-    let totalPayable = 0;
-
-    if (payEvery === 'MONTHLY_VADDI') {
-      // Interest-Only / Vaddi Vyaparam: Monthly interest = P * (rate / 100)
+    if (payEvery === 'INTEREST_ONLY') {
       const monthlyInterest = Math.round((P * (rateVal / 100)));
-      installmentAmt = monthlyInterest;
-      totalInterest = monthlyInterest * N;
-      totalPayable = P + totalInterest;
+      const durationInMonths = Math.max(1, Math.round(N / 30));
+      const totalInterest = monthlyInterest * durationInMonths;
+      const totalPayable = P + totalInterest;
       return {
         principal: P,
-        installmentAmt,
+        installmentAmt: monthlyInterest,
         totalPayable,
         profit: totalInterest,
-        isVaddi: true,
+        isVaddi: false,
         summaryText: `Customer pays ₹${monthlyInterest.toLocaleString('en-IN')} interest monthly · Principal ₹${P.toLocaleString('en-IN')} returnable at maturity or anytime.`,
       };
     }
 
-    if (interestType === 'FIXED_PER_INST') {
-      installmentAmt = rateVal > 0 ? rateVal : Math.round(P / N);
-      totalPayable = Math.round(installmentAmt * N);
-      totalInterest = Math.max(0, totalPayable - P);
-    } else {
-      // Percentage per month
-      let durationInMonths = 1;
-      if (payEvery === 'DAILY') durationInMonths = N / 30;
-      else if (payEvery === 'WEEKLY') durationInMonths = (N * 7) / 30;
-      else durationInMonths = N;
-
-      totalInterest = Math.round(P * (rateVal / 100) * durationInMonths);
-      totalPayable = P + totalInterest;
-      installmentAmt = Math.round(totalPayable / N);
-    }
-
-    const unitWord = payEvery === 'DAILY' ? 'daily' : payEvery === 'WEEKLY' ? 'weekly' : 'monthly';
-    const periodUnit = payEvery === 'DAILY' ? 'days' : payEvery === 'WEEKLY' ? 'weeks' : 'months';
+    // Daily Installments:
+    // Interest % is calculated on the duration in months (N / 30)
+    const durationInMonths = N / 30;
+    const totalInterest = Math.round(P * (rateVal / 100) * durationInMonths);
+    const totalPayable = P + totalInterest;
+    const installmentAmt = Math.round(totalPayable / N);
 
     return {
       principal: P,
@@ -144,9 +165,9 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
       totalPayable,
       profit: totalInterest,
       isVaddi: false,
-      summaryText: `Customer pays ₹${installmentAmt.toLocaleString('en-IN')} ${unitWord} for ${N} ${periodUnit} · Total customer returns ₹${totalPayable.toLocaleString('en-IN')} · Your profit ₹${totalInterest.toLocaleString('en-IN')}`,
+      summaryText: `Customer pays ₹${installmentAmt.toLocaleString('en-IN')} daily for ${N} days · Total customer returns ₹${totalPayable.toLocaleString('en-IN')} · Your profit ₹${totalInterest.toLocaleString('en-IN')}`,
     };
-  }, [amountGiven, payEvery, interestType, interestValue, tenureCount]);
+  }, [amountGiven, payEvery, interestValue, tenureCount]);
 
   // Handle Quick Add Customer
   const handleQuickAddCustomer = async (e) => {
@@ -158,6 +179,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
         full_name: newCustName,
         phone: newCustPhone,
         address: newCustAddress || 'Local Area',
+        photo_url: newCustPhoto || null,
       });
       if (res.data?.success) {
         const created = res.data.data;
@@ -167,6 +189,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
         setNewCustName('');
         setNewCustPhone('');
         setNewCustAddress('');
+        setNewCustPhoto('');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add customer');
@@ -255,13 +278,66 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
     window.open(`https://wa.me/${formattedPhone}?text=${text}`, '_blank');
   };
 
+  const handlePrintLoanReceipt = () => {
+    if (!createdLoan) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Loan Disbursement Receipt - ${createdLoan.loan_account_number}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 28px; color: #0f172a; margin: 0; max-width: 540px; margin: auto; }
+            .header { text-align: center; border-bottom: 2px solid #312e81; padding-bottom: 14px; margin-bottom: 16px; }
+            .title { font-size: 20px; font-weight: 900; color: #4338ca; letter-spacing: 0.5px; }
+            .subtitle { font-size: 11px; color: #64748b; margin-top: 3px; font-weight: 600; text-transform: uppercase; }
+            .amount-box { text-align: center; background: #eef2ff; border: 1.5px solid #c7d2fe; padding: 14px; border-radius: 12px; margin: 16px 0; }
+            .amount { font-size: 28px; font-weight: 900; color: #1e1b4b; }
+            .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px; }
+            .signs { display: flex; justify-content: space-between; margin-top: 48px; font-size: 12px; font-weight: bold; padding: 0 12px; }
+            .sign-line { border-top: 1px solid #94a3b8; width: 140px; text-align: center; padding-top: 6px; }
+            .footer { margin-top: 32px; font-size: 10px; color: #94a3b8; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">FINLEND PRO</div>
+            <div class="subtitle">Official Loan Disbursement Voucher</div>
+          </div>
+          <div class="amount-box">
+            <div style="font-size: 12px; font-weight: 600; color: #4338ca; text-transform: uppercase;">Disbursed Principal Amount</div>
+            <div class="amount">₹${Number(amountGiven).toLocaleString('en-IN')}</div>
+            <div style="font-size: 12px; color: #4f46e5; margin-top: 4px; font-family: monospace; font-weight: 700;">Account #${createdLoan.loan_account_number}</div>
+          </div>
+          <div class="row"><span>Borrower Name:</span><strong>${createdLoan.customer_name || 'Customer'}</strong></div>
+          <div class="row"><span>Sanction Date:</span><strong>${formatDate(startDate)}</strong></div>
+          <div class="row"><span>Tenure Period:</span><strong>${formatDate(startDate)} to ${formatDate(endDate)} (${tenureCount} days)</strong></div>
+          <div class="row"><span>Repayment Mode:</span><strong>${payEvery === 'DAILY' ? 'Daily' : 'Monthly'}</strong></div>
+          <div class="row"><span>Installment Amount:</span><strong>₹${Number(liveSummary.installmentAmt).toLocaleString('en-IN')}</strong></div>
+          <div class="row"><span>Total Expected Return:</span><strong>₹${Number(liveSummary.totalPayable).toLocaleString('en-IN')}</strong></div>
+          <div class="signs">
+            <div class="sign-line">Authorized Signatory</div>
+            <div class="sign-line">Borrower Signature</div>
+          </div>
+          <div class="footer">Generated via FinLend Pro · Computerized Receipt Voucher</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
   if (!isOpen) return null;
 
   return (
-    <ModalPortal id="new-loan-modal" isOpen={isOpen} onClose={onClose}>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
-        <div className="w-full sm:max-w-lg bg-white dark:bg-[#0c1220] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 max-h-[94vh] overflow-y-auto flex flex-col space-y-4 animate-scaleUp">
-          
+    <ModalPortal id="new-loan-modal" isOpen={isOpen} onClose={onClose} preventBackdropClose={true}>
+      <div 
+        onClick={(e) => e.stopPropagation()} 
+        className="w-full sm:max-w-lg bg-white dark:bg-[#0c1220] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 max-h-[92vh] overflow-y-auto flex flex-col space-y-4 animate-scaleUp my-auto"
+      >
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/10 shrink-0">
             <div>
@@ -305,7 +381,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10 text-xs text-slate-700 dark:text-slate-300 space-y-1 text-left">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Installment:</span>
-                  <strong className="font-mono">₹{liveSummary.installmentAmt.toLocaleString('en-IN')} ({payEvery})</strong>
+                  <strong className="font-mono">₹{liveSummary.installmentAmt.toLocaleString('en-IN')} ({payEvery === 'DAILY' ? 'Daily' : 'Monthly Interest'})</strong>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Total Return:</span>
@@ -314,6 +390,10 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                 <div className="flex justify-between">
                   <span className="text-slate-400">Disbursed On:</span>
                   <strong className="font-mono">{formatDate(startDate)}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Period:</span>
+                  <strong className="font-mono">{formatDate(startDate)} to {formatDate(endDate)} ({tenureCount} days)</strong>
                 </div>
               </div>
 
@@ -326,13 +406,23 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                   <MessageCircle className="w-4 h-4" />
                   <span>Share Loan Details on WhatsApp</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center transition-colors font-heading cursor-pointer"
-                >
-                  Done
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrintLoanReceipt}
+                    className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors font-heading cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>Print Receipt</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="py-2.5 px-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center transition-colors font-heading cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -358,10 +448,62 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                 </div>
 
                 {showAddCustomer ? (
-                  <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 space-y-2">
+                  <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 space-y-2.5">
                     <span className="text-[10px] font-bold uppercase text-indigo-700 dark:text-indigo-300 font-heading block">
                       Quick Register Customer
                     </span>
+
+                    {/* Customer Photo Upload (Gallery / Camera) */}
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
+                        {newCustPhoto ? (
+                          <img src={newCustPhoto} alt="Customer" className="w-full h-full object-cover" />
+                        ) : (
+                          <Camera className="w-5 h-5 text-slate-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">
+                          Customer Photo
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <label className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold cursor-pointer hover:bg-indigo-100">
+                            <ImageIcon className="w-3 h-3" />
+                            <span>Gallery</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleNewCustPhotoUpload}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <label className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold cursor-pointer hover:bg-emerald-100">
+                            <Camera className="w-3 h-3" />
+                            <span>Camera</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={handleNewCustPhotoUpload}
+                              className="hidden"
+                            />
+                          </label>
+
+                          {newCustPhoto && (
+                            <button
+                              type="button"
+                              onClick={() => setNewCustPhoto('')}
+                              className="p-1 rounded text-rose-500 hover:bg-rose-50 text-[10px] font-bold"
+                              title="Remove"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     <input
                       type="text"
                       placeholder="Full Name *"
@@ -402,7 +544,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                     <option value="">-- Choose Borrower --</option>
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.full_name} ({c.phone})
+                        {c.full_name}{c.phone ? ` · ${c.phone}` : ''}
                       </option>
                     ))}
                   </select>
@@ -430,52 +572,46 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                 </div>
               </div>
 
-              {/* Field 3: Pay Every (4 Big Pills) */}
+              {/* Field 3: Loan Period (From & To Date) with Auto Duration Calculation */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1.5">
-                  3. Pay Every *
+                  3. Loan Period (From & To Date) *
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { key: 'DAILY', label: 'Daily' },
-                    { key: 'WEEKLY', label: 'Weekly' },
-                    { key: 'MONTHLY', label: 'Monthly' },
-                    { key: 'MONTHLY_VADDI', label: 'Monthly Vaddi' },
-                  ].map((p) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() => handlePayEveryChange(p.key)}
-                      className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer font-heading text-center ${
-                        payEvery === p.key
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-white/10 hover:bg-slate-100'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                      From Date
+                    </span>
+                    <input
+                      type="date"
+                      required
+                      value={startDate}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                      To Date
+                    </span>
+                    <input
+                      type="date"
+                      required
+                      value={endDate}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Field 4: Interest Setting & Tenure */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Field 4: Interest Setting & Tenure Duration */}
+              <div className="grid grid-cols-2 gap-3">
                 {/* Interest Input */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading">
-                      4. Interest *
-                    </label>
-                    {payEvery !== 'MONTHLY_VADDI' && (
-                      <button
-                        type="button"
-                        onClick={() => setInterestType(interestType === 'PERCENT_MONTHLY' ? 'FIXED_PER_INST' : 'PERCENT_MONTHLY')}
-                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-                      >
-                        {interestType === 'PERCENT_MONTHLY' ? '% per mo' : 'Fixed ₹ / inst'}
-                      </button>
-                    )}
-                  </div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1">
+                    4. Interest (%) *
+                  </label>
                   <div className="relative">
                     <input
                       type="number"
@@ -484,39 +620,59 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                       value={interestValue}
                       onChange={(e) => setInterestValue(e.target.value)}
                       placeholder="2"
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-bold font-mono text-slate-900 dark:text-white"
+                      className="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-bold font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                      {interestType === 'PERCENT_MONTHLY' ? '%/mo' : '₹/inst'}
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-black text-slate-400">
+                      %
                     </span>
                   </div>
                 </div>
 
-                {/* Duration / Tenure */}
-                {payEvery !== 'MONTHLY_VADDI' ? (
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1">
-                      Duration ({payEvery === 'DAILY' ? 'Days' : payEvery === 'WEEKLY' ? 'Weeks' : 'Months'}) *
-                    </label>
+                {/* Duration Days (Auto calculated from From & To dates) */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1">
+                    Duration (Days) *
+                  </label>
+                  <div className="relative">
                     <input
                       type="number"
                       required
                       value={tenureCount}
-                      onChange={(e) => setTenureCount(e.target.value)}
+                      onChange={(e) => handleDurationChange(e.target.value)}
                       placeholder="100"
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-bold font-mono text-slate-900 dark:text-white"
+                      className="w-full pl-3 pr-12 py-2.5 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-bold font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                      Days
+                    </span>
                   </div>
-                ) : (
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1">
-                      Repayment Model
-                    </label>
-                    <div className="px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 text-purple-700 dark:text-purple-300 text-xs font-bold">
-                      Open-Ended / Principal at End
-                    </div>
-                  </div>
-                )}
+                </div>
+              </div>
+
+              {/* Repayment Model Switcher (Clean English, No Vaddi) */}
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setPayEvery('DAILY')}
+                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    payEvery === 'DAILY'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  Daily Repayment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayEvery('INTEREST_ONLY')}
+                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    payEvery === 'INTEREST_ONLY'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  Monthly Interest Only
+                </button>
               </div>
 
               {/* LIVE SUMMARY CARD (Real-time updates) */}
@@ -606,7 +762,6 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
             </form>
           )}
         </div>
-      </div>
     </ModalPortal>
   );
 }

@@ -33,7 +33,7 @@ export function getCookieOptions() {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? 'none' : 'lax',
-    maxAge: 2 * 60 * 60 * 1000, // 2 hours
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
   };
 }

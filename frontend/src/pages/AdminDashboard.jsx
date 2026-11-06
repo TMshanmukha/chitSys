@@ -164,9 +164,7 @@ export default function AdminDashboard() {
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-0.5">
             Welcome, {user?.full_name || 'Administrator'}
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Real-time management of Daily Routes, Monthly Auction Chits, Double Chits & Live Agent Tracking.
-          </p>
+          
         </div>
 
         {/* Quick Action Buttons */}
@@ -186,14 +184,14 @@ export default function AdminDashboard() {
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
           >
             <Compass className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>2D Route Tracking</span>
+            <span>Live Tracking</span>
           </Link>
           <Link
             to="/admin/auctions"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
           >
             <Gavel className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            <span>Auctions & Double Chit</span>
+            <span>Auctions</span>
           </Link>
           <Link
             to="/admin/chit-groups"
@@ -223,9 +221,7 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
               {loading ? '...' : `₹${expectedTarget.toLocaleString('en-IN')}`}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Expected daily collection target
-            </p>
+            
           </div>
         </div>
 
@@ -269,9 +265,7 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
               {loading ? '...' : `₹${(data?.totalPendingAdvances > 0 ? Number(data.totalPendingAdvances) : Math.max(0, expectedTarget - todayTotal)).toLocaleString('en-IN')}`}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Shortfall & pending recovery to Admin
-            </p>
+            
           </div>
         </div>
       </div>
@@ -294,9 +288,7 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
               {loading ? '...' : totalGroups}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              All active chit schemes
-            </p>
+            
           </div>
         </div>
 
@@ -314,9 +306,7 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400 font-mono tracking-tight">
               {loading ? '...' : dailyChitGroups}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Door-to-door daily route chits
-            </p>
+            
           </div>
         </div>
 
@@ -334,9 +324,7 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 font-mono tracking-tight">
               {loading ? '...' : auctionChitGroups}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Monthly reverse auction schemes
-            </p>
+            
           </div>
         </div>
       </div>
@@ -367,9 +355,7 @@ export default function AdminDashboard() {
               <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Authorized field collection agents assigned to routes
-          </p>
+          
         </Link>
 
         {/* Card 2: Registered Members */}
@@ -394,9 +380,7 @@ export default function AdminDashboard() {
               <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Enrolled subscribers with active passbooks & ticket numbers
-          </p>
+          
         </Link>
       </div>
 
@@ -418,9 +402,7 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight">
               {loading ? '...' : (Number(data?.todayAuctionsCount) || 0)}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Auctions scheduled / conducted today
-            </p>
+            
           </div>
         </div>
 
@@ -438,9 +420,7 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-cyan-600 dark:text-cyan-400 font-mono tracking-tight">
               {loading ? '...' : (Number(data?.dailyAuctionsCount) || 0)}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Daily chit draws & period rounds
-            </p>
+            
           </div>
         </div>
 
@@ -458,9 +438,7 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-violet-600 dark:text-violet-400 font-mono tracking-tight">
               {loading ? '...' : (Number(data?.monthlyAuctionsCount || totalAuctionsCount) || 0)}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Monthly reverse auctions conducted
-            </p>
+            
           </div>
         </div>
       </div>
@@ -478,11 +456,9 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
-                  Route 2D Live Tracking
+                  Route Map
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Sequential shop waypoints, live agent trajectory & collection status
-                </p>
+                
               </div>
             </div>
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -539,9 +515,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              Interactive 2D vector coordinate path with shop visit status
-            </span>
+            
             <Link
               to="/admin/tracking"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs font-heading"
@@ -561,11 +535,9 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
-                  Quick Queries & Portals
+                  Quick Links
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Instant search, management queries, and operational actions
-                </p>
+                
               </div>
             </div>
             <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 font-heading">
@@ -580,7 +552,7 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                <span className="truncate font-semibold">Chit Schemes & Routes</span>
+                <span className="truncate font-semibold">Chit Schemes</span>
               </div>
               <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             </Link>
@@ -591,7 +563,7 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                <span className="truncate font-semibold">Route Agents & Staff</span>
+                <span className="truncate font-semibold">Agents</span>
               </div>
               <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             </Link>

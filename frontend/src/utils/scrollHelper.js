@@ -56,39 +56,13 @@ export function scrollToPageTop(behavior = 'smooth') {
 }
 
 /**
- * Automatically moves the window smoothly to the respective form or modal dialog.
- * Works whether the form is a modal overlay or an inline card/section.
+ * Safe handler when opening forms or modals.
+ * Modals and dialogs are position: fixed and overlay the viewport.
+ * We must NEVER scroll the window or call scrollIntoView for modals,
+ * because doing so pushes the underlying page off-screen and causes
+ * the background to turn into blank white space.
  */
 export function scrollToFormOrModal(target = null, options = {}) {
-  const { behavior = 'smooth', delay = 40 } = options;
-
-  setTimeout(() => {
-    try {
-      // 1. Move window smoothly to the top of the viewport
-      window.scrollTo({ top: 0, left: 0, behavior });
-      if (document.documentElement) {
-        document.documentElement.scrollTo({ top: 0, left: 0, behavior });
-      }
-      if (document.body) {
-        document.body.scrollTo({ top: 0, left: 0, behavior });
-      }
-
-      // 2. If target element or ID is provided, scroll it into view
-      if (target) {
-        let el = null;
-        if (typeof target === 'string') {
-          const id = target.startsWith('#') ? target.slice(1) : target;
-          el = document.getElementById(id);
-        } else if (target && target.nodeType === Node.ELEMENT_NODE) {
-          el = target;
-        }
-
-        if (el) {
-          el.scrollIntoView({ behavior, block: 'nearest' });
-        }
-      }
-    } catch (err) {
-      window.scrollTo(0, 0);
-    }
-  }, delay);
+  // Intentionally no-op to keep the user's scroll position and background page visible and intact.
+  return;
 }

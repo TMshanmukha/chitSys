@@ -51,7 +51,7 @@ export default function AgentDayClosingPage() {
         if (unres.data?.success) {
           setUnsubmittedDays(unres.data.unsubmitted || []);
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // Primary call to preview endpoint with fallback
       try {
@@ -195,18 +195,16 @@ export default function AgentDayClosingPage() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-1">
                 <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-400/30 font-heading">
-                  Shift Closing Terminal
+                  Day Closing
                 </span>
                 <span className="text-[11px] sm:text-xs text-slate-400 font-mono truncate">
                   {user?.full_name} (@{user?.username})
                 </span>
               </div>
               <h1 className="text-lg sm:text-2xl lg:text-3xl font-extrabold tracking-tight text-white font-heading leading-tight break-words">
-                Day Closing & Collections Submission
+                Day Closing
               </h1>
-              <p className="text-xs sm:text-sm text-slate-300 mt-0.5 leading-snug">
-                Reconcile physical cash on hand, view chit performance, and hand over to Admin.
-              </p>
+
             </div>
           </div>
 
@@ -269,23 +267,21 @@ export default function AgentDayClosingPage() {
       {/* Shift State Banner */}
       {data?.isSubmitted && (
         <div
-          className={`p-4 sm:p-5 rounded-3xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-            isApproved
+          className={`p-4 sm:p-5 rounded-3xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isApproved
               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
               : isDiscrepancy
-              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
-              : 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
-          }`}
+                ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+                : 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+            }`}
         >
           <div className="flex items-start sm:items-center gap-3">
             <div
-              className={`p-2.5 sm:p-3 rounded-2xl shrink-0 ${
-                isApproved
+              className={`p-2.5 sm:p-3 rounded-2xl shrink-0 ${isApproved
                   ? 'bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200'
                   : isDiscrepancy
-                  ? 'bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200'
-                  : 'bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
-              }`}
+                    ? 'bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200'
+                    : 'bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
+                }`}
             >
               {isApproved ? (
                 <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -301,8 +297,8 @@ export default function AgentDayClosingPage() {
                   {isApproved
                     ? 'Day Shift Approved & Closed by Admin ✓'
                     : isDiscrepancy
-                    ? 'Discrepancy Flagged by Admin'
-                    : 'Submitted · Awaiting Admin Verification'}
+                      ? 'Discrepancy Flagged by Admin'
+                      : 'Submitted · Awaiting Admin Verification'}
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/80 dark:bg-slate-900 border">
                   {data?.submission?.status}
@@ -312,8 +308,8 @@ export default function AgentDayClosingPage() {
                 {isApproved
                   ? `Verified by ${data.submission.approvedByName || 'Administrator'}. Verified Cash: ₹${Number(data.submission.verifiedCashAmount || data.cashCollected).toLocaleString('en-IN')}.`
                   : isDiscrepancy
-                  ? `Admin Note: ${data.submission.adminNotes || 'Cash difference detected. Please meet admin.'}`
-                  : 'Registered in database. Please physically count and hand over cash to the Admin.'}
+                    ? `Admin Note: ${data.submission.adminNotes || 'Cash difference detected. Please meet admin.'}`
+                    : 'Registered in database. Please physically count and hand over cash to the Admin.'}
               </p>
             </div>
           </div>
@@ -331,37 +327,31 @@ export default function AgentDayClosingPage() {
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white font-heading truncate">
             ₹{Number(data?.totalCollected || 0).toLocaleString('en-IN')}
           </div>
-          <p className="text-[11px] text-slate-500 font-mono truncate">
-            {data?.totalReceipts || 0} Receipts Issued
-          </p>
+          <p className="text-[11px] text-slate-400 font-mono mt-1">{data?.totalReceipts || 0} Receipts</p>
         </div>
 
-        {/* Cash to Hand Over */}
+        {/* Cash on Hand */}
         <div className="p-4 sm:p-5 rounded-3xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 shadow-sm space-y-1 overflow-hidden">
           <div className="flex items-center justify-between text-amber-700 dark:text-amber-300">
-            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider font-heading">Cash to Hand Over</span>
+            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider font-heading">Cash on Hand</span>
             <Wallet className="w-4 h-4 text-amber-600" />
           </div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-amber-600 dark:text-amber-400 font-heading truncate">
             ₹{Number(data?.cashCollected || 0).toLocaleString('en-IN')}
           </div>
-          <p className="text-[11px] text-amber-700 dark:text-amber-400 truncate">
-            Physical currency in hand
-          </p>
+
         </div>
 
         {/* Digital / UPI Inflows */}
         <div className="p-4 sm:p-5 rounded-3xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/60 shadow-sm space-y-1 overflow-hidden">
           <div className="flex items-center justify-between text-purple-700 dark:text-purple-300">
-            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider font-heading">Online / UPI</span>
+            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider font-heading">UPI / Online</span>
             <CreditCard className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-purple-600 dark:text-purple-400 font-heading truncate">
             ₹{Number(data?.upiCollected || 0).toLocaleString('en-IN')}
           </div>
-          <p className="text-[11px] text-purple-700 dark:text-purple-400 truncate">
-            Direct bank inflows
-          </p>
+
         </div>
 
         {/* Stops Visited vs Pending */}
@@ -435,7 +425,7 @@ export default function AgentDayClosingPage() {
                 </span>
               </div>
               <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 text-xs">
-                <span className="text-[10px] text-purple-700 dark:text-purple-300 font-bold block">Online / UPI</span>
+                <span className="text-[10px] text-purple-700 dark:text-purple-300 font-bold block">UPI / Online</span>
                 <span className="font-black text-slate-900 dark:text-white truncate block">
                   ₹{Number(summary.paymentSplit?.upiAmount || 0).toLocaleString('en-IN')}
                 </span>
@@ -660,10 +650,10 @@ export default function AgentDayClosingPage() {
                 {submitting
                   ? 'Submitting Day Work...'
                   : isApproved
-                  ? 'Day Work Approved & Closed ✓'
-                  : isPending
-                  ? 'Update Submitted Day Work'
-                  : 'Submit Day Work'}
+                    ? 'Day Work Approved & Closed ✓'
+                    : isPending
+                      ? 'Update Submitted Day Work'
+                      : 'Submit Day Work'}
               </span>
             </button>
           </div>
@@ -672,7 +662,10 @@ export default function AgentDayClosingPage() {
 
       {/* Confirmation Modal for Day Submit */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+        <div
+          style={{ backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn"
+        >
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 animate-scaleUp">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 shrink-0">
@@ -690,7 +683,7 @@ export default function AgentDayClosingPage() {
 
             <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-xs space-y-2">
               <div className="flex items-baseline justify-between font-bold text-amber-900 dark:text-amber-200">
-                <span>Physical Cash to Hand Over:</span>
+                <span>Physical Cash on Hand:</span>
                 <span className="text-sm font-black font-mono">₹{Number(data?.cashCollected || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex items-baseline justify-between text-slate-600 dark:text-slate-300">

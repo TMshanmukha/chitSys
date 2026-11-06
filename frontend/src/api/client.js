@@ -50,6 +50,21 @@ api.interceptors.response.use(
   },
   async (error) => {
     const config = error.config;
+
+    // Handle 401 Unauthorized for expired or revoked sessions
+    if (error.response?.status === 401) {
+      const url = config?.url || '';
+      // Only trigger session expiration for authenticated app routes (not login/me checks or logout)
+      if (!url.includes('/auth/login') && !url.includes('/auth/me') && !url.includes('/auth/logout')) {
+        try {
+          localStorage.removeItem('chit_token');
+        } catch (_) {}
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        }
+      }
+      return Promise.reject(error);
+    }
     
     // Do not retry if already retried 2 times or explicitly disabled
     if (!config || config._retryCount >= 2 || config._skipRetry) {

@@ -106,7 +106,9 @@ export function calculateLoanSchedule({
   const N = Math.max(1, parseInt(tenure_periods, 10) || 1);
   const r = getPeriodRateDecimal(interest_rate, rate_period, repayment_frequency);
   const startDateStr = String(start_date).slice(0, 10);
-  const firstDueDateStr = first_due_date ? String(first_due_date).slice(0, 10) : addInterval(startDateStr, repayment_frequency, 1);
+  const firstDueDateStr = first_due_date
+    ? String(first_due_date).slice(0, 10)
+    : (repayment_frequency === 'DAILY' ? startDateStr : addInterval(startDateStr, repayment_frequency, 1));
 
   const schedules = [];
   let totalInterest = 0;

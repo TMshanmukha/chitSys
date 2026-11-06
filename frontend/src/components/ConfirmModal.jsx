@@ -39,7 +39,6 @@ export default function ConfirmModal({
       }
     };
     if (isOpen) {
-      scrollToFormOrModal();
       window.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     }
@@ -83,7 +82,11 @@ export default function ConfirmModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-modal-title"
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn overflow-y-auto"
+      style={{
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn overflow-y-auto"
       onClick={() => {
         if (!isLoading) onClose();
       }}

@@ -128,13 +128,13 @@ export default function FinLendHomePage() {
   // Total due today across assigned active loans
   const totalDueToday = useMemo(() => {
     return assignedLoans.reduce((sum, loan) => {
-      const due = Number(loan.current_due_amount || loan.installment_amount || 0);
+      const due = Number(loan.current_due_amount || 0);
       return sum + due;
     }, 0);
   }, [assignedLoans]);
 
-  const targetToday = Math.max(totalDueToday, collectedToday);
-  const pendingToday = Math.max(0, targetToday - collectedToday);
+  const targetToday = totalDueToday + collectedToday;
+  const pendingToday = totalDueToday;
   const progressPercent = targetToday > 0 ? Math.min(100, Math.round((collectedToday / targetToday) * 100)) : 100;
 
   // Split loans into Pending, Paid, Overdue
@@ -446,65 +446,112 @@ export default function FinLendHomePage() {
               return (
                 <div
                   key={loan.id}
-                  className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-white/20 transition-all shadow-xs"
+                  className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-4 hover:border-slate-300 dark:hover:border-white/20 transition-all shadow-xs space-y-2.5"
                 >
-                  {/* Left: Avatar & Customer info */}
-                  <div
-                    onClick={() => navigate(`/interest/customers/${loan.customer_id}`)}
-                    className="flex items-center gap-3 min-w-0 cursor-pointer flex-1"
-                  >
-                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-200/60 dark:border-indigo-800/40">
-                      {initial}
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Left: Avatar & Customer info */}
+                    <div
+                      onClick={() => navigate(`/interest/customers/${loan.customer_id}`)}
+                      className="flex items-center gap-3 min-w-0 cursor-pointer flex-1"
+                    >
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-200/60 dark:border-indigo-800/40 overflow-hidden">
+                        {loan.customer_photo ? (
+                          <img src={loan.customer_photo} alt={loan.customer_name} className="w-full h-full object-cover" />
+                        ) : (
+                          initial
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-sm text-slate-900 dark:text-white truncate font-heading hover:text-indigo-600 dark:hover:text-indigo-400">
+                          {loan.customer_name}
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
+                          <span>{loan.customer_phone || 'No phone'}</span>
+                          <span>•</span>
+                          <span className="font-mono">{loan.loan_account_number}</span>
+                          {Number(loan.customer_total_loans_count || 1) > 1 && (
+                            <span className="px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold text-[10px]">
+                              All Loans Pending: ₹{Number(loan.customer_total_pending_all_loans || 0).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="font-bold text-sm text-slate-900 dark:text-white truncate font-heading hover:text-indigo-600 dark:hover:text-indigo-400">
-                        {loan.customer_name}
+
+                    {/* Right: Amount & 1-tap Collect button */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {loan.statusTag === 'PAID' ? 'Paid' : 'Due'}
+                        </div>
+                        <div
+                          className={`text-sm sm:text-base font-extrabold font-heading ${
+                            loan.statusTag === 'PAID'
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : loan.statusTag === 'OVERDUE'
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-slate-900 dark:text-white'
+                          }`}
+                        >
+                          {formatCurrency(due)}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        <span>{loan.customer_phone || 'No phone'}</span>
-                        <span>•</span>
-                        <span className="font-mono">{loan.loan_account_number}</span>
-                      </div>
+
+                      {loan.statusTag !== 'PAID' ? (
+                        !isViewer ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCollectForLoan(loan)}
+                            className="py-2 px-3 sm:px-4 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                          >
+                            <span>Collect</span>
+                          </button>
+                        ) : (
+                          <div className="py-1 px-2.5 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-white/10 text-slate-500">
+                            Due
+                          </div>
+                        )
+                      ) : (
+                        <div className="py-1.5 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Paid</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Right: Amount & 1-tap Collect button */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right">
-                      <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                        {loan.statusTag === 'PAID' ? 'Paid' : 'Due'}
-                      </div>
-                      <div
-                        className={`text-sm sm:text-base font-extrabold font-heading ${
-                          loan.statusTag === 'PAID'
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : loan.statusTag === 'OVERDUE'
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-slate-900 dark:text-white'
-                        }`}
-                      >
-                        {formatCurrency(due)}
+                  {/* Progress Tracker Strip (Days Completed, Left, Overdue & Advance Notice) */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-white/5 space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        Days: {loan.completed_installments || 0} / {loan.total_installments || 0}
+                        {loan.total_installments > 0 && (
+                          <span className="text-slate-400 font-normal ml-1">
+                            ({Math.round(((loan.completed_installments || 0) / loan.total_installments) * 100)}%)
+                          </span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {Number(loan.overdue_amount || 0) > 0 && (
+                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded-md">
+                            Overdue: ₹{Number(loan.overdue_amount).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                        {loan.paid_until_date && loan.paid_until_date >= todayStr && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md">
+                            Paid in advance until {loan.paid_until_date}
+                          </span>
+                        )}
                       </div>
                     </div>
-
-                    {loan.statusTag !== 'PAID' ? (
-                      !isViewer ? (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCollectForLoan(loan)}
-                          className="py-2 px-3 sm:px-4 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
-                        >
-                          <span>Collect</span>
-                        </button>
-                      ) : (
-                        <div className="py-1 px-2.5 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-white/10 text-slate-500">
-                          Due
-                        </div>
-                      )
-                    ) : (
-                      <div className="py-1.5 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>Paid</span>
+                    {Number(loan.total_installments || 0) > 0 && (
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-indigo-600 dark:bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${Math.min(100, Math.round(((loan.completed_installments || 0) / loan.total_installments) * 100))}%`,
+                          }}
+                        />
                       </div>
                     )}
                   </div>

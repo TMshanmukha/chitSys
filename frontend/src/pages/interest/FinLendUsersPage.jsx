@@ -28,6 +28,7 @@ import { formatCurrency, formatDate, formatTime } from '../../utils/interestUtil
 import RoleChip from '../../components/interest-ui/RoleChip';
 import PermissionSwitch from '../../components/interest-ui/PermissionSwitch';
 import ConfirmModal from '../../components/ConfirmModal';
+import ModalPortal from '../../components/ModalPortal';
 
 const ROLE_DESCRIPTIONS = {
   OWNER: 'Full access: manage loans, collections, money, settings, staff and permissions.',
@@ -471,8 +472,11 @@ export default function FinLendUsersPage() {
 
       {/* 1-PAGE ADD USER BOTTOM SHEET */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+        <ModalPortal id="finlend-add-user-modal" isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} preventBackdropClose={true}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto my-auto animate-scaleUp"
+          >
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/5">
               <div>
                 <h2 className="text-lg font-black text-slate-900 dark:text-white font-heading">
@@ -630,13 +634,16 @@ export default function FinLendUsersPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* USER DETAIL & PERMISSION MANAGEMENT MODAL */}
       {selectedUserDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-xl rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-5 max-h-[92vh] overflow-y-auto">
+        <ModalPortal id="finlend-user-detail-modal" isOpen={Boolean(selectedUserDetail)} onClose={() => setSelectedUserDetail(null)} preventBackdropClose={true}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-5 max-h-[92vh] overflow-y-auto my-auto animate-scaleUp"
+          >
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
               <div className="flex items-center gap-3">
@@ -817,13 +824,16 @@ export default function FinLendUsersPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* ASSIGN CUSTOMERS MODAL */}
       {showAssignModal && selectedUserDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] flex flex-col">
+        <ModalPortal id="finlend-assign-customers-modal" isOpen={showAssignModal} onClose={() => setShowAssignModal(false)} preventBackdropClose={true}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] flex flex-col my-auto animate-scaleUp"
+          >
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/5 shrink-0">
               <div>
                 <h3 className="font-extrabold text-base text-slate-900 dark:text-white font-heading">
@@ -894,13 +904,16 @@ export default function FinLendUsersPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* RESET PASSWORD MODAL */}
       {resetModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 space-y-4">
+        <ModalPortal id="finlend-reset-password-modal" isOpen={Boolean(resetModalUser)} onClose={() => setResetModalUser(null)} preventBackdropClose={true}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 space-y-4 my-auto animate-scaleUp"
+          >
             <h3 className="font-extrabold text-base text-slate-900 dark:text-white font-heading">
               Reset Password for @{resetModalUser.username}
             </h3>
@@ -937,7 +950,7 @@ export default function FinLendUsersPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* DEACTIVATE CONFIRMATION MODAL */}

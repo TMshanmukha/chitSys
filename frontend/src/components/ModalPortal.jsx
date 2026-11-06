@@ -21,6 +21,7 @@ export default function ModalPortal({
   preventBackdropClose = false,
 }) {
   const containerRef = useRef(null);
+  const isBackdropMouseDown = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -30,10 +31,7 @@ export default function ModalPortal({
       containerRef.current.scrollTop = 0;
     }
 
-    // Move window smoothly to the form / top of active viewport
-    scrollToFormOrModal(id);
-
-    // Lock background scrolling
+    // Lock background scrolling while preserving page scroll position
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
@@ -49,9 +47,33 @@ export default function ModalPortal({
       document.body.style.overflow = originalOverflow || 'unset';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose, id]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const handleMouseDown = (e) => {
+    // Ignore clicks on vertical or horizontal scrollbars
+    if (e.clientX >= e.currentTarget.clientWidth || e.clientY >= e.currentTarget.clientHeight) {
+      isBackdropMouseDown.current = false;
+      return;
+    }
+    isBackdropMouseDown.current = e.target === e.currentTarget;
+  };
+
+  const handleClick = (e) => {
+    if (preventBackdropClose) return;
+
+    // Ignore clicks on scrollbar
+    if (e.clientX >= e.currentTarget.clientWidth || e.clientY >= e.currentTarget.clientHeight) {
+      return;
+    }
+
+    // Only close if BOTH mousedown and mouseup started and ended directly on the backdrop
+    if (isBackdropMouseDown.current && e.target === e.currentTarget && onClose) {
+      onClose();
+    }
+    isBackdropMouseDown.current = false;
+  };
 
   return createPortal(
     <div
@@ -60,12 +82,13 @@ export default function ModalPortal({
       role={role}
       aria-modal={ariaModal}
       aria-labelledby={ariaLabelledBy}
-      className={`fixed inset-0 z-[9999] flex items-start sm:items-center justify-center p-3 sm:p-6 pt-14 sm:pt-8 pb-12 bg-black/75 backdrop-blur-xs overflow-y-auto animate-fadeIn ${className}`}
-      onClick={(e) => {
-        if (!preventBackdropClose && e.target === e.currentTarget && onClose) {
-          onClose();
-        }
+      style={{
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
       }}
+      className={`fixed inset-0 z-[9999] flex items-start sm:items-center justify-center p-3 sm:p-6 pt-14 sm:pt-8 pb-12 bg-slate-950/60 backdrop-blur-md overflow-y-auto animate-fadeIn ${className}`}
+      onMouseDown={handleMouseDown}
+      onClick={handleClick}
     >
       {children}
     </div>,

@@ -313,10 +313,24 @@ export async function createCustomer(req, res) {
       guarantor_phone,
       guarantor_address,
       notes,
+      photo_url,
     } = req.body;
 
     if (!full_name || !phone) {
       return res.status(400).json({ success: false, message: 'Full name and phone number are required' });
+    }
+
+    const cleanPhone = String(phone).trim();
+    // Restrict duplicate phone numbers
+    const [existingPhone] = await pool.query(
+      'SELECT id, full_name, customer_code FROM interest_customers WHERE phone = ? LIMIT 1',
+      [cleanPhone]
+    );
+    if (existingPhone && existingPhone.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Customer already exists with phone number ${cleanPhone} (${existingPhone[0].full_name} · ${existingPhone[0].customer_code})`,
+      });
     }
 
     // Auto-generate customer code: CUST-YYYY-XXXX
@@ -327,12 +341,12 @@ export async function createCustomer(req, res) {
     const [result] = await pool.query(`
       INSERT INTO interest_customers (
         customer_code, full_name, phone, alternate_phone, email, address, city, pincode,
-        aadhaar_number, pan_number, nominee_name, nominee_phone, nominee_relation,
+        aadhaar_number, pan_number, photo_url, nominee_name, nominee_phone, nominee_relation,
         guarantor_name, guarantor_phone, guarantor_address, notes, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       customer_code, full_name, phone, alternate_phone || null, email || null, address || null,
-      city || null, pincode || null, aadhaar_number || null, pan_number || null,
+      city || null, pincode || null, aadhaar_number || null, pan_number || null, photo_url || null,
       nominee_name || null, nominee_phone || null, nominee_relation || null,
       guarantor_name || null, guarantor_phone || null, guarantor_address || null,
       notes || null, req.user?.id || null
@@ -632,26 +646,67 @@ export async function getAgentAssignedCustomers(req, res) {
 
     const [rows] = await pool.query(`
       SELECT l.*, c.full_name as customer_name, c.phone as customer_phone, c.address as customer_address,
-             c.customer_code, s.scheme_name, s.scheme_code,
+             c.customer_code, c.photo_url as customer_photo, s.scheme_name, s.scheme_code,
              (
                SELECT COALESCE(SUM(total_due - total_paid), 0)
                FROM interest_loan_schedules
                WHERE loan_id = l.id AND due_date <= ? AND status IN ('PENDING', 'PARTIAL', 'OVERDUE')
              ) as current_due_amount,
              (
+               SELECT COALESCE(SUM(total_due - total_paid), 0)
+               FROM interest_loan_schedules
+               WHERE loan_id = l.id AND due_date < ? AND status IN ('PENDING', 'PARTIAL', 'OVERDUE')
+             ) as overdue_amount,
+             (
+               SELECT COALESCE(SUM(total_due - total_paid), 0)
+               FROM interest_loan_schedules
+               WHERE loan_id = l.id AND due_date = ? AND status IN ('PENDING', 'PARTIAL', 'OVERDUE')
+             ) as today_due_amount,
+             (
                SELECT due_date
                FROM interest_loan_schedules
                WHERE loan_id = l.id AND due_date <= ? AND status IN ('PENDING', 'PARTIAL', 'OVERDUE')
                ORDER BY due_date ASC LIMIT 1
-             ) as oldest_pending_date
+             ) as oldest_pending_date,
+             (
+               SELECT MAX(due_date)
+               FROM interest_loan_schedules
+               WHERE loan_id = l.id AND status = 'PAID'
+             ) as paid_until_date,
+             (
+               SELECT MIN(due_date)
+               FROM interest_loan_schedules
+               WHERE loan_id = l.id AND status IN ('PENDING', 'PARTIAL', 'OVERDUE')
+             ) as next_due_date,
+             (
+               SELECT COUNT(*)
+               FROM interest_loan_schedules
+               WHERE loan_id = l.id AND status = 'PAID'
+             ) as completed_installments,
+             (
+               SELECT COUNT(*)
+               FROM interest_loan_schedules
+               WHERE loan_id = l.id
+             ) as total_installments,
+             (
+               SELECT COALESCE(SUM(total_due - total_paid), 0)
+               FROM interest_loan_schedules ils2
+               JOIN interest_loans il2 ON ils2.loan_id = il2.id
+               WHERE il2.customer_id = l.customer_id AND il2.loan_status = 'ACTIVE'
+             ) as customer_total_pending_all_loans,
+             (
+               SELECT COUNT(*)
+               FROM interest_loans il3
+               WHERE il3.customer_id = l.customer_id AND il3.loan_status = 'ACTIVE'
+             ) as customer_total_loans_count
       FROM interest_loans l
       JOIN interest_customers c ON l.customer_id = c.id
       JOIN interest_schemes s ON l.scheme_id = s.id
-      WHERE (l.assigned_agent_id = ? OR ? IN (
+      WHERE (l.assigned_agent_id = ? OR l.assigned_agent_id IS NULL OR ? IN (
         SELECT id FROM users WHERE role IN ('SUPER_ADMIN', 'ADMIN') AND id = ?
       )) AND l.loan_status = 'ACTIVE'
       ORDER BY current_due_amount DESC, l.id DESC
-    `, [todayStr, todayStr, agentId, agentId, agentId]);
+    `, [todayStr, todayStr, todayStr, todayStr, agentId, agentId, agentId]);
 
     res.json({ success: true, data: rows });
   } catch (error) {

@@ -30,6 +30,16 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     checkAuth();
+
+    const handleUnauthorized = () => {
+      setUser(null);
+      setAuthError('Your session has expired. Please sign in again.');
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
   }, [checkAuth]);
 
   // Login action
@@ -61,8 +71,8 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       await api.post('/auth/logout');
-    } catch (err) {
-      console.error('Logout error:', err);
+    } catch (_) {
+      // Ignore network or expired session error during logout
     } finally {
       try {
         localStorage.removeItem('chit_token');

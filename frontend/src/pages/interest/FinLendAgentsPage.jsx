@@ -16,6 +16,7 @@ import {
   Shield,
 } from 'lucide-react';
 import api from '../../api/client';
+import ModalPortal from '../../components/ModalPortal';
 import { formatDate } from '../../utils/interestUtils';
 
 export default function FinLendAgentsPage() {
@@ -264,11 +265,10 @@ export default function FinLendAgentsPage() {
                     @{agent.username}
                   </span>
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                      agent.is_active
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${agent.is_active
                         ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600'
                         : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600'
-                    }`}
+                      }`}
                   >
                     {agent.is_active ? 'Active' : 'Disabled'}
                   </span>
@@ -302,8 +302,11 @@ export default function FinLendAgentsPage() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4">
+        <ModalPortal id="finlend-create-agent-modal" isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} preventBackdropClose={true}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 my-auto animate-scaleUp"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white font-heading">
@@ -380,13 +383,16 @@ export default function FinLendAgentsPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Edit Modal */}
       {showEditModal && selectedAgent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4">
+        <ModalPortal id="finlend-edit-agent-modal" isOpen={showEditModal} onClose={() => setShowEditModal(false)} preventBackdropClose={true}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 my-auto animate-scaleUp"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white font-heading">
@@ -458,7 +464,7 @@ export default function FinLendAgentsPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

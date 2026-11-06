@@ -36,7 +36,7 @@ const NAV_ITEMS = [
     hoverText: 'hover:text-blue-600 dark:hover:text-blue-400',
   },
   {
-    name: 'Route & Agent Tracking',
+    name: 'Live Tracking',
     path: '/admin/tracking',
     icon: Compass,
     activeGradient: 'from-cyan-600 to-blue-600',
@@ -45,7 +45,7 @@ const NAV_ITEMS = [
     hoverText: 'hover:text-cyan-600 dark:hover:text-cyan-400',
   },
   {
-    name: 'Chit Schemes & Routes',
+    name: 'Chit Schemes',
     path: '/admin/chit-groups',
     icon: Layers,
     activeGradient: 'from-indigo-600 to-purple-600',
@@ -54,7 +54,7 @@ const NAV_ITEMS = [
     hoverText: 'hover:text-indigo-600 dark:hover:text-indigo-400',
   },
   {
-    name: 'Auctions & Dividends',
+    name: 'Auctions',
     path: '/admin/auctions',
     icon: Gavel,
     activeGradient: 'from-amber-600 to-orange-600',
@@ -63,7 +63,7 @@ const NAV_ITEMS = [
     hoverText: 'hover:text-amber-600 dark:hover:text-amber-400',
   },
   {
-    name: 'User Management (Agents)',
+    name: 'Agents',
     path: '/admin/users',
     icon: UserCheck,
     activeGradient: 'from-purple-600 to-indigo-600',
@@ -71,9 +71,9 @@ const NAV_ITEMS = [
     hoverBg: 'hover:bg-purple-50/70 dark:hover:bg-purple-950/40',
     hoverText: 'hover:text-purple-600 dark:hover:text-purple-400',
   },
-  { name: 'Agent Leaves', path: '/admin/leaves', icon: CalendarDays, activeGradient: 'from-emerald-600 to-teal-600', glowColor: 'rgba(16,185,129,.4)', hoverBg: 'hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40', hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400' },
+  { name: 'Leaves', path: '/admin/leaves', icon: CalendarDays, activeGradient: 'from-emerald-600 to-teal-600', glowColor: 'rgba(16,185,129,.4)', hoverBg: 'hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40', hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400' },
   {
-    name: 'Day Submissions & Approvals',
+    name: 'Day Closings',
     path: '/admin/day-reviews',
     icon: ClipboardCheck,
     activeGradient: 'from-amber-600 to-orange-600',
@@ -82,7 +82,7 @@ const NAV_ITEMS = [
     hoverText: 'hover:text-amber-600 dark:hover:text-amber-400',
   },
   {
-    name: 'Members & Passbook',
+    name: 'Members',
     path: '/admin/members',
     icon: Users,
     activeGradient: 'from-emerald-600 to-teal-600',
@@ -154,7 +154,7 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Mobile Backdrop Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden transition-opacity"
           onClick={onClose}
           aria-hidden="true"
         />

@@ -94,7 +94,7 @@ export default function InterestAdminLayout() {
       {/* Mobile Backdrop Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden transition-opacity"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />

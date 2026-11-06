@@ -23,7 +23,7 @@ export function setServerTime(serverTimeInput) {
       serverTimeOffset = serverMs - Date.now();
       serverTimeSynced = true;
       syncListeners.forEach((fn) => {
-        try { fn(getServerDate()); } catch (_) {}
+        try { fn(getServerDate()); } catch (_) { }
       });
     }
   } catch (e) {
@@ -37,10 +37,10 @@ export function setServerTime(serverTimeInput) {
  * @returns {() => void} unsubscribe function
  */
 export function onServerTimeSync(listener) {
-  if (typeof listener !== 'function') return () => {};
+  if (typeof listener !== 'function') return () => { };
   syncListeners.add(listener);
   if (serverTimeSynced) {
-    try { listener(getServerDate()); } catch (_) {}
+    try { listener(getServerDate()); } catch (_) { }
   }
   return () => syncListeners.delete(listener);
 }
@@ -112,7 +112,7 @@ export function ymd(d = getServerDate()) {
  * @param {import('axios').AxiosInstance} api
  */
 export function initServerTimeSync(api) {
-  if (!api || typeof api.get !== 'function') return () => {};
+  if (!api || typeof api.get !== 'function') return () => { };
 
   const fetchServerTime = async () => {
     try {
@@ -137,7 +137,7 @@ export function initServerTimeSync(api) {
       window.removeEventListener('focus', fetchServerTime);
     };
   }
-  return () => {};
+  return () => { };
 }
 
 /**

@@ -58,7 +58,10 @@ export default function FinLendChangePasswordModal({ isOpen, onClose, forced = f
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+    <div 
+      style={{ backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn"
+    >
       <div className="w-full max-w-md bg-white dark:bg-[#0c1220] rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 dark:border-white/10 relative">
         <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4">
           <Lock className="w-6 h-6" />

@@ -218,7 +218,7 @@ export default function AuditLogsPage() {
 
         <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
           <table className="w-full text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/95 backdrop-blur-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800 shadow-xs">
+            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/95 backdrop-blur-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800 shadow-xs">
               <tr>
                 <th className="py-3 px-4">Date & Login Time</th>
                 <th className="py-3 px-4">Event / Action</th>

@@ -78,27 +78,44 @@ export async function me(req, res) {
   });
 }
 
-export async function logout(req, res, next) {
+export async function logout(req, res) {
   try {
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'] || '';
 
-    if (req.user && req.tokenId) {
-      await revokeSession({
-        userId: req.user.id,
-        tokenId: req.tokenId,
-        ipAddress,
-        userAgent,
-      });
+    let token = req.cookies?.chit_session;
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (token) {
+      try {
+        const { verifyUserToken } = await import('../utils/jwt.js');
+        const decoded = verifyUserToken(token);
+        if (decoded && decoded.userId && decoded.jti) {
+          await revokeSession({
+            userId: decoded.userId,
+            tokenId: decoded.jti,
+            ipAddress,
+            userAgent,
+          });
+        }
+      } catch (_) {
+        // Ignore token verification errors during logout
+      }
     }
 
     res.clearCookie('chit_session', { path: '/' });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Logged out successfully.',
     });
   } catch (error) {
-    next(error);
+    res.clearCookie('chit_session', { path: '/' });
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully.',
+    });
   }
 }

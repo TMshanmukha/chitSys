@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import api from '../../api/client';
+import ModalPortal from '../../components/ModalPortal';
 import { formatCurrency } from '../../utils/interestUtils';
 
 export default function FinLendLoanTypesPage() {
@@ -184,8 +185,11 @@ export default function FinLendLoanTypesPage() {
 
       {/* Create Scheme Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4">
+        <ModalPortal id="finlend-create-scheme-modal" isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} preventBackdropClose={true}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 my-auto animate-scaleUp"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white font-heading">
@@ -243,7 +247,7 @@ export default function FinLendLoanTypesPage() {
                   >
                     <option value="FLAT">Flat Rate</option>
                     <option value="REDUCING_BALANCE">Reducing Balance</option>
-                    <option value="INTEREST_ONLY">Monthly Vaddi</option>
+                    <option value="INTEREST_ONLY">Monthly Interest Only</option>
                   </select>
                 </div>
               </div>
@@ -281,7 +285,7 @@ export default function FinLendLoanTypesPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

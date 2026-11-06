@@ -19,70 +19,63 @@ import { useTheme } from '../context/ThemeContext';
 
 const AGENT_NAV_ITEMS = [
   {
-    name: "Today's Tasks & Stops",
+    name: "Today's Tasks",
     path: '/agent/tasks',
     icon: CheckSquare,
-    desc: 'Assigned subscriber route stops for today',
     activeGradient: 'from-blue-600 to-indigo-600',
     glowColor: 'rgba(37, 99, 235, 0.4)',
     hoverBg: 'hover:bg-blue-50/70 dark:hover:bg-blue-950/40',
     hoverText: 'hover:text-blue-600 dark:hover:text-blue-400',
   },
   {
-    name: 'Assigned Routes & 2D Map',
+    name: 'Assigned Routes',
     path: '/agent/routes',
     icon: Compass,
-    desc: 'Live 2D route trajectory & node status',
     activeGradient: 'from-cyan-600 to-blue-600',
     glowColor: 'rgba(6, 182, 212, 0.4)',
     hoverBg: 'hover:bg-cyan-50/70 dark:hover:bg-cyan-950/40',
     hoverText: 'hover:text-cyan-600 dark:hover:text-cyan-400',
   },
   {
-    name: 'Member Pending Amount',
+    name: 'Pending Dues',
     path: '/agent/pending-dues',
     icon: AlertCircle,
-    desc: 'Inspect overdue chits, missed dates & collect dues',
     activeGradient: 'from-rose-600 to-amber-600',
     glowColor: 'rgba(225, 29, 72, 0.4)',
     hoverBg: 'hover:bg-rose-50/70 dark:hover:bg-rose-950/40',
     hoverText: 'hover:text-rose-600 dark:hover:text-rose-400',
   },
   {
-    name: 'Day Closing & Shift Submit',
+    name: 'Day Closing',
     path: '/agent/day-closing',
     icon: Banknote,
-    desc: "Reconcile today's collections, cash & submit",
     activeGradient: 'from-amber-600 to-orange-600',
     glowColor: 'rgba(245, 158, 11, 0.4)',
     hoverBg: 'hover:bg-amber-50/70 dark:hover:bg-amber-950/40',
     hoverText: 'hover:text-amber-600 dark:hover:text-amber-400',
   },
   {
-    name: 'Leave Calendar & Coverage',
+    name: 'Leave Calendar',
     path: '/agent/leaves',
     icon: CalendarDays,
-    desc: 'Apply leave & view temporary coverage',
     activeGradient: 'from-emerald-600 to-teal-600',
     glowColor: 'rgba(16, 185, 129, 0.4)',
     hoverBg: 'hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40',
     hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400',
   },
   {
-    name: 'Receipts & Collection History',
+    name: 'Collection History',
     path: '/agent/history',
     icon: History,
-    desc: 'Search past collections and receipts issued',
     activeGradient: 'from-purple-600 to-indigo-600',
     glowColor: 'rgba(147, 51, 234, 0.4)',
     hoverBg: 'hover:bg-purple-50/70 dark:hover:bg-purple-950/40',
     hoverText: 'hover:text-purple-600 dark:hover:text-purple-400',
   },
   {
-    name: 'Agent Profile & Route Hub',
+    name: 'My Profile',
     path: '/agent/profile',
     icon: UserCheck,
-    desc: 'Personal details, UPI, and performance summary',
     activeGradient: 'from-rose-600 to-pink-600',
     glowColor: 'rgba(244, 63, 94, 0.4)',
     hoverBg: 'hover:bg-rose-50/70 dark:hover:bg-rose-950/40',
@@ -166,10 +159,10 @@ export default function AgentSidebar({ isOpen, onClose }) {
         {/* Dedicated Navigation Menu */}
         <nav
           aria-label="Agent Main Menu"
-          className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 focus:outline-hidden"
+          className="flex-1 overflow-y-auto px-4 py-2 space-y-1 focus:outline-hidden"
         >
           <div className="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 font-heading">
-            Dedicated Workflows
+            Menu
           </div>
 
           {AGENT_NAV_ITEMS.map((item) => {
@@ -180,9 +173,9 @@ export default function AgentSidebar({ isOpen, onClose }) {
                 to={item.path}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `flex items-start gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all relative group ${
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all relative group ${
                     isActive
-                      ? `bg-gradient-to-r ${item.activeGradient} text-white shadow-lg shadow-blue-600/20 font-extrabold`
+                      ? `bg-gradient-to-r ${item.activeGradient} text-white shadow-md shadow-blue-600/20 font-extrabold`
                       : `text-slate-600 dark:text-slate-300 ${item.hoverBg} ${item.hoverText}`
                   }`
                 }
@@ -190,20 +183,11 @@ export default function AgentSidebar({ isOpen, onClose }) {
                 {({ isActive }) => (
                   <>
                     <Icon
-                      className={`w-5 h-5 mt-0.5 shrink-0 transition-transform group-hover:scale-110 ${
+                      className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
                         isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
                       }`}
                     />
-                    <div className="min-w-0 flex-1">
-                      <span className="block truncate text-xs">{item.name}</span>
-                      <span
-                        className={`block text-[10px] font-normal truncate mt-0.5 ${
-                          isActive ? 'text-blue-100' : 'text-slate-400 dark:text-slate-500'
-                        }`}
-                      >
-                        {item.desc}
-                      </span>
-                    </div>
+                    <span className="truncate">{item.name}</span>
                   </>
                 )}
               </NavLink>

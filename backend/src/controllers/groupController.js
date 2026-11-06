@@ -34,7 +34,12 @@ export async function listGroups(req, res, next) {
         COUNT(DISTINCT gm.id) as enrolled_members,
         COUNT(DISTINCT rs.id) as route_stops_count,
         CAST(GROUP_CONCAT(DISTINCT u.full_name SEPARATOR ', ') AS CHAR) as assigned_agents,
-        CAST(GROUP_CONCAT(DISTINCT u.id SEPARATOR ', ') AS CHAR) as assigned_agent_ids
+        CAST(GROUP_CONCAT(DISTINCT u.id SEPARATOR ', ') AS CHAR) as assigned_agent_ids,
+        (
+          COALESCE((SELECT SUM(ama.advance_amount - ama.recovered_amount) FROM admin_member_advances ama WHERE ama.group_id = g.id AND ama.status = 'PENDING_RECOVERY'), 0)
+          +
+          GREATEST(0, (COUNT(DISTINCT gm.id) * g.installment_amount) - COALESCE((SELECT SUM(c.amount) FROM collections c WHERE c.group_id = g.id AND (g.frequency = 'DAILY' AND c.collection_date = CURDATE() OR g.frequency = 'MONTHLY' AND c.collection_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY))), 0))
+        ) AS total_pending_amount
       FROM chit_groups g
       LEFT JOIN group_memberships gm ON g.id = gm.group_id
       LEFT JOIN route_stops rs ON g.id = rs.group_id

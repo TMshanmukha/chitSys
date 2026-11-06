@@ -122,12 +122,12 @@ export default function InterestAgentPortalPage() {
 
   const totalDueToday = useMemo(() => {
     return assignedLoans.reduce((sum, l) => {
-      const due = Number(l.current_due_amount || l.installment_amount || 0);
+      const due = Number(l.current_due_amount || 0);
       return sum + due;
     }, 0);
   }, [assignedLoans]);
 
-  const dailyTarget = Number(user?.interest_profile?.daily_target || 0) || Math.max(totalDueToday, Number(summary.today_total || 0));
+  const dailyTarget = Number(user?.interest_profile?.daily_target || 0) || (totalDueToday + Number(summary.today_total || 0));
   const progressPercent = dailyTarget > 0 ? Math.min(100, Math.round((Number(summary.today_total || 0) / dailyTarget) * 100)) : 100;
 
   // Filtered customer list
@@ -467,7 +467,8 @@ export default function InterestAgentPortalPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {filteredLoans.map((loan) => {
-                  const due = Number(loan.current_due_amount || loan.installment_amount || 0);
+                  const due = Number(loan.current_due_amount || 0);
+                  const isAdvance = loan.paid_until_date && loan.paid_until_date >= todayStr && due <= 0;
                   const isPaid = due <= 0;
                   const isOverdue = loan.oldest_pending_date && loan.oldest_pending_date < todayStr && due > 0;
                   const initial = (loan.customer_name || 'B').charAt(0).toUpperCase();
@@ -480,14 +481,18 @@ export default function InterestAgentPortalPage() {
                       {/* Top row: Avatar & Info */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-200/60 dark:border-indigo-800/40">
-                            {initial}
+                          <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-200/60 dark:border-indigo-800/40 overflow-hidden">
+                            {loan.customer_photo ? (
+                              <img src={loan.customer_photo} alt={loan.customer_name} className="w-full h-full object-cover" />
+                            ) : (
+                              initial
+                            )}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate font-heading">
                               {loan.customer_name}
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
                               {loan.customer_phone ? (
                                 <a
                                   href={`tel:${loan.customer_phone}`}
@@ -502,6 +507,11 @@ export default function InterestAgentPortalPage() {
                               )}
                               <span>•</span>
                               <span className="font-mono">{loan.loan_account_number}</span>
+                              {Number(loan.customer_total_loans_count || 1) > 1 && (
+                                <span className="px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold text-[10px]">
+                                  Total Pending ({loan.customer_total_loans_count} Loans): ₹{Number(loan.customer_total_pending_all_loans || 0).toLocaleString('en-IN')}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -509,33 +519,71 @@ export default function InterestAgentPortalPage() {
                         {/* Status chip */}
                         <span
                           className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full shrink-0 ${
-                            isPaid
+                            isAdvance
                               ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40'
+                              : isPaid
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                               : isOverdue
                               ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40'
                               : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40'
                           }`}
                         >
-                          {isPaid ? 'Collected' : isOverdue ? 'Overdue' : 'Due Today'}
+                          {isAdvance ? `Paid in Advance` : isPaid ? 'Collected' : isOverdue ? 'Overdue' : 'Due Today'}
                         </span>
                       </div>
 
-                      {/* Bottom row: Amount & Huge Action button */}
+                      {/* Days Progress Bar */}
+                      <div className="pt-2 border-t border-slate-100 dark:border-white/5 space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            Days: {loan.completed_installments || 0} / {loan.total_installments || 0}
+                            {loan.total_installments > 0 && (
+                              <span className="text-slate-400 font-normal ml-1">
+                                ({Math.round(((loan.completed_installments || 0) / loan.total_installments) * 100)}%)
+                              </span>
+                            )}
+                          </span>
+                          {loan.paid_until_date && loan.paid_until_date >= todayStr && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                              Paid up to {loan.paid_until_date}
+                            </span>
+                          )}
+                          {Number(loan.overdue_amount || 0) > 0 && (
+                            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
+                              Overdue: ₹{Number(loan.overdue_amount).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
+                        {Number(loan.total_installments || 0) > 0 && (
+                          <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-indigo-600 dark:bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.min(100, Math.round(((loan.completed_installments || 0) / loan.total_installments) * 100))}%`,
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bottom row: Amount & Action button */}
                       <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-white/5 mt-1">
                         <div>
                           <div className="text-[11px] font-medium text-slate-400">
-                            {isPaid ? 'Collected' : 'Due Amount'}
+                            {isPaid ? 'Balance Remaining' : 'Due Amount'}
                           </div>
                           <div
                             className={`text-base sm:text-lg font-black font-heading ${
                               isPaid
-                                ? 'text-emerald-600 dark:text-emerald-400'
+                                ? 'text-slate-600 dark:text-slate-400'
                                 : isOverdue
                                 ? 'text-rose-600 dark:text-rose-400'
                                 : 'text-slate-900 dark:text-white'
                             }`}
                           >
-                            {formatCurrency(due)}
+                            {isPaid
+                              ? `₹${Number(loan.principal_outstanding || 0).toLocaleString('en-IN')}`
+                              : formatCurrency(due)}
                           </div>
                         </div>
 
@@ -551,7 +599,7 @@ export default function InterestAgentPortalPage() {
                         ) : (
                           <div className="h-10 px-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
                             <CheckCircle2 className="w-4 h-4" />
-                            <span>Paid</span>
+                            <span>{isAdvance ? 'Advance Paid' : 'Paid Today'}</span>
                           </div>
                         )}
                       </div>
@@ -730,7 +778,10 @@ export default function InterestAgentPortalPage() {
       {/* 3-TAP QUICK COLLECT BOTTOM SHEET / MODAL                                   */}
       {/* ========================================================================= */}
       {selectedLoan && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
+        <div 
+          style={{ backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn"
+        >
           <div className="w-full sm:max-w-md bg-white dark:bg-[#0c1220] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/10 animate-slideUp sm:animate-zoomIn space-y-4 max-h-[92vh] overflow-y-auto">
             
             {/* Sheet Header */}
@@ -872,7 +923,10 @@ export default function InterestAgentPortalPage() {
       {/* INSTANT SUCCESS RECEIPT MODAL                                              */}
       {/* ========================================================================= */}
       {lastReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+        <div 
+          style={{ backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn"
+        >
           <div className="w-full max-w-sm bg-white dark:bg-[#0c1220] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-white/10 text-center space-y-4 animate-scaleUp">
             
             {/* Animated Green Tick */}
@@ -936,7 +990,10 @@ export default function InterestAgentPortalPage() {
       {/* HANDOVER CONFIRMATION MODAL                                                */}
       {/* ========================================================================= */}
       {isHandoverModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+        <div 
+          style={{ backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn"
+        >
           <div className="w-full max-w-md bg-white dark:bg-[#0c1220] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-white/10 space-y-4">
             
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">

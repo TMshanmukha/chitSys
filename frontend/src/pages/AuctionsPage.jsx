@@ -955,48 +955,7 @@ export default function AuctionsPage() {
                 </div>
               </div>
 
-              {/* Verified Chit Rules & Clarity Banner */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-900/40 space-y-1">
-                  <div className="font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5 font-heading">
-                    <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span>Reverse Auction Prize & Admin Commission Calculation</span>
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
-                    Winner receives (<strong>Pool Amount − Bid Discount − Admin Commission</strong>).
-                    Admin receives <strong>5% commission strictly on the Winner Prize (Pool Amount − Bid Discount)</strong> (NOT on the full chit prize value), which is deducted directly from the winner's prize.
-                    For Auction Chits, the full bid discount is divided equally among members and credited to their passbooks (reducing next installment).
-                  </p>
-                </div>
 
-                <div className="p-3.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-900/40 space-y-1">
-                  <div className="font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5 font-heading">
-                    {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT' ? (
-                      <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
-                    ) : (
-                      <Lock className="w-4 h-4 text-purple-600 shrink-0" />
-                    )}
-                    <span>
-                      {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT'
-                        ? 'Double Chit Pool Reserve & Option to Auction'
-                        : 'Strict Winner Disqualification Rule'}
-                    </span>
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
-                    {schemeBreakdown?.group?.chit_type === 'DOUBLE_CHIT' ? (
-                      <>
-                        In Double Chit, there is no member dividend distribution. The full bid discount is <strong>saved in this chit's pool reserve</strong>, and you have the <strong>option to auction that saved pool</strong> in Draw #2!
-                        Any member who has won an auction in this chit is <strong>strictly disqualified from participating in subsequent auctions</strong>.
-                      </>
-                    ) : (
-                      <>
-                        Once a member wins an auction in this chit scheme, their ticket is permanently marked as <strong>Prized</strong>.
-                        They <strong>cannot and must not participate or bid in any future auctions</strong> in this chit scheme.
-                      </>
-                    )}
-                  </p>
-                </div>
-              </div>
 
               {/* 5-Card Scheme Financial Strip */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">

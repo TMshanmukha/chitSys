@@ -12,8 +12,12 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
+  Camera,
+  Image as ImageIcon,
+  Trash2,
 } from 'lucide-react';
 import api from '../../api/client';
+import ModalPortal from '../../components/ModalPortal';
 import { formatCurrency, formatDate } from '../../utils/interestUtils';
 
 export default function FinLendCustomersPage() {
@@ -30,6 +34,7 @@ export default function FinLendCustomersPage() {
   const [savingCustomer, setSavingCustomer] = useState(false);
   const [formError, setFormError] = useState('');
   const [showKycFields, setShowKycFields] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState('');
   const [formData, setFormData] = useState({
     full_name: '',
     phone: '',
@@ -37,7 +42,24 @@ export default function FinLendCustomersPage() {
     address: '',
     aadhaar_number: '',
     pan_number: '',
+    photo_url: '',
   });
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setFormError('Image size should be less than 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result);
+        setFormData((prev) => ({ ...prev, photo_url: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const loadCustomers = async (isManual = false) => {
     try {
@@ -234,8 +256,11 @@ export default function FinLendCustomersPage() {
 
       {/* Add Customer Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4">
+        <ModalPortal id="finlend-add-customer-modal" isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} preventBackdropClose={true}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 my-auto animate-scaleUp"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black text-slate-900 dark:text-white font-heading">
@@ -262,6 +287,60 @@ export default function FinLendCustomersPage() {
             )}
 
             <form onSubmit={handleCreateCustomer} className="space-y-3.5">
+              {/* Photo Input (Storage or Direct Camera) */}
+              <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-white/10">
+                <div className="relative w-14 h-14 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-slate-300 dark:border-slate-700">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Customer" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-6 h-6 text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                    Customer Photo
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[11px] font-bold cursor-pointer hover:bg-indigo-100 transition-colors">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <label className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold cursor-pointer hover:bg-emerald-100 transition-colors">
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Camera</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {photoPreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoPreview('');
+                          setFormData((prev) => ({ ...prev, photo_url: '' }));
+                        }}
+                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[11px] font-bold cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Customer Name *
@@ -357,7 +436,7 @@ export default function FinLendCustomersPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

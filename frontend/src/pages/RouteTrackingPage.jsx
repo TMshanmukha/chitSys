@@ -983,9 +983,9 @@ export default function RouteTrackingPage() {
                             >
                               <div className="flex items-center gap-2 flex-wrap">
                                 <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                <span>Information of Work & Audit Dossier</span>
+                                <span>Work Details & Activity</span>
                                 <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-semibold">
-                                  {agentNodes.length} Assigned Nodes
+                                  {agentNodes.length} Assigned Members
                                 </span>
                                 <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold">
                                   {agent.receiptsCount || (agent.receipts || []).length || 0} Receipts
@@ -995,7 +995,7 @@ export default function RouteTrackingPage() {
                                 </span>
                               </div>
                               <div className="flex items-center gap-1 text-slate-500">
-                                <span>{isExpanded ? 'Hide Dossier' : 'Inspect Information'}</span>
+                                <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
                                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                               </div>
                             </button>
@@ -1014,7 +1014,7 @@ export default function RouteTrackingPage() {
                                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                                     }`}
                                   >
-                                    📍 Assigned Chit Nodes ({agentNodes.length})
+                                    📍 Assigned Members ({agentNodes.length})
                                   </button>
                                   <button
                                     type="button"
@@ -1051,7 +1051,7 @@ export default function RouteTrackingPage() {
                                   </button>
                                 </div>
 
-                                {/* Sub-tab 1: Assigned Chit Nodes (Compact Card Grid - No Scrolling) */}
+                                {/* Sub-tab 1: Assigned Members (Compact Card Grid - No Scrolling) */}
                                 {subTab === 'NODES' && (
                                   <div>
                                     {agentNodes.length === 0 ? (

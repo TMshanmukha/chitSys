@@ -376,7 +376,7 @@ export default function InterestLoansPage() {
                   <option value="">-- Choose Borrower --</option>
                   {customersList.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.full_name} ({c.phone}) — {c.customer_code}
+                      {c.full_name}{c.phone ? ` · ${c.phone}` : ''} — {c.customer_code}
                     </option>
                   ))}
                 </select>
