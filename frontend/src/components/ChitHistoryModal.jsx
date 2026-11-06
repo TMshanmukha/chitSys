@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   CalendarClock,
   Search,
+  Download,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import ModalPortal from './ModalPortal';
@@ -212,6 +213,65 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
     );
   });
 
+  // Aggregated column totals for the Member Charts Sheet
+  const sheetTotals = {
+    count: filteredChartMembers.length,
+    sumTotalDays: filteredChartMembers.reduce((acc, m) => acc + totalPeriods, 0),
+    sumPaidDays: filteredChartMembers.reduce((acc, m) => acc + m.daysPaid, 0),
+    sumPendingDays: filteredChartMembers.reduce((acc, m) => acc + m.daysLeft, 0),
+    sumPaidAmount: filteredChartMembers.reduce((acc, m) => acc + (m.totalPaid || 0), 0),
+    sumPendingAmount: filteredChartMembers.reduce((acc, m) => acc + (m.amountRemaining || 0), 0),
+  };
+
+  const handleExportSheetCSV = () => {
+    const headers = [
+      'Sl No',
+      'Ticket No',
+      'Members',
+      `Total ${periodLabel}`,
+      `Paid ${periodLabel}`,
+      `Pending ${periodLabel}`,
+      'Paid Amount (INR)',
+      'Pending Amount (INR)',
+      'Phone',
+    ];
+
+    const rows = filteredChartMembers.map((m, idx) => [
+      idx + 1,
+      m.ticket_number || '',
+      `"${(m.full_name || '').toUpperCase()}"`,
+      totalPeriods,
+      m.daysPaid,
+      m.daysLeft,
+      m.totalPaid,
+      m.amountRemaining,
+      m.phone || '',
+    ]);
+
+    // Total row
+    rows.push([
+      'TOTAL',
+      '',
+      `"${sheetTotals.count} Members"`,
+      sheetTotals.sumTotalDays,
+      sheetTotals.sumPaidDays,
+      sheetTotals.sumPendingDays,
+      sheetTotals.sumPaidAmount,
+      sheetTotals.sumPendingAmount,
+      '',
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${group?.group_code || 'Chit'}_Member_Charts_Sheet.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const chartStats = {
     totalPaidAll: chartMembers.reduce((acc, m) => acc + m.totalPaid, 0),
     totalRemainingAll: chartMembers.reduce((acc, m) => acc + m.amountRemaining, 0),
@@ -302,6 +362,19 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
 
           <button
             type="button"
+            onClick={() => setActiveTab('charts')}
+            className={`px-3.5 py-1.5 rounded-lg border text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'charts'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-xs'
+                : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>2. Member Charts</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('members')}
             className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0 cursor-pointer ${
               activeTab === 'members'
@@ -309,7 +382,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
           >
-            2. Enrolled Subscribers ({members.length})
+            3. Enrolled Subscribers ({members.length})
           </button>
 
           <button
@@ -321,7 +394,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
           >
-            3. Collection Ledger ({collections.length} Receipts)
+            4. Collection Ledger ({collections.length} Receipts)
           </button>
 
           {group?.chit_type !== 'DAILY_CHIT' && (
@@ -334,7 +407,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                   : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
               }`}
             >
-              4. Auction & Dividend Draws ({auctions.length})
+              5. Auction & Dividend Draws ({auctions.length})
             </button>
           )}
 
@@ -347,20 +420,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
           >
-            {group?.chit_type !== 'DAILY_CHIT' ? '5. Assigned Chit Nodes' : '4. Assigned Chit Nodes'} ({stops.length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('charts')}
-            className={`px-3.5 py-1.5 rounded-lg border text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'charts'
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>📊 Member Charts</span>
+            {group?.chit_type !== 'DAILY_CHIT' ? '6. Assigned Chit Nodes' : '5. Assigned Chit Nodes'} ({stops.length})
           </button>
         </div>
 
@@ -930,277 +990,160 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
 
               {/* TAB 6: MEMBER PROGRESS CHARTS (Sorted in Descending Order of Days Left) */}
               {activeTab === 'charts' && (
-                <div className="space-y-5 animate-fadeIn">
-                  {/* Top Analytics Banner */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-50/80 via-indigo-50/70 to-purple-50/70 dark:from-slate-800/80 dark:via-slate-800/60 dark:to-slate-800/80 border border-blue-200/80 dark:border-slate-700 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white font-heading">
-                            Progress Analytics
-                          </span>
-                          <span className="text-xs font-bold text-blue-700 dark:text-blue-300 font-heading">
-                            {group?.group_name} ({group?.group_code})
-                          </span>
-                        </div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading mt-1">
-                          Subscriber Days Left & Payment Distribution Charts
-                        </h3>
-                        <p className="text-xs text-slate-600 dark:text-slate-300">
-                          Showing all {members.length} enrolled subscribers sorted in <strong>descending order of remaining {periodLabel.toLowerCase()}</strong>.
-                        </p>
-                      </div>
-
-                      {/* Sorting Badge Indicator */}
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-blue-200 dark:border-slate-700 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0 font-heading shadow-xs">
-                        <ArrowDownNarrowWide className="w-4 h-4 text-indigo-500" />
-                        <span>Order: Highest {periodLabel} Left First</span>
-                      </div>
-                    </div>
-
-                    {/* Quick Metric Tiles */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-blue-200/60 dark:border-slate-700/60">
-                      <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-blue-100 dark:border-slate-800">
-                        <span className="text-[10px] text-slate-500 uppercase font-semibold block">Total Scheme Duration</span>
-                        <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white font-mono block">
-                          {totalPeriods} {periodLabel}
-                        </span>
-                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono">
-                          ₹{installmentAmt.toLocaleString('en-IN')} / {singularLabel}
-                        </span>
-                      </div>
-
-                      <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-blue-100 dark:border-slate-800">
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-semibold block">Avg {periodLabel} Paid</span>
-                        <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono block">
-                          {chartStats.avgDaysPaid} {periodLabel}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          Across all subscribers
-                        </span>
-                      </div>
-
-                      <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-blue-100 dark:border-slate-800">
-                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 uppercase font-semibold block">Avg {periodLabel} Left</span>
-                        <span className="text-sm sm:text-base font-extrabold text-indigo-600 dark:text-indigo-400 font-mono block">
-                          {chartStats.avgDaysLeft} {periodLabel}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          Pending completion
-                        </span>
-                      </div>
-
-                      <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-blue-100 dark:border-slate-800">
-                        <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-semibold block">Total Unpaid {periodLabel}</span>
-                        <span className="text-sm sm:text-base font-extrabold text-rose-600 dark:text-rose-400 font-mono block">
-                          {chartStats.totalUnpaidDays} {periodLabel}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          Overdue till today
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Search Bar for Members */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-4 animate-fadeIn">
+                  {/* Top Bar: Search & Export */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
                     <div className="relative flex-1 max-w-sm">
                       <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={chartMemberSearch}
                         onChange={(e) => setChartMemberSearch(e.target.value)}
-                        placeholder={`Search subscriber by name, ticket #, phone...`}
-                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600 shadow-2xs"
+                        placeholder="Search members by name, ticket #, phone..."
+                        className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600"
                       />
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                        <span>Paid</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
-                        <span>Unpaid (Overdue)</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
-                        <span>Days Left</span>
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleExportSheetCSV}
+                        className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer font-heading"
+                        title="Download as Excel CSV"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export Excel (CSV)</span>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Members Grid with Charts */}
-                  {filteredChartMembers.length === 0 ? (
-                    <div className="p-8 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-300 dark:border-slate-700 space-y-1">
-                      <Users className="w-8 h-8 text-slate-400 mx-auto" />
-                      <p className="text-xs text-slate-500">No subscribers matched your search query.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredChartMembers.map((m) => {
-                        const paidWidth = (m.daysPaid / totalPeriods) * 100;
-                        const unpaidWidth = (m.daysUnpaid / totalPeriods) * 100;
-                        const futureLeftDays = Math.max(0, m.daysLeft - m.daysUnpaid);
-                        const futureLeftWidth = (futureLeftDays / totalPeriods) * 100;
-
-                        return (
-                          <div
-                            key={m.membership_id}
-                            className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all flex flex-col justify-between space-y-3.5"
-                          >
-                            {/* 1. Member Information Header */}
-                            <div className="flex items-start justify-between gap-2.5">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="font-mono text-xs font-black text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-900 shrink-0">
-                                  #{String(m.ticket_number).padStart(2, '0')}
-                                </span>
-                                <div className="min-w-0">
-                                  <h4 className="font-bold text-slate-900 dark:text-white text-sm font-heading truncate flex items-center gap-1.5">
-                                    <span className="truncate">{m.full_name}</span>
+                  {/* Excel Sheet Table (Matching Reference Design) */}
+                  <div className="overflow-x-auto rounded-xl border border-blue-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xs">
+                    <table className="w-full border-collapse text-left text-xs sm:text-sm">
+                      <thead>
+                        <tr className="bg-[#dbeafe] dark:bg-slate-800 text-[#0f172a] dark:text-slate-100 font-bold border-b border-blue-300 dark:border-slate-700">
+                          <th className="py-2.5 px-3 border-r border-blue-200 dark:border-slate-700 w-12 text-center text-xs font-extrabold text-blue-900 dark:text-blue-200">
+                            #
+                          </th>
+                          <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white uppercase tracking-wider">
+                            Members
+                          </th>
+                          <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-center text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white">
+                            Total {periodLabel}
+                          </th>
+                          <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-center text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white">
+                            Paid {periodLabel}
+                          </th>
+                          <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-center text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white">
+                            Pending {periodLabel}
+                          </th>
+                          <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-right text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white">
+                            Paid Amount
+                          </th>
+                          <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-right text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white">
+                            Pending Amount
+                          </th>
+                          <th className="py-2.5 px-3 text-center text-xs font-extrabold text-blue-950 dark:text-white w-24">
+                            Passbook
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-blue-100 dark:divide-slate-800 font-sans">
+                        {filteredChartMembers.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="py-12 text-center text-slate-500 text-xs">
+                              No subscribers found in this chit group.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredChartMembers.map((m, idx) => {
+                            const isEven = idx % 2 === 1;
+                            return (
+                              <tr
+                                key={m.membership_id}
+                                className={`transition-colors hover:bg-blue-50/70 dark:hover:bg-slate-800/60 ${
+                                  isEven
+                                    ? 'bg-[#f8fafc] dark:bg-slate-900/40'
+                                    : 'bg-white dark:bg-slate-900'
+                                }`}
+                              >
+                                <td className="py-2.5 px-3 border-r border-blue-100 dark:border-slate-800 text-center font-mono text-xs text-slate-400">
+                                  {idx + 1}
+                                </td>
+                                <td className="py-2.5 px-4 border-r border-blue-100 dark:border-slate-800 font-heading">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+                                      {m.full_name}
+                                    </span>
                                     {m.is_prized === 1 && (
-                                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 font-semibold shrink-0">
+                                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-bold shrink-0">
                                         🏆 Prized
                                       </span>
                                     )}
-                                  </h4>
-                                  <div className="text-[11px] text-slate-400 font-mono truncate">
-                                    {m.phone} · {m.member_code}
                                   </div>
-                                </div>
-                              </div>
-
-                              {/* Days Left Highlight Pill (Descending Key) */}
-                              <div className="text-right shrink-0">
-                                <span className="px-2.5 py-1 rounded-lg text-xs font-black font-mono bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 block leading-tight">
-                                  {m.daysLeft} {periodLabel} Left
-                                </span>
-                                <span className="text-[9px] text-slate-400 block mt-0.5 uppercase tracking-wider font-semibold">
-                                  Remaining
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* 2. Visual Progress Chart Below Member Info */}
-                            <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/60 space-y-2.5">
-                              {/* Chart Header: Progress Title + % Ring */}
-                              <div className="flex items-center justify-between text-xs">
-                                <div className="flex items-center gap-1.5">
-                                  <BarChart3 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 font-heading">
-                                    Payment Timeline Chart
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs font-black text-slate-900 dark:text-white font-mono">
-                                    {m.completionPercent}%
-                                  </span>
-                                  <span className="text-[10px] text-slate-400">Complete</span>
-                                </div>
-                              </div>
-
-                              {/* Multi-Segment Stacked Bar Chart */}
-                              <div className="space-y-1">
-                                <div className="h-4 w-full bg-slate-200 dark:bg-slate-700/70 rounded-full overflow-hidden flex shadow-inner p-0.5 gap-0.5">
-                                  {/* Segment 1: Paid Days (Emerald) */}
-                                  {m.daysPaid > 0 && (
-                                    <div
-                                      style={{ width: `${paidWidth}%` }}
-                                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500 relative group cursor-pointer"
-                                      title={`${m.daysPaid} ${periodLabel} Paid (₹${m.totalPaid.toLocaleString('en-IN')})`}
-                                    />
-                                  )}
-
-                                  {/* Segment 2: Unpaid / Overdue Days (Rose) */}
-                                  {m.daysUnpaid > 0 && (
-                                    <div
-                                      style={{ width: `${unpaidWidth}%` }}
-                                      className="h-full bg-gradient-to-r from-rose-500 to-red-500 rounded-full transition-all duration-500 relative group cursor-pointer"
-                                      title={`${m.daysUnpaid} ${periodLabel} Unpaid Overdue (₹${m.amountDue.toLocaleString('en-IN')})`}
-                                    />
-                                  )}
-
-                                  {/* Segment 3: Days Left (Slate/Indigo) */}
-                                  {futureLeftDays > 0 && (
-                                    <div
-                                      style={{ width: `${futureLeftWidth}%` }}
-                                      className="h-full bg-slate-300 dark:bg-slate-600/70 rounded-full transition-all duration-500 relative group cursor-pointer"
-                                      title={`${futureLeftDays} Future ${periodLabel} Left`}
-                                    />
-                                  )}
-                                </div>
-
-                                {/* Scale Indicator */}
-                                <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 px-0.5">
-                                  <span>0 {singularLabel}</span>
-                                  <span>{Math.round(totalPeriods / 2)} {periodLabel}</span>
-                                  <span>{totalPeriods} {periodLabel}</span>
-                                </div>
-                              </div>
-
-                              {/* 3 Metric Breakdown KPI Boxes */}
-                              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/50">
-                                {/* Metric 1: Days Paid */}
-                                <div className="p-1.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-900/40">
-                                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase block font-heading">
-                                    ✓ Paid
-                                  </span>
-                                  <span className="text-xs sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-300 font-mono block">
-                                    {m.daysPaid} {periodLabel}
-                                  </span>
-                                  <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-mono block truncate">
-                                    ₹{m.totalPaid.toLocaleString('en-IN')}
-                                  </span>
-                                </div>
-
-                                {/* Metric 2: Days Unpaid */}
-                                <div className="p-1.5 rounded-lg bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/50 dark:border-rose-900/40">
-                                  <span className="text-[9px] font-bold text-rose-700 dark:text-rose-300 uppercase block font-heading">
-                                    ✗ Unpaid
-                                  </span>
-                                  <span className="text-xs sm:text-sm font-extrabold text-rose-700 dark:text-rose-300 font-mono block">
-                                    {m.daysUnpaid} {periodLabel}
-                                  </span>
-                                  <span className="text-[10px] text-rose-600/80 dark:text-rose-400/80 font-mono block truncate">
-                                    ₹{m.amountDue.toLocaleString('en-IN')}
-                                  </span>
-                                </div>
-
-                                {/* Metric 3: Days Left */}
-                                <div className="p-1.5 rounded-lg bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/50 dark:border-indigo-900/40">
-                                  <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-300 uppercase block font-heading">
-                                    ⏳ Days Left
-                                  </span>
-                                  <span className="text-xs sm:text-sm font-extrabold text-indigo-700 dark:text-indigo-300 font-mono block">
-                                    {m.daysLeft} {periodLabel}
-                                  </span>
-                                  <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 font-mono block truncate">
-                                    ₹{m.amountRemaining.toLocaleString('en-IN')}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* 3. Card Footer with Action */}
-                            <div className="flex items-center justify-between pt-1">
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                Last Payment: {m.last_payment_date ? formatDate(m.last_payment_date) : 'No receipts yet'}
-                              </span>
-
-                              <button
-                                type="button"
-                                onClick={() => handleOpenMemberPassbook(m)}
-                                className="px-2.5 py-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900/60 hover:bg-blue-100 transition-colors cursor-pointer font-heading"
-                              >
-                                View Passbook
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                                  <div className="text-[11px] text-slate-400 font-mono">
+                                    Ticket #{m.ticket_number} • {m.phone || 'No phone'}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-4 border-r border-blue-100 dark:border-slate-800 text-center font-mono font-semibold text-slate-700 dark:text-slate-300">
+                                  {totalPeriods}
+                                </td>
+                                <td className="py-2.5 px-4 border-r border-blue-100 dark:border-slate-800 text-center font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                                  {m.daysPaid}
+                                </td>
+                                <td className="py-2.5 px-4 border-r border-blue-100 dark:border-slate-800 text-center font-mono font-bold text-amber-700 dark:text-amber-400">
+                                  {m.daysLeft}
+                                </td>
+                                <td className="py-2.5 px-4 border-r border-blue-100 dark:border-slate-800 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                                  ₹{Number(m.totalPaid || 0).toLocaleString('en-IN')}
+                                </td>
+                                <td className="py-2.5 px-4 border-r border-blue-100 dark:border-slate-800 text-right font-mono font-bold text-rose-700 dark:text-rose-400">
+                                  ₹{Number(m.amountRemaining || 0).toLocaleString('en-IN')}
+                                </td>
+                                <td className="py-2.5 px-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenMemberPassbook(m)}
+                                    className="px-2.5 py-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/50 rounded-md border border-blue-200 dark:border-blue-900/60 hover:bg-blue-100 transition-colors cursor-pointer"
+                                  >
+                                    View
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-[#dbeafe] dark:bg-slate-800/90 text-slate-900 dark:text-white font-extrabold border-t-2 border-blue-500 font-heading">
+                          <td className="py-3 px-3 text-center border-r border-blue-200 dark:border-slate-700 font-mono">
+                            Σ
+                          </td>
+                          <td className="py-3 px-4 border-r border-blue-200 dark:border-slate-700 text-xs sm:text-sm uppercase tracking-wide">
+                            Total ({sheetTotals.count} Members)
+                          </td>
+                          <td className="py-3 px-4 border-r border-blue-200 dark:border-slate-700 text-center font-mono text-xs sm:text-sm">
+                            {sheetTotals.sumTotalDays}
+                          </td>
+                          <td className="py-3 px-4 border-r border-blue-200 dark:border-slate-700 text-center font-mono text-xs sm:text-sm text-emerald-800 dark:text-emerald-300">
+                            {sheetTotals.sumPaidDays}
+                          </td>
+                          <td className="py-3 px-4 border-r border-blue-200 dark:border-slate-700 text-center font-mono text-xs sm:text-sm text-amber-800 dark:text-amber-300">
+                            {sheetTotals.sumPendingDays}
+                          </td>
+                          <td className="py-3 px-4 border-r border-blue-200 dark:border-slate-700 text-right font-mono text-xs sm:text-sm text-emerald-800 dark:text-emerald-300">
+                            ₹{sheetTotals.sumPaidAmount.toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-4 border-r border-blue-200 dark:border-slate-700 text-right font-mono text-xs sm:text-sm text-rose-800 dark:text-rose-300">
+                            ₹{sheetTotals.sumPendingAmount.toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-3 text-center text-xs text-slate-400">
+                            —
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               )}
             </>
