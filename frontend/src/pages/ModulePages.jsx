@@ -49,6 +49,23 @@ import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
 import ModalPortal from '../components/ModalPortal';
 
 
+/* Helper to dynamically generate guaranteed collision-free unique chit scheme codes */
+export const generateNextGroupCode = (frequency = 'DAILY', chitType = 'AUCTION_CHIT', existingGroups = []) => {
+  const isDaily = frequency === 'DAILY';
+  const typeCode = chitType === 'DOUBLE_CHIT' ? 'DBL' : 'AUC';
+  const prefix = `${isDaily ? 'DLY' : 'MTH'}-${typeCode}`;
+
+  const usedCodes = new Set(
+    (existingGroups || []).map((g) => (g.group_code || '').trim().toUpperCase())
+  );
+
+  let num = 101;
+  while (usedCodes.has(`${prefix}-${num}`)) {
+    num++;
+  }
+  return `${prefix}-${num}`;
+};
+
 /* =========================================================================
    1. CHIT GROUPS & SCHEMES MANAGEMENT (ChitBase Flow)
    ========================================================================= */
@@ -124,7 +141,14 @@ export function ChitGroupsPage() {
         api.get('/admin/agents'),
         api.get('/admin/members'),
       ]);
-      if (groupsRes.data?.success) setGroups(groupsRes.data.data || []);
+      if (groupsRes.data?.success) {
+        const loadedGroups = groupsRes.data.data || [];
+        setGroups(loadedGroups);
+        setForm((prev) => ({
+          ...prev,
+          group_code: generateNextGroupCode(prev.frequency, prev.chit_type, loadedGroups),
+        }));
+      }
       if (agentsRes.data?.success) setAgents(agentsRes.data.data || []);
       if (membersRes.data?.success) setAllMembers(membersRes.data.data || []);
     } catch (err) {
@@ -145,8 +169,7 @@ export function ChitGroupsPage() {
       const inst = isDaily ? (parseFloat(prev.installment_amount || '0') < 5000 && parseFloat(prev.installment_amount || '0') > 0 ? prev.installment_amount : '500') : (parseFloat(prev.installment_amount || '0') >= 5000 ? prev.installment_amount : '25000');
       const members = parseInt(prev.total_members_limit || '20', 10);
       const pool = String(Math.round(parseFloat(inst || '0') * members));
-      const typeCode = prev.chit_type === 'DOUBLE_CHIT' ? 'DBL' : 'AUC';
-      const prefix = isDaily ? `DLY-${typeCode}` : `MTH-${typeCode}`;
+      const nextCode = generateNextGroupCode(freq, prev.chit_type, groups);
       return {
         ...prev,
         frequency: freq,
@@ -154,7 +177,7 @@ export function ChitGroupsPage() {
         duration_periods: dur,
         installment_amount: inst,
         total_pool_amount: pool,
-        group_code: `${prefix}-${Math.floor(100 + Math.random() * 900)}`,
+        group_code: nextCode,
       };
     });
   };
@@ -166,15 +189,14 @@ export function ChitGroupsPage() {
       const inst = prev.installment_amount || (isDaily ? '500' : '25000');
       const members = parseInt(prev.total_members_limit || '20', 10);
       const pool = String(Math.round(parseFloat(inst || '0') * members));
-      const typeCode = type === 'DOUBLE_CHIT' ? 'DBL' : 'AUC';
-      const prefix = isDaily ? `DLY-${typeCode}` : `MTH-${typeCode}`;
+      const nextCode = generateNextGroupCode(prev.frequency, type, groups);
       return {
         ...prev,
         chit_type: type,
         duration_periods: dur,
         installment_amount: inst,
         total_pool_amount: pool,
-        group_code: `${prefix}-${Math.floor(100 + Math.random() * 900)}`,
+        group_code: nextCode,
       };
     });
   };
@@ -194,12 +216,20 @@ export function ChitGroupsPage() {
 
   const handleStep1Next = () => {
     setError('');
+    if (!form.group_code || !form.group_code.trim()) {
+      setError('Please provide or generate a valid Scheme Code before proceeding.');
+      return;
+    }
     if (!form.group_name.trim()) {
       setError('Please provide a Scheme Name (e.g. Market Daily Auction Pool) before proceeding.');
       return;
     }
     if (!form.location_name.trim()) {
       setError('Please specify the Route Location / Geographic Track before proceeding.');
+      return;
+    }
+    if (!form.assigned_agent_id) {
+      setError('⚠️ Collection Agent Required: You must assign this chit scheme to a collection agent before proceeding.');
       return;
     }
     if (parseFloat(form.installment_amount || '0') <= 0) {
@@ -304,6 +334,11 @@ export function ChitGroupsPage() {
   const handleCreateGroup = async () => {
     setError('');
     setSuccess('');
+    if (!form.assigned_agent_id) {
+      setError('⚠️ Collection Agent Required: You must assign this chit scheme to a collection agent before launching.');
+      setWizardStep(1);
+      return;
+    }
     const targetMembers = parseInt(form.total_members_limit || '20', 10);
     if (selectedMemberIds.length !== targetMembers) {
       setError(`Cannot create chit group: Scheme requires exactly ${targetMembers} subscribers, but you have selected ${selectedMemberIds.length} members.`);
@@ -320,7 +355,7 @@ export function ChitGroupsPage() {
         total_members_limit: targetMembers,
         foreman_commission_percent: parseFloat(form.foreman_commission_percent || 5),
         max_bid_percent: parseFloat(form.max_bid_percent || 35),
-        assigned_agent_id: form.assigned_agent_id ? parseInt(form.assigned_agent_id, 10) : null,
+        assigned_agent_id: parseInt(form.assigned_agent_id, 10),
         member_ids: selectedMemberIds,
       });
 
@@ -329,7 +364,7 @@ export function ChitGroupsPage() {
       setWizardStep(1);
       setSelectedMemberIds([]);
       setForm({
-        group_code: 'DLY-AUC-101',
+        group_code: generateNextGroupCode('DAILY', 'AUCTION_CHIT', groups),
         group_name: '',
         chit_type: 'AUCTION_CHIT',
         route_category: 'DAILY_ROUTE',
@@ -415,6 +450,11 @@ export function ChitGroupsPage() {
         <button
           type="button"
           onClick={() => {
+            const nextCode = generateNextGroupCode(form.frequency, form.chit_type, groups);
+            setForm((prev) => ({
+              ...prev,
+              group_code: nextCode,
+            }));
             setShowModal(true);
             setWizardStep(1);
             setError('');
@@ -998,17 +1038,35 @@ export function ChitGroupsPage() {
                 {/* Core Information */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-white dark:bg-[#10192e] border-2 border-slate-100 dark:border-slate-800 shadow-xs">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                      Scheme Code *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={form.group_code}
-                      onChange={(e) => setForm({ ...form, group_code: e.target.value.toUpperCase() })}
-                      placeholder="e.g. DLY-AUC-101"
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-semibold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
-                    />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        Scheme Code (Auto-Generated) *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextCode = generateNextGroupCode(form.frequency, form.chit_type, groups);
+                          setForm((prev) => ({ ...prev, group_code: nextCode }));
+                        }}
+                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        title="Generate next available collision-free code"
+                      >
+                        <span>🔄 Refresh ID</span>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={form.group_code}
+                        onChange={(e) => setForm({ ...form, group_code: e.target.value.toUpperCase() })}
+                        placeholder="e.g. DLY-AUC-101"
+                        className="w-full pl-3.5 pr-16 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 pointer-events-none">
+                        Unique
+                      </span>
+                    </div>
                   </div>
 
                   <div>
@@ -1042,7 +1100,7 @@ export function ChitGroupsPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Assign Collection Agent
+                        Assign Collection Agent * <span className="text-rose-500 font-extrabold">(Required)</span>
                       </label>
                       <button
                         type="button"
@@ -1058,19 +1116,32 @@ export function ChitGroupsPage() {
                       </button>
                     </div>
                     <select
+                      required
                       value={form.assigned_agent_id}
-                      onChange={(e) => setForm({ ...form, assigned_agent_id: e.target.value })}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs font-medium"
+                      onChange={(e) => {
+                        setForm({ ...form, assigned_agent_id: e.target.value });
+                        if (error && error.includes('Collection Agent Required')) setError('');
+                      }}
+                      className={`w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs font-medium transition-all ${
+                        !form.assigned_agent_id
+                          ? 'border-amber-400 dark:border-amber-500/60 ring-2 ring-amber-400/20'
+                          : 'border-slate-300 dark:border-slate-700'
+                      }`}
                     >
-                      <option value="">-- Assign Later --</option>
+                      <option value="">-- Select Collection Agent (Required) --</option>
                       {agents.map((ag) => (
                         <option key={ag.id} value={ag.id}>
                           {ag.full_name} ({ag.phone})
                         </option>
                       ))}
                     </select>
+                    {!form.assigned_agent_id && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-1 flex items-center gap-1">
+                        <span>⚠️</span> You must assign this chit to an agent before proceeding.
+                      </p>
+                    )}
                     {agents.length === 0 && (
-                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                      <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">
                         No agents registered yet. Click "+ Add New Agent" above to create one right now.
                       </p>
                     )}
@@ -1516,6 +1587,23 @@ export function ChitGroupsPage() {
                       </ul>
                     </div>
                   </div>
+                ) : !form.assigned_agent_id ? (
+                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100 flex items-center justify-between gap-2.5 sm:gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 shrink-0" />
+                      <div className="text-xs sm:text-sm">
+                        <span className="font-bold block">⚠️ Collection Agent Assignment Required</span>
+                        <span>Please assign this chit scheme to an agent before launching.</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWizardStep(1)}
+                      className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 cursor-pointer transition-all shadow-xs"
+                    >
+                      Assign in Step 1
+                    </button>
+                  </div>
                 ) : (
                   <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100 flex items-center gap-2.5 sm:gap-3">
                     <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 shrink-0" />
@@ -1596,8 +1684,8 @@ export function ChitGroupsPage() {
 
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
                       <span className="text-blue-200/80 block text-[11px] font-medium">Field Agent</span>
-                      <strong className="text-white truncate block text-xs sm:text-sm font-semibold">
-                        {agents.find((a) => String(a.id) === String(form.assigned_agent_id))?.full_name || 'Unassigned'}
+                      <strong className={`truncate block text-xs sm:text-sm font-semibold ${!form.assigned_agent_id ? 'text-amber-300 font-bold' : 'text-white'}`}>
+                        {agents.find((a) => String(a.id) === String(form.assigned_agent_id))?.full_name || '⚠️ Unassigned (Required)'}
                       </strong>
                     </div>
                   </div>
@@ -1656,10 +1744,10 @@ export function ChitGroupsPage() {
 
                   <button
                     type="button"
-                    disabled={isMismatch || submitting}
+                    disabled={isMismatch || !form.assigned_agent_id || submitting}
                     onClick={handleCreateGroup}
                     className={`w-full sm:w-auto px-6 sm:px-7 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all flex items-center justify-center gap-2 ${
-                      isMismatch || submitting
+                      isMismatch || !form.assigned_agent_id || submitting
                         ? 'bg-slate-400 cursor-not-allowed opacity-60'
                         : 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 cursor-pointer ring-2 ring-emerald-500/30'
                     }`}
@@ -1668,6 +1756,11 @@ export function ChitGroupsPage() {
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span>Launching Scheme & Generating Stops...</span>
+                      </>
+                    ) : !form.assigned_agent_id ? (
+                      <>
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>Assign Agent in Step 1 to Launch</span>
                       </>
                     ) : isMismatch ? (
                       <>

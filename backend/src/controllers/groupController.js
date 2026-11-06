@@ -80,6 +80,14 @@ export async function listGroups(req, res, next) {
 
 export async function createGroup(req, res, next) {
   try {
+    // Validate required agent assignment
+    if (!req.body.assigned_agent_id) {
+      return res.status(400).json({
+        success: false,
+        message: '⚠️ Collection Agent Required: Please assign this chit scheme to an agent before creating.',
+      });
+    }
+
     // Strictly two chit types: AUCTION_CHIT and DOUBLE_CHIT for both Daily and Monthly cycles
     const normalizedChitType = req.body.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT' : 'AUCTION_CHIT';
 
@@ -109,28 +117,45 @@ export async function createGroup(req, res, next) {
       total_members_limit: parseInt(req.body.total_members_limit || 20, 10),
       foreman_commission_percent: req.body.foreman_commission_percent ? parseFloat(req.body.foreman_commission_percent) : 5.0,
       max_bid_percent: req.body.max_bid_percent ? parseFloat(req.body.max_bid_percent) : 35.0,
-      assigned_agent_id: req.body.assigned_agent_id ? parseInt(req.body.assigned_agent_id, 10) : null,
+      assigned_agent_id: parseInt(req.body.assigned_agent_id, 10),
     });
 
-    let finalGroupCode = validated.group_code;
-    if (!finalGroupCode || finalGroupCode.trim() === '') {
-      const isDaily = validated.frequency === 'DAILY' || validated.route_category === 'DAILY_ROUTE';
-      const typeCode = validated.chit_type === 'DOUBLE_CHIT' ? 'DBL' : 'AUC';
-      const prefix = isDaily ? `DLY-${typeCode}` : `MTH-${typeCode}`;
-      finalGroupCode = `${prefix}-${Math.floor(100 + Math.random() * 900)}`;
-    }
-    finalGroupCode = finalGroupCode.toUpperCase();
+    const isDaily = validated.frequency === 'DAILY' || validated.route_category === 'DAILY_ROUTE';
+    const typeCode = validated.chit_type === 'DOUBLE_CHIT' ? 'DBL' : 'AUC';
+    const prefix = isDaily ? `DLY-${typeCode}` : `MTH-${typeCode}`;
 
-    const [existing] = await pool.execute(
-      'SELECT id FROM chit_groups WHERE group_code = ? LIMIT 1',
-      [finalGroupCode]
-    );
+    let finalGroupCode = (validated.group_code || '').trim().toUpperCase();
 
-    if (existing.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Chit Group with code '${finalGroupCode}' already exists.`,
-      });
+    // Check collision or generate next free code
+    if (!finalGroupCode) {
+      const [existingRows] = await pool.execute(
+        `SELECT group_code FROM chit_groups WHERE group_code LIKE ?`,
+        [`${prefix}-%`]
+      );
+      const usedCodes = new Set(existingRows.map((r) => (r.group_code || '').toUpperCase()));
+      let num = 101;
+      while (usedCodes.has(`${prefix}-${num}`)) {
+        num++;
+      }
+      finalGroupCode = `${prefix}-${num}`;
+    } else {
+      const [existing] = await pool.execute(
+        'SELECT id FROM chit_groups WHERE group_code = ? LIMIT 1',
+        [finalGroupCode]
+      );
+      if (existing.length > 0) {
+        // If code already exists in DB, auto-generate next collision-free code
+        const [existingRows] = await pool.execute(
+          `SELECT group_code FROM chit_groups WHERE group_code LIKE ?`,
+          [`${prefix}-%`]
+        );
+        const usedCodes = new Set(existingRows.map((r) => (r.group_code || '').toUpperCase()));
+        let num = 101;
+        while (usedCodes.has(`${prefix}-${num}`)) {
+          num++;
+        }
+        finalGroupCode = `${prefix}-${num}`;
+      }
     }
 
     const [insertResult] = await pool.execute(
