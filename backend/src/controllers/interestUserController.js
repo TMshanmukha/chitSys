@@ -71,7 +71,8 @@ export async function listUsers(req, res) {
         ) as month_collected_amount
       FROM users u
       JOIN interest_user_profiles p ON u.id = p.user_id
-      WHERE 1=1
+      WHERE (u.assigned_business = 'INTEREST' OR u.assigned_business = 'ALL' OR u.assigned_business IS NULL)
+        AND (u.assigned_business != 'CHITFUND')
     `;
 
     const params = [];

@@ -37,11 +37,23 @@ export async function listAgents(req, res, next) {
         GROUP BY agent_id
       ) colls ON u.id = colls.agent_id
     `;
+    const conditions = [];
     const params = [];
+
+    // STRICT BUSINESS ISOLATION:
+    // Only return ChitFund Pro agents or Super Admins. Strictly exclude FinLend Pro ('INTEREST') users/collectors.
+    conditions.push("(u.assigned_business = 'CHITFUND' OR (u.assigned_business = 'ALL' AND u.role IN ('SUPER_ADMIN', 'ADMIN')) OR (u.assigned_business IS NULL AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)))");
+    conditions.push("(u.assigned_business != 'INTEREST')");
+
     if (role && role !== 'ALL') {
-      query += ' WHERE u.role = ?';
+      conditions.push('u.role = ?');
       params.push(role);
     }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
     query += `
       GROUP BY u.id
       ORDER BY FIELD(u.role, 'SUPER_ADMIN', 'ADMIN', 'COLLECTION_AGENT'), u.created_at DESC
@@ -77,7 +89,7 @@ export async function createAgent(req, res, next) {
 
     const passwordHash = await bcrypt.hash(validated.password, 12);
 
-    const targetBusiness = targetRole === 'ADMIN' ? 'ALL' : (req.body.assigned_business === 'INTEREST' ? 'INTEREST' : 'CHITFUND');
+    const targetBusiness = targetRole === 'ADMIN' ? 'ALL' : 'CHITFUND';
 
     const [insertResult] = await pool.execute(
       `INSERT INTO users (full_name, username, password_hash, role, assigned_business, phone, is_active, created_by)

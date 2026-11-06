@@ -289,6 +289,7 @@ export function ChitGroupsPage() {
       const res = await api.post('/admin/agents', {
         ...quickAgentForm,
         role: 'COLLECTION_AGENT',
+        assigned_business: 'CHITFUND',
       });
       const newAgentId = res.data?.agentId || res.data?.userId;
       // Refresh agents list
@@ -2214,7 +2215,11 @@ export function AgentsPage() {
     setSuccess('');
     setSubmitting(true);
     try {
-      await api.post('/admin/agents', form);
+      await api.post('/admin/agents', {
+        ...form,
+        role: 'COLLECTION_AGENT',
+        assigned_business: 'CHITFUND',
+      });
       setSuccess('Collection Agent account created in MySQL.');
       setShowCreateModal(false);
       setForm({ full_name: '', username: '', password: '', phone: '' });
