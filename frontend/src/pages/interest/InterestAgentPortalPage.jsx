@@ -34,7 +34,7 @@ import {
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { formatCurrency, formatDate, formatTime } from '../../utils/interestUtils';
+import { formatCurrency, formatDate, formatTime, getServerDate, getServerYMD } from '../../utils/interestUtils';
 import Keypad from '../../components/interest-ui/Keypad';
 import BigButton from '../../components/interest-ui/BigButton';
 import FinLendChangePasswordModal from '../../components/interest-ui/FinLendChangePasswordModal';
@@ -118,7 +118,7 @@ export default function InterestAgentPortalPage() {
   }, []);
 
   // Compute metrics
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayStr = useMemo(() => getServerYMD(), []);
 
   const totalDueToday = useMemo(() => {
     return assignedLoans.reduce((sum, l) => {
@@ -247,7 +247,7 @@ export default function InterestAgentPortalPage() {
     return (
       `*FinLend Pro Shift Handover*\n` +
       `Agent: ${user?.full_name || user?.username}\n` +
-      `Date: ${formatDate(new Date())}\n` +
+      `Date: ${formatDate(getServerDate())}\n` +
       `Total Collections: ₹${Number(summary.today_total).toLocaleString('en-IN')}\n` +
       `💵 Cash in Hand: ₹${Number(summary.today_cash).toLocaleString('en-IN')}\n` +
       `📱 UPI Collected: ₹${Number(summary.today_upi).toLocaleString('en-IN')}\n` +

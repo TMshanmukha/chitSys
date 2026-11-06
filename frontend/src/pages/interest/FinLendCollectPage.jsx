@@ -13,7 +13,7 @@ import {
   Check,
 } from 'lucide-react';
 import api from '../../api/client';
-import { formatCurrency, formatDate, formatTime } from '../../utils/interestUtils';
+import { formatCurrency, formatDate, formatTime, getServerYMD } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 
 export default function FinLendCollectPage() {
@@ -61,7 +61,7 @@ export default function FinLendCollectPage() {
     loadData();
   }, []);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getServerYMD();
 
   // Filtered Loans to Collect
   const filteredLoans = useMemo(() => {

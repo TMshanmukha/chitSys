@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { setServerTime, initServerTimeSync } from '../utils/dateUtils';
 
 // Both frontend and backend share the same domain on Vercel (/api/*),
 // and Vite proxies /api to http://127.0.0.1:5000 in local development.
@@ -26,6 +27,12 @@ api.interceptors.request.use((config) => {
 // Response interceptor with HTML catch and automatic retry for transient network hiccups or proxy cold-starts
 api.interceptors.response.use(
   (response) => {
+    // Synchronize client clock with authoritative server time header
+    const serverTimeHeader = response.headers?.['x-server-time'] || response.headers?.['date'];
+    if (serverTimeHeader) {
+      setServerTime(serverTimeHeader);
+    }
+
     // If Vercel SPA rewrite or misconfigured proxy returned index.html instead of JSON data
     if (
       typeof response.data === 'string' &&
@@ -75,3 +82,6 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// Kick off immediate authoritative server time synchronization
+initServerTimeSync(api);

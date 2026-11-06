@@ -17,7 +17,7 @@ import {
   User,
 } from 'lucide-react';
 import ModalPortal from '../../components/ModalPortal';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, getServerYMD } from '../../utils/dateUtils';
 
 export default function InterestLoansPage() {
   const [searchParams] = useSearchParams();
@@ -39,7 +39,7 @@ export default function InterestLoansPage() {
     scheme_id: '',
     principal_amount: '50000',
     tenure_periods: '12',
-    disbursement_date: new Date().toISOString().slice(0, 10),
+    disbursement_date: getServerYMD(),
     first_due_date: '',
     assigned_agent_id: '',
     purpose: '',

@@ -36,11 +36,31 @@ export async function calculateDayWorkData(agentId, workDate) {
        LEFT JOIN group_memberships gm ON c.group_id = gm.group_id AND c.member_id = gm.member_id
        LEFT JOIN chit_groups g ON c.group_id = g.id
        LEFT JOIN users handler ON handler.id=c.agent_id
-       WHERE c.group_id IN (?) AND c.collection_date = ? AND c.verification_status != 'CANCELLED'
+       WHERE (c.agent_id = ? OR c.group_id IN (?))
+         AND (c.collection_date = ? OR DATE(c.created_at) = ?)
+         AND c.verification_status != 'CANCELLED'
        ORDER BY c.collection_time ASC, c.id ASC`,
-      [groupIds.length ? groupIds : [-1], workDate]
+      [agentId, groupIds.length ? groupIds : [-1], workDate, workDate]
     );
     const agentCollections = collections.filter((c) => Number(c.collector_id) === Number(agentId));
+
+    // Ensure any group where this agent recorded collections is represented in groups list
+    for (const c of agentCollections) {
+      if (c.group_id && !groups.some((g) => g.id === c.group_id)) {
+        groups.push({
+          id: c.group_id,
+          group_code: c.group_code || `GRP-${c.group_id}`,
+          group_name: c.group_name || `Chit Scheme #${c.group_id}`,
+          chit_type: 'AUCTION_CHIT',
+          frequency: 'DAILY',
+          installment_amount: c.amount || 0,
+          total_pool_amount: 0,
+          start_date: null,
+          created_at: null,
+          absent_agent_name: null,
+        });
+      }
+    }
 
     // 3. Calculate collection totals
     let cashCollected = 0;

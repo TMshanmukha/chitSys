@@ -17,7 +17,7 @@ import {
   Coins,
 } from 'lucide-react';
 import ModalPortal from '../../components/ModalPortal';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, getServerYMD } from '../../utils/dateUtils';
 
 export default function InterestCollectionsPage() {
   const [collections, setCollections] = useState([]);
@@ -38,7 +38,7 @@ export default function InterestCollectionsPage() {
   const [collectMethod, setCollectMethod] = useState('CASH');
   const [collectRef, setCollectRef] = useState('');
   const [collectNotes, setCollectNotes] = useState('');
-  const [collectDate, setCollectDate] = useState(new Date().toISOString().slice(0, 10));
+  const [collectDate, setCollectDate] = useState(getServerYMD());
   const [submittingCollect, setSubmittingCollect] = useState(false);
   const [collectError, setCollectError] = useState('');
 

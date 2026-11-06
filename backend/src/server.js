@@ -85,7 +85,7 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['set-cookie'],
+  exposedHeaders: ['set-cookie', 'x-server-time', 'Date'],
 };
 
 app.use(cors(corsOptions));
@@ -97,6 +97,12 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser(env.COOKIE_SECRET));
+
+// Server Authoritative Time Header for client-server clock synchronization
+app.use((req, res, next) => {
+  res.setHeader('x-server-time', new Date().toISOString());
+  next();
+});
 
 // Request logging (sanitized)
 app.use((req, res, next) => {
@@ -116,6 +122,18 @@ app.get(['/health', '/api/health'], (req, res) => {
     service: 'chitfund-backend',
     version: '1.0.0',
     environment: env.NODE_ENV,
+  });
+});
+
+// Authoritative Server Time endpoint (ensures calendars and dates match server time)
+app.get(['/time', '/api/time', '/server-time', '/api/server-time'], (req, res) => {
+  const now = new Date();
+  res.status(200).json({
+    status: 'ok',
+    serverTime: now.toISOString(),
+    timestamp: now.getTime(),
+    currentDate: now.toISOString().slice(0, 10),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
   });
 });
 

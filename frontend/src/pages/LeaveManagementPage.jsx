@@ -34,10 +34,8 @@ import api from '../api/client';
 import Toast from '../components/Toast';
 import Pagination from '../components/Pagination';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, getServerDate, getServerYMD, ymd, onServerTimeSync } from '../utils/dateUtils';
 
-const ymd = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const label = (date) => formatDate(date);
 
 export default function LeaveManagementPage() {
@@ -48,9 +46,9 @@ export default function LeaveManagementPage() {
   const [history, setHistory] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [groups, setGroups] = useState([]);
-  const [month, setMonth] = useState(new Date());
-  const [start, setStart] = useState(ymd(new Date()));
-  const [end, setEnd] = useState(ymd(new Date()));
+  const [month, setMonth] = useState(getServerDate());
+  const [start, setStart] = useState(getServerYMD());
+  const [end, setEnd] = useState(getServerYMD());
   const [reason, setReason] = useState('');
   const [assignments, setAssignments] = useState({});
   const [busy, setBusy] = useState(false);
@@ -80,7 +78,13 @@ export default function LeaveManagementPage() {
     });
   };
 
-  const todayYmd = useMemo(() => ymd(new Date()), []);
+  const [todayYmd, setTodayYmd] = useState(getServerYMD());
+
+  useEffect(() => {
+    return onServerTimeSync((serverNow) => {
+      setTodayYmd(getServerYMD());
+    });
+  }, []);
 
   const refresh = async (showSpinner = false) => {
     try {
@@ -474,7 +478,7 @@ export default function LeaveManagementPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setMonth(new Date())}
+                onClick={() => setMonth(getServerDate())}
                 className="px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Current Month"
               >

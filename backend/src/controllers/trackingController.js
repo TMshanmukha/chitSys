@@ -382,6 +382,10 @@ export async function getRouteTrackingOverview(req, res, next) {
         monthlyOnlineCollected += onlineCollected;
       }
 
+      const routeTargetAmount = totalStops * parseFloat(grp.installment_amount || 0);
+      const routeTotalCollected = cashCollected + onlineCollected;
+      const routePendingAmount = Math.max(0, routeTargetAmount - routeTotalCollected);
+
       return {
         id: grp.id,
         groupCode: grp.group_code,
@@ -407,10 +411,12 @@ export async function getRouteTrackingOverview(req, res, next) {
           visitedStops: paidCount,
           pendingStops: totalStops - paidCount,
           progressPercent,
+          targetAmount: routeTargetAmount,
+          pendingAmount: routePendingAmount,
           cashCollected,
           upiCollected,
           onlineCollected,
-          totalCollected: cashCollected + onlineCollected,
+          totalCollected: routeTotalCollected,
           lastActivityTime,
         },
         agentPosition,

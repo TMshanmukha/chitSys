@@ -498,8 +498,10 @@ export async function getMyAssignedRoutes(req, res, next) {
               COALESCE(SUM(amount), 0) as todayTotal,
               COUNT(id) as totalCollectionsCount
        FROM collections
-       WHERE agent_id = ? AND collection_date = CURDATE() AND verification_status != 'CANCELLED'`,
-      [agentId]
+       WHERE agent_id = ? 
+         AND (collection_date = CURDATE() OR collection_date = ? OR DATE(created_at) = CURDATE() OR DATE(created_at) = ?)
+         AND verification_status != 'CANCELLED'`,
+      [agentId, todayStr, todayStr]
     );
 
     const dailyGroups = enrichedGroups.filter((g) => g.frequency === 'DAILY');

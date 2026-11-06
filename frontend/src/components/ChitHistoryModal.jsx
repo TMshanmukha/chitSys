@@ -26,7 +26,7 @@ import {
   Search,
   Download,
 } from 'lucide-react';
-import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
+import { formatDate, formatDateTime, formatTime, getServerDate } from '../utils/dateUtils';
 import ModalPortal from './ModalPortal';
 import ChitCompletionModal from './ChitCompletionModal';
 
@@ -157,7 +157,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
   let elapsedPeriods = 0;
   if (group?.start_date) {
     const start = new Date(group.start_date);
-    const now = new Date();
+    const now = getServerDate();
     if (now > start) {
       if (isDaily) {
         const diffMs = now.getTime() - start.getTime();

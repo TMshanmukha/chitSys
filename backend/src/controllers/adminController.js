@@ -233,28 +233,36 @@ export async function getDashboardOverview(req, res, next) {
     }
 
     // 6. Auctions & Dividends stats
-    let auctionStats = { totalAuctionsCount: 0, totalDividendsGenerated: 0, totalPrizeMoneyDisbursed: 0 };
-    if (!frequency || frequency === 'MONTHLY') {
-      const aucConds = [];
-      const aucParams = [];
-      if (groupId) { aucConds.push('group_id = ?'); aucParams.push(groupId); }
-      if (agentId) {
-        aucConds.push('group_id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ? AND is_active = 1)');
-        aucParams.push(agentId);
-      }
-      if (startDate) { aucConds.push('auction_date >= ?'); aucParams.push(startDate); }
-      if (endDate) { aucConds.push('auction_date <= ?'); aucParams.push(endDate); }
-      const aucWhere = aucConds.length ? `WHERE ${aucConds.join(' AND ')}` : '';
-      const [aucStatsRows] = await pool.query(`
-        SELECT 
-          COUNT(id) as totalAuctionsCount,
-          COALESCE(SUM(total_dividend), 0) as totalDividendsGenerated,
-          COALESCE(SUM(net_payable_amount), 0) as totalPrizeMoneyDisbursed
-        FROM auctions
-        ${aucWhere}
-      `, aucParams);
-      auctionStats = aucStatsRows[0] || auctionStats;
+    let auctionStats = { 
+      totalAuctionsCount: 0, 
+      todayAuctionsCount: 0, 
+      dailyAuctionsCount: 0, 
+      monthlyAuctionsCount: 0, 
+      totalDividendsGenerated: 0, 
+      totalPrizeMoneyDisbursed: 0 
+    };
+    const [aucStatsRows] = await pool.query(`
+      SELECT 
+        COUNT(a.id) as totalAuctionsCount,
+        COUNT(CASE WHEN DATE(a.auction_date) = CURDATE() THEN a.id END) as todayAuctionsCount,
+        COUNT(CASE WHEN g.frequency = 'DAILY' THEN a.id END) as dailyAuctionsCount,
+        COUNT(CASE WHEN g.frequency = 'MONTHLY' THEN a.id END) as monthlyAuctionsCount,
+        COALESCE(SUM(a.total_dividend), 0) as totalDividendsGenerated,
+        COALESCE(SUM(a.net_payable_amount), 0) as totalPrizeMoneyDisbursed
+      FROM auctions a
+      LEFT JOIN chit_groups g ON a.group_id = g.id
+    `);
+    if (aucStatsRows.length > 0) {
+      auctionStats = { ...auctionStats, ...aucStatsRows[0] };
     }
+
+    // Pending advances / dues to admin
+    const [[pendingDuesRow]] = await pool.query(`
+      SELECT COALESCE(SUM(advance_amount), 0) as totalPendingAdvances
+      FROM admin_member_advances
+      WHERE status = 'PENDING_RECOVERY'
+    `);
+    const totalPendingAdvances = parseFloat(pendingDuesRow?.totalPendingAdvances || 0);
 
     // 7. Recent Collections - Dynamically respects filters
     const [recentCollections] = await pool.query(`
@@ -390,7 +398,11 @@ export async function getDashboardOverview(req, res, next) {
             ? Math.round((parseFloat(monthlyCollectionRow.monthlyTotal || 0) / parseFloat(monthlyTargetRow.expectedMonthlyTarget)) * 100) 
             : 0,
         },
-        totalAuctionsCount: auctionStats.totalAuctionsCount,
+        totalAuctionsCount: Number(auctionStats.totalAuctionsCount) || 0,
+        todayAuctionsCount: Number(auctionStats.todayAuctionsCount) || 0,
+        dailyAuctionsCount: Number(auctionStats.dailyAuctionsCount) || 0,
+        monthlyAuctionsCount: Number(auctionStats.monthlyAuctionsCount) || 0,
+        totalPendingAdvances: totalPendingAdvances || 0,
         totalDividendsGenerated: auctionStats.totalDividendsGenerated,
         totalPrizeMoneyDisbursed: auctionStats.totalPrizeMoneyDisbursed,
         recentCollections,
@@ -483,11 +495,10 @@ export async function getReportsAnalytics(req, res, next) {
           ORDER BY ama.id DESC LIMIT 1
         ) as active_advance_id,
         (
-          SELECT ama.advance_amount
+          SELECT COALESCE(SUM(ama.advance_amount), 0)
           FROM admin_member_advances ama
           WHERE ama.group_id = gm.group_id AND ama.member_id = gm.member_id
             AND ama.status = 'PENDING_RECOVERY'
-          ORDER BY ama.id DESC LIMIT 1
         ) as active_advance_amount,
         (
           SELECT ama.advance_date
@@ -1350,18 +1361,28 @@ export async function getAgentsDailyPerformance(req, res, next) {
         isActive: Boolean(agent.is_active),
         lastLoginAt: agent.last_login_at,
         assignedRoutesCount: agentRoutes.length,
-        assignedRoutes: agentRoutes.map((r) => ({
-          groupId: r.group_id,
-          groupCode: r.group_code,
-          groupName: r.group_name,
-          frequency: r.frequency,
-          chitType: r.chit_type,
-          locationName: r.location_name,
-          installmentAmount: Number(r.installment_amount),
-          totalPoolAmount: Number(r.total_pool_amount),
-          subscribersCount: Number(r.subscriber_count),
-          expectedTarget: Number(r.group_target_amount),
-        })),
+        assignedRoutes: agentRoutes.map((r) => {
+          const rCollections = agentCollections.filter((c) => c.group_id === r.group_id);
+          const rCollected = rCollections.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+          const rTarget = Number(r.group_target_amount || 0);
+          const rPending = Math.max(0, rTarget - rCollected);
+          const isCompleted = (rTarget > 0 && rCollected >= rTarget) || (Number(r.subscriber_count || 0) > 0 && rCollected > 0 && rPending === 0);
+          return {
+            groupId: r.group_id,
+            groupCode: r.group_code,
+            groupName: r.group_name,
+            frequency: r.frequency,
+            chitType: r.chit_type,
+            locationName: r.location_name,
+            installmentAmount: Number(r.installment_amount),
+            totalPoolAmount: Number(r.total_pool_amount),
+            subscribersCount: Number(r.subscriber_count),
+            expectedTarget: rTarget,
+            collectedAmount: rCollected,
+            pendingAmount: rPending,
+            isCompleted,
+          };
+        }),
         totalSubscribersCount: totalAssignedSubscribers,
         visitedSubscribersCount: visitedMemberIds.size,
         targetExpected,

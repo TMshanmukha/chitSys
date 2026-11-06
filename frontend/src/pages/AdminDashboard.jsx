@@ -25,9 +25,13 @@ import {
   RotateCcw,
   Calendar,
   Sparkles,
+  Target,
+  AlertCircle,
+  Award,
+  Search,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatDate, formatTime } from '../utils/dateUtils';
+import { formatDate, formatTime, getServerDate } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
 import { smoothScrollTo } from '../utils/scrollHelper';
@@ -37,7 +41,7 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [lastUpdated, setLastUpdated] = useState(getServerDate());
 
   // Pagination states for dashboard overview tables
   const [groupsPage, setGroupsPage] = useState(1);
@@ -62,7 +66,7 @@ export default function AdminDashboard() {
       const res = await api.get('/admin/overview', { params });
       if (res.data?.success) {
         setData(res.data.data);
-        setLastUpdated(new Date());
+        setLastUpdated(getServerDate());
       }
     } catch (err) {
       console.error('Failed to load dashboard overview:', err);
@@ -201,509 +205,271 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Interactive Multi-Factor Filter Bar */}
-      <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-3.5">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-blue-600" />
-            <div>
-              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white font-heading">
-                Interactive Dashboard & Scheme Filters
-              </h2>
-              <p className="text-[11px] text-slate-500">
-                Filter total metrics, target achievements, collections, and rosters by specific chit, agent, or date range in real time.
-              </p>
+      {/* ======================================================== */}
+      {/* ROW 1: TODAY TARGET | COLLECTED (CASH / UPI) | PENDING   */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+        {/* Card 1: Today Target */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Today Target
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <Target className="w-4 h-4" />
             </div>
           </div>
-          {Object.values(overviewFilters).some(Boolean) ? (
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900 animate-pulse">
-                Live Filter Active
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
+              {loading ? '...' : `₹${expectedTarget.toLocaleString('en-IN')}`}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Expected daily collection target
+            </p>
+          </div>
+        </div>
+
+        {/* Card 2: Collected (Cash / UPI) */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Collected
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Wallet className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+              {loading ? '...' : `₹${todayTotal.toLocaleString('en-IN')}`}
+            </div>
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold">
+              <span className="text-emerald-700 dark:text-emerald-300">
+                Cash: ₹{todayCash.toLocaleString('en-IN')}
               </span>
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Clear All</span>
-              </button>
+              <span className="text-slate-300 dark:text-slate-700">|</span>
+              <span className="text-blue-700 dark:text-blue-300">
+                UPI: ₹{todayOnline.toLocaleString('en-IN')}
+              </span>
             </div>
-          ) : (
-            <span className="text-[11px] text-slate-400 font-medium">Viewing Global Overview</span>
-          )}
-        </div>
-
-        {/* Quick Filter Frequency Chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Quick Schemes:</span>
-          <button
-            type="button"
-            onClick={() => setQuickFrequency('')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${!overviewFilters.frequency
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-          >
-            All Schemes ({totalGroups})
-          </button>
-          <button
-            type="button"
-            onClick={() => setQuickFrequency('DAILY')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${overviewFilters.frequency === 'DAILY'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 hover:bg-blue-100 border border-blue-200 dark:border-blue-900/40'
-              }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-            Daily Chits ({dailyChitGroups})
-          </button>
-          <button
-            type="button"
-            onClick={() => setQuickFrequency('MONTHLY')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${overviewFilters.frequency === 'MONTHLY'
-                ? 'bg-purple-600 text-white shadow-xs'
-                : 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-900/40'
-              }`}
-          >
-            <Gavel className="w-3.5 h-3.5 text-purple-500" />
-            Monthly Chits ({auctionChitGroups + doubleChitGroups})
-          </button>
-        </div>
-
-        {/* Detailed Multi-Factor Filter Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
-          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-            From Date
-            <input
-              type="date"
-              value={overviewFilters.startDate}
-              onChange={(e) => updateFilter('startDate', e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </label>
-          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-            To Date
-            <input
-              type="date"
-              value={overviewFilters.endDate}
-              onChange={(e) => updateFilter('endDate', e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </label>
-          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-            Filter by Chit Scheme
-            <select
-              value={overviewFilters.groupId}
-              onChange={(e) => updateFilter('groupId', e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Chit Schemes</option>
-              {(data?.availableFilters?.groups || data?.groupsList || []).map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.group_name} · ₹{parseFloat(g.installment_amount || 0).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-            Field Agent
-            <select
-              value={overviewFilters.agentId}
-              onChange={(e) => updateFilter('agentId', e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Field Agents</option>
-              {(data?.availableFilters?.agents || data?.agentsSummary || []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.full_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-            Frequency
-            <select
-              value={overviewFilters.frequency}
-              onChange={(e) => updateFilter('frequency', e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-xs font-semibold dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Frequencies</option>
-              <option value="DAILY">Daily Route Chits</option>
-              <option value="MONTHLY">Monthly Auction Chits</option>
-            </select>
-          </label>
-        </div>
-
-        {/* Active Filter Helper Banner */}
-        {Object.values(overviewFilters).some(Boolean) && (
-          <div className="flex items-center gap-2 p-2 px-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs text-blue-700 dark:text-blue-300">
-            <Sparkles className="w-4 h-4 text-blue-500 shrink-0" />
-            <span className="font-semibold">
-              Live Filter Applied: All primary counters, target progress gauges, recent collections, and tables are recalculated for this criteria.
-            </span>
-            <button
-              type="button"
-              onClick={clearAllFilters}
-              className="ml-auto text-blue-700 dark:text-blue-300 font-bold hover:underline cursor-pointer"
-            >
-              Reset Filters
-            </button>
           </div>
-        )}
-      </section>
+        </div>
 
-      {/* Chit Schemes Categorization Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Daily Chit Route Card */}
-        <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50/70 to-white dark:from-blue-950/20 dark:to-slate-900 border border-blue-100 dark:border-blue-900/40">
+        {/* Card 3: Pending */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
-              Daily Chit Route
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Pending
             </span>
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-4 h-4" />
+            </div>
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
-              {loading ? '...' : dailyChitGroups}
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Door-to-door routes</span>
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
+              {loading ? '...' : `₹${(data?.totalPendingAdvances > 0 ? Number(data.totalPendingAdvances) : Math.max(0, expectedTarget - todayTotal)).toLocaleString('en-IN')}`}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Shortfall & pending recovery to Admin
+            </p>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Fixed daily collections with sequential route stops & agent tracking
-          </p>
-        </div>
-
-        {/* Monthly Auction Chit Card */}
-        <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50/70 to-white dark:from-purple-950/20 dark:to-slate-900 border border-purple-100 dark:border-purple-900/40">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
-              Monthly Auction Chit
-            </span>
-            <Gavel className="w-4 h-4 text-purple-500" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
-              {loading ? '...' : auctionChitGroups}
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Reverse auction</span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Monthly bidding, 5% foreman commission & dividend credited to subscriber ledger
-          </p>
-        </div>
-
-        {/* Monthly Double Chit Card */}
-        <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50/70 to-white dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-100 dark:border-emerald-900/40">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">
-              Monthly Double Chit
-            </span>
-            <Split className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
-              {loading ? '...' : doubleChitGroups}
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Dual draw slots</span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Two prize draws per cycle, dual payouts & double dividend calculations
-          </p>
         </div>
       </div>
 
-      {/* Primary Financial Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Chit Groups */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden">
+      {/* ======================================================== */}
+      {/* ROW 2: TOTAL SCHEME | DAILY CHIT | MONTHLY CHIT          */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+        {/* Card 1: Total Scheme */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
-              Total Schemes
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Total Scheme
             </span>
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <Layers className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-mono">
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
               {loading ? '...' : totalGroups}
-            </span>
-            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-              All Active
-            </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              All active chit schemes
+            </p>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">Configured chit schemes</p>
         </div>
 
-        {/* Metric 2: Members Enrolled */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden">
+        {/* Card 2: Daily Chit */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
-              Registered Members
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Daily Chit
             </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Users className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+              <Calendar className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-mono">
-              {loading ? '...' : totalMembers}
-            </span>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Passbooks ready</span>
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400 font-mono tracking-tight">
+              {loading ? '...' : dailyChitGroups}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Door-to-door daily route chits
+            </p>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">Direct private subscribers</p>
         </div>
 
-        {/* Metric 3: Collection Agents */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden">
+        {/* Card 3: Monthly Chit */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Monthly Chit
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+              <Gavel className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 font-mono tracking-tight">
+              {loading ? '...' : auctionChitGroups}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Monthly reverse auction schemes
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* ROW 3: ROUTE AGENTS | REGISTERED MEMBERS                 */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+        {/* Card 1: Route Agents */}
+        <Link
+          to="/admin/agents"
+          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-teal-300 dark:hover:border-teal-800 transition-all block cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
               Route Agents
             </span>
-            <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
               <UserCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-mono">
+          <div className="mt-3 flex items-baseline justify-between">
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
               {loading ? '...' : totalAgents}
+            </div>
+            <span className="text-xs font-semibold text-teal-600 dark:text-teal-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform font-heading">
+              <span>View Agents</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
-            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Admin Created</span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">Assigned to daily routes</p>
-        </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Authorized field collection agents assigned to routes
+          </p>
+        </Link>
 
-        {/* Metric 4: Dividends & Prize Money */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden">
+        {/* Card 2: Registered Members */}
+        <Link
+          to="/admin/members"
+          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-800 transition-all block cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
-              Dividends Created
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+              Registered Members
             </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Coins className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Users className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span
-              className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-mono truncate"
-              title={`₹${totalDividendsGenerated.toLocaleString('en-IN')}`}
-            >
-              ₹{totalDividendsGenerated.toLocaleString('en-IN')}
+          <div className="mt-3 flex items-baseline justify-between">
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
+              {loading ? '...' : totalMembers}
+            </div>
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform font-heading">
+              <span>View Members</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
-            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium shrink-0">From {totalAuctionsCount} Auctions</span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">Distributed to subscribers</p>
-        </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Enrolled subscribers with active passbooks & ticket numbers
+          </p>
+        </Link>
       </div>
 
-      {/* Today's Collection Overview: Cash vs Online Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left 2 Cols: Collection Breakdown Card with Day-by-Day vs Month-by-Month Clarity */}
-        <div className="lg:col-span-2 p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Collections & Target Progress
-                </h3>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                  Daily vs Monthly Segregated
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Day-by-day live installments for daily chits & month-by-month cycle collections for monthly schemes
-              </p>
-            </div>
-            <Link
-              to="/admin/collections"
-              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 shrink-0"
-            >
-              <span>View All</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {/* Sub-cards: Daily Chits (Day-by-Day) vs Monthly Chits (Month-by-Month) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Daily Chits (Day-by-Day) */}
-            <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 space-y-3 min-w-0 overflow-hidden">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5 truncate">
-                  <span>📅 Daily Chits (Day-by-Day)</span>
-                </span>
-                <span className="text-[10px] font-mono text-slate-400 shrink-0">Today</span>
-              </div>
-              <div className="flex items-baseline justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">Today's Target</span>
-                  <span
-                    className="text-sm sm:text-base md:text-lg font-black text-slate-900 dark:text-white block truncate font-mono tracking-tight"
-                    title={`₹${dailyOverview.target.toLocaleString('en-IN')}`}
-                  >
-                    ₹{dailyOverview.target.toLocaleString('en-IN')}
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1 text-right">
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">Collected</span>
-                  <span
-                    className="text-sm sm:text-base md:text-lg font-black text-amber-600 dark:text-amber-400 block truncate font-mono tracking-tight"
-                    title={`₹${dailyOverview.total.toLocaleString('en-IN')}`}
-                  >
-                    ₹{dailyOverview.total.toLocaleString('en-IN')}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
-                  <span>Daily Progress</span>
-                  <span className="font-semibold text-amber-700 dark:text-amber-300">{dailyOverview.progressPercent}%</span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 rounded-full transition-all"
-                    style={{ width: `${dailyOverview.progressPercent}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Monthly Chits (Month-by-Month) */}
-            <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/40 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
-                  <span>🗓️ Monthly Chits (Month-by-Month)</span>
-                </span>
-                <span className="text-[10px] font-mono text-slate-400">Current Month</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Monthly Target</span>
-                  <span className="text-lg font-extrabold text-slate-900 dark:text-white">
-                    ₹{monthlyOverview.target.toLocaleString('en-IN')}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Collected This Month</span>
-                  <span className="text-lg font-extrabold text-blue-600 dark:text-blue-400">
-                    ₹{monthlyOverview.total.toLocaleString('en-IN')}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
-                  <span>Monthly Cycle Progress</span>
-                  <span className="font-semibold text-blue-700 dark:text-blue-300">{monthlyOverview.progressPercent}%</span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 rounded-full transition-all"
-                    style={{ width: `${monthlyOverview.progressPercent}%` }}
-                  />
-                </div>
-              </div>
+      {/* ======================================================== */}
+      {/* ROW 4: TODAY AUCTION | DAILY AUCTION | MONTHLY AUCTION   */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+        {/* Card 1: Today Auction */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Today Auction
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+              <Gavel className="w-4 h-4" />
             </div>
           </div>
-
-          {/* Today's Combined Cash vs Online Reconciled */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-              <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">
-                <Wallet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Today's Cash Handover</span>
-              </div>
-              <p className="text-lg font-bold text-slate-900 dark:text-white">
-                ₹{todayCash.toLocaleString('en-IN')}
-              </p>
-              <span className="text-[10px] text-slate-400">Handover pending</span>
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight">
+              {loading ? '...' : (Number(data?.todayAuctionsCount) || 0)}
             </div>
-
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-              <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">
-                <Smartphone className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>Today's Digital UPI</span>
-              </div>
-              <p className="text-lg font-bold text-slate-900 dark:text-white">
-                ₹{todayOnline.toLocaleString('en-IN')}
-              </p>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400">Direct bank credit</span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-              <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                <span>Today's Total Receipts</span>
-              </div>
-              <p className="text-lg font-bold text-slate-900 dark:text-white">
-                ₹{todayTotal.toLocaleString('en-IN')}
-              </p>
-              <span className="text-[10px] text-blue-600 dark:text-blue-400">{data?.todayCount || 0} collections today</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right 1 Col: Quick Links */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-              Quick Operations
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Key operational management portals
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Auctions scheduled / conducted today
             </p>
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <Link
-              to="/admin/chit-groups"
-              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
-            >
-              <div className="flex items-center gap-2.5">
-                <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Chit Groups & Routes</span>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-400" />
-            </Link>
+        {/* Card 2: Daily Auction */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Daily Auction
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+              <RefreshCw className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-cyan-600 dark:text-cyan-400 font-mono tracking-tight">
+              {loading ? '...' : (Number(data?.dailyAuctionsCount) || 0)}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Daily chit draws & period rounds
+            </p>
+          </div>
+        </div>
 
-            <Link
-              to="/admin/agents"
-              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
-            >
-              <div className="flex items-center gap-2.5">
-                <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Create & Assign Agents</span>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-400" />
-            </Link>
-
-            <Link
-              to="/admin/members"
-              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
-            >
-              <div className="flex items-center gap-2.5">
-                <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Enroll Participants</span>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-400" />
-            </Link>
-
-            <Link
-              to="/admin/collections"
-              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
-            >
-              <div className="flex items-center gap-2.5">
-                <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Record New Collection</span>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-400" />
-            </Link>
+        {/* Card 3: Monthly Auction */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
+              Monthly Auction
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0">
+              <Award className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-2xl sm:text-3xl font-black text-violet-600 dark:text-violet-400 font-mono tracking-tight">
+              {loading ? '...' : (Number(data?.monthlyAuctionsCount || totalAuctionsCount) || 0)}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Monthly reverse auctions conducted
+            </p>
           </div>
         </div>
       </div>
 
-      {/* 2D Route Tracking & ChitBase Operations Highlight */}
+      {/* ======================================================== */}
+      {/* ROW 5: ROUTE 2D  |  QUERIES                              */}
+      {/* ======================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Card 1: 2D Route Tracking Live Map Preview */}
+        {/* Left Box: Route 2D */}
         <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div className="flex items-center gap-2.5">
@@ -711,8 +477,8 @@ export default function AdminDashboard() {
                 <Compass className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  2D Route & Agent Tracking
+                <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
+                  Route 2D Live Tracking
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Sequential shop waypoints, live agent trajectory & collection status
@@ -726,17 +492,14 @@ export default function AdminDashboard() {
           </div>
 
           {/* Stylized Mini 2D Route Canvas Graphic */}
-          <div className="h-32 w-full rounded-xl bg-slate-900 dark:bg-slate-950 p-3 relative overflow-hidden flex items-center justify-center border border-slate-800">
-            {/* Grid background */}
+          <div className="h-36 w-full rounded-xl bg-slate-900 dark:bg-slate-950 p-3 relative overflow-hidden flex items-center justify-center border border-slate-800">
             <div
               className="absolute inset-0 opacity-20"
               style={{
-                backgroundImage:
-                  'radial-gradient(circle, #3b82f6 1px, transparent 1px)',
+                backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)',
                 backgroundSize: '16px 16px',
               }}
             />
-            {/* SVG Corridors */}
             <svg className="w-full h-full" viewBox="0 0 500 120">
               <path
                 d="M 50 60 Q 150 20 250 60 T 450 60"
@@ -751,31 +514,26 @@ export default function AdminDashboard() {
                 stroke="#10b981"
                 strokeWidth="4"
               />
-              {/* Waypoint 1 */}
-              <circle cx="50" cy="60" r="10" fill="#10b981" />
-              <text x="50" y="90" textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="sans-serif">
-                Stop 1 (Paid)
+              <circle cx="50" cy="60" r="9" fill="#10b981" />
+              <text x="50" y="86" textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="sans-serif">
+                Stop 1
               </text>
-              {/* Waypoint 2 */}
-              <circle cx="150" cy="40" r="10" fill="#10b981" />
+              <circle cx="150" cy="40" r="9" fill="#10b981" />
               <text x="150" y="24" textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="sans-serif">
-                Stop 2 (Paid)
+                Stop 2
               </text>
-              {/* Waypoint 3 - Agent Pin */}
               <circle cx="250" cy="60" r="14" fill="#3b82f6" fillOpacity="0.3" className="animate-ping" />
-              <circle cx="250" cy="60" r="10" fill="#3b82f6" />
-              <text x="250" y="90" textAnchor="middle" fill="#60a5fa" fontWeight="bold" fontSize="10" fontFamily="sans-serif">
-                Agent Active Pin
+              <circle cx="250" cy="60" r="9" fill="#3b82f6" />
+              <text x="250" y="86" textAnchor="middle" fill="#60a5fa" fontWeight="bold" fontSize="10" fontFamily="sans-serif">
+                Agent Pin
               </text>
-              {/* Waypoint 4 */}
-              <circle cx="350" cy="80" r="8" fill="#475569" />
+              <circle cx="350" cy="80" r="7" fill="#475569" />
               <text x="350" y="104" textAnchor="middle" fill="#64748b" fontSize="10" fontFamily="sans-serif">
-                Stop 4 (Pending)
+                Stop 4
               </text>
-              {/* Waypoint 5 */}
-              <circle cx="450" cy="60" r="8" fill="#475569" />
-              <text x="450" y="90" textAnchor="middle" fill="#64748b" fontSize="10" fontFamily="sans-serif">
-                Stop 5 (Pending)
+              <circle cx="450" cy="60" r="7" fill="#475569" />
+              <text x="450" y="86" textAnchor="middle" fill="#64748b" fontSize="10" fontFamily="sans-serif">
+                Stop 5
               </text>
             </svg>
           </div>
@@ -786,7 +544,7 @@ export default function AdminDashboard() {
             </span>
             <Link
               to="/admin/tracking"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs font-heading"
             >
               <span>Open 2D Visual Map</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -794,62 +552,104 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Card 2: Auctions & Double Chit Portal Preview */}
+        {/* Right Box: Queries (Quirys) */}
         <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                <Gavel className="w-4 h-4" />
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <Search className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Auctions & Double Chit Engine
+                <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
+                  Quick Queries & Portals
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  ChitBase reverse auction calculator, foreman cut & dividend splits
+                  Instant search, management queries, and operational actions
                 </p>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-              ChitBase Rules
+            <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 font-heading">
+              Quick Portals
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
-                Total Dividend Savings
-              </span>
-              <p className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">
-                ₹{totalDividendsGenerated.toLocaleString('en-IN')}
-              </p>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                Reduced next installment
-              </span>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <Link
+              to="/admin/chit-groups"
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                <span className="truncate font-semibold">Chit Schemes & Routes</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </Link>
 
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
-                Prize Money Disbursed
-              </span>
-              <p className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">
-                ₹{totalPrizeMoneyDisbursed.toLocaleString('en-IN')}
-              </p>
-              <span className="text-[10px] text-purple-600 dark:text-purple-400">
-                {totalAuctionsCount} Payout vouchers issued
-              </span>
-            </div>
-          </div>
+            <Link
+              to="/admin/agents"
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                <span className="truncate font-semibold">Route Agents & Staff</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </Link>
 
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              Automated 5% foreman commission calculation & voucher generation
-            </span>
+            <Link
+              to="/admin/members"
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="truncate font-semibold">Member Passbooks</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </Link>
+
+            <Link
+              to="/admin/collections"
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                <span className="truncate font-semibold">Field Collections</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </Link>
+
             <Link
               to="/admin/auctions"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-xs"
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
             >
-              <span>Manage Auctions</span>
+              <div className="flex items-center gap-2">
+                <Gavel className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                <span className="truncate font-semibold">Auctions & Dividends</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </Link>
+
+            <Link
+              to="/admin/reports"
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="truncate font-semibold">Pending Dues & Deficits</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </Link>
+          </div>
+
+          <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Search and manage your entire ChitFund Pro ecosystem
+            </span>
+            <Link
+              to="/admin/reports"
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-heading"
+            >
+              <span>View Full Reports</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>

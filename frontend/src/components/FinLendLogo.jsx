@@ -39,40 +39,40 @@ export default function FinLendLogo({
         <defs>
           {/* App Icon Squircle Background Gradient */}
           <linearGradient id="finlend_bg" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#FFFFFF" />
-            <stop offset="100%" stop-color="#F8FAFC" />
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="100%" stopColor="#F8FAFC" />
           </linearGradient>
 
           {/* Ledger Blue Cover - 3D Gradient */}
           <linearGradient id="finlend_blue" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#3B82F6" />
-            <stop offset="55%" stop-color="#2563EB" />
-            <stop offset="100%" stop-color="#1D4ED8" />
+            <stop offset="0%" stopColor="#3B82F6" />
+            <stop offset="55%" stopColor="#2563EB" />
+            <stop offset="100%" stopColor="#1D4ED8" />
           </linearGradient>
 
           {/* Right Blue Cover Underneath */}
           <linearGradient id="finlend_blue_right" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#2563EB" />
-            <stop offset="100%" stop-color="#1E40AF" />
+            <stop offset="0%" stopColor="#2563EB" />
+            <stop offset="100%" stopColor="#1E40AF" />
           </linearGradient>
 
           {/* Top Green Growth Pages / Ribbon */}
           <linearGradient id="finlend_green" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#86EFAC" />
-            <stop offset="50%" stop-color="#4ADE80" />
-            <stop offset="100%" stop-color="#A7F3D0" />
+            <stop offset="0%" stopColor="#86EFAC" />
+            <stop offset="50%" stopColor="#4ADE80" />
+            <stop offset="100%" stopColor="#A7F3D0" />
           </linearGradient>
 
           {/* Tangerine Orange Wallet Flap */}
           <linearGradient id="finlend_orange" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#FB923C" />
-            <stop offset="50%" stop-color="#F97316" />
-            <stop offset="100%" stop-color="#EA580C" />
+            <stop offset="0%" stopColor="#FB923C" />
+            <stop offset="50%" stopColor="#F97316" />
+            <stop offset="100%" stopColor="#EA580C" />
           </linearGradient>
 
           {/* Subtle Depth Shadow */}
           <filter id="finlend_shadow" x="-15%" y="-15%" width="130%" height="130%">
-            <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#0F172A" flood-opacity="0.12" />
+            <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" floodColor="#0F172A" floodOpacity="0.12" />
           </filter>
         </defs>
 

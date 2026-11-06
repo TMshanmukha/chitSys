@@ -467,6 +467,82 @@ export async function conductAuction(req, res, next) {
         [validated.period_number, auctionId, validated.group_id, validated.winning_member_id]
       );
 
+      // 5b-2. AUTOMATIC PENDING AMOUNT TO ADMIN FOR AUCTION SHORTFALL
+      // As per real-life chit fund workflow:
+      // The auction proceeds up to the full chit max pool amount.
+      // Any subscriber who has not fully paid their installment for this auction round
+      // automatically has their shortfall added to Pending Amount owed to Admin.
+      const expectedInstallment = parseFloat(chitGroup.installment_amount);
+      const [allEnrolledMembers] = await connection.execute(
+        `SELECT gm.member_id, gm.ticket_number,
+                (
+                  SELECT COALESCE(SUM(c.amount), 0)
+                  FROM collections c
+                  WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id
+                    AND c.verification_status != 'CANCELLED'
+                    AND (
+                      ( ? = 'DAILY' AND c.collection_date = ? )
+                      OR
+                      ( ? = 'MONTHLY' AND (
+                          (YEAR(c.collection_date) = YEAR(?) AND MONTH(c.collection_date) = MONTH(?))
+                          OR c.collection_date = ?
+                        )
+                      )
+                    )
+                ) as cycle_paid
+         FROM group_memberships gm
+         WHERE gm.group_id = ? AND gm.status = 'ACTIVE'`,
+        [
+          chitGroup.frequency,
+          validated.auction_date,
+          chitGroup.frequency,
+          validated.auction_date,
+          validated.auction_date,
+          validated.auction_date,
+          validated.group_id,
+        ]
+      );
+
+      for (const mem of allEnrolledMembers) {
+        const paidSoFar = parseFloat(mem.cycle_paid || 0);
+        const shortfall = Math.max(0, expectedInstallment - paidSoFar);
+
+        if (shortfall > 0) {
+          const [existingAdv] = await connection.execute(
+            `SELECT id, advance_amount FROM admin_member_advances 
+             WHERE group_id = ? AND member_id = ? AND status = 'PENDING_RECOVERY' 
+             ORDER BY id DESC LIMIT 1`,
+            [validated.group_id, mem.member_id]
+          );
+
+          if (existingAdv.length > 0) {
+            await connection.execute(
+              `UPDATE admin_member_advances 
+               SET advance_amount = advance_amount + ?,
+                   advance_date = ?,
+                   notes = CONCAT(COALESCE(notes, ''), ' | Round #${validated.period_number} deficit: ₹', ?)
+               WHERE id = ?`,
+              [shortfall, validated.auction_date, shortfall, existingAdv[0].id]
+            );
+          } else {
+            await connection.execute(
+              `INSERT INTO admin_member_advances
+                (group_id, member_id, advance_amount, advance_date, cycle_period, status, recovered_amount, notes, created_by)
+               VALUES (?, ?, ?, ?, ?, 'PENDING_RECOVERY', 0.00, ?, ?)`,
+              [
+                validated.group_id,
+                mem.member_id,
+                shortfall,
+                validated.auction_date,
+                `Round #${validated.period_number}`,
+                `Round #${validated.period_number} auction shortfall deficit owed to Admin`,
+                req.user.id,
+              ]
+            );
+          }
+        }
+      }
+
       // 5c. Persist distributed dividend into subscriber passbook (member_dividends table) for Auction Chit
       if (!isDoubleChit && totalDividend > 0) {
         const [enrolledMembers] = await connection.execute(
@@ -812,9 +888,10 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
          GROUP BY c.member_id, c.group_id
        ) col_cycle ON col_cycle.member_id = gm.member_id
        LEFT JOIN (
-         SELECT id, group_id, member_id, advance_amount, advance_date, notes
+         SELECT group_id, member_id, MAX(id) as id, COALESCE(SUM(advance_amount), 0) as advance_amount, MAX(advance_date) as advance_date, GROUP_CONCAT(notes SEPARATOR ' | ') as notes
          FROM admin_member_advances
          WHERE group_id = ? AND status = 'PENDING_RECOVERY'
+         GROUP BY group_id, member_id
        ) ama ON ama.member_id = gm.member_id
        WHERE gm.group_id = ?
        ORDER BY gm.ticket_number ASC`,
@@ -909,10 +986,10 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
     const unpaidAmount = enrichedSubscribers
       .filter((s) => s.payment_status === 'NOT_PAID' || s.payment_status === 'PARTIAL')
       .reduce((sum, s) => sum + s.pending_amount, 0);
-    const adminCoveredCount = enrichedSubscribers.filter((s) => s.payment_status === 'ADMIN_COVERED').length;
+    const adminCoveredCount = enrichedSubscribers.filter((s) => s.is_admin_covered).length;
     const adminCoveredAmount = enrichedSubscribers
-      .filter((s) => s.payment_status === 'ADMIN_COVERED')
-      .reduce((sum, s) => sum + s.pending_amount, 0);
+      .filter((s) => s.is_admin_covered)
+      .reduce((sum, s) => sum + s.advance_amount, 0);
 
     res.status(200).json({
       success: true,

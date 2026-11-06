@@ -44,7 +44,7 @@ import {
   Send,
   QrCode,
 } from 'lucide-react';
-import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
+import { formatDate, formatDateTime, formatTime, getServerDate, getServerYMD } from '../utils/dateUtils';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
@@ -53,13 +53,12 @@ import ModalPortal from '../components/ModalPortal';
 export default function RouteTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState(new Date());
+  const [lastSyncTime, setLastSyncTime] = useState(getServerDate());
   const [trackingData, setTrackingData] = useState({ routes: [], summary: {} });
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [selectedStop, setSelectedStop] = useState(null);
   const [routeCategoryFilter, setRouteCategoryFilter] = useState('ALL'); // 'ALL' | 'DAILY_ROUTE' | 'MONTHLY_ROUTE'
   const [routeSearchTerm, setRouteSearchTerm] = useState('');
-  const [showAllChits, setShowAllChits] = useState(false);
   const [stopSearchTerm, setStopSearchTerm] = useState('');
   const [showLogModal, setShowLogModal] = useState(false);
   const [loggingStatus, setLoggingStatus] = useState('NOT_PAID');
@@ -173,7 +172,7 @@ export default function RouteTrackingPage() {
   };
 
   // Daily Agent Collection Ledger States
-  const [ledgerDate, setLedgerDate] = useState(new Date().toISOString().slice(0, 10));
+  const [ledgerDate, setLedgerDate] = useState(getServerYMD());
   const [ledgerMode, setLedgerMode] = useState('DAILY'); // 'DAILY' | 'ALL_TIME'
   const [ledgerAgentFilter, setLedgerAgentFilter] = useState('ALL');
   const [ledgerData, setLedgerData] = useState({
@@ -227,7 +226,7 @@ export default function RouteTrackingPage() {
       if (res.data?.success) {
         const data = res.data.data;
         setTrackingData(data);
-        setLastSyncTime(new Date());
+        setLastSyncTime(getServerDate());
         if (data?.routes && data.routes.length > 0) {
           if (!selectedRouteId) {
             setSelectedRouteId(data.routes[0].id);
@@ -408,7 +407,7 @@ export default function RouteTrackingPage() {
     setExpandedAgentId((prev) => (prev === agentId ? null : agentId));
   };
 
-  const getAgentSubTab = (agentId) => agentWorkSubTabs[agentId] || 'RECEIPTS';
+  const getAgentSubTab = (agentId) => agentWorkSubTabs[agentId] || 'NODES';
   const setAgentSubTab = (agentId, tab) => {
     setAgentWorkSubTabs((prev) => ({ ...prev, [agentId]: tab }));
   };
@@ -433,9 +432,6 @@ export default function RouteTrackingPage() {
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
             Route Operations & Agent Collections
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Monitor real-time agent collections, cash on hand, pending amounts, assigned routes, and live work dossiers
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -463,20 +459,18 @@ export default function RouteTrackingPage() {
           <button
             type="button"
             onClick={() => setActiveMainTab('PERFORMANCE_LEDGER')}
-            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
-              activeMainTab === 'PERFORMANCE_LEDGER'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
+            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${activeMainTab === 'PERFORMANCE_LEDGER'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
           >
             <Activity className="w-4 h-4" />
             <span>Daily Agent Collection & Work Ledger</span>
             <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                activeMainTab === 'PERFORMANCE_LEDGER'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-              }`}
+              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${activeMainTab === 'PERFORMANCE_LEDGER'
+                ? 'bg-blue-500 text-white'
+                : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                }`}
             >
               Everyday Reset
             </span>
@@ -485,31 +479,28 @@ export default function RouteTrackingPage() {
           <button
             type="button"
             onClick={() => setActiveMainTab('DAY_CLOSINGS')}
-            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
-              activeMainTab === 'DAY_CLOSINGS'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
+            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${activeMainTab === 'DAY_CLOSINGS'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
           >
             <PackageCheck className="w-4 h-4" />
             <span>Agent Day Closings & Handover Approvals</span>
             {daySubmissionsSummary?.total_pending > 0 ? (
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                  activeMainTab === 'DAY_CLOSINGS'
-                    ? 'bg-amber-400 text-slate-900'
-                    : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 animate-pulse'
-                }`}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${activeMainTab === 'DAY_CLOSINGS'
+                  ? 'bg-amber-400 text-slate-900'
+                  : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 animate-pulse'
+                  }`}
               >
                 {daySubmissionsSummary.total_pending} Pending
               </span>
             ) : (
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                  activeMainTab === 'DAY_CLOSINGS'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                }`}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${activeMainTab === 'DAY_CLOSINGS'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
               >
                 {daySubmissionsList?.length || 0}
               </span>
@@ -519,20 +510,18 @@ export default function RouteTrackingPage() {
           <button
             type="button"
             onClick={() => setActiveMainTab('ROUTE_MAP')}
-            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
-              activeMainTab === 'ROUTE_MAP'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
+            className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${activeMainTab === 'ROUTE_MAP'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
           >
             <Compass className="w-4 h-4" />
             <span>2D Visual Route Map</span>
             <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                activeMainTab === 'ROUTE_MAP'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-              }`}
+              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${activeMainTab === 'ROUTE_MAP'
+                ? 'bg-blue-500 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
             >
               {trackingData.routes?.length || 0} Routes
             </span>
@@ -547,11 +536,10 @@ export default function RouteTrackingPage() {
                 setRouteCategoryFilter('ALL');
                 smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
               }}
-              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
-                routeCategoryFilter === 'ALL'
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-              }`}
+              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${routeCategoryFilter === 'ALL'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
             >
               All Routes
             </button>
@@ -561,11 +549,10 @@ export default function RouteTrackingPage() {
                 setRouteCategoryFilter('DAILY_ROUTE');
                 smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
               }}
-              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
-                routeCategoryFilter === 'DAILY_ROUTE'
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-              }`}
+              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${routeCategoryFilter === 'DAILY_ROUTE'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
             >
               🚚 Daily Routes
             </button>
@@ -575,11 +562,10 @@ export default function RouteTrackingPage() {
                 setRouteCategoryFilter('MONTHLY_ROUTE');
                 smoothScrollTo('route-scheme-switcher', { offset: 32, behavior: 'smooth' });
               }}
-              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
-                routeCategoryFilter === 'MONTHLY_ROUTE'
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-              }`}
+              className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${routeCategoryFilter === 'MONTHLY_ROUTE'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
             >
               🏛️ Monthly Routes
             </button>
@@ -613,14 +599,13 @@ export default function RouteTrackingPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setLedgerDate(new Date().toISOString().slice(0, 10));
+                    setLedgerDate(getServerYMD());
                     setLedgerMode('DAILY');
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    ledgerMode === 'DAILY' && ledgerDate === new Date().toISOString().slice(0, 10)
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${ledgerMode === 'DAILY' && ledgerDate === getServerYMD()
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
                 >
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Today's Live Ledger</span>
@@ -630,11 +615,10 @@ export default function RouteTrackingPage() {
                 <button
                   type="button"
                   onClick={() => setLedgerMode(ledgerMode === 'ALL_TIME' ? 'DAILY' : 'ALL_TIME')}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    ledgerMode === 'ALL_TIME'
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${ledgerMode === 'ALL_TIME'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
                 >
                   <History className="w-3.5 h-3.5" />
                   <span>Global Lifetime History</span>
@@ -669,54 +653,23 @@ export default function RouteTrackingPage() {
               </div>
             </div>
 
-            {/* Daily Reset & Global History Explanation Banner */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-start gap-3">
-              <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                {ledgerMode === 'ALL_TIME' ? (
-                  <span>
-                    🌐 <strong>Global Lifetime Performance Ledger</strong>: Showing total all-time historical collections, receipts, and field visits across all days.
-                  </span>
-                ) : ledgerDate === new Date().toISOString().slice(0, 10) ? (
-                  <span>
-                    🟢 <strong>Today's Live Collection Roster (Resets Every Midnight)</strong>: Field collection targets and cash totals refresh fresh each day at 00:00 midnight IST. All historical day logs and issued receipts remain permanently archived in the global database.
-                  </span>
-                ) : (
-                  <span>
-                    📅 <strong>Archived Historical Record for {formatDate(ledgerDate)}</strong>: Viewing settled collection metrics, physical cash collected, and field notes for this specific past date.
-                  </span>
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Grand Executive Summary KPI Strip */}
+          {/* Grand Executive Summary KPI Strip (Ordered: Target Expected -> Total Inflow -> Cash -> UPI -> Pending -> Work Volume) */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-            {/* Cash on Hand */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
-              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Cash on Hand</span>
-                <Banknote className="w-4 h-4" />
+            {/* 1. Target Expected */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Target Expected</span>
+                <TrendingUp className="w-4 h-4 text-blue-500" />
               </div>
-              <div className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                ₹{Number(ledgerData.summary?.grandCash || 0).toLocaleString('en-IN')}
+              <div className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                ₹{Number(ledgerData.summary?.grandTarget || 0).toLocaleString('en-IN')}
               </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Physical currency with agents</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Daily routes + Monthly targets</span>
             </div>
 
-            {/* Digital / UPI */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
-              <div className="flex items-center justify-between text-purple-600 dark:text-purple-400 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider">UPI / Digital Collected</span>
-                <CreditCard className="w-4 h-4" />
-              </div>
-              <div className="text-lg sm:text-xl font-extrabold text-purple-600 dark:text-purple-400">
-                ₹{Number(ledgerData.summary?.grandOnline || 0).toLocaleString('en-IN')}
-              </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">UPI, QR & direct bank transfers</span>
-            </div>
-
-            {/* Total Inflow */}
+            {/* 2. Total Inflow */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800/60 shadow-xs">
               <div className="flex items-center justify-between text-blue-600 dark:text-blue-400 mb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider">Total Inflow</span>
@@ -728,19 +681,31 @@ export default function RouteTrackingPage() {
               <span className="text-[10px] text-slate-400 block mt-0.5">Gross collections achieved</span>
             </div>
 
-            {/* Expected Target */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Target Expected</span>
-                <TrendingUp className="w-4 h-4 text-blue-500" />
+            {/* 3. Cash on Hand */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Cash on Hand</span>
+                <Banknote className="w-4 h-4" />
               </div>
-              <div className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
-                ₹{Number(ledgerData.summary?.grandTarget || 0).toLocaleString('en-IN')}
+              <div className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                ₹{Number(ledgerData.summary?.grandCash || 0).toLocaleString('en-IN')}
               </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Daily routes + Monthly at cycle deadline</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Physical currency with agents</span>
             </div>
 
-            {/* Total Pending */}
+            {/* 4. Digital / UPI */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-purple-600 dark:text-purple-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">UPI / Digital Collected</span>
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-purple-600 dark:text-purple-400">
+                ₹{Number(ledgerData.summary?.grandOnline || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">UPI, QR & direct bank transfers</span>
+            </div>
+
+            {/* 5. Total Pending */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 shadow-xs">
               <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider">Pending Amount</span>
@@ -752,7 +717,7 @@ export default function RouteTrackingPage() {
               <span className="text-[10px] text-slate-400 block mt-0.5">{ledgerData.summary?.averageCompletionPercent || 0}% overall efficiency</span>
             </div>
 
-            {/* Receipts & Active Agents */}
+            {/* 6. Receipts & Active Agents (Work Volume) */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
               <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 mb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider">Work Volume</span>
@@ -810,11 +775,10 @@ export default function RouteTrackingPage() {
                             </h4>
                             <span className="text-xs text-slate-500 font-mono">@{agent.username}</span>
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                agent.isActive
-                                  ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                              }`}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${agent.isActive
+                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                }`}
                             >
                               {agent.isActive ? 'Active Field Agent' : 'Inactive'}
                             </span>
@@ -842,10 +806,10 @@ export default function RouteTrackingPage() {
                       </div>
 
                       {/* Jump to Map Button */}
-                      {agent.assignedRoutes.length > 0 && (
+                      {(agent.assignedRoutes || []).length > 0 && (
                         <button
                           type="button"
-                          onClick={() => handleJumpToAgentRoute(agent.assignedRoutes[0]?.groupId)}
+                          onClick={() => handleJumpToAgentRoute((agent.assignedRoutes || [])[0]?.groupId)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-blue-700 dark:text-blue-300 text-xs font-bold transition-all cursor-pointer self-start sm:self-auto"
                         >
                           <Compass className="w-3.5 h-3.5" />
@@ -862,7 +826,7 @@ export default function RouteTrackingPage() {
                           Target Expected
                         </span>
                         <div className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
-                          ₹{agent.targetExpected.toLocaleString('en-IN')}
+                          ₹{Number(agent.targetExpected || 0).toLocaleString('en-IN')}
                         </div>
                       </div>
 
@@ -871,7 +835,7 @@ export default function RouteTrackingPage() {
                           Cash on Hand
                         </span>
                         <div className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                          ₹{agent.cashCollected.toLocaleString('en-IN')}
+                          ₹{Number(agent.cashCollected || 0).toLocaleString('en-IN')}
                         </div>
                       </div>
 
@@ -880,7 +844,7 @@ export default function RouteTrackingPage() {
                           UPI / Digital Inflow
                         </span>
                         <div className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
-                          ₹{agent.onlineCollected.toLocaleString('en-IN')}
+                          ₹{Number(agent.onlineCollected || 0).toLocaleString('en-IN')}
                         </div>
                       </div>
 
@@ -889,7 +853,7 @@ export default function RouteTrackingPage() {
                           Total Collected
                         </span>
                         <div className="text-sm sm:text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
-                          ₹{agent.totalCollected.toLocaleString('en-IN')}
+                          ₹{Number(agent.totalCollected || 0).toLocaleString('en-IN')}
                         </div>
                       </div>
 
@@ -898,7 +862,7 @@ export default function RouteTrackingPage() {
                           Pending Amount
                         </span>
                         <div className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
-                          ₹{agent.pendingAmount.toLocaleString('en-IN')}
+                          ₹{Number(agent.pendingAmount || 0).toLocaleString('en-IN')}
                         </div>
                       </div>
                     </div>
@@ -924,282 +888,421 @@ export default function RouteTrackingPage() {
                     {/* Assigned Routes Section */}
                     <div className="space-y-2">
                       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Assigned Routes & Scheme Details ({agent.assignedRoutes.length})
+                        Assigned Routes & Scheme Details ({(agent.assignedRoutes || []).length})
                       </span>
-                      {agent.assignedRoutes.length === 0 ? (
+                      {(agent.assignedRoutes || []).length === 0 ? (
                         <p className="text-xs text-slate-400 italic">No chit routes currently assigned to this agent.</p>
                       ) : (
-                        <div className="flex flex-wrap gap-2">
-                          {agent.assignedRoutes.map((r) => (
-                            <div
-                              key={r.groupId}
-                              className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center gap-2.5 text-xs"
-                            >
-                              <span
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
-                                  r.frequency === 'DAILY'
-                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {(agent.assignedRoutes || []).map((r) => {
+                            const isCompleted = r.isCompleted || (r.expectedTarget > 0 && (r.collectedAmount || 0) >= r.expectedTarget) || (r.pendingAmount === 0 && (r.collectedAmount || 0) > 0);
+                            const collectedAmt = Number(r.collectedAmount || 0);
+                            const pendingAmt = Number(r.pendingAmount !== undefined ? r.pendingAmount : Math.max(0, (r.expectedTarget || 0) - collectedAmt));
+
+                            return (
+                              <div
+                                key={r.groupId}
+                                className={`p-3 rounded-xl border flex flex-col justify-between gap-2.5 text-xs transition-all ${
+                                  isCompleted
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-400 dark:border-emerald-700 text-emerald-950 dark:text-emerald-100 shadow-xs'
+                                    : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
                                 }`}
                               >
-                                {r.frequency === 'DAILY' ? '🚚 Daily' : '🏛️ Monthly'}
-                              </span>
-                              <div>
-                                <span className="font-bold text-slate-900 dark:text-white">
-                                  {r.groupName} ({r.groupCode})
-                                </span>
-                                <div className="text-[11px] text-slate-500">
-                                  👥 {r.subscribersCount} subs · ₹{r.installmentAmount.toLocaleString('en-IN')} inst · Target: ₹{r.expectedTarget.toLocaleString('en-IN')}
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span
+                                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${
+                                          r.frequency === 'DAILY'
+                                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                            : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                                        }`}
+                                      >
+                                        {r.frequency === 'DAILY' ? '🚚 Daily' : '🏛️ Monthly'}
+                                      </span>
+                                      <span className="font-mono text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                        {r.groupCode}
+                                      </span>
+                                      {isCompleted && (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500 text-white flex items-center gap-1 shadow-xs">
+                                          ✓ Completed
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="font-extrabold text-slate-900 dark:text-white truncate mt-1">
+                                      {r.groupName}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                      👥 {r.subscribersCount} subs · ₹{Number(r.installmentAmount || 0).toLocaleString('en-IN')} inst
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleJumpToAgentRoute(r.groupId)}
+                                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 hover:border-blue-400 text-slate-500 hover:text-blue-600 transition-colors cursor-pointer shrink-0"
+                                    title="Open this scheme on 2D route map"
+                                  >
+                                    <Compass className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-[11px]">
+                                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                    Collected: ₹{collectedAmt.toLocaleString('en-IN')}
+                                  </span>
+                                  <span className="font-bold text-rose-600 dark:text-rose-400">
+                                    Pending: ₹{pendingAmt.toLocaleString('en-IN')}
+                                  </span>
                                 </div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleJumpToAgentRoute(r.groupId)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 transition-colors cursor-pointer ml-1"
-                                title="Open this scheme on 2D route map"
-                              >
-                                <Compass className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
 
                     {/* Information of Work (Expandable Work Dossier) */}
                     <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <button
-                        type="button"
-                        onClick={() => toggleAgentExpand(agent.agentId)}
-                        className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Information of Work & Audit Dossier</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold">
-                            {agent.receiptsCount} Receipts Issued
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold">
-                            {agent.workLogs.length} Field Remarks Logged
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-slate-500">
-                          <span>{isExpanded ? 'Hide Dossier' : 'Inspect Information'}</span>
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </div>
-                      </button>
+                      {(() => {
+                        const agentGroupIds = new Set((agent.assignedRoutes || []).map((r) => r.groupId));
+                        const agentNodes = (trackingData?.routes || [])
+                          .filter((rt) => agentGroupIds.has(rt.id))
+                          .flatMap((rt) => (rt.stops || []).map((st) => ({
+                            ...st,
+                            groupName: rt.groupName,
+                            groupCode: rt.groupCode,
+                            frequency: rt.frequency,
+                          })));
 
-                      {/* Expanded Work Dossier Content */}
-                      {isExpanded && (
-                        <div className="mt-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3 animate-fadeIn">
-                          {/* Dossier Tabs */}
-                          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                        return (
+                          <>
                             <button
                               type="button"
-                              onClick={() => setAgentSubTab(agent.agentId, 'RECEIPTS')}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                subTab === 'RECEIPTS'
-                                  ? 'bg-blue-600 text-white shadow-xs'
-                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                              }`}
+                              onClick={() => toggleAgentExpand(agent.agentId)}
+                              className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
                             >
-                              🧾 Receipts Breakdown ({agent.receipts.length})
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                <span>Information of Work & Audit Dossier</span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-semibold">
+                                  {agentNodes.length} Assigned Nodes
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold">
+                                  {agent.receiptsCount || (agent.receipts || []).length || 0} Receipts
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold">
+                                  {(agent.workLogs || []).length} Remarks
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 text-slate-500">
+                                <span>{isExpanded ? 'Hide Dossier' : 'Inspect Information'}</span>
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </div>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => setAgentSubTab(agent.agentId, 'LOGS')}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                subTab === 'LOGS'
-                                  ? 'bg-blue-600 text-white shadow-xs'
-                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                              }`}
-                            >
-                              📝 Field Remarks & Notes ({agent.workLogs.length})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setAgentSubTab(agent.agentId, 'ROUTES')}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                subTab === 'ROUTES'
-                                  ? 'bg-blue-600 text-white shadow-xs'
-                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                              }`}
-                            >
-                              🚚 Route Details ({agent.assignedRoutes.length})
-                            </button>
-                          </div>
 
-                          {/* Sub-tab 1: Receipts Breakdown Table */}
-                          {subTab === 'RECEIPTS' && (
-                            <div className="overflow-x-auto">
-                              {agent.receipts.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic py-3 text-center">
-                                  No receipts registered for this agent on this date.
-                                </p>
-                              ) : (
-                                <table className="w-full text-left text-xs">
-                                  <thead>
-                                    <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-400 uppercase text-[10px]">
-                                      <th className="py-2 px-2 font-bold">Receipt #</th>
-                                      <th className="py-2 px-2 font-bold">Subscriber</th>
-                                      <th className="py-2 px-2 font-bold">Chit Scheme</th>
-                                      <th className="py-2 px-2 font-bold">Payment Method</th>
-                                      <th className="py-2 px-2 font-bold text-right">Amount</th>
-                                      <th className="py-2 px-2 font-bold">Time</th>
-                                      <th className="py-2 px-2 font-bold">Notes / Remarks</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                                    {agent.receipts.map((rcp) => (
-                                      <tr key={rcp.id} className="hover:bg-white/50 dark:hover:bg-slate-700/50">
-                                        <td className="py-2 px-2 font-mono font-bold text-blue-600 dark:text-blue-400">
-                                          {rcp.receiptNumber}
-                                        </td>
-                                        <td className="py-2 px-2 font-medium text-slate-800 dark:text-slate-200">
-                                          {rcp.memberName}
-                                          {rcp.memberPhone && (
-                                            <span className="text-[10px] text-slate-400 block font-mono">
-                                              {rcp.memberPhone}
-                                            </span>
-                                          )}
-                                        </td>
-                                        <td className="py-2 px-2 text-slate-600 dark:text-slate-300">
-                                          {rcp.groupName}
-                                        </td>
-                                        <td className="py-2 px-2">
-                                          <span
-                                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                              rcp.paymentMethod === 'CASH'
-                                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                                : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                                            }`}
-                                          >
-                                            {rcp.paymentMethod}
-                                          </span>
-                                        </td>
-                                        <td className="py-2 px-2 font-extrabold text-right text-slate-900 dark:text-white">
-                                          ₹{rcp.amount.toLocaleString('en-IN')}
-                                        </td>
-                                        <td className="py-2 px-2 text-slate-400 font-mono text-[11px]">
-                                          {rcp.collectionTime ? formatTime(rcp.collectionTime) : '-'}
-                                        </td>
-                                        <td className="py-2 px-2 text-slate-500 dark:text-slate-400 text-[11px]">
-                                          {rcp.notes || '-'}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Sub-tab 2: Field Remarks & Notes */}
-                          {subTab === 'LOGS' && (
-                            <div className="space-y-2">
-                              {agent.workLogs.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic py-3 text-center">
-                                  No field remarks logged for this agent on this date.
-                                </p>
-                              ) : (
-                                agent.workLogs.map((log) => (
-                                  <div
-                                    key={log.id}
-                                    className="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                            {/* Expanded Work Dossier Content (Compact, No Horizontal Scrolling) */}
+                            {isExpanded && (
+                              <div className="mt-3 p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3 animate-fadeIn overflow-x-hidden">
+                                {/* Dossier Tabs */}
+                                <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 dark:border-slate-700 pb-2 overflow-x-auto scrollbar-none">
+                                  <button
+                                    type="button"
+                                    onClick={() => setAgentSubTab(agent.agentId, 'NODES')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                                      subTab === 'NODES'
+                                        ? 'bg-blue-600 text-white shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
                                   >
-                                    <div className="space-y-0.5">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                                          {log.memberName || 'Subscriber Stop'}
-                                        </span>
-                                        <span className="text-[11px] text-slate-400">({log.groupName || log.groupCode})</span>
-                                        <span
-                                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                            log.status === 'PAID'
-                                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                                          }`}
-                                        >
-                                          {log.status}
-                                        </span>
-                                      </div>
-                                      <p className="text-slate-600 dark:text-slate-300 font-medium">
-                                        💬 "{log.notes || 'Status updated by field agent'}"
-                                      </p>
-                                    </div>
-                                    <div className="text-[11px] text-slate-400 font-mono shrink-0">
-                                      {log.time ? formatDateTime(log.time) : '-'}
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          )}
+                                    📍 Assigned Chit Nodes ({agentNodes.length})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAgentSubTab(agent.agentId, 'RECEIPTS')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                                      subTab === 'RECEIPTS'
+                                        ? 'bg-blue-600 text-white shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                                  >
+                                    🧾 Receipts ({(agent.receipts || []).length})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAgentSubTab(agent.agentId, 'LOGS')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                                      subTab === 'LOGS'
+                                        ? 'bg-blue-600 text-white shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                                  >
+                                    📝 Remarks ({(agent.workLogs || []).length})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAgentSubTab(agent.agentId, 'ROUTES')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                                      subTab === 'ROUTES'
+                                        ? 'bg-blue-600 text-white shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                                  >
+                                    🚚 Route Schemes ({(agent.assignedRoutes || []).length})
+                                  </button>
+                                </div>
 
-                          {/* Sub-tab 3: Route Details */}
-                          {subTab === 'ROUTES' && (
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-left text-xs">
-                                <thead>
-                                  <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-400 uppercase text-[10px]">
-                                    <th className="py-2 px-2 font-bold">Route Code</th>
-                                    <th className="py-2 px-2 font-bold">Scheme Name</th>
-                                    <th className="py-2 px-2 font-bold">Frequency</th>
-                                    <th className="py-2 px-2 font-bold">Location</th>
-                                    <th className="py-2 px-2 font-bold text-right">Installment</th>
-                                    <th className="py-2 px-2 font-bold text-right">Subscribers</th>
-                                    <th className="py-2 px-2 font-bold text-right">Route Target</th>
-                                    <th className="py-2 px-2 text-center font-bold">Map</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                                  {agent.assignedRoutes.map((r) => (
-                                    <tr key={r.groupId} className="hover:bg-white/50 dark:hover:bg-slate-700/50">
-                                      <td className="py-2 px-2 font-mono font-bold text-blue-600 dark:text-blue-400">
-                                        {r.groupCode}
-                                      </td>
-                                      <td className="py-2 px-2 font-semibold text-slate-800 dark:text-slate-200">
-                                        {r.groupName}
-                                      </td>
-                                      <td className="py-2 px-2">
-                                        <span
-                                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                            r.frequency === 'DAILY'
-                                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                              : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                                          }`}
+                                {/* Sub-tab 1: Assigned Chit Nodes (Compact Card Grid - No Scrolling) */}
+                                {subTab === 'NODES' && (
+                                  <div>
+                                    {agentNodes.length === 0 ? (
+                                      <p className="text-xs text-slate-400 italic py-3 text-center">
+                                        No subscriber nodes mapped for this agent's schemes.
+                                      </p>
+                                    ) : (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                        {agentNodes.map((node) => {
+                                          const isPaid = node.status === 'PAID';
+                                          const isPartial = node.status === 'PARTIAL';
+                                          return (
+                                            <div
+                                              key={`${node.chitCode}-${node.id}-${node.stopOrder}`}
+                                              className={`p-2.5 rounded-xl border text-xs flex flex-col justify-between gap-2 transition-all ${
+                                                isPaid
+                                                  ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
+                                                  : isPartial
+                                                  ? 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
+                                                  : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700'
+                                              }`}
+                                            >
+                                              <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="font-mono text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                                      Ticket #{node.stopOrder}
+                                                    </span>
+                                                    <span className="font-mono text-[10px] text-slate-400">
+                                                      {node.groupCode}
+                                                    </span>
+                                                  </div>
+                                                  <div className="font-bold text-slate-900 dark:text-white truncate mt-1">
+                                                    {node.memberName}
+                                                  </div>
+                                                  {node.memberPhone && (
+                                                    <div className="text-[11px] text-slate-500 font-mono">
+                                                      📞 {node.memberPhone}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                <span
+                                                  className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
+                                                    isPaid
+                                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                                                      : isPartial
+                                                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                                                      : 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200'
+                                                  }`}
+                                                >
+                                                  {isPaid ? '✓ Paid' : isPartial ? '⚠️ Partial' : '✕ Pending'}
+                                                </span>
+                                              </div>
+
+                                              <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 text-[11px]">
+                                                <span className="text-slate-500 truncate">{node.groupName}</span>
+                                                <span className="font-mono font-bold text-slate-900 dark:text-white shrink-0">
+                                                  Due: ₹{Number(node.expectedAmount || 0).toLocaleString('en-IN')}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Sub-tab 2: Receipts Breakdown (Compact Responsive Grid - No Scrolling) */}
+                                {subTab === 'RECEIPTS' && (
+                                  <div>
+                                    {(agent.receipts || []).length === 0 ? (
+                                      <p className="text-xs text-slate-400 italic py-3 text-center">
+                                        No receipts registered for this agent on this date.
+                                      </p>
+                                    ) : (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                        {(agent.receipts || []).map((rcp) => (
+                                          <div
+                                            key={rcp.id}
+                                            className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs flex flex-col justify-between gap-2 shadow-2xs"
+                                          >
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="min-w-0">
+                                                <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px] block">
+                                                  #{rcp.receiptNumber}
+                                                </span>
+                                                <div className="font-bold text-slate-900 dark:text-white truncate mt-0.5">
+                                                  {rcp.memberName}
+                                                </div>
+                                                {rcp.memberPhone && (
+                                                  <span className="text-[10px] text-slate-400 font-mono block">
+                                                    {rcp.memberPhone}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <span
+                                                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
+                                                  rcp.paymentMethod === 'CASH'
+                                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                                    : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                                                }`}
+                                              >
+                                                {rcp.paymentMethod}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-slate-700/60 text-[11px]">
+                                              <span className="text-slate-500 truncate">{rcp.groupName}</span>
+                                              <span className="font-extrabold text-slate-900 dark:text-white shrink-0">
+                                                ₹{Number(rcp.amount || 0).toLocaleString('en-IN')}
+                                              </span>
+                                            </div>
+                                            {rcp.notes && (
+                                              <p className="text-[10px] text-slate-400 italic truncate">
+                                                📝 {rcp.notes}
+                                              </p>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Sub-tab 3: Field Remarks & Notes */}
+                                {subTab === 'LOGS' && (
+                                  <div className="space-y-2">
+                                    {(agent.workLogs || []).length === 0 ? (
+                                      <p className="text-xs text-slate-400 italic py-3 text-center">
+                                        No field remarks logged for this agent on this date.
+                                      </p>
+                                    ) : (
+                                      (agent.workLogs || []).map((log) => (
+                                        <div
+                                          key={log.id}
+                                          className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
                                         >
-                                          {r.frequency}
-                                        </span>
-                                      </td>
-                                      <td className="py-2 px-2 text-slate-500">{r.locationName || '-'}</td>
-                                      <td className="py-2 px-2 font-mono text-right text-slate-800 dark:text-slate-200">
-                                        ₹{r.installmentAmount.toLocaleString('en-IN')}
-                                      </td>
-                                      <td className="py-2 px-2 font-mono text-right text-slate-800 dark:text-slate-200">
-                                        {r.subscribersCount}
-                                      </td>
-                                      <td className="py-2 px-2 font-bold text-right text-emerald-600 dark:text-emerald-400">
-                                        ₹{r.expectedTarget.toLocaleString('en-IN')}
-                                      </td>
-                                      <td className="py-2 px-2 text-center">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleJumpToAgentRoute(r.groupId)}
-                                          className="p-1 rounded text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-950 transition-colors cursor-pointer"
-                                          title="View on Map"
-                                        >
-                                          <Compass className="w-3.5 h-3.5 inline" />
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                                          <div className="space-y-0.5">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-bold text-slate-800 dark:text-slate-200">
+                                                {log.memberName || 'Subscriber Stop'}
+                                              </span>
+                                              <span className="text-[11px] text-slate-400">({log.groupName || log.groupCode})</span>
+                                              <span
+                                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                                  log.status === 'PAID'
+                                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                                }`}
+                                              >
+                                                {log.status}
+                                              </span>
+                                            </div>
+                                            <p className="text-slate-600 dark:text-slate-300 font-medium">
+                                              💬 "{log.notes || 'Status updated by field agent'}"
+                                            </p>
+                                          </div>
+                                          <div className="text-[11px] text-slate-400 font-mono shrink-0">
+                                            {log.time ? formatDateTime(log.time) : '-'}
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Sub-tab 4: Route Schemes (Compact Responsive Grid - No Scrolling) */}
+                                {subTab === 'ROUTES' && (
+                                  <div>
+                                    {(agent.assignedRoutes || []).length === 0 ? (
+                                      <p className="text-xs text-slate-400 italic py-3 text-center">
+                                        No routes assigned to this agent.
+                                      </p>
+                                    ) : (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                        {(agent.assignedRoutes || []).map((r) => {
+                                          const isCompleted = r.isCompleted || (r.expectedTarget > 0 && (r.collectedAmount || 0) >= r.expectedTarget) || (r.pendingAmount === 0 && (r.collectedAmount || 0) > 0);
+                                          return (
+                                            <div
+                                              key={r.groupId}
+                                              className={`p-3 rounded-xl border text-xs flex flex-col justify-between gap-2.5 ${
+                                                isCompleted
+                                                  ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
+                                                  : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700'
+                                              }`}
+                                            >
+                                              <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="font-mono text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                                      {r.groupCode}
+                                                    </span>
+                                                    <span
+                                                      className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
+                                                        r.frequency === 'DAILY'
+                                                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                                          : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                                                      }`}
+                                                    >
+                                                      {r.frequency}
+                                                    </span>
+                                                    {isCompleted && (
+                                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500 text-white">
+                                                        ✓ Completed
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <div className="font-bold text-slate-900 dark:text-white truncate mt-1">
+                                                    {r.groupName}
+                                                  </div>
+                                                  <div className="text-[11px] text-slate-400 mt-0.5">
+                                                    📍 {r.locationName || 'General Zone'} · 👥 {r.subscribersCount} subs
+                                                  </div>
+                                                </div>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleJumpToAgentRoute(r.groupId)}
+                                                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 hover:border-blue-400 text-blue-600 transition-colors cursor-pointer shrink-0"
+                                                  title="View Route Map"
+                                                >
+                                                  <Compass className="w-3.5 h-3.5" />
+                                                </button>
+                                              </div>
+
+                                              <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[11px]">
+                                                <div>
+                                                  <span className="text-slate-400 block text-[10px]">Installment</span>
+                                                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                                    ₹{Number(r.installmentAmount || 0).toLocaleString('en-IN')}
+                                                  </span>
+                                                </div>
+                                                <div className="text-right">
+                                                  <span className="text-slate-400 block text-[10px]">Route Target</span>
+                                                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                                                    ₹{Number(r.expectedTarget || 0).toLocaleString('en-IN')}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -1287,22 +1390,20 @@ export default function RouteTrackingPage() {
               <button
                 type="button"
                 onClick={() => setDaySubmissionsStatusFilter('ALL')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  daySubmissionsStatusFilter === 'ALL'
-                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${daySubmissionsStatusFilter === 'ALL'
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
               >
                 All ({daySubmissionsList.length})
               </button>
               <button
                 type="button"
                 onClick={() => setDaySubmissionsStatusFilter('PENDING_APPROVAL')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  daySubmissionsStatusFilter === 'PENDING_APPROVAL'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${daySubmissionsStatusFilter === 'PENDING_APPROVAL'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                  }`}
               >
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                 <span>Pending Approvals ({daySubmissionsSummary?.total_pending || 0})</span>
@@ -1310,11 +1411,10 @@ export default function RouteTrackingPage() {
               <button
                 type="button"
                 onClick={() => setDaySubmissionsStatusFilter('APPROVED')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  daySubmissionsStatusFilter === 'APPROVED'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${daySubmissionsStatusFilter === 'APPROVED'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                  }`}
               >
                 ✓ Approved & Closed ({daySubmissionsSummary?.total_approved || 0})
               </button>
@@ -1410,25 +1510,23 @@ export default function RouteTrackingPage() {
                 return (
                   <div
                     key={sub.id}
-                    className={`rounded-2xl border bg-white dark:bg-slate-900 shadow-sm transition-all overflow-hidden ${
-                      sub.status === 'PENDING_APPROVAL'
-                        ? 'border-amber-300 dark:border-amber-800/80 ring-1 ring-amber-400/20'
-                        : sub.status === 'APPROVED'
+                    className={`rounded-2xl border bg-white dark:bg-slate-900 shadow-sm transition-all overflow-hidden ${sub.status === 'PENDING_APPROVAL'
+                      ? 'border-amber-300 dark:border-amber-800/80 ring-1 ring-amber-400/20'
+                      : sub.status === 'APPROVED'
                         ? 'border-emerald-200 dark:border-emerald-800/60'
                         : 'border-rose-300 dark:border-rose-800'
-                    }`}
+                      }`}
                   >
                     {/* Header Strip */}
                     <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40">
                       <div className="flex items-start sm:items-center gap-3">
                         <div
-                          className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-white shadow-sm ${
-                            sub.status === 'PENDING_APPROVAL'
-                              ? 'bg-amber-500'
-                              : sub.status === 'APPROVED'
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-white shadow-sm ${sub.status === 'PENDING_APPROVAL'
+                            ? 'bg-amber-500'
+                            : sub.status === 'APPROVED'
                               ? 'bg-emerald-600'
                               : 'bg-rose-500'
-                          }`}
+                            }`}
                         >
                           <PackageCheck className="w-5 h-5" />
                         </div>
@@ -1638,11 +1736,10 @@ export default function RouteTrackingPage() {
                                   >
                                     <div className="flex items-center gap-2.5">
                                       <span
-                                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                                          chit.frequency === 'DAILY'
-                                            ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700'
-                                            : 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-700'
-                                        }`}
+                                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${chit.frequency === 'DAILY'
+                                          ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700'
+                                          : 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-700'
+                                          }`}
                                       >
                                         {chit.frequency}
                                       </span>
@@ -1767,772 +1864,781 @@ export default function RouteTrackingPage() {
         /* 2D VISUAL ROUTE MAP & WAYPOINTS */
         <>
           {/* Overview Stat Cards with Day-by-Day (Daily) vs Month-by-Month (Monthly) Separation */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Active Routes
-          </span>
-          <div className="text-xl sm:text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">
-            {trackingData.summary?.activeRoutesCount || 0}
-          </div>
-          <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="font-semibold text-amber-600 dark:text-amber-400">
-              📅 {trackingData.summary?.daily?.routesCount || 0} Daily
-            </span>
-            <span>·</span>
-            <span className="font-semibold text-blue-600 dark:text-blue-400">
-              🗓️ {trackingData.summary?.monthly?.routesCount || 0} Monthly
-            </span>
-          </div>
-        </div>
-
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Paid Member Nodes
-          </span>
-          <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-            {trackingData.summary?.grandVisitedStops || 0} / {trackingData.summary?.grandTotalStops || 0}
-          </div>
-          <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
-            <span>Daily: {trackingData.summary?.daily?.visitedStops || 0} paid</span>
-            <span>·</span>
-            <span>Monthly: {trackingData.summary?.monthly?.visitedStops || 0} paid</span>
-          </div>
-        </div>
-
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Cash Collected on Routes
-          </span>
-          <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-            ₹{Number(trackingData.summary?.grandCashCollected || 0).toLocaleString('en-IN')}
-          </div>
-          <span className="text-xs text-slate-400 mt-1 block">Physically with field agents</span>
-        </div>
-
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Digital / UPI on Routes
-          </span>
-          <div className="text-xl sm:text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-1">
-            ₹{Number(trackingData.summary?.grandOnlineCollected || 0).toLocaleString('en-IN')}
-          </div>
-          <span className="text-xs text-slate-400 mt-1 block">Direct bank transfers verified</span>
-        </div>
-      </div>
-
-      {/* Smart Chit Scheme Fast Finder & Grid (No more endless horizontal scrolling) */}
-      <div id="route-scheme-switcher" className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 scroll-mt-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Compass className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-              Chit Scheme Quick Switcher ({filteredRoutes.length} Schemes Available)
-            </h4>
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            {/* Instant Search Bar */}
-            <div className="relative flex-1 sm:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={routeSearchTerm}
-                onChange={(e) => setRouteSearchTerm(e.target.value)}
-                placeholder="Search scheme name, code (e.g. DL-01), agent..."
-                className="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-              {routeSearchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setRouteSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Active Routes
+              </span>
+              <div className="text-xl sm:text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">
+                {trackingData.summary?.activeRoutesCount || 0}
+              </div>
+              <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  📅 {trackingData.summary?.daily?.routesCount || 0} Daily
+                </span>
+                <span>·</span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                  🗓️ {trackingData.summary?.monthly?.routesCount || 0} Monthly
+                </span>
+              </div>
             </div>
 
-            {/* Show All / Collapse Toggle Button (When not searching) */}
-            {!routeSearchTerm && filteredRoutes.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setShowAllChits(!showAllChits)}
-                className="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 shrink-0"
-                title={showAllChits ? 'Collapse scheme cards' : 'Display all schemes'}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>{showAllChits ? 'Collapse' : `Show All (${filteredRoutes.length})`}</span>
-                {showAllChits ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-            )}
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Paid Member Nodes
+              </span>
+              <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+                {trackingData.summary?.grandVisitedStops || 0} / {trackingData.summary?.grandTotalStops || 0}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
+                <span>Daily: {trackingData.summary?.daily?.visitedStops || 0} paid</span>
+                <span>·</span>
+                <span>Monthly: {trackingData.summary?.monthly?.visitedStops || 0} paid</span>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Cash Collected on Routes
+              </span>
+              <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+                ₹{Number(trackingData.summary?.grandCashCollected || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-xs text-slate-400 mt-1 block">Physically with field agents</span>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Digital / UPI on Routes
+              </span>
+              <div className="text-xl sm:text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-1">
+                ₹{Number(trackingData.summary?.grandOnlineCollected || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-xs text-slate-400 mt-1 block">Direct bank transfers verified</span>
+            </div>
+          </div>
+
+          {/* Smart Chit Scheme Fast Finder & Grid (No more endless horizontal scrolling) */}
+          <div id="route-scheme-switcher" className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 scroll-mt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Compass className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  Chit Scheme Quick Switcher ({filteredRoutes.length} Schemes Available)
+                </h4>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {/* Instant Search Bar */}
+                <div className="relative flex-1 sm:w-72">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={routeSearchTerm}
+                    onChange={(e) => setRouteSearchTerm(e.target.value)}
+                    placeholder="Search scheme name, code (e.g. DL-01), agent..."
+                    className="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  {routeSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setRouteSearchTerm('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
           </div>
         </div>
 
-        {/* Compact Responsive Scheme Grid */}
+        {/* Compact Responsive Scheme Grid (Shows All Schemes by Default) */}
         {filteredRoutes.length === 0 ? (
           <div className="p-6 text-center text-xs text-slate-400">
             {routeSearchTerm ? `No chit schemes match "${routeSearchTerm}". Try another keyword or clear search.` : 'No chit schemes available yet. Click "Chit Schemes & Routes" to create your first scheme.'}
           </div>
         ) : (
           <div className="space-y-2 pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
-              {(routeSearchTerm || showAllChits
-                ? filteredRoutes
-                : filteredRoutes.filter((r) => r.id === selectedRouteId || (activeRoute && r.id === activeRoute.id))
-              ).map((route) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {filteredRoutes.map((route) => {
                 const isSelected = route.id === selectedRouteId || (activeRoute && route.id === activeRoute.id);
+                const routeStats = route?.stats || {};
+                const totalTarget = routeStats.targetAmount || ((routeStats.totalStops || 0) * (Number(route.installmentAmount) || 0));
+                const totalCollected = routeStats.totalCollected || ((Number(routeStats.cashCollected) || 0) + (Number(routeStats.onlineCollected) || 0)) || 0;
+                const pendingAmount = routeStats.pendingAmount !== undefined ? routeStats.pendingAmount : Math.max(0, totalTarget - totalCollected);
+                const isCompleted = (totalTarget > 0 && totalCollected >= totalTarget) || ((routeStats.totalStops || 0) > 0 && routeStats.visitedStops === routeStats.totalStops && totalCollected > 0);
+
                 return (
                   <button
-                    key={route.id}
                     type="button"
                     onClick={() => handleSelectRoute(route.id)}
-                    className={`p-3 rounded-xl text-left transition-all cursor-pointer card-interactive-elevate border ${
+                    className={`p-3.5 rounded-2xl text-left transition-all cursor-pointer border flex flex-col justify-between gap-2.5 relative group ${
                       isSelected
-                        ? 'bg-blue-50/90 dark:bg-blue-950/50 border-blue-500 text-blue-950 dark:text-blue-100 shadow-[0_8px_20px_-4px_rgba(37,99,235,0.25)] ring-1 ring-blue-500'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-400 text-slate-800 dark:text-slate-200'
+                        ? 'bg-blue-50/90 dark:bg-blue-950/60 border-blue-500 text-blue-950 dark:text-blue-100 shadow-[0_8px_24px_-4px_rgba(37,99,235,0.28)] ring-2 ring-blue-500'
+                        : isCompleted
+                        ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/80 hover:border-emerald-500 text-slate-800 dark:text-slate-200'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-400 hover:shadow-md text-slate-800 dark:text-slate-200'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">
-                        {route.groupCode}
-                      </span>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase ${
-                          route.chitType === 'DAILY_CHIT'
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                            : route.chitType === 'DOUBLE_CHIT'
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                            : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                        }`}
-                      >
-                        {route.chitType === 'DAILY_CHIT' ? 'Daily' : route.chitType === 'DOUBLE_CHIT' ? 'Double' : 'Monthly'}
-                      </span>
+                    <div>
+                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[11px] font-extrabold text-blue-600 dark:text-blue-400 uppercase">
+                            {route.groupCode}
+                          </span>
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase ${
+                              route.frequency === 'DAILY' || route.chitType === 'DAILY_CHIT'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                            }`}
+                          >
+                            {route.frequency === 'DAILY' || route.chitType === 'DAILY_CHIT' ? 'Daily' : 'Monthly'}
+                          </span>
+                        </div>
+                        {isSelected ? (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-600 text-white shadow-xs">
+                            ✓ Active
+                          </span>
+                        ) : isCompleted ? (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500 text-white shadow-xs">
+                            ✓ Completed
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="font-extrabold text-xs text-slate-900 dark:text-white truncate" title={route.groupName}>
+                        {route.groupName}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        <span className="truncate">👤 {route.agent?.name || 'Unassigned'}</span>
+                        <span className="font-semibold shrink-0">
+                          {routeStats.visitedStops || 0}/{routeStats.totalStops || 0} Paid
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 mt-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            isCompleted ? 'bg-emerald-500' : 'bg-blue-600'
+                          }`}
+                          style={{ width: `${Math.min(100, routeStats.progressPercent || 0)}%` }}
+                        />
+                      </div>
                     </div>
 
-                    <div className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
-                      {route.groupName}
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                      <span className="truncate">👤 {route.agent?.name || 'Unassigned'}</span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                        {route.stats.visitedStops}/{route.stats.totalStops} Paid
-                      </span>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">Collected</span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                          ₹{Number(totalCollected || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 block font-medium">Pending</span>
+                        <span className="font-bold text-rose-600 dark:text-rose-400">
+                          ₹{Number(pendingAmount || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
                     </div>
                   </button>
                 );
               })}
             </div>
-
-            {/* Expand helper button if not searching and showAllChits is false */}
-            {!routeSearchTerm && !showAllChits && filteredRoutes.length > 1 && (
-              <div className="text-center pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowAllChits(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer py-1 px-3 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
-                >
-                  <span>Click to view all {filteredRoutes.length} available schemes</span>
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
 
       {/* Main 2D Route Representation Canvas & Details Card */}
-      {loading ? (
-        <div className="p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-slate-500">Loading 2D route map and agent telemetry...</p>
-        </div>
-      ) : !activeRoute ? (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
-          <MapPin className="w-10 h-10 text-slate-400 mx-auto" />
-          <h3 className="font-bold text-slate-900 dark:text-white text-base">No Routes Configured</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Create a Chit Group under Daily Chit Routes or Monthly Chit Routes, assign an agent, and route tracking will immediately render here.
-          </p>
-        </div>
-      ) : (
-        <div id="route-trajectory-map" className="space-y-6">
-          {/* Active Route Header & Metrics Card */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-extrabold uppercase border flex items-center gap-1.5 ${
-                  activeRoute.frequency === 'DAILY'
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-300 dark:border-amber-800'
-                    : 'bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border-blue-300 dark:border-blue-800'
-                }`}>
-                  {activeRoute.frequency === 'DAILY' ? '📅 Day-by-Day Route' : '🗓️ Month-by-Month Route'}
-                </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 uppercase">
-                  {activeRoute.routeCategory.replace('_', ' ')}
-                </span>
-                <span className="text-xs font-mono text-slate-400">{activeRoute.groupCode}</span>
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>{activeRoute.groupName}</span>
-                <span className="text-xs font-normal text-slate-500">· {activeRoute.locationName}</span>
-              </h3>
-              <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">
-                  {activeRoute.frequency === 'DAILY' ? '📅 Cycle: Today (Day-by-Day Installment)' : '🗓️ Cycle: Current Month Draw'}
-                </span>
-                <span>·</span>
-                <span>
-                  Assigned Agent:{' '}
-                  <strong className="text-slate-800 dark:text-slate-200">
-                    {activeRoute.agent?.name || 'Unassigned'}
-                  </strong>
-                </span>
-                {activeRoute.agent?.phone && <span>· 📞 {activeRoute.agent.phone}</span>}
-              </div>
+          {loading ? (
+            <div className="p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-xs text-slate-500">Loading 2D route map and agent telemetry...</p>
             </div>
-
-            {/* Route Progress Bar */}
-            <div className="min-w-[240px] space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Payment Coverage</span>
-                <span className="font-bold text-blue-600 dark:text-blue-400">{activeRoute.stats.progressPercent}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
-                  style={{ width: `${activeRoute.stats.progressPercent}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-400">
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                  {activeRoute.stats.visitedStops} Paid (Green)
-                </span>
-                <span className="text-rose-600 dark:text-rose-400 font-semibold">
-                  {activeRoute.stats.pendingStops} Not Paid (Red)
-                </span>
-              </div>
+          ) : !activeRoute ? (
+            <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
+              <MapPin className="w-10 h-10 text-slate-400 mx-auto" />
+              <h3 className="font-bold text-slate-900 dark:text-white text-base">No Routes Configured</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Create a Chit Group under Daily Chit Routes or Monthly Chit Routes, assign an agent, and route tracking will immediately render here.
+              </p>
             </div>
-          </div>
-
-          {/* 2D Interactive Route Canvas / Diagram */}
-          <div className="relative rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-xs overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 text-xs gap-2">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px]">
-                  2D Route Trajectory & Member Node Representation
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                  <span>Synchronous Live</span>
-                </span>
-              </div>
-
-              {/* Exact Node Legend as Requested — Visible on Mobile, Tablet & Desktop */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-300">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500 border border-emerald-600 shrink-0" />
-                  <strong className="text-emerald-600 dark:text-emerald-400">PAID</strong> (Collected)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-rose-500 border border-rose-600 shrink-0" />
-                  <strong className="text-rose-600 dark:text-rose-400">NOT PAID</strong> (Pending)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-blue-500 border border-blue-600 shrink-0" />
-                  <span>Agent Location</span>
-                </span>
-              </div>
-            </div>
-
-            {/* Hint for pressing node */}
-            <div className="mb-2 text-[11px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
-              <Info className="w-3.5 h-3.5 shrink-0" />
-              <span>Tip: Press/click any circular node to open the comprehensive Member Information Form.</span>
-            </div>
-
-            {/* SVG 2D Interactive Board */}
-            <div className="relative w-full aspect-[16/10] sm:aspect-[2.1/1] min-h-[250px] sm:min-h-[340px] max-h-[480px] rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center p-1 sm:p-2 overflow-hidden">
-              {/* Decorative Map Grid Lines */}
-              <svg
-                className="absolute inset-0 w-full h-full opacity-15 dark:opacity-10 pointer-events-none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <defs>
-                  <pattern id="route-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.8" />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#route-grid)" />
-              </svg>
-
-              <svg viewBox="0 0 800 360" className="w-full h-full overflow-visible z-10">
-                <defs>
-                  {/* Linear gradient for route path */}
-                  <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#2563eb" />
-                    <stop offset="50%" stopColor="#06b6d4" />
-                    <stop offset="100%" stopColor="#10b981" />
-                  </linearGradient>
-
-                  {/* Pulsing glow filter */}
-                  <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                  <filter id="glowYellow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                  <filter id="glowRed" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                </defs>
-
-                {/* 1. Underlying Route Path spline connecting each member node */}
-                {activeRoute.stops.length > 1 && (
-                  <>
-                    <path
-                      d={getRouteSvgPath(activeRoute.stops)}
-                      fill="none"
-                      stroke="#94a3b8"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeDasharray="6 6"
-                      className="opacity-40"
-                    />
-                    <path
-                      d={getRouteSvgPath(activeRoute.stops)}
-                      fill="none"
-                      stroke="url(#routeGradient)"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      className="opacity-80"
-                    />
-                  </>
-                )}
-
-                {/* 2. Member Nodes along the route (Pressing node opens Member Information Form) */}
-                {activeRoute.stops.map((stop) => {
-                  const isSelected = selectedStop?.id === stop.id;
-                  const isPaid =
-                    stop.status === 'PAID' || stop.nodeColor === 'GREEN' || stop.status === 'VISITED_COLLECTED';
-                  const isPartial =
-                    stop.status === 'PARTIAL' || stop.nodeColor === 'YELLOW' || stop.isPartial;
-
-                  const stopFill = isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444');
-                  const stopStroke = isPaid ? '#059669' : (isPartial ? '#d97706' : '#dc2626');
-
-                  return (
-                    <g
-                      key={stop.id}
-                      className="cursor-pointer transition-transform hover:scale-110"
-                      onClick={() => handleNodePress(stop)}
-                    >
-                      {/* Touch target padding for mobile screens */}
-                      <circle cx={stop.coordX} cy={stop.coordY} r="28" fill="transparent" />
-
-                      {/* Selection Halo */}
-                      {isSelected && (
-                        <circle
-                          cx={stop.coordX}
-                          cy={stop.coordY}
-                          r="24"
-                          fill="none"
-                          stroke={isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444')}
-                          strokeWidth="2.5"
-                          strokeDasharray="4 4"
-                          className="animate-spin"
-                          style={{ transformOrigin: `${stop.coordX}px ${stop.coordY}px`, animationDuration: '6s' }}
-                        />
-                      )}
-
-                      {/* Main Member Node Circle (Green if paid, Yellow if partial, Red if not paid) */}
-                      <circle
-                        cx={stop.coordX}
-                        cy={stop.coordY}
-                        r={isSelected ? '17' : '15'}
-                        fill={stopFill}
-                        stroke={stopStroke}
-                        strokeWidth="3.5"
-                        filter={isPaid ? 'url(#glowGreen)' : (isPartial ? 'url(#glowYellow)' : 'url(#glowRed)')}
-                        className="transition-all"
-                      />
-
-                      {/* Ticket Number inside Circle */}
-                      <text
-                        x={stop.coordX}
-                        y={stop.coordY + 4}
-                        textAnchor="middle"
-                        fill="#ffffff"
-                        fontSize="10"
-                        fontWeight="bold"
-                        className="pointer-events-none select-none"
-                      >
-                        {stop.stopOrder}
-                      </text>
-
-                      {/* Ticket Label below node */}
-                      <text
-                        x={stop.coordX}
-                        y={stop.coordY + 28}
-                        textAnchor="middle"
-                        fill="#64748b"
-                        fontSize="9"
-                        fontWeight="600"
-                        className="pointer-events-none select-none"
-                      >
-                        Ticket #{stop.stopOrder}
-                      </text>
-
-                      {/* Prominent PAID (Green), PARTIAL (Yellow) or NOT PAID (Red) text below */}
-                      <text
-                        x={stop.coordX}
-                        y={stop.coordY + 40}
-                        textAnchor="middle"
-                        fill={isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444')}
-                        fontSize="9"
-                        fontWeight="800"
-                        className="pointer-events-none select-none tracking-tight uppercase"
-                      >
-                        {isPaid ? 'PAID' : (isPartial ? 'PARTIAL' : 'NOT PAID')}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* 3. Agent Real-Time Pin & Radar Wave */}
-                {activeRoute?.agent && activeRoute?.agentPosition && (
-                  <g
-                    transform={`translate(${activeRoute.agentPosition?.x || 0}, ${activeRoute.agentPosition?.y || 0})`}
-                    className="cursor-pointer"
-                  >
-                    {/* Animated Radar Pulse */}
-                    <circle cx="0" cy="0" r="26" fill="rgba(37, 99, 235, 0.2)" className="animate-ping" />
-                    <circle cx="0" cy="0" r="18" fill="rgba(37, 99, 235, 0.3)" />
-
-                    {/* Agent Pin Base */}
-                    <circle cx="0" cy="0" r="13" fill="#2563eb" stroke="#ffffff" strokeWidth="2.5" />
-
-                    {/* Icon */}
-                    <text
-                      x="0"
-                      y="4"
-                      textAnchor="middle"
-                      fill="#ffffff"
-                      fontSize="10"
-                      fontWeight="bold"
-                      className="pointer-events-none select-none"
-                    >
-                      A
-                    </text>
-
-                    {/* Agent Floating Badge */}
-                    <g transform="translate(0, -22)">
-                      <rect x="-48" y="-14" width="96" height="18" rx="9" fill="#1e293b" className="shadow-sm" />
-                      <text x="0" y="-2" textAnchor="middle" fill="#ffffff" fontSize="8.5" fontWeight="bold">
-                        {activeRoute.agent.name?.split(' ')[0]} (On Route)
-                      </text>
-                    </g>
-                  </g>
-                )}
-              </svg>
-            </div>
-
-            {/* Selected Stop Quick Inspector & Member Form Launcher */}
-            {selectedStop && (() => {
-              const isPaid =
-                selectedStop.status === 'PAID' ||
-                selectedStop.nodeColor === 'GREEN' ||
-                selectedStop.status === 'VISITED_COLLECTED';
-              const isPartial =
-                selectedStop.status === 'PARTIAL' ||
-                selectedStop.nodeColor === 'YELLOW' ||
-                selectedStop.isPartial;
-
-              return (
-                <div
-                  className={`mt-4 p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
-                    isPaid
-                      ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
-                      : isPartial
-                      ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800'
-                      : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/60'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shrink-0 shadow-xs ${
-                        isPaid ? 'bg-emerald-600' : (isPartial ? 'bg-amber-500' : 'bg-rose-600')
-                      }`}
-                    >
-                      #{selectedStop.stopOrder}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">
-                          {activeRoute.groupCode} · Ticket #{selectedStop.stopOrder}
-                        </h4>
-
-                        {/* Synchronous Status Pill */}
-                        {isPaid ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span>PAID</span>
-                          </span>
-                        ) : isPartial ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400 dark:border-amber-700 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                            <span>PARTIAL (Due: ₹{Number(selectedStop.remainingBalance || 0).toLocaleString('en-IN')})</span>
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                            <span>NOT PAID</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                        Subscriber Member:{' '}
-                        <strong className="text-slate-900 dark:text-white font-semibold">
-                          {selectedStop.memberName}
-                        </strong>
-                        {selectedStop.memberPhone && ` · 📞 ${selectedStop.memberPhone}`}
-                      </p>
-
-                      {/* If Paid: Show Collection Receipt & Note */}
-                      {isPaid ? (
-                        <div className="mt-1 text-xs text-emerald-700 dark:text-emerald-300 font-mono">
-                          {selectedStop.collectionDetails ? (
-                            <span>
-                              Receipt: <strong>{selectedStop.collectionDetails.receiptNumber}</strong> · ₹
-                              {selectedStop.collectionDetails.amount} ({selectedStop.collectionDetails.paymentMethod})
-                              {selectedStop.collectionDetails.time &&
-                                ` at ${formatTime(selectedStop.collectionDetails.time)}`}
-                            </span>
-                          ) : (
-                            <span>Payment registered by agent terminal</span>
-                          )}
-                          {selectedStop.notes && selectedStop.notes !== 'Awaiting payment' && (
-                            <div className="text-[11px] text-slate-500 mt-0.5 font-sans">
-                              Note: {selectedStop.notes}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        /* If Not Paid: Show Agent Remark / Note */
-                        <div className="mt-1.5 p-2 rounded-lg bg-rose-100/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
-                          <span>
-                            Agent Remark:{' '}
-                            <strong>{selectedStop.notes || 'Awaiting payment'}</strong>
-                          </span>
-                        </div>
-                      )}
-                    </div>
+          ) : (
+            <div id="route-trajectory-map" className="space-y-6">
+              {/* Active Route Header & Metrics Card */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-extrabold uppercase border flex items-center gap-1.5 ${activeRoute.frequency === 'DAILY'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                      : 'bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                      }`}>
+                      {activeRoute.frequency === 'DAILY' ? '📅 Day-by-Day Route' : '🗓️ Month-by-Month Route'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 uppercase">
+                      {activeRoute.routeCategory.replace('_', ' ')}
+                    </span>
+                    <span className="text-xs font-mono text-slate-400">{activeRoute.groupCode}</span>
                   </div>
-
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <div className="text-right mr-1">
-                      <span className="text-[11px] text-slate-400 block">Due Installment</span>
-                      <span className="text-base font-extrabold text-blue-600 dark:text-blue-400">
-                        ₹{Number(selectedStop.expectedAmount).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-
-                    {/* Open Member Information Form */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowMemberModal(true);
-                        scrollToFormOrModal('route-member-modal');
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <User className="w-3.5 h-3.5" />
-                      <span>Open Member Form</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoggingStatus(isPaid ? 'PAID' : 'NOT_PAID');
-                        setLogNotes(selectedStop.notes && selectedStop.notes !== 'Awaiting payment' ? selectedStop.notes : '');
-                        setShowLogModal(true);
-                        scrollToFormOrModal('route-log-modal');
-                      }}
-                      className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                    >
-                      Update Note
-                    </button>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>{activeRoute.groupName}</span>
+                    <span className="text-xs font-normal text-slate-500">· {activeRoute.locationName}</span>
+                  </h3>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {activeRoute.frequency === 'DAILY' ? '📅 Cycle: Today (Day-by-Day Installment)' : '🗓️ Cycle: Current Month Draw'}
+                    </span>
+                    <span>·</span>
+                    <span>
+                      Assigned Agent:{' '}
+                      <strong className="text-slate-800 dark:text-slate-200">
+                        {activeRoute.agent?.name || 'Unassigned'}
+                      </strong>
+                    </span>
+                    {activeRoute.agent?.phone && <span>· 📞 {activeRoute.agent.phone}</span>}
                   </div>
                 </div>
-              );
-            })()}
-          </div>
 
-          {/* Sequential Waypoint Roster Table */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white text-sm">
-                  Route Member Node Schedule ({searchedStops.length} of {activeRoute.stops.length} Waypoints)
-                </h4>
-                <p className="text-xs text-slate-400">
-                  Click any subscriber row or node to open the related Member Information Form
-                </p>
+                {/* Route Progress Bar */}
+                <div className="min-w-[240px] space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Payment Coverage</span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400">{activeRoute.stats.progressPercent}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                      style={{ width: `${activeRoute.stats.progressPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                      {activeRoute.stats.visitedStops} Paid (Green)
+                    </span>
+                    <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                      {activeRoute.stats.pendingStops} Not Paid (Red)
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* Instant Stop Search Bar */}
-              <div className="relative min-w-[240px]">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  value={stopSearchTerm}
-                  onChange={(e) => setStopSearchTerm(e.target.value)}
-                  placeholder="Search member, ticket #, phone..."
-                  className="w-full pl-8 pr-7 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
-                {stopSearchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setStopSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              {/* 2D Interactive Route Canvas / Diagram */}
+              <div className="relative rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-xs overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 text-xs gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px]">
+                      2D Route Trajectory & Member Node Representation
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-medium flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                      <span>Synchronous Live</span>
+                    </span>
+                  </div>
+
+                  {/* Exact Node Legend as Requested — Visible on Mobile, Tablet & Desktop */}
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500 border border-emerald-600 shrink-0" />
+                      <strong className="text-emerald-600 dark:text-emerald-400">PAID</strong> (Collected)
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-rose-500 border border-rose-600 shrink-0" />
+                      <strong className="text-rose-600 dark:text-rose-400">NOT PAID</strong> (Pending)
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-blue-500 border border-blue-600 shrink-0" />
+                      <span>Agent Location</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Hint for pressing node */}
+                <div className="mb-2 text-[11px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  <span>Tip: Press/click any circular node to open the comprehensive Member Information Form.</span>
+                </div>
+
+                {/* SVG 2D Interactive Board */}
+                <div className="relative w-full aspect-[16/10] sm:aspect-[2.1/1] min-h-[250px] sm:min-h-[340px] max-h-[480px] rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center p-1 sm:p-2 overflow-hidden">
+                  {/* Decorative Map Grid Lines */}
+                  <svg
+                    className="absolute inset-0 w-full h-full opacity-15 dark:opacity-10 pointer-events-none"
+                    xmlns="http://www.w3.org/2000/svg"
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
+                    <defs>
+                      <pattern id="route-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.8" />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#route-grid)" />
+                  </svg>
 
-            <div className="overflow-x-auto overflow-y-auto max-h-[460px]">
-              <table className="w-full text-left text-xs">
-                <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px] shadow-xs">
-                  <tr>
-                    <th className="py-2.5 px-3">Order</th>
-                    <th className="py-2.5 px-3">Chit Node / Ticket</th>
-                    <th className="py-2.5 px-3">Subscriber Member</th>
-                    <th className="py-2.5 px-3">Due Amount</th>
-                    <th className="py-2.5 px-3">Synchronous Status</th>
-                    <th className="py-2.5 px-3">Agent Remark / Receipt</th>
-                    <th className="py-2.5 px-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {paginatedStops.map((stop) => {
-                    const isPaid =
-                      stop.status === 'PAID' || stop.nodeColor === 'GREEN' || stop.status === 'VISITED_COLLECTED';
+                  <svg viewBox="0 0 800 360" className="w-full h-full overflow-visible z-10">
+                    <defs>
+                      {/* Linear gradient for route path */}
+                      <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#2563eb" />
+                        <stop offset="50%" stopColor="#06b6d4" />
+                        <stop offset="100%" stopColor="#10b981" />
+                      </linearGradient>
 
-                    return (
-                      <tr
-                        key={stop.id}
-                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer ${
-                          selectedStop?.id === stop.id ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
-                        }`}
-                        onClick={() => handleNodePress(stop)}
-                      >
-                        <td className="py-2.5 px-3 font-bold text-blue-600 dark:text-blue-400">#{stop.stopOrder}</td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white">
-                          <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">
-                            Ticket #{stop.stopOrder}
-                          </span>
-                          <span className="text-[11px] text-slate-400 ml-1.5 font-normal">({activeRoute.groupCode})</span>
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">
-                          <div className="font-medium text-slate-900 dark:text-white">{stop.memberName}</div>
-                          {stop.memberPhone && <div className="text-[11px] text-slate-400">📞 {stop.memberPhone}</div>}
-                        </td>
-                        <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
-                          ₹{Number(stop.expectedAmount).toLocaleString('en-IN')}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          {isPaid ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 inline-flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                              <span>PAID</span>
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-700 inline-flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                              <span>NOT PAID</span>
-                            </span>
+                      {/* Pulsing glow filter */}
+                      <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                      <filter id="glowYellow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                      <filter id="glowRed" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
+
+                    {/* 1. Underlying Route Path spline connecting each member node */}
+                    {activeRoute.stops.length > 1 && (
+                      <>
+                        <path
+                          d={getRouteSvgPath(activeRoute.stops)}
+                          fill="none"
+                          stroke="#94a3b8"
+                          strokeWidth="5"
+                          strokeLinecap="round"
+                          strokeDasharray="6 6"
+                          className="opacity-40"
+                        />
+                        <path
+                          d={getRouteSvgPath(activeRoute.stops)}
+                          fill="none"
+                          stroke="url(#routeGradient)"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                          className="opacity-80"
+                        />
+                      </>
+                    )}
+
+                    {/* 2. Member Nodes along the route (Pressing node opens Member Information Form) */}
+                    {activeRoute.stops.map((stop) => {
+                      const isSelected = selectedStop?.id === stop.id;
+                      const isPaid =
+                        stop.status === 'PAID' || stop.nodeColor === 'GREEN' || stop.status === 'VISITED_COLLECTED';
+                      const isPartial =
+                        stop.status === 'PARTIAL' || stop.nodeColor === 'YELLOW' || stop.isPartial;
+
+                      const stopFill = isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444');
+                      const stopStroke = isPaid ? '#059669' : (isPartial ? '#d97706' : '#dc2626');
+
+                      return (
+                        <g
+                          key={stop.id}
+                          className="cursor-pointer transition-transform hover:scale-110"
+                          onClick={() => handleNodePress(stop)}
+                        >
+                          {/* Touch target padding for mobile screens */}
+                          <circle cx={stop.coordX} cy={stop.coordY} r="28" fill="transparent" />
+
+                          {/* Selection Halo */}
+                          {isSelected && (
+                            <circle
+                              cx={stop.coordX}
+                              cy={stop.coordY}
+                              r="24"
+                              fill="none"
+                              stroke={isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444')}
+                              strokeWidth="2.5"
+                              strokeDasharray="4 4"
+                              className="animate-spin"
+                              style={{ transformOrigin: `${stop.coordX}px ${stop.coordY}px`, animationDuration: '6s' }}
+                            />
                           )}
-                        </td>
-                        <td className="py-2.5 px-3 text-xs">
+
+                          {/* Main Member Node Circle (Green if paid, Yellow if partial, Red if not paid) */}
+                          <circle
+                            cx={stop.coordX}
+                            cy={stop.coordY}
+                            r={isSelected ? '17' : '15'}
+                            fill={stopFill}
+                            stroke={stopStroke}
+                            strokeWidth="3.5"
+                            filter={isPaid ? 'url(#glowGreen)' : (isPartial ? 'url(#glowYellow)' : 'url(#glowRed)')}
+                            className="transition-all"
+                          />
+
+                          {/* Ticket Number inside Circle */}
+                          <text
+                            x={stop.coordX}
+                            y={stop.coordY + 4}
+                            textAnchor="middle"
+                            fill="#ffffff"
+                            fontSize="10"
+                            fontWeight="bold"
+                            className="pointer-events-none select-none"
+                          >
+                            {stop.stopOrder}
+                          </text>
+
+                          {/* Ticket Label below node */}
+                          <text
+                            x={stop.coordX}
+                            y={stop.coordY + 28}
+                            textAnchor="middle"
+                            fill="#64748b"
+                            fontSize="9"
+                            fontWeight="600"
+                            className="pointer-events-none select-none"
+                          >
+                            Ticket #{stop.stopOrder}
+                          </text>
+
+                          {/* Prominent PAID (Green), PARTIAL (Yellow) or NOT PAID (Red) text below */}
+                          <text
+                            x={stop.coordX}
+                            y={stop.coordY + 40}
+                            textAnchor="middle"
+                            fill={isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444')}
+                            fontSize="9"
+                            fontWeight="800"
+                            className="pointer-events-none select-none tracking-tight uppercase"
+                          >
+                            {isPaid ? 'PAID' : (isPartial ? 'PARTIAL' : 'NOT PAID')}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* 3. Agent Real-Time Pin & Radar Wave */}
+                    {activeRoute?.agent && activeRoute?.agentPosition && (
+                      <g
+                        transform={`translate(${activeRoute.agentPosition?.x || 0}, ${activeRoute.agentPosition?.y || 0})`}
+                        className="cursor-pointer"
+                      >
+                        {/* Animated Radar Pulse */}
+                        <circle cx="0" cy="0" r="26" fill="rgba(37, 99, 235, 0.2)" className="animate-ping" />
+                        <circle cx="0" cy="0" r="18" fill="rgba(37, 99, 235, 0.3)" />
+
+                        {/* Agent Pin Base */}
+                        <circle cx="0" cy="0" r="13" fill="#2563eb" stroke="#ffffff" strokeWidth="2.5" />
+
+                        {/* Icon */}
+                        <text
+                          x="0"
+                          y="4"
+                          textAnchor="middle"
+                          fill="#ffffff"
+                          fontSize="10"
+                          fontWeight="bold"
+                          className="pointer-events-none select-none"
+                        >
+                          A
+                        </text>
+
+                        {/* Agent Floating Badge */}
+                        <g transform="translate(0, -22)">
+                          <rect x="-48" y="-14" width="96" height="18" rx="9" fill="#1e293b" className="shadow-sm" />
+                          <text x="0" y="-2" textAnchor="middle" fill="#ffffff" fontSize="8.5" fontWeight="bold">
+                            {activeRoute.agent.name?.split(' ')[0]} (On Route)
+                          </text>
+                        </g>
+                      </g>
+                    )}
+                  </svg>
+                </div>
+
+                {/* Selected Stop Quick Inspector & Member Form Launcher */}
+                {selectedStop && (() => {
+                  const isPaid =
+                    selectedStop.status === 'PAID' ||
+                    selectedStop.nodeColor === 'GREEN' ||
+                    selectedStop.status === 'VISITED_COLLECTED';
+                  const isPartial =
+                    selectedStop.status === 'PARTIAL' ||
+                    selectedStop.nodeColor === 'YELLOW' ||
+                    selectedStop.isPartial;
+
+                  return (
+                    <div
+                      className={`mt-4 p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${isPaid
+                        ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
+                        : isPartial
+                          ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800'
+                          : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/60'
+                        }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shrink-0 shadow-xs ${isPaid ? 'bg-emerald-600' : (isPartial ? 'bg-amber-500' : 'bg-rose-600')
+                            }`}
+                        >
+                          #{selectedStop.stopOrder}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                              {activeRoute.groupCode} · Ticket #{selectedStop.stopOrder}
+                            </h4>
+
+                            {/* Synchronous Status Pill */}
+                            {isPaid ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span>PAID</span>
+                              </span>
+                            ) : isPartial ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400 dark:border-amber-700 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                <span>PARTIAL (Due: ₹{Number(selectedStop.remainingBalance || 0).toLocaleString('en-IN')})</span>
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                                <span>NOT PAID</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                            Subscriber Member:{' '}
+                            <strong className="text-slate-900 dark:text-white font-semibold">
+                              {selectedStop.memberName}
+                            </strong>
+                            {selectedStop.memberPhone && ` · 📞 ${selectedStop.memberPhone}`}
+                          </p>
+
+                          {/* If Paid: Show Collection Receipt & Note */}
                           {isPaid ? (
-                            <div className="text-emerald-700 dark:text-emerald-300 font-mono text-[11px]">
-                              {stop.collectionDetails ? (
+                            <div className="mt-1 text-xs text-emerald-700 dark:text-emerald-300 font-mono">
+                              {selectedStop.collectionDetails ? (
                                 <span>
-                                  {stop.collectionDetails.receiptNumber} · ₹{stop.collectionDetails.amount} (
-                                  {stop.collectionDetails.paymentMethod})
+                                  Receipt: <strong>{selectedStop.collectionDetails.receiptNumber}</strong> · ₹
+                                  {selectedStop.collectionDetails.amount} ({selectedStop.collectionDetails.paymentMethod})
+                                  {selectedStop.collectionDetails.time &&
+                                    ` at ${formatTime(selectedStop.collectionDetails.time)}`}
                                 </span>
                               ) : (
-                                <span>Receipt: REC-TODAY · Paid</span>
+                                <span>Payment registered by agent terminal</span>
                               )}
-                              {stop.notes && stop.notes !== 'Awaiting payment' && (
-                                <div className="text-[11px] text-slate-400 font-sans">
-                                  <ShowMoreText text={stop.notes} maxChars={35} />
+                              {selectedStop.notes && selectedStop.notes !== 'Awaiting payment' && (
+                                <div className="text-[11px] text-slate-500 mt-0.5 font-sans">
+                                  Note: {selectedStop.notes}
                                 </div>
                               )}
                             </div>
                           ) : (
-                            <div className="text-rose-700 dark:text-rose-300 font-medium text-[11px] flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
-                              <div className="flex-1">
-                                <ShowMoreText text={stop.notes || 'Awaiting payment'} maxChars={35} />
-                              </div>
+                            /* If Not Paid: Show Agent Remark / Note */
+                            <div className="mt-1.5 p-2 rounded-lg bg-rose-100/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                              <span>
+                                Agent Remark:{' '}
+                                <strong>{selectedStop.notes || 'Awaiting payment'}</strong>
+                              </span>
                             </div>
                           )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNodePress(stop);
-                            }}
-                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mr-1 cursor-pointer"
-                          >
-                            Form
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedStop(stop);
-                              setLoggingStatus(isPaid ? 'PAID' : 'NOT_PAID');
-                              setLogNotes(stop.notes && stop.notes !== 'Awaiting payment' ? stop.notes : '');
-                              setShowLogModal(true);
-                              scrollToFormOrModal('route-log-modal');
-                            }}
-                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
-                          >
-                            Update
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
 
-            <Pagination
-              currentPage={stopsPage}
-              totalItems={activeRoute?.stops?.length || 0}
-              pageSize={stopsPageSize}
-              onPageChange={setStopsPage}
-              onPageSizeChange={setStopsPageSize}
-              pageSizeOptions={[5, 10, 20, 50]}
-            />
-          </div>
-        </div>
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <div className="text-right mr-1">
+                          <span className="text-[11px] text-slate-400 block">Due Installment</span>
+                          <span className="text-base font-extrabold text-blue-600 dark:text-blue-400">
+                            ₹{Number(selectedStop.expectedAmount).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+
+                        {/* Open Member Information Form */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowMemberModal(true);
+                            scrollToFormOrModal('route-member-modal');
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                        >
+                          <User className="w-3.5 h-3.5" />
+                          <span>Open Member Form</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLoggingStatus(isPaid ? 'PAID' : 'NOT_PAID');
+                            setLogNotes(selectedStop.notes && selectedStop.notes !== 'Awaiting payment' ? selectedStop.notes : '');
+                            setShowLogModal(true);
+                            scrollToFormOrModal('route-log-modal');
+                          }}
+                          className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                        >
+                          Update Note
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Sequential Waypoint Roster Table */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                      Route Member Node Schedule ({searchedStops.length} of {activeRoute.stops.length} Waypoints)
+                    </h4>
+                    <p className="text-xs text-slate-400">
+                      Click any subscriber row or node to open the related Member Information Form
+                    </p>
+                  </div>
+
+                  {/* Instant Stop Search Bar */}
+                  <div className="relative min-w-[240px]">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={stopSearchTerm}
+                      onChange={(e) => setStopSearchTerm(e.target.value)}
+                      placeholder="Search member, ticket #, phone..."
+                      className="w-full pl-8 pr-7 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    {stopSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setStopSearchTerm('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto overflow-y-auto max-h-[460px]">
+                  <table className="w-full text-left text-xs">
+                    <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px] shadow-xs">
+                      <tr>
+                        <th className="py-2.5 px-3">Order</th>
+                        <th className="py-2.5 px-3">Chit Node / Ticket</th>
+                        <th className="py-2.5 px-3">Subscriber Member</th>
+                        <th className="py-2.5 px-3">Due Amount</th>
+                        <th className="py-2.5 px-3">Synchronous Status</th>
+                        <th className="py-2.5 px-3">Agent Remark / Receipt</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {paginatedStops.map((stop) => {
+                        const isPaid =
+                          stop.status === 'PAID' || stop.nodeColor === 'GREEN' || stop.status === 'VISITED_COLLECTED';
+
+                        return (
+                          <tr
+                            key={stop.id}
+                            className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer ${selectedStop?.id === stop.id ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
+                              }`}
+                            onClick={() => handleNodePress(stop)}
+                          >
+                            <td className="py-2.5 px-3 font-bold text-blue-600 dark:text-blue-400">#{stop.stopOrder}</td>
+                            <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white">
+                              <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">
+                                Ticket #{stop.stopOrder}
+                              </span>
+                              <span className="text-[11px] text-slate-400 ml-1.5 font-normal">({activeRoute.groupCode})</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">
+                              <div className="font-medium text-slate-900 dark:text-white">{stop.memberName}</div>
+                              {stop.memberPhone && <div className="text-[11px] text-slate-400">📞 {stop.memberPhone}</div>}
+                            </td>
+                            <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
+                              ₹{Number(stop.expectedAmount).toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {isPaid ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 inline-flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                  <span>PAID</span>
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-700 inline-flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                  <span>NOT PAID</span>
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-xs">
+                              {isPaid ? (
+                                <div className="text-emerald-700 dark:text-emerald-300 font-mono text-[11px]">
+                                  {stop.collectionDetails ? (
+                                    <span>
+                                      {stop.collectionDetails.receiptNumber} · ₹{stop.collectionDetails.amount} (
+                                      {stop.collectionDetails.paymentMethod})
+                                    </span>
+                                  ) : (
+                                    <span>Receipt: REC-TODAY · Paid</span>
+                                  )}
+                                  {stop.notes && stop.notes !== 'Awaiting payment' && (
+                                    <div className="text-[11px] text-slate-400 font-sans">
+                                      <ShowMoreText text={stop.notes} maxChars={35} />
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-rose-700 dark:text-rose-300 font-medium text-[11px] flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                                  <div className="flex-1">
+                                    <ShowMoreText text={stop.notes || 'Awaiting payment'} maxChars={35} />
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNodePress(stop);
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mr-1 cursor-pointer"
+                              >
+                                Form
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedStop(stop);
+                                  setLoggingStatus(isPaid ? 'PAID' : 'NOT_PAID');
+                                  setLogNotes(stop.notes && stop.notes !== 'Awaiting payment' ? stop.notes : '');
+                                  setShowLogModal(true);
+                                  scrollToFormOrModal('route-log-modal');
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                              >
+                                Update
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <Pagination
+                  currentPage={stopsPage}
+                  totalItems={activeRoute?.stops?.length || 0}
+                  pageSize={stopsPageSize}
+                  onPageChange={setStopsPage}
+                  onPageSizeChange={setStopsPageSize}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
+              </div>
+            </div>
+          )}
+        </>
       )}
-    </>
-  )}
 
       {/* Member Information Form Modal (Brought up when pressing any node) */}
       {showMemberModal && selectedStop && (
@@ -2546,11 +2652,10 @@ export default function RouteTrackingPage() {
             <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white text-base shadow-xs ${
-                    selectedStop?.status === 'PAID' || selectedStop?.nodeColor === 'GREEN'
-                      ? 'bg-emerald-600'
-                      : 'bg-rose-600'
-                  }`}
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white text-base shadow-xs ${selectedStop?.status === 'PAID' || selectedStop?.nodeColor === 'GREEN'
+                    ? 'bg-emerald-600'
+                    : 'bg-rose-600'
+                    }`}
                 >
                   #{selectedStop?.stopOrder || ''}
                 </div>
@@ -2984,7 +3089,7 @@ export default function RouteTrackingPage() {
                 <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-medium">
                   <ShieldCheck className="w-4 h-4 text-emerald-500" />
                   <span>
-                    Admin Approval Date: <strong>Today ({formatDate(new Date().toISOString().slice(0, 10))})</strong>
+                    Admin Approval Date: <strong>Today ({formatDate(getServerYMD())})</strong>
                   </span>
                 </div>
               </div>

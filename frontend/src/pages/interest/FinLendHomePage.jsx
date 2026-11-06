@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { formatCurrency, formatDate } from '../../utils/interestUtils';
+import { formatCurrency, formatDate, getServerDate, getServerYMD } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 import NewLoanModal from '../../components/interest-ui/NewLoanModal';
 
@@ -53,14 +53,14 @@ export default function FinLendHomePage() {
 
   // Greeting
   const greeting = useMemo(() => {
-    const hour = new Date().getHours();
+    const hour = getServerDate().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   }, []);
 
   const todayDateFormatted = useMemo(() => {
-    return formatDate(new Date());
+    return formatDate(getServerDate());
   }, []);
 
   const loadData = async (isManual = false) => {
@@ -90,7 +90,7 @@ export default function FinLendHomePage() {
         // Aggregate last 7 days collections
         const daysMap = {};
         for (let i = 6; i >= 0; i--) {
-          const d = new Date();
+          const d = getServerDate();
           d.setDate(d.getDate() - i);
           const key = d.toISOString().slice(0, 10);
           const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
@@ -138,7 +138,7 @@ export default function FinLendHomePage() {
   const progressPercent = targetToday > 0 ? Math.min(100, Math.round((collectedToday / targetToday) * 100)) : 100;
 
   // Split loans into Pending, Paid, Overdue
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getServerYMD();
 
   const categorizedLoans = useMemo(() => {
     const pending = [];

@@ -88,9 +88,6 @@ export async function createGroup(req, res, next) {
       });
     }
 
-    // Strictly two chit types: AUCTION_CHIT and DOUBLE_CHIT for both Daily and Monthly cycles
-    const normalizedChitType = req.body.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT' : 'AUCTION_CHIT';
-
     let derivedFrequency = req.body.frequency;
     let derivedRouteCategory = req.body.route_category;
 
@@ -105,6 +102,11 @@ export async function createGroup(req, res, next) {
     if (!derivedRouteCategory) {
       derivedRouteCategory = derivedFrequency === 'MONTHLY' ? 'MONTHLY_ROUTE' : 'DAILY_ROUTE';
     }
+
+    // Monthly schemes run strictly as AUCTION_CHIT (Double Chit is exclusive to Daily schemes)
+    const normalizedChitType = derivedFrequency === 'MONTHLY'
+      ? 'AUCTION_CHIT'
+      : (req.body.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT' : 'AUCTION_CHIT');
 
     const validated = groupSchema.parse({
       ...req.body,

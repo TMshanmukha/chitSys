@@ -48,7 +48,8 @@ export function NotificationProvider({ children }) {
   }, []);
 
   const fetchNotifications = useCallback(async (isPolling = false) => {
-    if (!isAuthenticated) return;
+    const token = localStorage.getItem('token');
+    if (!isAuthenticated || !token) return;
     try {
       if (!isPolling) setLoading(true);
       const res = await api.get('/notifications');
@@ -65,8 +66,12 @@ export function NotificationProvider({ children }) {
         setNotifications(list);
         setUnreadCount(unread);
       }
-    } catch {
-      // Silently catch background polling errors
+    } catch (err) {
+      // Silently catch background polling errors (e.g. session expired or offline)
+      if (err?.response?.status === 401) {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
     } finally {
       if (!isPolling) setLoading(false);
     }
@@ -74,7 +79,8 @@ export function NotificationProvider({ children }) {
 
   // Initial fetch on login & real-time polling every 6 seconds
   useEffect(() => {
-    if (isAuthenticated) {
+    const token = localStorage.getItem('token');
+    if (isAuthenticated && token) {
       fetchNotifications(false);
       const interval = setInterval(() => {
         fetchNotifications(true);

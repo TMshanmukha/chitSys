@@ -14,7 +14,7 @@ import {
   Check,
   ShieldCheck,
 } from 'lucide-react';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, getServerDate } from '../utils/dateUtils';
 import ModalPortal from './ModalPortal';
 
 export default function ChitCompletionModal({ group, isOpen, onClose, onCompleted }) {
@@ -67,7 +67,7 @@ export default function ChitCompletionModal({ group, isOpen, onClose, onComplete
   let elapsedPeriods = 0;
   if (group.start_date) {
     const start = new Date(group.start_date);
-    const now = new Date();
+    const now = getServerDate();
     if (isDaily) {
       const diffMs = now.getTime() - start.getTime();
       elapsedPeriods = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
@@ -489,3 +489,4 @@ export default function ChitCompletionModal({ group, isOpen, onClose, onComplete
     </ModalPortal>
   );
 }
+

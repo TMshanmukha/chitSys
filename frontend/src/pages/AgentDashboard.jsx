@@ -50,8 +50,9 @@ import {
   Banknote,
   LayoutGrid,
   List,
+  Target,
 } from 'lucide-react';
-import { formatDate, formatTime, formatDateTime } from '../utils/dateUtils';
+import { formatDate, formatTime, formatDateTime, getServerDate, getServerYMD } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
@@ -60,7 +61,7 @@ import NotificationBell from '../components/NotificationBell';
 import AnimatedChitBackground from '../components/AnimatedChitBackground';
 import WelcomeCelebrationModal from '../components/WelcomeCelebrationModal';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ModalPortal from '../components/ModalPortal';
 
 export default function AgentDashboard({ defaultTab = 'tasks' }) {
@@ -72,13 +73,19 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [routesData, setRoutesData] = useState({ groups: [], members: [], summary: {} });
   const [recentCollections, setRecentCollections] = useState([]);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(defaultTab || 'tasks'); // 'tasks' | 'routes' | 'profile' | 'history'
+  const location = useLocation();
 
+  const activeTab = useMemo(() => {
+    if (location.pathname.includes('/agent/routes')) return 'routes';
+    if (location.pathname.includes('/agent/pending-dues')) return 'pending-dues';
+    if (location.pathname.includes('/agent/history')) return 'history';
+    if (location.pathname.includes('/agent/profile')) return 'profile';
+    if (location.pathname.includes('/agent/tasks')) return 'tasks';
+    return defaultTab || 'tasks';
+  }, [location.pathname, defaultTab]);
 
   const handleTabSwitch = (tab) => {
-    setActiveTab(tab);
     navigate(`/agent/${tab}`);
-    smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
   };
 
   // Day Submit & Shift Closing Handover State
@@ -86,7 +93,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
   const [unsubmittedDays, setUnsubmittedDays] = useState([]);
   const [submittingAllDays, setSubmittingAllDays] = useState(false);
-  const [daySubmitDate, setDaySubmitDate] = useState(new Date().toISOString().slice(0, 10));
+  const [daySubmitDate, setDaySubmitDate] = useState(getServerYMD());
   const [daySubmitNotes, setDaySubmitNotes] = useState('');
   const [submittingDayWork, setSubmittingDayWork] = useState(false);
   const [daySubmitSuccess, setDaySubmitSuccess] = useState('');
@@ -128,7 +135,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   // Monthly Chit Schedule:
   // Monthly chits can be collected anytime during their monthly cycle (anchored to start_date).
   // All assigned routes and members are visible and available for collection at all times.
-  const isActualFirstDayOfMonth = new Date().getDate() === 1;
+  const isActualFirstDayOfMonth = getServerDate().getDate() === 1;
   const [simulateFirstOfMonth, setSimulateFirstOfMonth] = useState(false);
   const isCollectionDayForMonthly = true; // All assigned monthly chits are visible and collectible anytime
 
@@ -146,7 +153,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     group_id: '',
     member_id: '',
     amount: '',
-    collection_date: new Date().toISOString().slice(0, 10),
+    collection_date: getServerYMD(),
     payment_method: 'CASH',
     payment_reference: '',
     notes: '',
@@ -182,7 +189,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [pendingCollectAmount, setPendingCollectAmount] = useState('');
   const [pendingCollectMethod, setPendingCollectMethod] = useState('CASH');
   const [pendingCollectRef, setPendingCollectRef] = useState('');
-  const [pendingCollectDate, setPendingCollectDate] = useState(new Date().toISOString().slice(0, 10));
+  const [pendingCollectDate, setPendingCollectDate] = useState(getServerYMD());
   const [pendingCollectNotes, setPendingCollectNotes] = useState('');
   const [submittingPendingCollect, setSubmittingPendingCollect] = useState(false);
   const [pendingCollectError, setPendingCollectError] = useState('');
@@ -343,7 +350,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       ? String(member.remaining_balance)
       : String(group.installment_amount || '');
     setPendingCollectAmount(defaultAmt);
-    setPendingCollectDate(new Date().toISOString().slice(0, 10));
+    setPendingCollectDate(getServerYMD());
     setPendingCollectMethod('CASH');
     setPendingCollectRef('');
     setPendingCollectNotes('');
@@ -362,7 +369,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
         group,
         pending_dates: [
           {
-            date: new Date().toISOString().slice(0, 10),
+            date: getServerYMD(),
             due_amount: Number(group.installment_amount || 0),
             paid_amount: Number(member.collected_amount || 0),
             pending_amount: Number(member.remaining_balance || group.installment_amount || 0),
@@ -398,7 +405,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
         amount: amt,
         payment_method: pendingCollectMethod,
         payment_reference: pendingCollectRef || null,
-        collection_date: pendingCollectDate || new Date().toISOString().slice(0, 10),
+        collection_date: pendingCollectDate || getServerYMD(),
         notes: pendingCollectNotes ? `[PENDING_RECOVERY] ${pendingCollectNotes}` : '[PENDING_RECOVERY] Overdue settlement',
         allow_off_cycle: true,
         allow_advance: true,
@@ -623,8 +630,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     const pendingAmount = isDue ? Math.max(0, targetExpected - totalCollected) : 0;
     const progressPercent = targetExpected > 0 ? Math.round((totalCollected / targetExpected) * 100) : (totalCollected > 0 ? 100 : 0);
 
-    const isAuction = group.frequency === 'MONTHLY' && group.chit_type !== 'DOUBLE_CHIT';
-    const isDouble = group.chit_type === 'DOUBLE_CHIT' || (group.frequency === 'MONTHLY' && (group.group_name || '').toLowerCase().includes('double'));
+    const isAuction = !isDaily || group.chit_type === 'AUCTION_CHIT';
+    const isDouble = isDaily && group.chit_type === 'DOUBLE_CHIT';
 
     return {
       groupMembers,
@@ -647,34 +654,57 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   };
 
   const dailyChitsList = useMemo(() => {
-    return (routesData.groups || []).filter((g) => g.frequency === 'DAILY');
+    return (routesData.groups || []).filter((g) => g.frequency === 'DAILY' || g.route_category === 'DAILY_ROUTE');
+  }, [routesData.groups]);
+
+  const dailyDoubleChitsList = useMemo(() => {
+    return (routesData.groups || []).filter((g) => (g.frequency === 'DAILY' || g.route_category === 'DAILY_ROUTE') && g.chit_type === 'DOUBLE_CHIT');
   }, [routesData.groups]);
 
   const monthlyAuctionChitsList = useMemo(() => {
-    return (routesData.groups || []).filter((g) => g.frequency === 'MONTHLY' && g.chit_type !== 'DOUBLE_CHIT' && !(g.group_name || '').toLowerCase().includes('double'));
+    return (routesData.groups || []).filter((g) => g.frequency === 'MONTHLY' || g.route_category === 'MONTHLY_ROUTE');
   }, [routesData.groups]);
 
-  const monthlyDoubleChitsList = useMemo(() => {
-    return (routesData.groups || []).filter((g) => g.chit_type === 'DOUBLE_CHIT' || (g.frequency === 'MONTHLY' && (g.group_name || '').toLowerCase().includes('double')));
-  }, [routesData.groups]);
+  const monthlyDoubleChitsList = useMemo(() => [], []);
+
+  // Calculate total route target expected across all assigned schemes
+  const totalRouteTargetExpected = useMemo(() => {
+    return (routesData.groups || []).reduce((sum, g) => {
+      const stats = getGroupStats(g);
+      return sum + (stats.targetExpected || 0);
+    }, 0);
+  }, [routesData.groups, routesData.members, isCollectionDayForMonthly]);
+
+  // Overall agent daily target (prefers group target, or task target, or agent profile target)
+  const agentDailyTarget = useMemo(() => {
+    if (totalRouteTargetExpected > 0) return totalRouteTargetExpected;
+    if (totalTargetExpected > 0) return totalTargetExpected;
+    const profileTarget = Number(user?.daily_target || user?.target_amount || 0);
+    if (profileTarget > 0) return profileTarget;
+    // Fallback: sum of all installment amounts * member count
+    return (routesData.groups || []).reduce((sum, g) => {
+      const mCount = (routesData.members || []).filter((m) => m.group_id === g.id).length;
+      return sum + (mCount * Number(g.installment_amount || 0));
+    }, 0);
+  }, [totalRouteTargetExpected, totalTargetExpected, user, routesData.groups, routesData.members]);
+
+  const todayCollectedTotal = Number(routesData.summary?.todayTotal || 0);
+  const targetProgressPercent = agentDailyTarget > 0 
+    ? Math.min(100, Math.round((todayCollectedTotal / agentDailyTarget) * 100))
+    : (todayCollectedTotal > 0 ? 100 : 0);
+  const targetRemainingAmount = Math.max(0, agentDailyTarget - todayCollectedTotal);
 
   // Differentiated Chit filter for Agent Profile (Never mix different chits together)
   const displayedProfileRoutes = useMemo(() => {
     return activeProfileRoutes.filter((group) => {
+      const isDaily = group.frequency === 'DAILY' || group.route_category === 'DAILY_ROUTE';
       if (profileChitFilter === 'ALL') return true;
-      if (profileChitFilter === 'DAILY') return group.frequency === 'DAILY';
-      if (profileChitFilter === 'AUCTION') {
-        return (
-          group.frequency === 'MONTHLY' &&
-          group.chit_type !== 'DOUBLE_CHIT' &&
-          !(group.group_name || '').toLowerCase().includes('double')
-        );
-      }
+      if (profileChitFilter === 'DAILY') return isDaily;
       if (profileChitFilter === 'DOUBLE') {
-        return (
-          group.chit_type === 'DOUBLE_CHIT' ||
-          (group.frequency === 'MONTHLY' && (group.group_name || '').toLowerCase().includes('double'))
-        );
+        return isDaily && group.chit_type === 'DOUBLE_CHIT';
+      }
+      if (profileChitFilter === 'AUCTION') {
+        return !isDaily;
       }
       return true;
     });
@@ -813,7 +843,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       group_id: String(groupId),
       member_id: String(memberId),
       amount: String(prefillAmt || ''),
-      collection_date: new Date().toISOString().slice(0, 10),
+      collection_date: getServerYMD(),
       payment_method: 'CASH',
       payment_reference: '',
       notes: isAlreadyPaid ? 'Advance collection for upcoming cycle' : '',
@@ -829,7 +859,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       group_id: String(group.id),
       member_id: '',
       amount: String(group.installment_amount || ''),
-      collection_date: new Date().toISOString().slice(0, 10),
+      collection_date: getServerYMD(),
       payment_method: 'CASH',
       payment_reference: '',
       notes: '',
@@ -901,7 +931,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
         amount: parseFloat(collectForm.amount),
         payment_method: collectForm.payment_method,
         payment_reference: collectForm.payment_reference || null,
-        collection_date: collectForm.collection_date || new Date().toISOString().slice(0, 10),
+        collection_date: collectForm.collection_date || getServerYMD(),
         notes: collectForm.notes || null,
         allow_off_cycle: true,
         allow_advance: true,
@@ -979,7 +1009,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       receiptNumber: member.receipt_number || 'REC-ISSUED',
       amount: member.collected_amount || group.installment_amount,
       paymentMethod: member.payment_method || 'CASH',
-      date: new Date().toISOString().slice(0, 10),
+      date: member.collection_time ? member.collection_time.slice(0, 10) : getServerYMD(),
       time: member.collection_time,
       groupName: group.group_name,
       groupCode: group.group_code,
@@ -1050,11 +1080,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => {
-                setShowDaySubmitModal(true);
-                fetchDaySubmissionStatus(daySubmitDate);
-                scrollToFormOrModal('agent-day-submit-modal');
-              }}
+              onClick={() => navigate('/agent/day-closing')}
               className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 currentDaySubmission?.status === 'APPROVED'
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
@@ -1075,10 +1101,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
             <button
               type="button"
-              onClick={() => {
-                setActiveTab('profile');
-                smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
-              }}
+              onClick={() => navigate('/agent/profile')}
               className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
             >
               <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -1134,8 +1157,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
           </div>
         </div>
 
-        {/* Metrics Grid - Responsive & Overflow Protected for Big Figures */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        {/* Metrics Grid - Exclusively for Today's Tasks & Stops Workspace */}
+        {activeTab === 'tasks' && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate">
               Today's Collections
@@ -1149,6 +1173,45 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
               <Receipt className="w-3 h-3 text-slate-400 shrink-0" />
               <span className="truncate">{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
+            </div>
+          </div>
+
+          {/* Target Card - BESIDE Today's Collections */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-blue-50/40 dark:from-indigo-950/40 dark:via-slate-900 dark:to-blue-950/20 border border-indigo-200/90 dark:border-indigo-800/70 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider truncate flex items-center gap-1">
+                <Target className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span>Today's Target</span>
+              </span>
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 shrink-0">
+                {targetProgressPercent}%
+              </span>
+            </div>
+            <div
+              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1 truncate font-mono tracking-tight"
+              title={`₹${agentDailyTarget.toLocaleString('en-IN')}`}
+            >
+              ₹{agentDailyTarget.toLocaleString('en-IN')}
+            </div>
+            <div className="mt-1 space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate gap-1">
+                <span className="truncate">
+                  {targetRemainingAmount === 0 && agentDailyTarget > 0 ? (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">✓ Target Reached!</span>
+                  ) : (
+                    `₹${targetRemainingAmount.toLocaleString('en-IN')} to goal`
+                  )}
+                </span>
+                <span className="text-[10px] text-slate-400 shrink-0">
+                  {agentDailyTarget > 0 ? `${targetProgressPercent}%` : '0%'}
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-indigo-600 dark:bg-indigo-500 h-1.5 rounded-full transition-all duration-500"
+                  style={{ width: `${targetProgressPercent}%` }}
+                />
+              </div>
             </div>
           </div>
 
@@ -1210,7 +1273,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             onClick={() => {
               handleTabSwitch('profile');
             }}
-            className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-purple-400 transition-colors min-w-0 overflow-hidden col-span-2 sm:col-span-1 flex flex-col justify-between"
+            className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-purple-400 transition-colors min-w-0 overflow-hidden col-span-2 sm:col-span-1 lg:col-span-1 flex flex-col justify-between"
           >
             <div className="flex items-center justify-between gap-1">
               <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate">
@@ -1228,114 +1291,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             </span>
           </div>
         </div>
-
-        {/* View Switcher Tabs with Automatic Window Move */}
-        <div id="agent-view-content" className="flex border-b border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-semibold scroll-mt-6 overflow-x-auto gap-1">
-          {/* Tab 1: Today's Tasks */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('tasks');
-              smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
-            }}
-            className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'tasks'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <CheckSquare className="w-4 h-4" />
-            <span>Today's Tasks & Stops</span>
-            {pendingTasksCount > 0 ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs">
-                {pendingTasksCount} Pending
-              </span>
-            ) : totalTasksCount > 0 ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white">
-                All Done ✓
-              </span>
-            ) : null}
-          </button>
-
-          {/* Tab: Member Pending Amount */}
-          <button
-            type="button"
-            onClick={() => {
-              handleTabSwitch('pending-dues');
-            }}
-            className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'pending-dues'
-                ? 'border-rose-600 text-rose-600 dark:text-rose-400 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <AlertCircle className="w-4 h-4 text-rose-500" />
-            <span>Member Pending Amount</span>
-            {totalPendingMembersCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white shadow-xs">
-                ₹{totalAllPendingAmount.toLocaleString('en-IN')}
-              </span>
-            )}
-          </button>
-
-          {/* Tab 2: Assigned Routes & 2D Map */}
-          <button
-            type="button"
-            onClick={() => {
-              handleTabSwitch('routes');
-            }}
-            className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'routes'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Compass className="w-4 h-4" />
-            <span>Assigned Routes & Map ({routesData.groups?.length || 0})</span>
-          </button>
-
-          {/* Tab 3: Agent Profile & Route Hub */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('profile');
-              smoothScrollTo('agent-view-content', { offset: 32, behavior: 'smooth' });
-            }}
-            className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'profile'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <UserCheck className="w-4 h-4" />
-            <span>Agent Profile & Route Hub</span>
-          </button>
-
-          {/* Tab 4: Collection Receipts History */}
-          <button
-            type="button"
-            onClick={() => {
-              handleTabSwitch('history');
-            }}
-            className={`pb-2.5 px-3 border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'history'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Receipt className="w-4 h-4" />
-            <span>Receipts & History ({recentCollections?.length || 0})</span>
-          </button>
-
-          {/* Tab 5: Leave Calendar & Coverage */}
-          <Link
-            to="/agent/leaves"
-            className="pb-2.5 px-3 border-b-2 border-transparent text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Leave Calendar & Coverage</span>
-          </Link>
-        </div>
+        )}
 
         {/* Loading Spinner */}
         {loading ? (
@@ -2192,7 +2148,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                             </span>
                             <span>·</span>
                             <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              {isDaily ? `📅 Today's Collection Round (${formatDate(new Date())})` : '🗓️ Current Monthly Cycle Collection'}
+                              {isDaily ? `📅 Today's Collection Round (${formatDate(getServerDate())})` : '🗓️ Current Monthly Cycle Collection'}
                             </span>
                           </div>
                         </div>
@@ -2713,6 +2669,127 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               </div>
             </div>
 
+            {/* Agent Today's Collection & Target Performance Dossier */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+              {/* Today's Collections Card */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                    <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Today's Collection</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                    Live Total
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                    ₹{todayCollectedTotal.toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span>{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
+                    <span>·</span>
+                    <span>Cash: ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                  <span>Digital / UPI:</span>
+                  <span className="font-bold text-purple-600 dark:text-purple-400">
+                    ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Target Card - BESIDE Today's Collection */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-indigo-50/70 via-white to-blue-50/40 dark:from-indigo-950/40 dark:via-slate-900 dark:to-blue-950/20 border border-indigo-200 dark:border-indigo-800/70 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                    <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>Target Card</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white shadow-xs">
+                    {targetProgressPercent}% Done
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400 font-mono tracking-tight">
+                    ₹{agentDailyTarget.toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+                    <span>
+                      {targetRemainingAmount === 0 && agentDailyTarget > 0 ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">✓ Daily Target Reached!</span>
+                      ) : (
+                        <span>Remaining: <strong className="text-rose-600 dark:text-rose-400">₹{targetRemainingAmount.toLocaleString('en-IN')}</strong></span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1.5 pt-2 border-t border-indigo-100 dark:border-indigo-900/50">
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-indigo-600 to-blue-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${targetProgressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cash On Hand */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                    <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Cash on Hand</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    Custodian
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+                    ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    To reconcile with admin at day handover
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                  <span>Shift Status:</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    {currentDaySubmission?.status === 'APPROVED' ? 'Approved ✓' : currentDaySubmission?.status === 'PENDING_APPROVAL' ? 'Submitted' : 'Open'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Assigned Routes Overview */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                    <Layers className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span>Assigned Schemes</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                    Active
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
+                    {activeProfileRoutes.length} <span className="text-sm font-semibold text-slate-400">Chits</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    {(routesData.summary?.dailyGroupsCount || 0)} Daily · {(routesData.summary?.monthlyGroupsCount || 0)} Monthly
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                  <span>Subscribers:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {(routesData.members || []).length} Members
+                  </span>
+                </div>
+              </div>
+            </div>
+
               {/* Per-Chit Cash & Inflow Ledger (Separated so funds and dues are never mixed) */}
               <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -2891,6 +2968,18 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setProfileChitFilter('DOUBLE')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    profileChitFilter === 'DOUBLE'
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                  }`}
+                >
+                  <span>⚡ Daily Double Chits</span>
+                  <span className="text-[10px] opacity-80">({dailyDoubleChitsList.length})</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setProfileChitFilter('AUCTION')}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border ${
                     profileChitFilter === 'AUCTION'
@@ -2900,18 +2989,6 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 >
                   <span>🏛️ Monthly Auction Chits</span>
                   <span className="text-[10px] opacity-80">({monthlyAuctionChitsList.length})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setProfileChitFilter('DOUBLE')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border ${
-                    profileChitFilter === 'DOUBLE'
-                      ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
-                  }`}
-                >
-                  <span>💎 Monthly Double Chits</span>
-                  <span className="text-[10px] opacity-80">({monthlyDoubleChitsList.length})</span>
                 </button>
               </div>
 
@@ -2936,7 +3013,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                         <div className="p-4 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800">
                           <div className="flex items-center gap-3.5">
                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-black shrink-0 shadow-sm bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                              {stats.isDaily ? '🚚' : stats.isDouble ? '💎' : '🏛️'}
+                              {stats.isDaily ? (stats.isDouble ? '⚡' : '🚚') : '🏛️'}
                             </div>
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
@@ -2946,18 +3023,18 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                 <span className="font-mono text-xs text-slate-500 font-semibold">({group.group_code})</span>
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                                   {stats.isDaily
-                                    ? '🚚 DAILY CHIT SCHEME · EVERYDAY COLLECTION'
-                                    : stats.isDouble
-                                    ? '💎 MONTHLY DOUBLE SCHEME · COLLECT ANYTIME'
+                                    ? stats.isDouble
+                                      ? '⚡ DAILY DOUBLE CHIT SCHEME · EVERYDAY COLLECTION'
+                                      : '🚚 DAILY AUCTION CHIT SCHEME · EVERYDAY COLLECTION'
                                     : '🏛️ MONTHLY AUCTION SCHEME · COLLECT ANYTIME'}
                                 </span>
                               </div>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                 {stats.isDaily
-                                  ? 'Daily installment collected day-by-day during route field rounds'
-                                  : stats.isDouble
-                                  ? `Bimonthly dual draw surplus reserve scheme (Due: ${group.cycle_due || 'Cycle Anchor Date'})`
-                                  : `ChitBase reverse auction scheme (Due: ${group.cycle_due || 'Cycle Anchor Date'})`} · Area: <strong>{group.location_name || 'Assigned Territory'}</strong>
+                                  ? stats.isDouble
+                                    ? 'Daily 50-day double chit dual-draw scheme collected during route rounds'
+                                    : 'Daily 100-day reverse auction installment collected day-by-day during route field rounds'
+                                  : `Monthly reverse auction scheme (Due: ${group.cycle_due || 'Cycle Anchor Date'}) · Area: `}<strong>{group.location_name || 'Assigned Territory'}</strong>
                               </p>
                             </div>
                           </div>
@@ -3491,7 +3568,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 <input
                   type="date"
                   required
-                  value={collectForm.collection_date || new Date().toISOString().slice(0, 10)}
+                  value={collectForm.collection_date || getServerYMD()}
                   onChange={(e) => setCollectForm({ ...collectForm, collection_date: e.target.value })}
                   className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />

@@ -21,11 +21,11 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Toast from '../components/Toast';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, getServerYMD } from '../utils/dateUtils';
 
 export default function AgentDayClosingPage() {
   const { user } = useAuth();
-  const [workDate, setWorkDate] = useState(new Date().toISOString().slice(0, 10));
+  const [workDate, setWorkDate] = useState(getServerYMD());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -658,12 +658,12 @@ export default function AgentDayClosingPage() {
               <Send className="w-4 h-4" />
               <span>
                 {submitting
-                  ? 'Submitting Day Sheet...'
+                  ? 'Submitting Day Work...'
                   : isApproved
-                  ? 'Day Shift Approved & Closed ✓'
+                  ? 'Day Work Approved & Closed ✓'
                   : isPending
-                  ? 'Update Submitted Shift Handover'
-                  : 'Submit Day Work & Handover Cash'}
+                  ? 'Update Submitted Day Work'
+                  : 'Submit Day Work'}
               </span>
             </button>
           </div>
@@ -720,7 +720,7 @@ export default function AgentDayClosingPage() {
                 onClick={executeSubmitDayWork}
                 className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md shadow-amber-500/20 cursor-pointer transition-colors"
               >
-                Yes, Submit to Admin
+                Submit Day Work
               </button>
             </div>
           </div>

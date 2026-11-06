@@ -32,7 +32,7 @@ import {
   RotateCcw,
   Edit3,
 } from 'lucide-react';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, getServerYMD } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
@@ -96,7 +96,7 @@ export default function AuctionsPage() {
     winning_member_id: '',
     winning_ticket_number: '',
     bid_discount: '',
-    auction_date: new Date().toISOString().slice(0, 10),
+    auction_date: getServerYMD(),
     commission_percent: '5.0',
     custom_foreman_commission: '',
     custom_net_payable: '',
@@ -153,9 +153,9 @@ export default function AuctionsPage() {
 
       if (auctionsRes.data?.success) setAuctions(auctionsRes.data.data || []);
       if (groupsRes.data?.success) {
-        // Include all Auction Chit & Double Chit schemes (both Daily and Monthly)
+        // Include Auction Chit schemes and Daily Double Chit schemes (no double chits for monthly)
         const auctionEligibleGroups = (groupsRes.data.data || []).filter(
-          (g) => g.chit_type === 'AUCTION_CHIT' || g.chit_type === 'DOUBLE_CHIT'
+          (g) => g.chit_type === 'AUCTION_CHIT' || ((g.frequency === 'DAILY' || g.route_category === 'DAILY_ROUTE') && g.chit_type === 'DOUBLE_CHIT')
         );
         setGroups(auctionEligibleGroups);
 
@@ -575,14 +575,7 @@ export default function AuctionsPage() {
       return;
     }
 
-    // Business Rule: For regular auction, the total pool amount must be fully collected in the scheme
-    if (!isAuctioningReserve && groupTotalCollected < groupPoolAmount) {
-      const shortfall = groupPoolAmount - groupTotalCollected;
-      setError(
-        `Total chit pool of ₹${groupPoolAmount.toLocaleString('en-IN')} must be fully collected before conducting the auction. Currently collected: ₹${groupTotalCollected.toLocaleString('en-IN')} (Shortfall: ₹${shortfall.toLocaleString('en-IN')}). Please use the "Admin Add / Cover Pending Due" button to fund the deficit or record member collections.`
-      );
-      return;
-    }
+
 
     // Disqualification validation: ensure member has not won in this scheme already
     const chosenMember = groupMembers.find((m) => String(m.member_id) === String(form.winning_member_id));
@@ -712,7 +705,7 @@ export default function AuctionsPage() {
           winning_member_id: '',
           winning_ticket_number: '',
           bid_discount: '',
-          auction_date: new Date().toISOString().slice(0, 10),
+          auction_date: getServerYMD(),
           commission_percent: '5.0',
           custom_foreman_commission: '',
           custom_net_payable: '',
@@ -1072,26 +1065,26 @@ export default function AuctionsPage() {
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-900/60">
                   <span className="text-emerald-600 dark:text-emerald-400 block text-[10px] uppercase font-bold">Paid Installments</span>
                   <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">
-                    {Math.max(0, (schemeBreakdown?.totals?.enrolledCount || 0) - (schemeBreakdown?.totals?.unpaidCount || 0) - (schemeBreakdown?.totals?.adminCoveredCount || 0))} Paid
+                    {Math.max(0, (schemeBreakdown?.totals?.enrolledCount || 0) - (schemeBreakdown?.totals?.adminCoveredCount || 0))} Paid
                   </span>
                   <span className="text-[9px] text-slate-400 block">Directly by subscribers</span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60">
-                  <span className="text-amber-600 dark:text-amber-400 block text-[10px] uppercase font-bold">Admin Covered Advances</span>
+                  <span className="text-amber-600 dark:text-amber-400 block text-[10px] uppercase font-bold">Pending Amount to Admin</span>
                   <span className="text-base font-extrabold text-amber-600 dark:text-amber-400">
                     ₹{Number(schemeBreakdown?.totals?.adminCoveredAmount || 0).toLocaleString('en-IN')}
                   </span>
                   <span className="text-[9px] text-amber-600 dark:text-amber-400 block font-semibold">
-                    Pending recovery from {schemeBreakdown?.totals?.adminCoveredCount || 0} members
+                    Total pending from chit to Admin
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60">
-                  <span className="text-rose-600 dark:text-rose-400 block text-[10px] uppercase font-bold">Unpaid Deficit</span>
+                  <span className="text-rose-600 dark:text-rose-400 block text-[10px] uppercase font-bold">Pending Members Count</span>
                   <span className="text-base font-extrabold text-rose-600 dark:text-rose-400">
-                    ₹{Number(schemeBreakdown?.totals?.unpaidAmount || 0).toLocaleString('en-IN')}
+                    {schemeBreakdown?.totals?.adminCoveredCount || 0} Members
                   </span>
                   <span className="text-[9px] text-rose-600 dark:text-rose-400 block font-semibold">
-                    {schemeBreakdown?.totals?.unpaidCount || 0} awaiting payment / admin cover
+                    Owe pending amount to Admin
                   </span>
                 </div>
               </div>
@@ -1103,7 +1096,7 @@ export default function AuctionsPage() {
                     <span>Subscriber Payment, Dues & Dividend Ledger ({schemeBreakdown?.subscribers?.length || 0} Members)</span>
                   </h4>
                   <span className="text-xs text-slate-500">
-                    Shows which subscriber has paid, who owes pending amounts, and amounts added by Admin
+                    Shows which subscriber has paid and who owes pending amounts to admin
                   </span>
                 </div>
 
@@ -1906,37 +1899,18 @@ export default function AuctionsPage() {
                 </div>
               )}
 
-              {/* Pool Collection Shortfall Alert & Quick Admin Cover Flow */}
+              {/* Pool Collection Status Info */}
               {selectedGroup && !isAuctioningReserve && groupTotalCollected < groupPoolAmount && (
-                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 space-y-3 shadow-xs">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-start gap-2.5">
-                      <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                      <div>
-                        <div className="text-sm font-black font-heading text-amber-900 dark:text-amber-100">
-                          Pool Collection Incomplete — Shortfall: ₹{poolShortfall.toLocaleString('en-IN')}
-                        </div>
-                        <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
-                          Only <strong>₹{groupTotalCollected.toLocaleString('en-IN')}</strong> of the required <strong>₹{groupPoolAmount.toLocaleString('en-IN')}</strong> pool has been collected so far.
-                          The complete chit pool must be collected before conducting the auction.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleOpenAdminCoverFromAuctionModal}
-                      className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer font-heading"
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                      <span>Admin Add / Cover Pending Due</span>
-                    </button>
-                  </div>
-                  <div className="text-[11px] text-amber-800 dark:text-amber-300/90 bg-amber-100/70 dark:bg-amber-900/30 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800/50 flex items-center gap-2">
-                    <span className="shrink-0">💡</span>
-                    <span>
-                      Admin can add/cover this missing amount on behalf of member(s). This credits the chit fund pool so the auction proceeds, and records a pending recovery under <strong>Auction Advances & Member Dues</strong>.
+                <div className="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-blue-900 dark:text-blue-200 space-y-1.5 shadow-xs text-xs">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span className="font-bold text-blue-950 dark:text-blue-100 font-heading">
+                      Current Collection: ₹{groupTotalCollected.toLocaleString('en-IN')} of ₹{groupPoolAmount.toLocaleString('en-IN')} pool (Shortfall: ₹{poolShortfall.toLocaleString('en-IN')})
                     </span>
                   </div>
+                  <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed pl-6">
+                    As per chit fund practice, auction is conducted up to the full chit pool amount. Any subscriber installment shortfall automatically adds as a <strong>Pending Amount to Admin</strong> from respective member(s) once this auction completes.
+                  </p>
                 </div>
               )}
 
@@ -2930,13 +2904,6 @@ export default function AuctionsPage() {
                 </div>
               )}
 
-              {isPoolIncomplete && (
-                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs font-semibold flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-                  <span>Total chit pool must be fully collected (Shortfall: ₹{poolShortfall.toLocaleString('en-IN')}) or covered by Admin before conducting auction.</span>
-                </div>
-              )}
-
               <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
@@ -2947,7 +2914,7 @@ export default function AuctionsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || hasBoundaryErrors || isPoolIncomplete}
+                  disabled={submitting || hasBoundaryErrors}
                   className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer font-heading"
                 >
                   {submitting ? (
@@ -3085,8 +3052,11 @@ export default function AuctionsPage() {
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Scheme Type:</span>
                 <span className="font-semibold text-blue-600 dark:text-blue-400">
-                  {voucherModal?.frequency === 'DAILY' ? 'Daily' : 'Monthly'}{' '}
-                  {voucherModal?.chit_type === 'DOUBLE_CHIT' ? 'Double Chit Scheme' : 'Standard Reverse Auction'}
+                  {voucherModal?.frequency === 'DAILY'
+                    ? voucherModal?.chit_type === 'DOUBLE_CHIT'
+                      ? 'Daily Double Chit Scheme'
+                      : 'Daily Reverse Auction'
+                    : 'Monthly Reverse Auction'}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -3208,10 +3178,10 @@ export default function AuctionsPage() {
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
               <div className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <span>🛡️</span>
-                <span>Tracked in Admin Advances & Member Dues</span>
+                <span>Tracked in Admin Advance & Member Pending Dues</span>
               </div>
               <p>
-                This amount credits the chit fund pool so the auction proceeds. It is recorded as a member advance in <strong>Admin Commissions & Advances (/commissions)</strong> and the <strong>Member Installment & Dues Ledger</strong> below for tracking until the subscriber repays Admin.
+                This amount covers the chit fund pool so the auction proceeds. It is recorded as pending member recovery in <strong>Admin Commissions & Advances (/commissions)</strong> and the <strong>Member Installment & Dues Ledger</strong> below for tracking until the subscriber repays Admin.
               </p>
             </div>
 
@@ -3253,7 +3223,7 @@ export default function AuctionsPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
-                  Amount Added by Admin (₹) *
+                  Total Pending Due in Admin Advance (₹) *
                 </label>
                 <input
                   type="number"
@@ -3267,7 +3237,7 @@ export default function AuctionsPage() {
                   className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
                 <span className="text-[10px] text-slate-400 block mt-1">
-                  Defaulted to unpaid deficit. Admin can fund full or partial installment.
+                  Total pending deficit due from member to Admin.
                 </span>
               </div>
 
