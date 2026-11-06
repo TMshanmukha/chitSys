@@ -28,11 +28,13 @@ import {
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import ModalPortal from './ModalPortal';
+import ChitCompletionModal from './ChitCompletionModal';
 
 export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'members' | 'collections' | 'auctions' | 'nodes'
 
   // Per-chit subscriber filters & sorting
@@ -324,6 +326,18 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
           </div>
 
           <div className="flex items-center gap-2 print:hidden">
+            {group?.status !== 'COMPLETED' && group?.status !== 'INACTIVE' && (
+              <button
+                type="button"
+                onClick={() => setShowCompleteModal(true)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 hover:bg-amber-600 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Complete and close this chit scheme"
+              >
+                <span>🏁</span>
+                <span>Complete Chit</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handlePrint}
@@ -1361,6 +1375,18 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
               </div>
             </div>
           </ModalPortal>
+        )}
+
+        {/* Modal: Chit Group Completion & Closure Audit */}
+        {showCompleteModal && group && (
+          <ChitCompletionModal
+            group={group}
+            isOpen={showCompleteModal}
+            onClose={() => setShowCompleteModal(false)}
+            onCompleted={() => {
+              setData((prev) => (prev ? { ...prev, status: 'COMPLETED' } : prev));
+            }}
+          />
         )}
       </div>
     </ModalPortal>

@@ -460,3 +460,119 @@ export async function getGroupDetails(req, res, next) {
     next(error);
   }
 }
+
+export async function completeGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const [groupRows] = await pool.execute('SELECT * FROM chit_groups WHERE id = ?', [id]);
+    if (groupRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chit group not found.' });
+    }
+    const group = groupRows[0];
+
+    if (group.status === 'COMPLETED' || group.status === 'INACTIVE') {
+      return res.status(400).json({
+        success: false,
+        message: 'This chit group is already marked as completed/inactive.',
+      });
+    }
+
+    const isDaily = group.frequency === 'DAILY' || group.route_category === 'DAILY_ROUTE';
+    const totalPeriods = parseInt(group.duration_periods, 10) || (isDaily ? 100 : 20);
+    const installmentAmt = parseFloat(group.installment_amount) || 0;
+
+    // Check elapsed duration
+    let elapsedPeriods = 0;
+    if (group.start_date) {
+      const start = new Date(group.start_date);
+      const now = new Date();
+      if (isDaily) {
+        const diffMs = now.getTime() - start.getTime();
+        elapsedPeriods = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      } else {
+        const diffMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+        elapsedPeriods = Math.max(0, diffMonths);
+      }
+    }
+    const periodsRemaining = Math.max(0, totalPeriods - elapsedPeriods);
+    if (periodsRemaining > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot complete chit scheme: ${periodsRemaining} ${isDaily ? 'day(s)' : 'month(s)'} are still remaining until maturity. Total duration of ${totalPeriods} ${isDaily ? 'days' : 'months'} must be completed.`,
+        periodsRemaining,
+      });
+    }
+
+    // Check member dues
+    const [members] = await pool.execute(
+      `SELECT gm.member_id, gm.ticket_number, m.full_name, m.phone,
+              COALESCE((
+                SELECT SUM(c.amount) FROM collections c 
+                WHERE c.group_id = gm.group_id AND c.member_id = gm.member_id AND c.verification_status != 'CANCELLED'
+              ), 0) as total_paid
+       FROM group_memberships gm
+       JOIN members m ON gm.member_id = m.id
+       WHERE gm.group_id = ?`,
+      [id]
+    );
+
+    const totalRequiredPerMember = totalPeriods * installmentAmt;
+    const membersWithDue = [];
+    let totalPendingAmount = 0;
+
+    for (const m of members) {
+      const paid = parseFloat(m.total_paid || 0);
+      const due = Math.max(0, totalRequiredPerMember - paid);
+      if (due > 0) {
+        membersWithDue.push({
+          member_id: m.member_id,
+          ticket_number: m.ticket_number,
+          full_name: m.full_name,
+          phone: m.phone,
+          total_paid: paid,
+          pending_due: due,
+        });
+        totalPendingAmount += due;
+      }
+    }
+
+    if (membersWithDue.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot complete chit scheme: ${membersWithDue.length} subscriber(s) have unpaid dues totaling ₹${totalPendingAmount.toLocaleString('en-IN')}. Every subscriber must have ₹0 due.`,
+        membersWithDue,
+        totalPendingAmount,
+      });
+    }
+
+    // Mark chit as COMPLETED
+    await pool.execute(
+      `UPDATE chit_groups SET status = 'COMPLETED', end_date = COALESCE(end_date, CURDATE()) WHERE id = ?`,
+      [id]
+    );
+    await pool.execute(
+      `UPDATE group_memberships SET status = 'COMPLETED' WHERE group_id = ?`,
+      [id]
+    );
+    await pool.execute(
+      `UPDATE agent_group_assignments SET is_active = 0 WHERE group_id = ?`,
+      [id]
+    );
+
+    await recordAuditLog({
+      user_id: req.user?.id || 1,
+      action: 'COMPLETE_CHIT_GROUP',
+      entity: 'chit_groups',
+      entity_id: id,
+      details: `Chit Group ${group.group_code} marked as COMPLETED.`,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Chit Scheme '${group.group_name}' (${group.group_code}) successfully completed and moved to inactive schemes.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+}

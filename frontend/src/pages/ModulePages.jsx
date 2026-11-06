@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import {
   Layers,
@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import ChitHistoryModal from '../components/ChitHistoryModal';
+import ChitCompletionModal from '../components/ChitCompletionModal';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
@@ -70,6 +71,7 @@ export const generateNextGroupCode = (frequency = 'DAILY', chitType = 'AUCTION_C
    1. CHIT GROUPS & SCHEMES MANAGEMENT (ChitBase Flow)
    ========================================================================= */
 export function ChitGroupsPage() {
+  const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
   const [agents, setAgents] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
@@ -82,8 +84,13 @@ export function ChitGroupsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [schemeTab, setSchemeTab] = useState('ALL'); // 'ALL' | 'DAILY_ALL' | 'DAILY_AUC' | 'DAILY_DBL' | 'MONTHLY_AUC' | 'MONTHLY_DBL'
+  const [statusFilter, setStatusFilter] = useState('ACTIVE'); // 'ACTIVE' | 'INACTIVE' | 'ALL'
   const [selectedHistoryGroupId, setSelectedHistoryGroupId] = useState(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  // Chit Completion Modal State
+  const [closingGroup, setClosingGroup] = useState(null);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
 
   // Quick Add Agent Modal state
   const [showQuickAgentModal, setShowQuickAgentModal] = useState(false);
@@ -131,7 +138,7 @@ export function ChitGroupsPage() {
 
   useEffect(() => {
     setGroupsPage(1);
-  }, [schemeTab]);
+  }, [schemeTab, statusFilter]);
 
   const loadData = async () => {
     try {
@@ -388,6 +395,13 @@ export function ChitGroupsPage() {
   };
 
   const filteredGroups = groups.filter((g) => {
+    // 1. Status Filter (Active Schemes vs Completed / Inactive Schemes)
+    if (statusFilter === 'ACTIVE') {
+      if (g.status && g.status !== 'ACTIVE') return false;
+    } else if (statusFilter === 'INACTIVE') {
+      if (g.status !== 'COMPLETED' && g.status !== 'INACTIVE') return false;
+    }
+
     if (groupSearchQuery.trim()) {
       const q = groupSearchQuery.toLowerCase();
       const match =
@@ -521,6 +535,62 @@ export function ChitGroupsPage() {
               <List className="w-4 h-4" />
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Status Filter Tabs (Active vs Completed / Inactive) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
+        <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-2xs">
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter('ACTIVE');
+              setGroupsPage(1);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              statusFilter === 'ACTIVE'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+            <span>Active Schemes ({groups.filter((g) => g.status === 'ACTIVE' || !g.status).length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter('INACTIVE');
+              setGroupsPage(1);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              statusFilter === 'INACTIVE'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <span>🏁</span>
+            <span>Completed / Inactive ({groups.filter((g) => g.status === 'COMPLETED' || g.status === 'INACTIVE').length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter('ALL');
+              setGroupsPage(1);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+              statusFilter === 'ALL'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            All Schemes ({groups.length})
+          </button>
+        </div>
+
+        <div className="text-xs text-slate-500 font-medium px-2">
+          Displaying <strong>{filteredGroups.length}</strong> {statusFilter === 'ACTIVE' ? 'active' : statusFilter === 'INACTIVE' ? 'completed' : ''} schemes
         </div>
       </div>
 
@@ -684,9 +754,47 @@ export function ChitGroupsPage() {
                           {g.assigned_agents || <span className="text-slate-400 italic">Unassigned</span>}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <span className="text-blue-600 dark:text-blue-400 font-bold hover:underline">
-                            Ledger →
-                          </span>
+                          <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/admin/collections?group_id=${g.id}`)}
+                              className="px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white transition-colors text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                              title="Record payment for this chit scheme"
+                            >
+                              <span>💰</span>
+                              <span>Collect</span>
+                            </button>
+
+                            {g.status === 'COMPLETED' || g.status === 'INACTIVE' ? (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700">
+                                🏁 Closed
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setClosingGroup(g);
+                                  setShowCompletionModal(true);
+                                }}
+                                className="px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-600 hover:text-white border border-amber-300 dark:border-amber-700 transition-colors text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                title="Check prerequisites and complete chit"
+                              >
+                                <span>🏁</span>
+                                <span>Complete</span>
+                              </button>
+                            )}
+
+                            <span
+                              onClick={() => {
+                                setSelectedHistoryGroupId(g.id);
+                                setShowHistoryModal(true);
+                                scrollToFormOrModal('chit-history-modal');
+                              }}
+                              className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer pl-1"
+                            >
+                              Ledger →
+                            </span>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -782,7 +890,7 @@ export function ChitGroupsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+                <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 dark:text-slate-400">
                       <strong className="text-slate-800 dark:text-slate-200">{g.enrolled_members}</strong> / {g.total_members_limit} Members
@@ -792,9 +900,47 @@ export function ChitGroupsPage() {
                     </span>
                   </div>
 
-                  <div className="pt-1.5 flex items-center justify-between text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:translate-x-0.5 transition-transform border-t border-dashed border-slate-100 dark:border-slate-800">
-                    <span>View Total History & Ledger</span>
-                    <span>→</span>
+                  <div className="pt-2 flex items-center justify-between gap-2 border-t border-dashed border-slate-100 dark:border-slate-800" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/collections?group_id=${g.id}`)}
+                      className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                      title="Record collections for this chit scheme"
+                    >
+                      <span>💰</span>
+                      <span>Collect</span>
+                    </button>
+
+                    {g.status === 'COMPLETED' || g.status === 'INACTIVE' ? (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 flex items-center gap-1">
+                        <span>🏁</span> Closed
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClosingGroup(g);
+                          setShowCompletionModal(true);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-600 hover:text-white border border-amber-300 dark:border-amber-700 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                        title="Check completion prerequisites and close chit"
+                      >
+                        <span>🏁</span>
+                        <span>Complete</span>
+                      </button>
+                    )}
+
+                    <span
+                      onClick={() => {
+                        setSelectedHistoryGroupId(g.id);
+                        setShowHistoryModal(true);
+                        scrollToFormOrModal('chit-history-modal');
+                      }}
+                      className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5"
+                    >
+                      <span>Ledger</span>
+                      <span>→</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1996,6 +2142,22 @@ export function ChitGroupsPage() {
           setSelectedHistoryGroupId(null);
         }}
       />
+
+      {/* Modal: Chit Group Closure & Completion Audit */}
+      {closingGroup && (
+        <ChitCompletionModal
+          group={closingGroup}
+          isOpen={showCompletionModal}
+          onClose={() => {
+            setShowCompletionModal(false);
+            setClosingGroup(null);
+          }}
+          onCompleted={(msg) => {
+            setSuccess(msg);
+            loadData();
+          }}
+        />
+      )}
     </div>
   );
 }
