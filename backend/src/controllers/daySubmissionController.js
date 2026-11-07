@@ -398,6 +398,7 @@ export async function calculateDayWorkData(agentId, workDate) {
 
 /**
  * Live preview calculation of today's route collections, chits and graphs without submitting.
+ * Automatically detects whether previous shifts were approved and whether new work/chits are assigned today.
  */
 export async function previewAgentDayWork(req, res, next) {
   try {
@@ -405,29 +406,85 @@ export async function previewAgentDayWork(req, res, next) {
     const workDate = req.query.date || getTodayIST();
     const data = await calculateDayWorkData(agentId, workDate);
 
+    // Fetch all submissions for this agent on this date
     const [existing] = await pool.query(
       `SELECT ads.*, u.full_name as approved_by_name
        FROM agent_day_submissions ads
        LEFT JOIN users u ON ads.approved_by = u.id
-       WHERE ads.agent_id = ? AND ads.work_date = ? LIMIT 1`,
+       WHERE ads.agent_id = ? AND DATE(ads.work_date) = DATE(?)
+       ORDER BY ads.id DESC`,
       [agentId, workDate]
     );
+
+    const approvedSubs = existing.filter((s) => s.status === 'APPROVED');
+    const pendingSubs = existing.filter((s) => s.status !== 'APPROVED');
+
+    const previouslyApprovedCash = approvedSubs.reduce((sum, s) => sum + parseFloat(s.verified_cash_amount ?? s.cash_collected ?? 0), 0);
+    const previouslyApprovedUpi = approvedSubs.reduce((sum, s) => sum + parseFloat(s.verified_upi_amount ?? s.upi_collected ?? 0), 0);
+    const previouslyApprovedTotal = approvedSubs.reduce((sum, s) => sum + parseFloat(s.total_collected ?? 0), 0);
+    const previouslyApprovedReceipts = approvedSubs.reduce((sum, s) => sum + parseInt(s.total_receipts ?? 0, 10), 0);
+
+    const shiftCash = Math.max(0, data.cashCollected - previouslyApprovedCash);
+    const shiftUpi = Math.max(0, data.upiCollected - previouslyApprovedUpi);
+    const shiftTotal = Math.max(0, data.totalCollected - previouslyApprovedTotal);
+    const shiftReceipts = Math.max(0, data.totalReceipts - previouslyApprovedReceipts);
+
+    let isSubmitted = false;
+    let currentSubmission = null;
+    let shiftNumber = approvedSubs.length + 1;
+    let hasAdditionalWork = false;
+
+    if (pendingSubs.length > 0) {
+      // Active pending submission currently awaiting admin review
+      isSubmitted = true;
+      currentSubmission = pendingSubs[0];
+      shiftNumber = approvedSubs.length + pendingSubs.length;
+    } else if (approvedSubs.length > 0) {
+      // Previous shift was approved & closed. Check if Admin assigned new work or if there are new collections
+      const hasPendingStops = data.totalStopsPending > 0;
+      const hasNewCollections = shiftTotal > 0 || shiftReceipts > 0;
+
+      if (hasPendingStops || hasNewCollections) {
+        // Automatically re-open Day Submit for Shift #2 (Additional Assignment)!
+        isSubmitted = false;
+        currentSubmission = null;
+        hasAdditionalWork = true;
+        shiftNumber = approvedSubs.length + 1;
+      } else {
+        // All stops visited, no new assignments or collections
+        isSubmitted = true;
+        currentSubmission = approvedSubs[0];
+        shiftNumber = approvedSubs.length;
+      }
+    }
 
     res.status(200).json({
       success: true,
       data: {
         workDate,
-        isSubmitted: existing.length > 0,
-        submission: existing.length > 0 ? {
-          id: existing[0].id,
-          status: existing[0].status,
-          adminNotes: existing[0].admin_notes,
-          verifiedCashAmount: existing[0].verified_cash_amount ? parseFloat(existing[0].verified_cash_amount) : null,
-          verifiedUpiAmount: existing[0].verified_upi_amount ? parseFloat(existing[0].verified_upi_amount) : null,
-          approvedByName: existing[0].approved_by_name,
-          approvedAt: existing[0].approved_at,
-          submittedAt: existing[0].submitted_at,
-          agentNotes: existing[0].agent_notes,
+        isSubmitted,
+        hasAdditionalWork,
+        isAdditionalShift: approvedSubs.length > 0,
+        shiftNumber,
+        previouslyApprovedCash,
+        previouslyApprovedUpi,
+        previouslyApprovedTotal,
+        previouslyApprovedReceipts,
+        shiftCashToHandover: shiftCash,
+        shiftUpiCollected: shiftUpi,
+        shiftTotalCollected: shiftTotal,
+        shiftReceiptsCount: shiftReceipts,
+        allPreviousSubmissions: existing,
+        submission: currentSubmission ? {
+          id: currentSubmission.id,
+          status: currentSubmission.status,
+          adminNotes: currentSubmission.admin_notes,
+          verifiedCashAmount: currentSubmission.verified_cash_amount ? parseFloat(currentSubmission.verified_cash_amount) : null,
+          verifiedUpiAmount: currentSubmission.verified_upi_amount ? parseFloat(currentSubmission.verified_upi_amount) : null,
+          approvedByName: currentSubmission.approved_by_name,
+          approvedAt: currentSubmission.approved_at,
+          submittedAt: currentSubmission.submitted_at,
+          agentNotes: currentSubmission.agent_notes,
         } : null,
         ...data,
       },
@@ -439,13 +496,15 @@ export async function previewAgentDayWork(req, res, next) {
 
 /**
  * Submit agent's day collections & route work for Admin verification and day closing.
- * Aggregates all collections, chit-by-chit breakdowns, and generates analytical graphs.
+ * If previous shift was already approved and cash handed over, creates a distinct Shift #2 submission
+ * so Admin receives a second approval form for counting the newly collected cash.
  */
 export async function submitAgentDayWork(req, res, next) {
   try {
     const agentId = req.user.id;
     const workDate = req.body.work_date || getTodayIST();
     const agentNotes = req.body.agent_notes || '';
+    const normalizedWorkDate = String(workDate).slice(0, 10);
 
     const {
       cashCollected,
@@ -460,78 +519,167 @@ export async function submitAgentDayWork(req, res, next) {
       payloadJson,
     } = await calculateDayWorkData(agentId, workDate);
 
-    const normalizedWorkDate = String(workDate).slice(0, 10);
-
-    // 7. Check if an active submission already exists for this agent and date
+    // Check existing submissions today
     const [existing] = await pool.query(
-      `SELECT id, status FROM agent_day_submissions WHERE agent_id = ? AND DATE(work_date) = DATE(?) ORDER BY id DESC LIMIT 1`,
+      `SELECT * FROM agent_day_submissions WHERE agent_id = ? AND DATE(work_date) = DATE(?) ORDER BY id DESC`,
       [agentId, normalizedWorkDate]
     );
 
+    const approvedSubs = existing.filter((s) => s.status === 'APPROVED');
+    const pendingSubs = existing.filter((s) => s.status !== 'APPROVED');
+
     let submissionId;
+    let shiftNumber = 1;
+    let finalCashToSubmit = cashCollected;
+    let finalUpiToSubmit = upiCollected;
+    let finalTotalToSubmit = totalCollected;
+    let finalReceiptsToSubmit = totalReceipts;
 
-    if (existing.length > 0) {
-      if (existing[0].status === 'APPROVED') {
-        return res.status(400).json({
-          success: false,
-          message: `Day handover for ${normalizedWorkDate} has already been approved and closed by Admin. Please request Admin to unlock your shift if you need to make changes.`,
-        });
+    if (approvedSubs.length > 0) {
+      // Previous shift was approved and cash was handed over
+      shiftNumber = approvedSubs.length + 1;
+      const prevApprovedCash = approvedSubs.reduce((sum, s) => sum + parseFloat(s.verified_cash_amount ?? s.cash_collected ?? 0), 0);
+      const prevApprovedUpi = approvedSubs.reduce((sum, s) => sum + parseFloat(s.verified_upi_amount ?? s.upi_collected ?? 0), 0);
+      const prevApprovedTotal = approvedSubs.reduce((sum, s) => sum + parseFloat(s.total_collected ?? 0), 0);
+      const prevApprovedReceipts = approvedSubs.reduce((sum, s) => sum + parseInt(s.total_receipts ?? 0, 10), 0);
+
+      finalCashToSubmit = Math.max(0, cashCollected - prevApprovedCash);
+      finalUpiToSubmit = Math.max(0, upiCollected - prevApprovedUpi);
+      finalTotalToSubmit = Math.max(0, totalCollected - prevApprovedTotal);
+      finalReceiptsToSubmit = Math.max(0, totalReceipts - prevApprovedReceipts);
+
+      const shiftPayloadJson = JSON.stringify({
+        workDate: normalizedWorkDate,
+        shiftNumber,
+        isAdditionalShift: true,
+        summary: {
+          cashCollected: finalCashToSubmit,
+          upiCollected: finalUpiToSubmit,
+          chequeCollected: 0,
+          totalCollected: finalTotalToSubmit,
+          totalReceipts: finalReceiptsToSubmit,
+          totalStopsVisited,
+          totalStopsPending,
+          dayGrandCashCollected: cashCollected,
+          dayGrandUpiCollected: upiCollected,
+          dayGrandTotalCollected: totalCollected,
+          previouslyApprovedCash: prevApprovedCash,
+          previouslyApprovedTotal: prevApprovedTotal,
+        },
+        graphsAnalyses,
+        chitBreakdown,
+        submittedAt: new Date().toISOString(),
+      });
+
+      if (pendingSubs.length > 0) {
+        // Re-submission / update on the pending shift
+        submissionId = pendingSubs[0].id;
+        await pool.query(
+          `UPDATE agent_day_submissions
+           SET cash_collected = ?,
+               upi_collected = ?,
+               cheque_collected = 0,
+               total_collected = ?,
+               total_receipts = ?,
+               total_stops_visited = ?,
+               total_stops_pending = ?,
+               chit_breakdown_json = ?,
+               agent_notes = ?,
+               status = 'PENDING_APPROVAL',
+               submitted_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [
+            finalCashToSubmit,
+            finalUpiToSubmit,
+            finalTotalToSubmit,
+            finalReceiptsToSubmit,
+            totalStopsVisited,
+            totalStopsPending,
+            shiftPayloadJson,
+            agentNotes ? `[Shift #${shiftNumber}] ${agentNotes}` : `Shift #${shiftNumber} (Additional Work)`,
+            submissionId,
+          ]
+        );
+      } else {
+        // First approved shift is completed -> INSERT Shift #2 as a distinct new submission record!
+        const [insertRes] = await pool.query(
+          `INSERT INTO agent_day_submissions (
+             agent_id, work_date, cash_collected, upi_collected, cheque_collected, total_collected,
+             total_receipts, total_stops_visited, total_stops_pending, chit_breakdown_json, agent_notes, status
+           ) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')`,
+          [
+            agentId,
+            normalizedWorkDate,
+            finalCashToSubmit,
+            finalUpiToSubmit,
+            finalTotalToSubmit,
+            finalReceiptsToSubmit,
+            totalStopsVisited,
+            totalStopsPending,
+            shiftPayloadJson,
+            agentNotes ? `[Shift #${shiftNumber}] ${agentNotes}` : `Shift #${shiftNumber} (Additional Work)`,
+          ]
+        );
+        submissionId = insertRes.insertId;
       }
-
-      submissionId = existing[0].id;
-      await pool.query(
-        `UPDATE agent_day_submissions
-         SET cash_collected = ?,
-             upi_collected = ?,
-             cheque_collected = ?,
-             total_collected = ?,
-             total_receipts = ?,
-             total_stops_visited = ?,
-             total_stops_pending = ?,
-             chit_breakdown_json = ?,
-             agent_notes = ?,
-             status = 'PENDING_APPROVAL',
-             submitted_at = CURRENT_TIMESTAMP,
-             approved_by = NULL,
-             approved_at = NULL,
-             approval_date = NULL,
-             verified_cash_amount = NULL,
-             verified_upi_amount = NULL
-         WHERE id = ?`,
-        [
-          cashCollected,
-          upiCollected,
-          chequeCollected,
-          totalCollected,
-          totalReceipts,
-          totalStopsVisited,
-          totalStopsPending,
-          payloadJson,
-          agentNotes,
-          submissionId,
-        ]
-      );
     } else {
-      const [insertRes] = await pool.query(
-        `INSERT INTO agent_day_submissions (
-           agent_id, work_date, cash_collected, upi_collected, cheque_collected, total_collected,
-           total_receipts, total_stops_visited, total_stops_pending, chit_breakdown_json, agent_notes, status
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')`,
-        [
-          agentId,
-          normalizedWorkDate,
-          cashCollected,
-          upiCollected,
-          chequeCollected,
-          totalCollected,
-          totalReceipts,
-          totalStopsVisited,
-          totalStopsPending,
-          payloadJson,
-          agentNotes,
-        ]
-      );
-      submissionId = insertRes.insertId;
+      // Shift 1 normal submission
+      if (pendingSubs.length > 0) {
+        submissionId = pendingSubs[0].id;
+        await pool.query(
+          `UPDATE agent_day_submissions
+           SET cash_collected = ?,
+               upi_collected = ?,
+               cheque_collected = ?,
+               total_collected = ?,
+               total_receipts = ?,
+               total_stops_visited = ?,
+               total_stops_pending = ?,
+               chit_breakdown_json = ?,
+               agent_notes = ?,
+               status = 'PENDING_APPROVAL',
+               submitted_at = CURRENT_TIMESTAMP,
+               approved_by = NULL,
+               approved_at = NULL,
+               approval_date = NULL,
+               verified_cash_amount = NULL,
+               verified_upi_amount = NULL
+           WHERE id = ?`,
+          [
+            cashCollected,
+            upiCollected,
+            chequeCollected,
+            totalCollected,
+            totalReceipts,
+            totalStopsVisited,
+            totalStopsPending,
+            payloadJson,
+            agentNotes,
+            submissionId,
+          ]
+        );
+      } else {
+        const [insertRes] = await pool.query(
+          `INSERT INTO agent_day_submissions (
+             agent_id, work_date, cash_collected, upi_collected, cheque_collected, total_collected,
+             total_receipts, total_stops_visited, total_stops_pending, chit_breakdown_json, agent_notes, status
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')`,
+          [
+            agentId,
+            normalizedWorkDate,
+            cashCollected,
+            upiCollected,
+            chequeCollected,
+            totalCollected,
+            totalReceipts,
+            totalStopsVisited,
+            totalStopsPending,
+            payloadJson,
+            agentNotes,
+          ]
+        );
+        submissionId = insertRes.insertId;
+      }
     }
 
     // 8. Audit log & Admin Notification

@@ -189,8 +189,10 @@ export default function AgentDayClosingPage() {
     return chitBreakdown.reduce((sum, chit) => {
       const cAdmin = Number(chit.adminCollected || 0);
       if (cAdmin > 0) return sum + cAdmin;
-      const adminMembers = (chit.paidMembers || []).filter((m) => m.completedByAdmin);
-      return sum + adminMembers.reduce((mSum, m) => mSum + Number(m.adminAmount || m.amount || 0), 0);
+      const adminMembers = (chit.paidMembers || []).filter((m) => Boolean(
+        m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin')) || (m.completedBy && m.completedBy.toLowerCase().includes('admin'))
+      ));
+      return sum + adminMembers.reduce((mSum, m) => mSum + Number(m.adminAmount || (m.completedByAdmin && !m.agentAmount ? m.amount : 0) || 0), 0);
     }, 0);
   }, [summary, data, chitBreakdown]);
 
@@ -202,11 +204,42 @@ export default function AgentDayClosingPage() {
       return Number(data.adminPaidMembersCount);
     }
     return chitBreakdown.reduce((sum, chit) => {
-      if (chit.adminPaidSubscribersCount != null) return sum + Number(chit.adminPaidSubscribersCount);
-      const adminMembers = (chit.paidMembers || []).filter((m) => m.completedByAdmin);
+      if (chit.adminPaidSubscribersCount != null && Number(chit.adminPaidSubscribersCount) > 0) {
+        return sum + Number(chit.adminPaidSubscribersCount);
+      }
+      const adminMembers = (chit.paidMembers || []).filter((m) => Boolean(
+        m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin')) || (m.completedBy && m.completedBy.toLowerCase().includes('admin'))
+      ));
       return sum + adminMembers.length;
     }, 0);
   }, [summary, data, chitBreakdown]);
+
+  const effectiveAgentTarget = useMemo(() => {
+    const rawTarget = Number(summary.grandExpectedTarget || data?.expectedTarget || 0);
+    const agentCollected = Number(data?.totalCollected || 0);
+    if (rawTarget > 0) {
+      if (adminTotalCollected > 0 && rawTarget > agentCollected) {
+        return Math.max(agentCollected, rawTarget - adminTotalCollected);
+      }
+      return rawTarget;
+    }
+    return agentCollected;
+  }, [summary, data, adminTotalCollected]);
+
+  const effectiveStopsVisited = useMemo(() => {
+    const rawVisited = Number(data?.totalStopsVisited || 0);
+    const receipts = Number(data?.totalReceipts || 0);
+    if (adminPaidCount > 0 && rawVisited > receipts && receipts > 0) {
+      return Math.max(receipts, rawVisited - adminPaidCount);
+    }
+    return rawVisited;
+  }, [data, adminPaidCount]);
+
+  const effectiveStopsPending = Number(data?.totalStopsPending || 0);
+  const effectiveTotalStops = effectiveStopsVisited + effectiveStopsPending;
+  const targetCompletionPercent = effectiveAgentTarget > 0
+    ? Math.min(100, Math.round((Number(data?.totalCollected || 0) / effectiveAgentTarget) * 100))
+    : (Number(data?.totalCollected || 0) > 0 ? 100 : 0);
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fadeIn pb-16 font-sans px-1 sm:px-0">
@@ -294,8 +327,38 @@ export default function AgentDayClosingPage() {
         </div>
       )}
 
+      {/* Additional Shift Banner: When Admin assigns new work after Shift 1 approval */}
+      {data?.hasAdditionalWork && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-fadeIn">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-sm sm:text-base font-heading">
+                  Shift #1 Handover Approved · Shift #{data.shiftNumber || 2} Open
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-200 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200 border border-indigo-300">
+                  New Work Assigned by Admin
+                </span>
+              </div>
+              <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-0.5">
+                Shift #1 physical cash (₹{Number(data.previouslyApprovedCash || 0).toLocaleString('en-IN')}) was approved and closed by Admin. You have additional assigned tasks today. Submit Shift #{data.shiftNumber || 2} below when your collections are complete.
+              </p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-indigo-200 dark:border-indigo-800">
+            <span className="text-[10px] uppercase font-bold text-indigo-500 block">Shift #{data.shiftNumber || 2} Cash to Handover</span>
+            <span className="font-black text-base sm:text-lg text-indigo-600 dark:text-indigo-400 font-mono">
+              ₹{Number(data.shiftCashToHandover != null ? data.shiftCashToHandover : data.cashCollected).toLocaleString('en-IN')}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Shift State Banner */}
-      {data?.isSubmitted && (
+      {data?.isSubmitted && !data?.hasAdditionalWork && (
         <div
           className={`p-4 sm:p-5 rounded-3xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isApproved
               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
@@ -391,10 +454,10 @@ export default function AgentDayClosingPage() {
             <CheckSquare className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-heading truncate">
-            {data?.totalStopsVisited || 0} / {(data?.totalStopsVisited || 0) + (data?.totalStopsPending || 0)}
+            {effectiveStopsVisited} / {effectiveTotalStops}
           </div>
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400 truncate">
-            {data?.totalStopsPending || 0} stops remaining
+            {effectiveStopsPending} stops remaining
             {adminPaidCount > 0 && (
               <span className="ml-1 text-purple-600 dark:text-purple-400 font-bold">
                 (⚡ {adminPaidCount} Paid to Admin)
@@ -413,9 +476,7 @@ export default function AgentDayClosingPage() {
               Daily Target Completion
             </h2>
             <span className="text-xs font-black px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
-              {Number(summary.grandExpectedTarget || 0) > 0
-                ? Math.min(100, Math.round((Number(data?.totalCollected || 0) / Number(summary.grandExpectedTarget)) * 100))
-                : (summary.overallCompletionPercent || 0)}%
+              {targetCompletionPercent}%
             </span>
           </div>
 
@@ -424,18 +485,13 @@ export default function AgentDayClosingPage() {
               <div
                 className="h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 transition-all duration-500"
                 style={{
-                  width: `${Math.min(
-                    100,
-                    Number(summary.grandExpectedTarget || 0) > 0
-                      ? Math.round((Number(data?.totalCollected || 0) / Number(summary.grandExpectedTarget)) * 100)
-                      : (summary.overallCompletionPercent || 0)
-                  )}%`,
+                  width: `${targetCompletionPercent}%`,
                 }}
               />
             </div>
             <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-1">
               <span>Collected: ₹{Number(data?.totalCollected || 0).toLocaleString('en-IN')}</span>
-              <span>Target: ₹{Number(summary.grandExpectedTarget || 0).toLocaleString('en-IN')}</span>
+              <span>Target: ₹{effectiveAgentTarget.toLocaleString('en-IN')}</span>
             </div>
           </div>
         </div>
@@ -485,7 +541,7 @@ export default function AgentDayClosingPage() {
               Route Stop Performance
             </h2>
             <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-              {summary.taskProgress?.ratePercent || 0}% Visited
+              {effectiveTotalStops > 0 ? Math.round((effectiveStopsVisited / effectiveTotalStops) * 100) : 100}% Visited
             </span>
           </div>
 
@@ -493,12 +549,12 @@ export default function AgentDayClosingPage() {
             <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                style={{ width: `${summary.taskProgress?.ratePercent || 0}%` }}
+                style={{ width: `${effectiveTotalStops > 0 ? Math.round((effectiveStopsVisited / effectiveTotalStops) * 100) : 100}%` }}
               />
             </div>
             <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-1">
-              <span>{summary.taskProgress?.visitedCount || 0} stops done</span>
-              <span>{summary.taskProgress?.pendingCount || 0} stops left</span>
+              <span>{effectiveStopsVisited} stops done</span>
+              <span>{effectiveStopsPending} stops left</span>
             </div>
           </div>
         </div>
@@ -736,8 +792,8 @@ export default function AgentDayClosingPage() {
               rows={3}
               value={agentNotes}
               onChange={(e) => setAgentNotes(e.target.value)}
-              disabled={isApproved}
-              placeholder="Enter details on currency note bundles, customer promises, or route notes for Admin..."
+              disabled={isApproved && !data?.hasAdditionalWork}
+              placeholder={data?.hasAdditionalWork ? `Enter details for Shift #${data.shiftNumber || 2} cash handover to Admin...` : "Enter details on currency note bundles, customer promises, or route notes for Admin..."}
               className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 p-3 text-xs dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none disabled:opacity-50"
             />
           </div>
@@ -745,18 +801,20 @@ export default function AgentDayClosingPage() {
           <div className="flex items-center justify-end gap-3 pt-1">
             <button
               type="submit"
-              disabled={submitting || isApproved}
+              disabled={submitting || (isApproved && !data?.hasAdditionalWork)}
               className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50 cursor-pointer"
             >
               <Send className="w-4 h-4" />
               <span>
                 {submitting
                   ? 'Submitting Day Work...'
-                  : isApproved
-                    ? 'Day Work Approved & Closed ✓'
-                    : isPending
-                      ? 'Update Submitted Day Work'
-                      : 'Submit Day Work'}
+                  : data?.hasAdditionalWork
+                    ? `Submit Shift #${data.shiftNumber || 2} Handover (₹${Number(data.shiftCashToHandover != null ? data.shiftCashToHandover : data.cashCollected).toLocaleString('en-IN')} Cash)`
+                    : isApproved
+                      ? 'Day Work Approved & Closed ✓'
+                      : isPending
+                        ? 'Update Submitted Day Work'
+                        : 'Submit Day Work'}
               </span>
             </button>
           </div>

@@ -102,7 +102,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [daySubmitSuccess, setDaySubmitSuccess] = useState('');
   const [daySubmitError, setDaySubmitError] = useState('');
   const [currentDaySubmission, setCurrentDaySubmission] = useState(null);
-  const isTodayShiftSubmitted = currentDaySubmission?.status === 'PENDING_APPROVAL' || currentDaySubmission?.status === 'APPROVED';
+  const [dayPreviewData, setDayPreviewData] = useState(null);
+  const isTodayShiftSubmitted = !dayPreviewData?.hasAdditionalWork && (currentDaySubmission?.status === 'PENDING_APPROVAL' || currentDaySubmission?.status === 'APPROVED');
   const [loadingDaySubmission, setLoadingDaySubmission] = useState(false);
   const [expandedChitSubmitId, setExpandedChitSubmitId] = useState(null);
 
@@ -948,17 +949,28 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     try {
       setLoadingDaySubmission(true);
       const targetDate = date || daySubmitDate;
-      const res = await api.get(`/agent/day-submissions?date=${targetDate}`);
-      if (res.data?.success && Array.isArray(res.data?.data) && res.data.data.length > 0) {
-        setCurrentDaySubmission(res.data.data[0]);
-        if (res.data.data[0]?.agent_notes) {
-          setDaySubmitNotes(res.data.data[0].agent_notes);
+      const [subRes, prevRes] = await Promise.allSettled([
+        api.get(`/agent/day-submissions?date=${targetDate}`),
+        api.get(`/agent/day-preview?date=${targetDate}`),
+      ]);
+
+      if (prevRes.status === 'fulfilled' && prevRes.value.data?.success) {
+        setDayPreviewData(prevRes.value.data.data);
+      } else {
+        setDayPreviewData(null);
+      }
+
+      if (subRes.status === 'fulfilled' && subRes.value.data?.success && Array.isArray(subRes.value.data?.data) && subRes.value.data.data.length > 0) {
+        setCurrentDaySubmission(subRes.value.data.data[0]);
+        if (subRes.value.data.data[0]?.agent_notes) {
+          setDaySubmitNotes(subRes.value.data.data[0].agent_notes);
         }
       } else {
         setCurrentDaySubmission(null);
       }
     } catch (_) {
       setCurrentDaySubmission(null);
+      setDayPreviewData(null);
     } finally {
       setLoadingDaySubmission(false);
     }
@@ -5052,7 +5064,19 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             </div>
 
             {/* Status Alert Banner */}
-            {currentDaySubmission?.status === 'APPROVED' ? (
+            {dayPreviewData?.hasAdditionalWork ? (
+              <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-start gap-3 animate-fadeIn">
+                <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-indigo-900 dark:text-indigo-200">
+                    Shift #1 Handover Approved · Shift #{dayPreviewData.shiftNumber || 2} Open (New Work Assigned)
+                  </p>
+                  <p className="text-indigo-800 dark:text-indigo-300">
+                    Admin assigned additional chit work today. Shift #1 physical cash (₹{Number(dayPreviewData.previouslyApprovedCash || 0).toLocaleString('en-IN')}) was verified and closed. Complete your new collections and submit Shift #{dayPreviewData.shiftNumber || 2} below.
+                  </p>
+                </div>
+              </div>
+            ) : currentDaySubmission?.status === 'APPROVED' ? (
               <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
@@ -5534,10 +5558,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 </label>
                 <textarea
                   rows={2}
-                  disabled={currentDaySubmission?.status === 'APPROVED'}
+                  disabled={currentDaySubmission?.status === 'APPROVED' && !dayPreviewData?.hasAdditionalWork}
                   value={daySubmitNotes}
                   onChange={(e) => setDaySubmitNotes(e.target.value)}
-                  placeholder="e.g., Cash Count: ₹500x12, ₹200x5 = ₹7,000 in physical cash envelope. 2 members promised to clear dues tomorrow."
+                  placeholder={dayPreviewData?.hasAdditionalWork ? `Shift #${dayPreviewData.shiftNumber || 2} notes (e.g. cash envelope details for newly assigned chit)...` : "e.g., Cash Count: ₹500x12, ₹200x5 = ₹7,000 in physical cash envelope. 2 members promised to clear dues tomorrow."}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs focus:ring-2 focus:ring-indigo-500 outline-hidden disabled:opacity-60"
                 />
               </div>
@@ -5565,7 +5589,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 >
                   Close
                 </button>
-                {currentDaySubmission?.status === 'APPROVED' ? (
+                {currentDaySubmission?.status === 'APPROVED' && !dayPreviewData?.hasAdditionalWork ? (
                   <button
                     type="button"
                     disabled
@@ -5583,12 +5607,12 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                     {submittingDayWork ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Submitting Day Work...</span>
+                        <span>Submitting...</span>
                       </>
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        <span>{currentDaySubmission ? 'Re-Submit / Update Handover' : 'Submit Day Work to Admin'}</span>
+                        <span>{dayPreviewData?.hasAdditionalWork ? `Submit Shift #${dayPreviewData.shiftNumber || 2} Day Work` : (currentDaySubmission ? 'Re-Submit / Update Handover' : 'Submit Day Work')}</span>
                       </>
                     )}
                   </button>

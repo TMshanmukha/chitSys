@@ -150,18 +150,14 @@ export default function LeaveManagementPage() {
     if (selectedAgent?.created_at) {
       return String(selectedAgent.created_at).slice(0, 10);
     }
-    if (admin && filterAgent === 'ALL' && usersList.length > 0) {
-      const dates = usersList
-        .filter((u) => u.role === 'COLLECTION_AGENT' && u.created_at)
-        .map((u) => String(u.created_at).slice(0, 10))
-        .sort();
-      if (dates.length > 0) return dates[0];
+    if (admin && filterAgent === 'ALL') {
+      return null;
     }
     if (user?.created_at) {
       return String(user.created_at).slice(0, 10);
     }
     return todayYmd;
-  }, [selectedAgent, admin, filterAgent, usersList, user, todayYmd]);
+  }, [selectedAgent, admin, filterAgent, user, todayYmd]);
 
   // Dynamic Multi-Factor Filtered Leaves
   const filteredLeaves = useMemo(() => {
@@ -204,16 +200,20 @@ export default function LeaveManagementPage() {
     [filteredLeaves]
   );
   const workingDaysInMonth = useMemo(() => {
+    if (admin && filterAgent === 'ALL') {
+      return null;
+    }
+    const effectiveJoining = joiningDate || todayYmd;
     return days.filter((d) => {
       if (!d) return false;
-      if (d < joiningDate) return false; // Prior to joining: never counted as working
+      if (d < effectiveJoining) return false; // Prior to joining: never counted as working
       if (d > todayYmd) return false;    // Future dates: not counted yet
       const isApprovedLeave = filteredLeaves.some(
         (l) => String(l.leave_date).slice(0, 10) === d && l.status === 'APPROVED'
       );
       return !isApprovedLeave;
     }).length;
-  }, [days, joiningDate, todayYmd, filteredLeaves]);
+  }, [days, joiningDate, todayYmd, filteredLeaves, admin, filterAgent]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -666,7 +666,7 @@ export default function LeaveManagementPage() {
                   Worked
                 </span>
                 <span className="text-lg sm:text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 block font-heading truncate">
-                  {workingDaysInMonth} Days
+                  {workingDaysInMonth !== null ? `${workingDaysInMonth} Day${workingDaysInMonth !== 1 ? 's' : ''}` : 'Select Agent'}
                 </span>
               </div>
             </div>
@@ -675,7 +675,7 @@ export default function LeaveManagementPage() {
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between gap-2">
               <span className="font-semibold">Joined / Enrolled Date:</span>
               <span className="font-black text-blue-600 dark:text-blue-400 font-mono">
-                {label(joiningDate)}
+                {joiningDate ? label(joiningDate) : 'Select an Agent to view'}
               </span>
             </div>
 
@@ -780,14 +780,14 @@ export default function LeaveManagementPage() {
                   Worked
                 </span>
                 <span className="text-lg sm:text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 block font-heading truncate">
-                  {workingDaysInMonth} Days
+                  {workingDaysInMonth !== null ? `${workingDaysInMonth} Day${workingDaysInMonth !== 1 ? 's' : ''}` : 'Select Agent'}
                 </span>
               </div>
             </div>
 
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
               <div>
-                Selected Agent Enrolment: <strong className="text-blue-600 dark:text-blue-400 font-mono">{label(joiningDate)}</strong>
+                Selected Agent Enrolment: <strong className="text-blue-600 dark:text-blue-400 font-mono">{joiningDate ? label(joiningDate) : 'Select an Agent to view'}</strong>
               </div>
               <div>
                 Filtering Agent: <strong className="text-slate-900 dark:text-white">{filterAgent === 'ALL' ? 'All Agents' : usersList.find(u => String(u.id) === String(filterAgent))?.full_name || filterAgent}</strong>

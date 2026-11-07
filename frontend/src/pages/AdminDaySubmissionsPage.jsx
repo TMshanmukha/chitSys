@@ -469,6 +469,21 @@ export default function AdminDaySubmissionsPage() {
                         >
                           {isApproved ? 'Approved & Closed' : isPending ? 'Pending Verification' : 'Discrepancy Flagged'}
                         </span>
+                        {(() => {
+                          const shiftNum = sub.details?.shiftNumber || (sub.details?.isAdditionalShift ? 2 : 1);
+                          const isAdditional = Boolean(sub.details?.isAdditionalShift || shiftNum > 1);
+                          return (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase font-mono tracking-wider border ${
+                                isAdditional
+                                  ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-300'
+                                  : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                              }`}
+                            >
+                              Shift #{shiftNum} {isAdditional ? '· Additional Assignment' : ''}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
@@ -551,12 +566,30 @@ export default function AdminDaySubmissionsPage() {
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block font-heading">
                           Stops Completed
                         </span>
-                        <div className="text-lg font-black text-slate-900 dark:text-white font-heading">
-                          {sub.total_stops_visited} Visited · {sub.total_stops_pending} Pending
-                        </div>
-                        <span className="text-[11px] text-slate-500">
-                          {sub.total_receipts} official receipts issued
-                        </span>
+                        {(() => {
+                          const adminPaidTotalStops = breakdown.reduce((sum, chit) => {
+                            const adminCount = chit.paidMembers?.filter((m) => Boolean(
+                              m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin')) || (m.completedBy && m.completedBy.toLowerCase().includes('admin'))
+                            )).length || Number(chit.adminPaidSubscribersCount || 0);
+                            return sum + adminCount;
+                          }, 0);
+                          const agentStopsVisited = Math.max(0, sub.total_stops_visited - adminPaidTotalStops);
+                          return (
+                            <>
+                              <div className="text-lg font-black text-slate-900 dark:text-white font-heading">
+                                {agentStopsVisited} Visited · {sub.total_stops_pending} Pending
+                              </div>
+                              <span className="text-[11px] text-slate-500">
+                                {sub.total_receipts} official receipts issued
+                                {adminPaidTotalStops > 0 && (
+                                  <span className="text-purple-600 dark:text-purple-400 font-semibold ml-1">
+                                    (⚡ {adminPaidTotalStops} Paid to Admin)
+                                  </span>
+                                )}
+                              </span>
+                            </>
+                          );
+                        })()}
                       </div>
 
                       <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
@@ -578,17 +611,30 @@ export default function AdminDaySubmissionsPage() {
 
                         <div className="grid md:grid-cols-2 gap-3">
                           {breakdown.map((chit, cIdx) => {
-                            const adminAmt = Number(chit.adminCollected || 0);
-                            const agentCollAmt = chit.agentCollected != null
-                              ? Number(chit.agentCollected)
-                              : Math.max(0, Number(chit.totalCollected || 0) - adminAmt);
+                            const adminMembers = (chit.paidMembers || []).filter((m) => Boolean(
+                              m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin')) || (m.completedBy && m.completedBy.toLowerCase().includes('admin'))
+                            ));
+                            const derivedAdminAmt = adminMembers.reduce((sum, m) => sum + Number(m.adminAmount || (m.completedByAdmin && !m.agentAmount ? m.amount : 0) || 0), 0);
+                            const adminAmt = Number(chit.adminCollected || 0) > 0 ? Number(chit.adminCollected) : derivedAdminAmt;
+                            const adminPaidCount = adminMembers.length || Number(chit.adminPaidSubscribersCount || 0);
+                            const agentPaidCount = Math.max(0, (chit.paidMembers?.length || 0) - adminPaidCount);
+
+                            const adminUpiAmt = adminMembers
+                              .filter((m) => (m.paymentMethod || '').toUpperCase() !== 'CASH')
+                              .reduce((sum, m) => sum + Number(m.adminAmount || m.amount || 0), 0);
+                            const adminCashAmt = adminMembers
+                              .filter((m) => (m.paymentMethod || '').toUpperCase() === 'CASH')
+                              .reduce((sum, m) => sum + Number(m.adminAmount || m.amount || 0), 0);
+
                             const agentUpiAmt = chit.agentUpiCollected != null
                               ? Number(chit.agentUpiCollected)
-                              : Math.max(0, Number(chit.upiCollected || 0) - adminAmt);
-                            const agentCashAmt = Number(chit.agentCashCollected ?? chit.cashCollected ?? 0);
-
-                            const adminPaidCount = chit.paidMembers?.filter((m) => m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin'))).length || Number(chit.adminPaidSubscribersCount || 0);
-                            const agentPaidCount = Math.max(0, (chit.paidMembers?.length || 0) - adminPaidCount);
+                              : Math.max(0, Number(chit.upiCollected || 0) - adminUpiAmt);
+                            const agentCashAmt = chit.agentCashCollected != null
+                              ? Number(chit.agentCashCollected)
+                              : Math.max(0, Number(chit.cashCollected || 0) - adminCashAmt);
+                            const agentCollAmt = chit.agentCollected != null
+                              ? Number(chit.agentCollected)
+                              : (agentCashAmt + agentUpiAmt);
 
                             return (
                               <div
@@ -670,12 +716,63 @@ export default function AdminDaySubmissionsPage() {
                       </div>
                     ) : (
                       <div className="p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Banknote className="w-5 h-5 text-amber-600" />
-                          <h4 className="font-extrabold text-sm text-amber-950 dark:text-amber-200 font-heading">
-                            Physical Cash Counting & Verification Actions
-                          </h4>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="w-5 h-5 text-amber-600" />
+                            <h4 className="font-extrabold text-sm text-amber-950 dark:text-amber-200 font-heading">
+                              Physical Cash Counting & Verification Actions
+                            </h4>
+                          </div>
+                          {(() => {
+                            const shiftNum = sub.details?.shiftNumber || (sub.details?.isAdditionalShift ? 2 : 1);
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase font-mono bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 border border-amber-300">
+                                Shift #{shiftNum} Handover
+                              </span>
+                            );
+                          })()}
                         </div>
+
+                        {/* Multi-Shift Combined Breakdown when Shift 1 was already approved */}
+                        {(() => {
+                          const shiftNum = sub.details?.shiftNumber || (sub.details?.isAdditionalShift ? 2 : 1);
+                          const prevApprovedCash = Number(sub.details?.summary?.previouslyApprovedCash || 0);
+                          const isAdditional = Boolean(sub.details?.isAdditionalShift || prevApprovedCash > 0 || shiftNum > 1);
+                          if (!isAdditional && prevApprovedCash <= 0) return null;
+
+                          const totalCombinedCash = prevApprovedCash + Number(sub.cash_collected || 0);
+
+                          return (
+                            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-indigo-50 to-amber-50 dark:from-indigo-950/50 dark:to-amber-950/40 border border-indigo-200 dark:border-indigo-800 text-xs space-y-2">
+                              <div className="flex items-center justify-between text-indigo-950 dark:text-indigo-200 font-semibold">
+                                <span className="flex items-center gap-1.5">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Shift #1 Approved Cash (Verified & Closed):</span>
+                                </span>
+                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                  ₹{prevApprovedCash.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between text-amber-950 dark:text-amber-200 font-bold">
+                                <span className="flex items-center gap-1.5">
+                                  <Coins className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Shift #{shiftNum} Cash to Count (This Handover):</span>
+                                </span>
+                                <span className="font-mono font-black text-amber-700 dark:text-amber-300 text-sm">
+                                  ₹{Number(sub.cash_collected).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+
+                              <div className="pt-2 border-t border-indigo-200/80 dark:border-indigo-800/80 flex items-center justify-between text-slate-900 dark:text-white font-extrabold text-xs sm:text-sm">
+                                <span>Total Combined Day Cash (Shift 1 + Shift #{shiftNum}):</span>
+                                <span className="font-mono text-base font-black text-indigo-700 dark:text-indigo-300">
+                                  ₹{totalCombinedCash.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         <div className="grid sm:grid-cols-2 gap-4 text-xs">
                           <div>
@@ -755,7 +852,12 @@ export default function AdminDaySubmissionsPage() {
                             className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-colors cursor-pointer"
                           >
                             <Check className="w-4 h-4" />
-                            <span>Approve & Close Day Shift</span>
+                            <span>
+                              {(() => {
+                                const shiftNum = sub.details?.shiftNumber || (sub.details?.isAdditionalShift ? 2 : 1);
+                                return `Approve & Close Shift #${shiftNum}`;
+                              })()}
+                            </span>
                           </button>
                         </div>
                       </div>

@@ -3384,6 +3384,7 @@ export function CollectionsPage() {
     allow_advance: true,
     allow_off_cycle: true,
   });
+  const [autoSendWhatsApp, setAutoSendWhatsApp] = useState(true);
 
   useEffect(() => {
     setChitsPage(1);
@@ -3448,6 +3449,18 @@ export function CollectionsPage() {
       if (res.data?.success) {
         setSuccess('Payment collected and recorded in MySQL!');
         setGeneratedReceipt(res.data.receipt);
+        if (autoSendWhatsApp && res.data.receipt) {
+          try {
+            const text = getReceiptWhatsAppText(res.data.receipt);
+            const mem = members.find((m) => String(m.id) === String(res.data.receipt.memberId));
+            const phone = res.data.receipt.memberPhone || mem?.phone;
+            if (phone) {
+              sendWhatsAppMessage(phone, text);
+            }
+          } catch (e) {
+            console.error('Auto WhatsApp send error:', e);
+          }
+        }
         setShowModal(false);
         setSearchParams({}, { replace: true });
         setForm({
@@ -3939,28 +3952,33 @@ export function CollectionsPage() {
                                 >
                                   {task.is_paid ? 'Paid' : `Due: ₹${task.remaining_due.toLocaleString('en-IN')}`}
                                 </span>
-                                {task.member_phone && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const text = task.is_paid
-                                        ? `*CHITFUND PRO - PAYMENT ACKNOWLEDGEMENT*\nHello ${task.member_name}, your installment of ₹${chit.installment_amount} for chit '${chit.group_name}' is received and marked Paid. Thank you!`
-                                        : getPaymentReminderWhatsAppText({
-                                            memberName: task.member_name,
-                                            groupName: chit.group_name,
-                                            groupCode: chit.group_code,
-                                            ticketNumber: task.ticket_number,
-                                            amount: task.remaining_due || chit.installment_amount,
-                                            date: getServerYMD(),
-                                          });
-                                      sendWhatsAppMessage(task.member_phone, text);
-                                    }}
-                                    className="p-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-700 transition-colors cursor-pointer"
-                                    title={task.is_paid ? 'Share WhatsApp Confirmation' : 'Send WhatsApp Payment Reminder'}
-                                  >
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
+                                {(() => {
+                                  const phone = task.member_phone || members.find((m) => String(m.id) === String(task.member_id))?.phone;
+                                  if (!phone) return null;
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const text = task.is_paid
+                                          ? `*CHITFUND PRO - PAYMENT ACKNOWLEDGEMENT*\nHello ${task.member_name}, your installment of ₹${chit.installment_amount} for chit '${chit.group_name}' is received and marked Paid. Thank you!`
+                                          : getPaymentReminderWhatsAppText({
+                                              memberName: task.member_name,
+                                              groupName: chit.group_name,
+                                              groupCode: chit.group_code,
+                                              ticketNumber: task.ticket_number,
+                                              amount: task.remaining_due || chit.installment_amount,
+                                              date: getServerYMD(),
+                                            });
+                                        sendWhatsAppMessage(phone, text);
+                                      }}
+                                      className="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                                      title={task.is_paid ? 'Share WhatsApp Confirmation' : 'Send WhatsApp Payment Reminder'}
+                                    >
+                                      <MessageSquare className="w-3 h-3" />
+                                      <span>WhatsApp</span>
+                                    </button>
+                                  );
+                                })()}
                                 {!task.is_paid && (
                                   <button
                                     type="button"
@@ -4403,29 +4421,44 @@ export function CollectionsPage() {
                 const isDisabled = submitting || allPaidForGroup || isPaid || !form.group_id || !form.member_id || !form.amount;
 
                 return (
-                  <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setShowModal(false)}
-                      className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isDisabled}
-                      className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                    >
-                      {submitting ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : allPaidForGroup ? (
-                        'All Members Paid ✓'
-                      ) : isPaid ? (
-                        'Already Paid (Restricted)'
-                      ) : (
-                        'Confirm Payment & Issue Receipt'
-                      )}
-                    </button>
+                  <div className="pt-4 space-y-3 border-t border-slate-100 dark:border-slate-800">
+                    <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={autoSendWhatsApp}
+                        onChange={(e) => setAutoSendWhatsApp(e.target.checked)}
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span className="flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Automatically send official receipt to subscriber via WhatsApp upon recording</span>
+                      </span>
+                    </label>
+
+                    <div className="flex items-center justify-end gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowModal(false)}
+                        className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isDisabled}
+                        className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {submitting ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : allPaidForGroup ? (
+                          'All Members Paid ✓'
+                        ) : isPaid ? (
+                          'Already Paid (Restricted)'
+                        ) : (
+                          'Confirm Payment & Issue Receipt'
+                        )}
+                      </button>
+                    </div>
                   </div>
                 );
               })()}
