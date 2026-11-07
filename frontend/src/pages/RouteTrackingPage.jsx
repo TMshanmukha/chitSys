@@ -119,9 +119,21 @@ export default function RouteTrackingPage() {
       }
       const res = await api.get('/admin/day-submissions', { params });
       if (res.data?.success) {
-        setDaySubmissionsList(Array.isArray(res.data.data) ? res.data.data : []);
-        if (res.data.summary) {
-          setDaySubmissionsSummary(res.data.summary);
+        const list = Array.isArray(res.data.data)
+          ? res.data.data
+          : (res.data.data?.submissions || []);
+        setDaySubmissionsList(list);
+        const summ = res.data.summary || res.data.data?.summary;
+        if (summ) {
+          setDaySubmissionsSummary({
+            total_pending: summ.pendingCount ?? summ.total_pending ?? 0,
+            pending_cash: summ.pendingTotalCash ?? summ.pending_cash ?? 0,
+            pending_upi: summ.pendingTotalUpi ?? summ.pending_upi ?? 0,
+            total_approved: summ.approvedCount ?? summ.total_approved ?? 0,
+            total_cash: summ.total_cash ?? (summ.pendingTotalCash || 0) + (summ.approvedTotalAmount || 0),
+            total_upi: summ.total_upi ?? summ.pendingTotalUpi ?? 0,
+            total_collected: summ.total_collected ?? (summ.pendingTotalAmount || 0) + (summ.approvedTotalAmount || 0),
+          });
         }
       }
     } catch (err) {

@@ -770,8 +770,7 @@ export async function getMyDaySubmissions(req, res, next) {
          AND c.verification_status != 'CANCELLED'
          AND u.role = 'COLLECTION_AGENT'
          AND (u.assigned_business = 'CHITFUND' OR (u.assigned_business = 'ALL' AND u.role IN ('SUPER_ADMIN', 'ADMIN')) OR (u.assigned_business IS NULL AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)))
-         AND (u.assigned_business != 'INTEREST')
-         AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)
+         AND (u.assigned_business != 'INTEREST' OR u.assigned_business IS NULL)
          AND NOT EXISTS (
            SELECT 1 FROM agent_day_submissions ads
            WHERE ads.agent_id = c.agent_id
@@ -827,8 +826,7 @@ export async function listDaySubmissionsForAdmin(req, res, next) {
       JOIN users u ON ads.agent_id = u.id
       LEFT JOIN users approver ON ads.approved_by = approver.id
       WHERE (u.assigned_business = 'CHITFUND' OR (u.assigned_business = 'ALL' AND u.role IN ('SUPER_ADMIN', 'ADMIN')) OR (u.assigned_business IS NULL AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)))
-        AND (u.assigned_business != 'INTEREST')
-        AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)
+        AND (u.assigned_business != 'INTEREST' OR u.assigned_business IS NULL)
     `;
     const params = [];
 
@@ -906,20 +904,59 @@ export async function listDaySubmissionsForAdmin(req, res, next) {
       };
     });
 
+    // Query active agents who collected funds in the last 7 days but have not submitted shifts
+    const [unsubmittedAgents] = await pool.query(
+      `SELECT c.collection_date as work_date, u.id as agent_id, u.full_name as agent_name, u.username as agent_username, u.phone as agent_phone,
+              COALESCE(SUM(CASE WHEN (c.payment_method = 'CASH' OR c.payment_method IS NULL) THEN c.amount ELSE 0 END), 0) as cash_collected,
+              COALESCE(SUM(CASE WHEN (c.payment_method != 'CASH' AND c.payment_method IS NOT NULL) THEN c.amount ELSE 0 END), 0) as upi_collected,
+              COALESCE(SUM(c.amount), 0) as total_collected,
+              COUNT(c.id) as receipts_count
+       FROM collections c
+       JOIN users u ON c.agent_id = u.id
+       WHERE c.collection_date >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)
+         AND c.collection_date <= CURRENT_DATE
+         AND c.verification_status != 'CANCELLED'
+         AND u.role = 'COLLECTION_AGENT'
+         AND (u.assigned_business = 'CHITFUND' OR (u.assigned_business = 'ALL' AND u.role IN ('SUPER_ADMIN', 'ADMIN')) OR (u.assigned_business IS NULL AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)))
+         AND (u.assigned_business != 'INTEREST' OR u.assigned_business IS NULL)
+         AND NOT EXISTS (
+           SELECT 1 FROM agent_day_submissions ads
+           WHERE ads.agent_id = c.agent_id
+             AND ads.work_date = c.collection_date
+             AND ads.status IN ('PENDING_APPROVAL', 'APPROVED')
+         )
+       GROUP BY c.collection_date, u.id, u.full_name, u.username, u.phone
+       ORDER BY c.collection_date DESC, total_collected DESC`
+    );
+
+    const summaryData = {
+      pendingCount,
+      pendingTotalCash,
+      pendingTotalUpi,
+      pendingTotalAmount,
+      approvedCount,
+      approvedTotalAmount,
+      totalSubmissionsCount: rows.length,
+      // Compatibility fields for RouteTrackingPage:
+      total_pending: pendingCount,
+      pending_cash: pendingTotalCash,
+      pending_upi: pendingTotalUpi,
+      pending_total: pendingTotalAmount,
+      total_approved: approvedCount,
+      approved_total: approvedTotalAmount,
+      total_cash: pendingTotalCash + approvedTotalAmount,
+      total_upi: pendingTotalUpi,
+      total_collected: pendingTotalAmount + approvedTotalAmount,
+    };
+
     res.status(200).json({
       success: true,
       data: {
-        summary: {
-          pendingCount,
-          pendingTotalCash,
-          pendingTotalUpi,
-          pendingTotalAmount,
-          approvedCount,
-          approvedTotalAmount,
-          totalSubmissionsCount: rows.length,
-        },
+        summary: summaryData,
         submissions: formatted,
+        unsubmittedAgents: unsubmittedAgents || [],
       },
+      summary: summaryData,
     });
   } catch (error) {
     next(error);
