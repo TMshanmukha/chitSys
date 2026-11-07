@@ -34,6 +34,8 @@ import {
   Gavel,
   Eye,
   X,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
@@ -94,8 +96,8 @@ export default function AdminCommissionsPage() {
   const [advancesPage, setAdvancesPage] = useState(1);
   const [advancesPageSize, setAdvancesPageSize] = useState(10);
 
-  // Pending Chits Eye Modal & Pagination states
-  const [showPendingChitsModal, setShowPendingChitsModal] = useState(false);
+  // Pending Chits Inline Dropdown & Pagination states
+  const [isPendingChitsOpen, setIsPendingChitsOpen] = useState(false);
   const [pendingChitsPage, setPendingChitsPage] = useState(1);
   const [pendingChitsPageSize, setPendingChitsPageSize] = useState(10);
   const [pendingSearch, setPendingSearch] = useState('');
@@ -122,6 +124,7 @@ export default function AdminCommissionsPage() {
         const duesData = duesRes.value.data.data;
         const duesSummary = duesData.summary || {};
         const duesItems = duesData.items || [];
+        backendData.duesItems = duesItems;
 
         const pendingSum = Number(duesSummary.totalPendingOverall || duesSummary.totalUnpaidAmount || 0);
         const pendingCount = Number(duesSummary.unpaidCount || duesSummary.totalPendingSubscribersCount || duesItems.length || 0);
@@ -267,25 +270,89 @@ export default function AdminCommissionsPage() {
     advancesPage * advancesPageSize
   );
 
-  // Filtered Pending Chits & Deficits for Modal (Min 10 per page, pagination when > 10)
-  const filteredPendingChits = adminAdvances
-    .filter((adv) => adv.status === 'PENDING_RECOVERY' || adv.status === 'ADMIN_COVERED' || adv.status === 'NOT_PAID' || adv.status === 'PARTIAL')
-    .filter((adv) => {
-      if (!pendingSearch) return true;
-      const q = pendingSearch.toLowerCase();
-      return (
-        adv.member_name?.toLowerCase().includes(q) ||
-        adv.member_phone?.toLowerCase().includes(q) ||
-        String(adv.ticket_number).includes(q) ||
-        adv.group_name?.toLowerCase().includes(q) ||
-        adv.group_code?.toLowerCase().includes(q)
-      );
-    });
+  // Combined Pending Chits & Deficits List (from live dues & advances)
+  const pendingDuesList = React.useMemo(() => {
+    const list = [];
+    const seen = new Set();
 
-  const paginatedPendingChits = filteredPendingChits.slice(
-    (pendingChitsPage - 1) * pendingChitsPageSize,
-    pendingChitsPage * pendingChitsPageSize
-  );
+    const rawDues = data.duesItems || [];
+    for (const item of rawDues) {
+      const pendingAmt = Number(item.pendingAmount || 0);
+      if (pendingAmt > 0 || item.status === 'NOT_PAID' || item.status === 'PARTIAL' || item.status === 'ADMIN_COVERED') {
+        const key = `${item.groupId}:${item.memberId}`;
+        seen.add(key);
+        list.push({
+          id: item.membershipId || key,
+          group_id: item.groupId,
+          group_name: item.groupName || 'Chit Scheme',
+          group_code: item.groupCode || '',
+          chit_type: item.chitType || '',
+          frequency: item.frequency || 'DAILY',
+          member_id: item.memberId,
+          member_name: item.memberName || 'Subscriber',
+          member_phone: item.memberPhone || '',
+          ticket_number: item.ticketNumber ?? '',
+          pending_amount: pendingAmt,
+          installment_amount: Number(item.expectedAmount || 0),
+          status: item.status === 'ADMIN_COVERED' ? 'ADMIN COVERED' : 'UNPAID',
+        });
+      }
+    }
+
+    const rawAdvances = data.adminAdvances || [];
+    for (const adv of rawAdvances) {
+      const advAmt = Number(adv.advance_amount || 0);
+      if (adv.status === 'PENDING_RECOVERY' || adv.status === 'ADMIN_COVERED') {
+        const key = `${adv.group_id}:${adv.member_id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: adv.id || key,
+            group_id: adv.group_id,
+            group_name: adv.group_name || 'Chit Scheme',
+            group_code: adv.group_code || '',
+            chit_type: adv.chit_type || '',
+            frequency: adv.frequency || 'DAILY',
+            member_id: adv.member_id,
+            member_name: adv.member_name || 'Subscriber',
+            member_phone: adv.member_phone || '',
+            ticket_number: adv.ticket_number ?? '',
+            pending_amount: advAmt,
+            installment_amount: Number(adv.installment_amount || 0),
+            status: adv.status === 'ADMIN_COVERED' ? 'ADMIN COVERED' : 'UNPAID',
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [data]);
+
+  const totalPendingAmount = React.useMemo(() => {
+    const sum = pendingDuesList.reduce((acc, cur) => acc + Number(cur.pending_amount || 0), 0);
+    return sum || Number(advancesSummary.pendingAdvancesAmount || 0);
+  }, [pendingDuesList, advancesSummary]);
+
+  const filteredPendingChits = React.useMemo(() => {
+    if (!pendingSearch.trim()) return pendingDuesList;
+    const q = pendingSearch.toLowerCase().trim();
+    return pendingDuesList.filter((item) =>
+      item.group_name?.toLowerCase().includes(q) ||
+      item.group_code?.toLowerCase().includes(q) ||
+      item.member_name?.toLowerCase().includes(q) ||
+      item.member_phone?.toLowerCase().includes(q) ||
+      String(item.ticket_number).includes(q)
+    );
+  }, [pendingDuesList, pendingSearch]);
+
+  const totalPendingPages = pendingChitsPageSize === 0 ? 1 : Math.max(1, Math.ceil(filteredPendingChits.length / pendingChitsPageSize));
+  const paginatedPendingChits = React.useMemo(() => {
+    if (pendingChitsPageSize === 0) return filteredPendingChits;
+    return filteredPendingChits.slice(
+      (pendingChitsPage - 1) * pendingChitsPageSize,
+      pendingChitsPage * pendingChitsPageSize
+    );
+  }, [filteredPendingChits, pendingChitsPage, pendingChitsPageSize]);
 
   // Filtered Auction Ledger
   const filteredAuctions = auctionLedger.filter((a) => {
@@ -744,52 +811,168 @@ export default function AdminCommissionsPage() {
           </div>
         </div>
 
-        {/* Metric 7: Auction Member Receivables Ledger */}
+        {/* Metric 7: Auction Member Receivables Ledger with Inline Dropdown List (Picture 2 style) */}
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Auction Dues & Member Receivables
               </span>
-              {Number(advancesSummary.pendingMembersCount || 0) > 0 && (
+              {pendingDuesList.length > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
-                  {advancesSummary.pendingMembersCount} Unpaid Deficits
+                  {pendingDuesList.length} Unpaid Deficits
                 </span>
               )}
             </div>
             <button
               type="button"
-              onClick={() => {
-                setPendingChitsPage(1);
-                setShowPendingChitsModal(true);
-              }}
+              onClick={() => setIsPendingChitsOpen((prev) => !prev)}
               className="w-9 h-9 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center transition-colors cursor-pointer"
-              title="View Pending Chits"
-              aria-label="View Pending Chits"
+              title={isPendingChitsOpen ? 'Collapse Pending Chits' : 'View Pending Chits'}
+              aria-label="Toggle Pending Chits Dropdown"
             >
               <Eye className="w-5 h-5" />
             </button>
           </div>
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
-              ₹{(advancesSummary.pendingAdvancesAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              ₹{totalPendingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </p>
             <button
               type="button"
-              onClick={() => {
-                setPendingChitsPage(1);
-                setShowPendingChitsModal(true);
-              }}
+              onClick={() => setIsPendingChitsOpen((prev) => !prev)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-xs font-bold transition-all shadow-xs cursor-pointer"
-              title="View Pending Chits List"
+              title="Toggle Pending Chits List"
             >
               <Eye className="w-4 h-4" />
-              <span>View Pending Chits</span>
+              <span>Pending Chits ({pendingDuesList.length})</span>
+              {isPendingChitsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           </div>
+
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
             <span>Unpaid member installment dues pending recovery across chit schemes</span>
           </div>
+
+          {/* INLINE DROPDOWN LIST (Picture 2 style) - Does NOT open modal, expands right here */}
+          {isPendingChitsOpen && (
+            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3 animate-fadeIn">
+              {/* Header with Search & Count & Page Size Selector */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search chit name, group code, subscriber..."
+                    value={pendingSearch}
+                    onChange={(e) => {
+                      setPendingSearch(e.target.value);
+                      setPendingChitsPage(1);
+                    }}
+                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-2 text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">
+                    Show:
+                  </span>
+                  <select
+                    value={pendingChitsPageSize}
+                    onChange={(e) => {
+                      setPendingChitsPageSize(Number(e.target.value));
+                      setPendingChitsPage(1);
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold focus:outline-none cursor-pointer"
+                  >
+                    <option value={10}>10 Chits</option>
+                    <option value={20}>20 Chits</option>
+                    <option value={50}>50 Chits</option>
+                    <option value={0}>All Chits ({filteredPendingChits.length})</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Items List (Picture 2 layout) */}
+              {filteredPendingChits.length === 0 ? (
+                <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700/60 text-center space-y-1">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-500 mx-auto" />
+                  <p className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                    No pending chits found
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    All subscribers have cleared their scheduled installments.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                  {paginatedPendingChits.map((item, idx) => (
+                    <div
+                      key={item.id || `${item.group_id}-${item.member_id}-${idx}`}
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between gap-3 text-xs hover:border-amber-300 dark:hover:border-amber-700/60 transition-colors"
+                    >
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-slate-900 dark:text-white font-heading">
+                            {item.group_name}
+                          </span>
+                          {item.group_code && (
+                            <span className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/40">
+                              {item.group_code}
+                            </span>
+                          )}
+                          <span className="text-slate-300 dark:text-slate-600">·</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">
+                            {item.member_name}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-mono">
+                          Ticket #{item.ticket_number || 'N/A'} {item.member_phone ? `· ${item.member_phone}` : ''}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                          Due: ₹{Number(item.pending_amount).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination when > 1 page and not showing all */}
+              {pendingChitsPageSize > 0 && filteredPendingChits.length > pendingChitsPageSize && (
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                  <span className="text-slate-500 text-[11px]">
+                    Showing {(pendingChitsPage - 1) * pendingChitsPageSize + 1} - {Math.min(pendingChitsPage * pendingChitsPageSize, filteredPendingChits.length)} of {filteredPendingChits.length}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={pendingChitsPage <= 1}
+                      onClick={() => setPendingChitsPage((p) => Math.max(1, p - 1))}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-[11px]"
+                    >
+                      Prev
+                    </button>
+                    <span className="px-2 font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                      {pendingChitsPage} / {totalPendingPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={pendingChitsPage >= totalPendingPages}
+                      onClick={() => setPendingChitsPage((p) => Math.min(totalPendingPages, p + 1))}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-[11px]"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1278,164 +1461,6 @@ export default function AdminCommissionsPage() {
         </div>
       )}
 
-      {/* PENDING CHITS & DUES AUDIT MODAL (Eye Icon Trigger) */}
-      {showPendingChitsModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200"
-          onClick={() => setShowPendingChitsModal(false)}
-        >
-          <div
-            className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                  <Eye className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>Pending Chits & Member Deficits</span>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-bold border border-rose-200 dark:border-rose-900">
-                      {filteredPendingChits.length} Deficits
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Unpaid installment dues tracked across chit schemes pending collection or recovery
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowPendingChitsModal(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                aria-label="Close Modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Search & Summary Bar */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900">
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search chit scheme, member, ticket..."
-                  value={pendingSearch}
-                  onChange={(e) => {
-                    setPendingSearch(e.target.value);
-                    setPendingChitsPage(1);
-                  }}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                />
-              </div>
-
-              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                <span>Total Pending Dues:</span>
-                <strong className="text-amber-600 dark:text-amber-400 text-sm font-extrabold">
-                  ₹{filteredPendingChits.reduce((acc, cur) => acc + Number(cur.advance_amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </strong>
-              </div>
-            </div>
-
-            {/* Modal Table Body */}
-            <div className="overflow-y-auto flex-1 p-4">
-              {filteredPendingChits.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 dark:text-slate-400 text-sm">
-                  <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500 mb-2" />
-                  <p className="font-bold text-slate-800 dark:text-slate-200">No pending chits found</p>
-                  <p className="text-xs text-slate-400 mt-1">All subscribers have cleared their scheduled installments.</p>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
-                        <tr>
-                          <th className="py-3 px-3">Chit Scheme</th>
-                          <th className="py-3 px-3">Subscriber / Ticket</th>
-                          <th className="py-3 px-3 font-bold text-slate-900 dark:text-white">Pending Due</th>
-                          <th className="py-3 px-3">Installment</th>
-                          <th className="py-3 px-3">Cycle / Round</th>
-                          <th className="py-3 px-3">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {paginatedPendingChits.map((item, idx) => (
-                          <tr key={item.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                            <td className="py-3 px-3">
-                              <span className="font-bold text-slate-900 dark:text-white block">
-                                {item.group_name || 'Chit Scheme'}
-                              </span>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="font-mono text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900/40">
-                                  {item.group_code}
-                                </span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
-                                  {item.frequency || 'MONTHLY'}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span className="font-semibold text-slate-900 dark:text-white block">
-                                {item.member_name || 'Subscriber'}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                Ticket #{item.ticket_number || 'N/A'} {item.member_phone ? `· ${item.member_phone}` : ''}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 font-extrabold text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
-                              ₹{Number(item.advance_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="py-3 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                              ₹{Number(item.installment_amount || 0).toLocaleString('en-IN')}
-                            </td>
-                            <td className="py-3 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                              {item.cycle_period || (item.frequency === 'DAILY' ? 'Today Round' : 'Current Cycle')}
-                            </td>
-                            <td className="py-3 px-3 whitespace-nowrap">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
-                                {item.status === 'ADMIN_COVERED' ? 'ADMIN COVERED' : 'UNPAID'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Pagination: 10 per page by default, page out technique when > 10 */}
-            {filteredPendingChits.length > 0 && (
-              <Pagination
-                currentPage={pendingChitsPage}
-                totalItems={filteredPendingChits.length}
-                pageSize={pendingChitsPageSize}
-                onPageChange={setPendingChitsPage}
-                onPageSizeChange={setPendingChitsPageSize}
-                pageSizeOptions={[5, 10, 20, 50]}
-              />
-            )}
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end bg-slate-50/50 dark:bg-slate-900/50">
-              <button
-                type="button"
-                onClick={() => setShowPendingChitsModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      </div>
+    </div>
   );
 }
