@@ -387,7 +387,7 @@ export default function LeaveManagementPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           {/* Agent Filter */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
@@ -413,42 +413,6 @@ export default function LeaveManagementPage() {
                 {user?.full_name || 'My Leaves'} (Self)
               </div>
             )}
-          </div>
-
-          {/* Chit Scheme Route */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-              Chit Scheme Route
-            </label>
-            <select
-              value={filterGroup}
-              onChange={(e) => setFilterGroup(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="ALL">All Chit Schemes</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.group_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-              Attendance / Leave Status
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="WORKING">Worked / Working Days Only</option>
-              <option value="APPROVED">Approved Leave (Red) Only</option>
-              <option value="PENDING">Pending Approval (Amber) Only</option>
-            </select>
           </div>
 
           {/* Month Navigator */}
