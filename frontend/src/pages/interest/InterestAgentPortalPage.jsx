@@ -368,24 +368,24 @@ export default function InterestAgentPortalPage() {
             />
           </div>
 
-          {/* 3 Metrics Strip */}
+          {/* 3 Metrics Strip in Standard Financial Order: Route Remaining (Pending), Cash in Hand, UPI / QR */}
           <div className="grid grid-cols-3 gap-2 text-center pt-4 mt-4 border-t border-slate-100 dark:border-white/5">
             <div>
+              <div className="text-[11px] sm:text-xs font-semibold text-slate-400">⏳ Route Remaining</div>
+              <div className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 font-heading mt-0.5">
+                {formatCurrency(Math.max(0, dailyTarget - Number(summary.today_total)))}
+              </div>
+            </div>
+            <div className="border-x border-slate-100 dark:border-white/5">
               <div className="text-[11px] sm:text-xs font-semibold text-slate-400">💵 Cash in Hand</div>
               <div className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 font-heading mt-0.5">
                 {formatCurrency(summary.today_cash)}
               </div>
             </div>
-            <div className="border-x border-slate-100 dark:border-white/5">
+            <div>
               <div className="text-[11px] sm:text-xs font-semibold text-slate-400">📱 UPI / QR</div>
               <div className="text-sm sm:text-base font-bold text-indigo-600 dark:text-indigo-400 font-heading mt-0.5">
                 {formatCurrency(summary.today_upi)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] sm:text-xs font-semibold text-slate-400">⏳ Route Remaining</div>
-              <div className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 font-heading mt-0.5">
-                {formatCurrency(Math.max(0, dailyTarget - Number(summary.today_total)))}
               </div>
             </div>
           </div>

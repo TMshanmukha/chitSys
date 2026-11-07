@@ -1276,7 +1276,7 @@ export default function AuctionsPage() {
                                     title="Admin adds amount so chit proceeds - recorded under pending recovery"
                                   >
                                     <PlusCircle className="w-3 h-3" />
-                                    <span>+ Add Amount</span>
+                                    <span>Add Amount</span>
                                   </button>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400">
@@ -2544,7 +2544,7 @@ export default function AuctionsPage() {
                       ) : (
                         <>
                           <PlusCircle className="w-4 h-4" />
-                          <span>+ Enable Draw #2 Double Auction</span>
+                          <span>Enable Draw #2 Double Auction</span>
                         </>
                       )}
                     </button>

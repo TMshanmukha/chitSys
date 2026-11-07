@@ -981,7 +981,7 @@ export default function ReportsPage() {
                                 title="Admin adds amount so chit proceeds - recorded under pending recovery"
                               >
                                 <PlusCircle className="w-3.5 h-3.5" />
-                                <span>+ Add Amount</span>
+                                <span>Add Amount</span>
                               </button>
                             )}
                             {d.memberPhone ? (

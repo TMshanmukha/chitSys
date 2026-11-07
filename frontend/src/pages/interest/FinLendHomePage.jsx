@@ -242,7 +242,7 @@ export default function FinLendHomePage() {
           >
             <div className="text-left">
               <div className="text-base sm:text-lg font-black font-heading tracking-tight flex items-center gap-1.5">
-                <span>+ New Loan</span>
+                <span>New Loan</span>
               </div>
               <p className="text-xs text-indigo-100 font-medium mt-0.5">
                 Disburse new EMI or vaddi loan in 1 page

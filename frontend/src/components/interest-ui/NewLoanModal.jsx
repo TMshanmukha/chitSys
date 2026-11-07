@@ -465,7 +465,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                     className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-heading cursor-pointer"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
-                    <span>{showAddCustomer ? 'Select Existing' : '+ Add New Customer'}</span>
+                    <span>{showAddCustomer ? 'Select Existing' : 'Add New Customer'}</span>
                   </button>
                 </div>
 

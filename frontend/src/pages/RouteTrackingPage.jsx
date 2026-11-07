@@ -655,7 +655,7 @@ export default function RouteTrackingPage() {
 
           </div>
 
-          {/* Grand Executive Summary KPI Strip (Ordered: Target Expected -> Total Inflow -> Cash -> UPI -> Pending -> Work Volume) */}
+          {/* Grand Executive Summary KPI Strip (Ordered: Target Expected -> Total Inflow -> Pending Amount -> Work Volume -> Cash on Hand -> UPI / Digital) */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             {/* 1. Target Expected */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
@@ -681,31 +681,7 @@ export default function RouteTrackingPage() {
               <span className="text-[10px] text-slate-400 block mt-0.5">Gross collections achieved</span>
             </div>
 
-            {/* 3. Cash on Hand */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
-              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Cash on Hand</span>
-                <Banknote className="w-4 h-4" />
-              </div>
-              <div className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                ₹{Number(ledgerData.summary?.grandCash || 0).toLocaleString('en-IN')}
-              </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Physical currency with agents</span>
-            </div>
-
-            {/* 4. Digital / UPI */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
-              <div className="flex items-center justify-between text-purple-600 dark:text-purple-400 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider">UPI / Digital Collected</span>
-                <CreditCard className="w-4 h-4" />
-              </div>
-              <div className="text-lg sm:text-xl font-extrabold text-purple-600 dark:text-purple-400">
-                ₹{Number(ledgerData.summary?.grandOnline || 0).toLocaleString('en-IN')}
-              </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">UPI, QR & direct bank transfers</span>
-            </div>
-
-            {/* 5. Total Pending */}
+            {/* 3. Total Pending */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 shadow-xs">
               <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider">Pending Amount</span>
@@ -717,7 +693,7 @@ export default function RouteTrackingPage() {
               <span className="text-[10px] text-slate-400 block mt-0.5">{ledgerData.summary?.averageCompletionPercent || 0}% overall efficiency</span>
             </div>
 
-            {/* 6. Receipts & Active Agents (Work Volume) */}
+            {/* 4. Receipts & Active Agents (Work Volume) */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
               <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 mb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider">Work Volume</span>
@@ -729,6 +705,30 @@ export default function RouteTrackingPage() {
               <span className="text-[10px] text-slate-400 block mt-0.5">
                 {ledgerData.summary?.activeFieldAgentsCount || 0} / {ledgerData.summary?.totalAgentsCount || 0} active agents
               </span>
+            </div>
+
+            {/* 5. Cash on Hand */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Cash on Hand</span>
+                <Banknote className="w-4 h-4" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                ₹{Number(ledgerData.summary?.grandCash || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Physical currency with agents</span>
+            </div>
+
+            {/* 6. Digital / UPI */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-purple-600 dark:text-purple-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">UPI / Digital Collected</span>
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-purple-600 dark:text-purple-400">
+                ₹{Number(ledgerData.summary?.grandOnline || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">UPI, QR & direct bank transfers</span>
             </div>
           </div>
 

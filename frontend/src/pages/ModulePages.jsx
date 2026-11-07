@@ -1263,7 +1263,7 @@ export function ChitGroupsPage() {
                         className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
-                        <span>+ Add New Agent</span>
+                        <span>Add New Agent</span>
                       </button>
                     </div>
                     <select
@@ -1532,7 +1532,7 @@ export function ChitGroupsPage() {
                       className="px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer ml-auto"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
-                      <span>+ Quick Add Member</span>
+                      <span>Quick Add Member</span>
                     </button>
                   </div>
                 </div>
