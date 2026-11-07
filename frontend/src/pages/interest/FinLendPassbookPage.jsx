@@ -284,15 +284,13 @@ For repayments or balance settlement, contact your loan manager.`;
       </div>
 
       {/* 4. Total Pending Overdue across all loans card (Always clearly shown) */}
-      <div className={`rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border shadow-xs ${
-        summary.totalPendingOverdue > 0
-          ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60'
-          : 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/60'
-      }`}>
+      <div className={`rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border shadow-xs ${summary.totalPendingOverdue > 0
+        ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60'
+        : 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/60'
+        }`}>
         <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-            summary.totalPendingOverdue > 0 ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/60' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/60'
-          }`}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${summary.totalPendingOverdue > 0 ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/60' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/60'
+            }`}>
             <Layers className="w-5 h-5" />
           </div>
           <div>
@@ -309,9 +307,8 @@ For repayments or balance settlement, contact your loan manager.`;
         <button
           type="button"
           onClick={() => setIsCollectOpen(true)}
-          className={`px-3.5 py-2 rounded-xl text-xs font-extrabold text-white shrink-0 shadow-xs transition-colors cursor-pointer self-start sm:self-center font-heading ${
-            summary.totalPendingOverdue > 0 ? 'bg-rose-600 hover:bg-rose-500' : 'bg-indigo-600 hover:bg-indigo-500'
-          }`}
+          className={`px-3.5 py-2 rounded-xl text-xs font-extrabold text-white shrink-0 shadow-xs transition-colors cursor-pointer self-start sm:self-center font-heading ${summary.totalPendingOverdue > 0 ? 'bg-rose-600 hover:bg-rose-500' : 'bg-indigo-600 hover:bg-indigo-500'
+            }`}
         >
           {summary.totalPendingOverdue > 0 ? 'Collect Overdue' : 'Collect Installment'}
         </button>
@@ -380,11 +377,10 @@ For repayments or balance settlement, contact your loan manager.`;
         <button
           type="button"
           onClick={() => setActiveTab('CHARTS')}
-          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'CHARTS'
-              ? 'bg-white dark:bg-[#0c1220] text-indigo-600 dark:text-indigo-400 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'CHARTS'
+            ? 'bg-white dark:bg-[#0c1220] text-indigo-600 dark:text-indigo-400 shadow-xs'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
         >
           <BarChart3 className="w-4 h-4" />
           <span>Days & Loan Charts</span>
@@ -393,11 +389,10 @@ For repayments or balance settlement, contact your loan manager.`;
         <button
           type="button"
           onClick={() => setActiveTab('STATEMENT')}
-          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'STATEMENT'
-              ? 'bg-white dark:bg-[#0c1220] text-indigo-600 dark:text-indigo-400 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'STATEMENT'
+            ? 'bg-white dark:bg-[#0c1220] text-indigo-600 dark:text-indigo-400 shadow-xs'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
         >
           <FileText className="w-4 h-4" />
           <span>Passbook ({ledger.length})</span>
@@ -406,11 +401,10 @@ For repayments or balance settlement, contact your loan manager.`;
         <button
           type="button"
           onClick={() => setActiveTab('LOANS')}
-          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'LOANS'
-              ? 'bg-white dark:bg-[#0c1220] text-indigo-600 dark:text-indigo-400 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all font-heading flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'LOANS'
+            ? 'bg-white dark:bg-[#0c1220] text-indigo-600 dark:text-indigo-400 shadow-xs'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
         >
           <span>Loan Details ({loans.length})</span>
         </button>
@@ -460,11 +454,10 @@ For repayments or balance settlement, contact your loan manager.`;
                         {loan.loan_account_number}
                       </span>
                       <span
-                        className={`text-[10px] font-black px-2.5 py-0.5 rounded-md ${
-                          loan.loan_status === 'ACTIVE'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200/60'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                        }`}
+                        className={`text-[10px] font-black px-2.5 py-0.5 rounded-md ${loan.loan_status === 'ACTIVE'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200/60'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                          }`}
                       >
                         {loan.loan_status}
                       </span>
@@ -625,13 +618,12 @@ For repayments or balance settlement, contact your loan manager.`;
                       return (
                         <div
                           key={dayNumber}
-                          className={`p-2 rounded-xl text-center border transition-all ${
-                            isCompleted
-                              ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                              : isCurrentNext
+                          className={`p-2 rounded-xl text-center border transition-all ${isCompleted
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                            : isCurrentNext
                               ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20 font-black'
                               : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/60 dark:border-white/5 text-slate-400'
-                          }`}
+                            }`}
                           title={`Day ${dayNumber}: ${isCompleted ? 'PAID' : isCurrentNext ? 'NEXT DUE' : 'UPCOMING'}`}
                         >
                           <div className="text-[10px] font-mono leading-none">Day</div>
@@ -682,11 +674,10 @@ For repayments or balance settlement, contact your loan manager.`;
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                          isPayment
-                            ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800'
-                            : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 border border-indigo-200 dark:border-indigo-800'
-                        }`}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isPayment
+                          ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800'
+                          : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 border border-indigo-200 dark:border-indigo-800'
+                          }`}
                       >
                         {isPayment ? <Coins className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                       </div>
@@ -703,9 +694,8 @@ For repayments or balance settlement, contact your loan manager.`;
 
                     <div className="text-right shrink-0">
                       <div
-                        className={`text-sm sm:text-base font-extrabold font-heading ${
-                          isPayment ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
-                        }`}
+                        className={`text-sm sm:text-base font-extrabold font-heading ${isPayment ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
+                          }`}
                       >
                         {isPayment
                           ? `+${formatCurrency(entry.credit_amount)}`
@@ -749,11 +739,10 @@ For repayments or balance settlement, contact your loan manager.`;
                         {loan.loan_account_number}
                       </span>
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                          isLoanActive
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200/60 dark:border-emerald-800/40'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                        }`}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${isLoanActive
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200/60 dark:border-emerald-800/40'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                          }`}
                       >
                         {loan.loan_status}
                       </span>
