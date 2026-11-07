@@ -73,6 +73,7 @@ export async function me(req, res) {
       assigned_business: req.user.assigned_business || 'ALL',
       phone: req.user.phone,
       last_login_at: req.user.last_login_at,
+      created_at: req.user.created_at,
       interest_profile: interestProfile,
     },
   });

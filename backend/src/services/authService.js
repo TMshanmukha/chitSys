@@ -68,7 +68,7 @@ export async function authenticateUser({
 
   // Retrieve user record by username
   const [rows] = await pool.execute(
-    'SELECT id, full_name, username, password_hash, role, assigned_business, is_active FROM users WHERE username = ? LIMIT 1',
+    'SELECT id, full_name, username, password_hash, role, assigned_business, is_active, created_at FROM users WHERE username = ? LIMIT 1',
     [targetUsername]
   );
 
@@ -197,6 +197,7 @@ export async function authenticateUser({
       username: user.username,
       role: user.role,
       assigned_business: user.assigned_business || 'CHITFUND',
+      created_at: user.created_at,
     },
     token,
     tokenId,

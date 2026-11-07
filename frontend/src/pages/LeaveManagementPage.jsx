@@ -157,8 +157,11 @@ export default function LeaveManagementPage() {
         .sort();
       if (dates.length > 0) return dates[0];
     }
-    return user?.created_at ? String(user.created_at).slice(0, 10) : '2026-10-31';
-  }, [selectedAgent, admin, filterAgent, usersList, user]);
+    if (user?.created_at) {
+      return String(user.created_at).slice(0, 10);
+    }
+    return todayYmd;
+  }, [selectedAgent, admin, filterAgent, usersList, user, todayYmd]);
 
   // Dynamic Multi-Factor Filtered Leaves
   const filteredLeaves = useMemo(() => {

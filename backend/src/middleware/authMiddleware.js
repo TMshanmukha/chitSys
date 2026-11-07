@@ -40,7 +40,7 @@ export async function requireAuth(req, res, next) {
 
     // Check user in database and verify active status
     const [userRows] = await pool.execute(
-      'SELECT id, full_name, username, role, assigned_business, phone, is_active, last_login_at FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, full_name, username, role, assigned_business, phone, is_active, last_login_at, created_at FROM users WHERE id = ? LIMIT 1',
       [decoded.userId]
     );
 
