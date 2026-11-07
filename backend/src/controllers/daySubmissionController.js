@@ -136,28 +136,16 @@ export async function calculateDayWorkData(agentId, workDate) {
       const gAgentTotal = gAgentCash + gAgentUpi;
       const gTotal = gAgentTotal + gAdminAmount;
 
-      // Target expected for today's shift:
-      // - Daily chits have installments due every day.
-      // - Monthly chits have cycle deadline on anchorDay (start_date day).
-      const isDeadlineToday = isDaily || (cycleInfo && cycleInfo.isDeadlineToday);
-      const hasTimeRemaining = !isDaily && cycleInfo && cycleInfo.daysRemaining > 0;
-      const expectedTarget = isDaily 
-        ? gMembers.length * installmentAmt 
-        : (cycleInfo?.isDeadlineToday ? gMembers.length * installmentAmt : 0);
-      const pendingAmount = isDaily
-        ? Math.max(0, expectedTarget - gTotal)
-        : (cycleInfo?.isDeadlineToday ? Math.max(0, (gMembers.length * installmentAmt) - gTotal) : 0);
-
       // Paid vs unpaid members in this group
       const paidMembers = [];
       const unpaidMembers = [];
+      let adminSolelyMembersCount = 0;
 
       for (const m of gMembers) {
         const memberCollections = gCollections.filter((c) => c.member_id === m.member_id);
         const collectedForMember = memberCollections.reduce((sum,c)=>sum+parseFloat(c.amount||0),0);
         const coll = memberCollections[0] || null;
         if (collectedForMember >= installmentAmt && installmentAmt > 0) {
-          totalStopsVisited++;
           const adminAmt = memberCollections
             .filter((item) => ['ADMIN','SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) || (item.collector_id && Number(item.collector_id) !== Number(agentId)))
             .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
@@ -166,6 +154,12 @@ export async function calculateDayWorkData(agentId, workDate) {
             .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
           const isPaidByAdmin = adminAmt > 0;
           const isSolelyAdmin = isPaidByAdmin && agentAmt === 0;
+
+          if (isSolelyAdmin) {
+            adminSolelyMembersCount++;
+          } else {
+            totalStopsVisited++;
+          }
 
           paidMembers.push({
             memberId: m.member_id,
@@ -225,7 +219,17 @@ export async function calculateDayWorkData(agentId, workDate) {
         }
       }
 
-      const progressPercent = expectedTarget > 0 ? Math.round((gTotal / expectedTarget) * 100) : (gTotal > 0 ? 100 : 0);
+      // Target expected for agent: deduct members collected directly by Admin at office
+      const agentActiveSubscribersCount = Math.max(0, gMembers.length - adminSolelyMembersCount);
+      const isDeadlineToday = isDaily || (cycleInfo && cycleInfo.isDeadlineToday);
+      const hasTimeRemaining = !isDaily && cycleInfo && cycleInfo.daysRemaining > 0;
+      const expectedTarget = isDaily 
+        ? agentActiveSubscribersCount * installmentAmt 
+        : (cycleInfo?.isDeadlineToday ? agentActiveSubscribersCount * installmentAmt : 0);
+      const pendingAmount = isDaily
+        ? Math.max(0, expectedTarget - gAgentTotal)
+        : (cycleInfo?.isDeadlineToday ? Math.max(0, (agentActiveSubscribersCount * installmentAmt) - gAgentTotal) : 0);
+      const progressPercent = expectedTarget > 0 ? Math.min(100, Math.round((gAgentTotal / expectedTarget) * 100)) : (gAgentTotal > 0 ? 100 : 0);
 
       return {
         groupId: g.id,
@@ -240,9 +244,17 @@ export async function calculateDayWorkData(agentId, workDate) {
         upiCollected: gAgentUpi,
         agentCollected: gAgentTotal,
         adminCollected: gAdminAmount,
-        totalCollected: gTotal,
+        totalCollected: gAgentTotal,
+        combinedTotalCollected: gTotal,
         pendingAmount,
         progressPercent,
+        totalSubscribersCount: gMembers.length,
+        adminPaidSubscribersCount: adminSolelyMembersCount,
+        agentSubscribersCount: agentActiveSubscribersCount,
+        paidSubscribersCount: paidMembers.length,
+        unpaidSubscribersCount: unpaidMembers.length,
+        paidMembers,
+        unpaidMembers,
         totalSubscribersCount: gMembers.length,
         paidSubscribersCount: paidMembers.length,
         unpaidSubscribersCount: unpaidMembers.length,
@@ -266,9 +278,12 @@ export async function calculateDayWorkData(agentId, workDate) {
     });
 
     // 6. Graphs & Total Analyses
+    const adminTotalCollected = chitBreakdown.reduce((sum, item) => sum + (item.adminCollected || 0), 0);
+    const adminPaidMembersCount = chitBreakdown.reduce((sum, item) => sum + (item.adminPaidSubscribersCount || 0), 0);
+
     const grandExpectedTarget = chitBreakdown.reduce((sum, item) => sum + item.expectedTarget, 0);
     const overallCompletionPercent = grandExpectedTarget > 0
-      ? Math.round((totalCollected / grandExpectedTarget) * 100)
+      ? Math.min(100, Math.round((totalCollected / grandExpectedTarget) * 100))
       : (totalCollected > 0 ? 100 : 0);
 
     const cashSharePercent = totalCollected > 0 ? Math.round((cashCollected / totalCollected) * 100) : 0;
@@ -296,6 +311,8 @@ export async function calculateDayWorkData(agentId, workDate) {
       overallCompletionPercent,
       grandExpectedTarget,
       totalCollected,
+      adminTotalCollected,
+      adminPaidMembersCount,
       grandPendingAmount: Math.max(0, grandExpectedTarget - totalCollected),
       dailyOverview: {
         target: dailyTarget,
@@ -355,6 +372,8 @@ export async function calculateDayWorkData(agentId, workDate) {
         totalReceipts,
         totalStopsVisited,
         totalStopsPending,
+        adminTotalCollected,
+        adminPaidMembersCount,
       },
       graphsAnalyses,
       chitBreakdown,
@@ -369,6 +388,8 @@ export async function calculateDayWorkData(agentId, workDate) {
       totalReceipts,
       totalStopsVisited,
       totalStopsPending,
+      adminTotalCollected,
+      adminPaidMembersCount,
       chitBreakdown,
       graphsAnalyses,
       payloadJson,

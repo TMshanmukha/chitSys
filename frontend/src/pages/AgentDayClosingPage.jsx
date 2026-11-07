@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Calendar,
   Coins,
@@ -16,6 +16,7 @@ import {
   ChevronUp,
   Banknote,
   Sparkles,
+  Building2,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -177,6 +178,35 @@ export default function AgentDayClosingPage() {
 
   const summary = data?.graphsAnalyses || {};
   const chitBreakdown = data?.chitBreakdown || [];
+
+  const adminTotalCollected = useMemo(() => {
+    if (summary.adminTotalCollected != null && Number(summary.adminTotalCollected) > 0) {
+      return Number(summary.adminTotalCollected);
+    }
+    if (data?.adminTotalCollected != null && Number(data.adminTotalCollected) > 0) {
+      return Number(data.adminTotalCollected);
+    }
+    return chitBreakdown.reduce((sum, chit) => {
+      const cAdmin = Number(chit.adminCollected || 0);
+      if (cAdmin > 0) return sum + cAdmin;
+      const adminMembers = (chit.paidMembers || []).filter((m) => m.completedByAdmin);
+      return sum + adminMembers.reduce((mSum, m) => mSum + Number(m.adminAmount || m.amount || 0), 0);
+    }, 0);
+  }, [summary, data, chitBreakdown]);
+
+  const adminPaidCount = useMemo(() => {
+    if (summary.adminPaidMembersCount != null && Number(summary.adminPaidMembersCount) > 0) {
+      return Number(summary.adminPaidMembersCount);
+    }
+    if (data?.adminPaidMembersCount != null && Number(data.adminPaidMembersCount) > 0) {
+      return Number(data.adminPaidMembersCount);
+    }
+    return chitBreakdown.reduce((sum, chit) => {
+      if (chit.adminPaidSubscribersCount != null) return sum + Number(chit.adminPaidSubscribersCount);
+      const adminMembers = (chit.paidMembers || []).filter((m) => m.completedByAdmin);
+      return sum + adminMembers.length;
+    }, 0);
+  }, [summary, data, chitBreakdown]);
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fadeIn pb-16 font-sans px-1 sm:px-0">
@@ -365,6 +395,11 @@ export default function AgentDayClosingPage() {
           </div>
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400 truncate">
             {data?.totalStopsPending || 0} stops remaining
+            {adminPaidCount > 0 && (
+              <span className="ml-1 text-purple-600 dark:text-purple-400 font-bold">
+                (⚡ {adminPaidCount} Paid to Admin)
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -378,7 +413,9 @@ export default function AgentDayClosingPage() {
               Daily Target Completion
             </h2>
             <span className="text-xs font-black px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
-              {summary.overallCompletionPercent || 0}%
+              {Number(summary.grandExpectedTarget || 0) > 0
+                ? Math.min(100, Math.round((Number(data?.totalCollected || 0) / Number(summary.grandExpectedTarget)) * 100))
+                : (summary.overallCompletionPercent || 0)}%
             </span>
           </div>
 
@@ -386,7 +423,14 @@ export default function AgentDayClosingPage() {
             <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 transition-all duration-500"
-                style={{ width: `${Math.min(100, summary.overallCompletionPercent || 0)}%` }}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Number(summary.grandExpectedTarget || 0) > 0
+                      ? Math.round((Number(data?.totalCollected || 0) / Number(summary.grandExpectedTarget)) * 100)
+                      : (summary.overallCompletionPercent || 0)
+                  )}%`,
+                }}
               />
             </div>
             <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-1">
@@ -460,6 +504,36 @@ export default function AgentDayClosingPage() {
         </div>
       </section>
 
+      {/* Admin Collection Notice Box (Directly below the 3 Analytics Boxes) */}
+      {adminTotalCollected > 0 && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-50 to-indigo-50/70 dark:from-purple-950/40 dark:to-indigo-950/30 border border-purple-200 dark:border-purple-800 text-purple-950 dark:text-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-fadeIn">
+          <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-md">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-black text-sm sm:text-base font-heading text-purple-950 dark:text-white">
+                  ₹{adminTotalCollected.toLocaleString('en-IN')} Collected by Admin / Head Office Today
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-200 dark:bg-purple-900/80 text-purple-900 dark:text-purple-200 border border-purple-300 dark:border-purple-700">
+                  {adminPaidCount} Subscriber{adminPaidCount > 1 ? 's' : ''} Paid
+                </span>
+              </div>
+              <p className="text-xs text-purple-700 dark:text-purple-300 mt-0.5 leading-relaxed">
+                Admin collected this installment directly at head office for this shift. Your active route stops are reduced by {adminPaidCount} stop{adminPaidCount > 1 ? 's' : ''}, and this ₹{adminTotalCollected.toLocaleString('en-IN')} is deducted from your daily target and physical cash handover.
+              </p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-purple-200/60 dark:border-purple-800/60">
+            <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 block">Deducted from Target</span>
+            <span className="font-black text-base sm:text-lg text-purple-700 dark:text-purple-300 font-mono">
+              -₹{adminTotalCollected.toLocaleString('en-IN')}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Chit-by-Chit Summary */}
       <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -507,7 +581,7 @@ export default function AgentDayClosingPage() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Installment: ₹{Number(chit.installmentAmount).toLocaleString('en-IN')} · Subscribers: {chit.totalSubscribersCount} · {chit.scheduleAnalysisNotice}
+                        Installment: ₹{Number(chit.installmentAmount).toLocaleString('en-IN')} · Subscribers: {chit.totalSubscribersCount} {Number(chit.adminPaidSubscribersCount || 0) > 0 ? `(${chit.totalSubscribersCount - chit.adminPaidSubscribersCount} Active · ${chit.adminPaidSubscribersCount} Paid to Admin)` : ''} · {chit.scheduleAnalysisNotice}
                       </p>
                     </div>
 
@@ -517,7 +591,7 @@ export default function AgentDayClosingPage() {
                           {Number(chit.adminCollected || 0) > 0 ? 'Agent Collected' : 'Collected'}
                         </span>
                         <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 font-heading">
-                          ₹{Number(chit.agentCollected != null ? chit.agentCollected : chit.totalCollected).toLocaleString('en-IN')}
+                          ₹{Number(chit.agentCollected != null ? chit.agentCollected : Math.max(0, Number(chit.totalCollected || 0) - Number(chit.adminCollected || 0))).toLocaleString('en-IN')}
                         </span>
                         {Number(chit.adminCollected || 0) > 0 && (
                           <span className="text-[10px] text-purple-600 dark:text-purple-400 block font-semibold">
