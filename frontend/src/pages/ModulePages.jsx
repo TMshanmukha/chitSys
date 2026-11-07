@@ -120,15 +120,15 @@ export function ChitGroupsPage() {
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
 
   const [form, setForm] = useState({
-    group_code: 'DLY-AUC-101',
+    group_code: 'DLY-DBL-101',
     group_name: '',
-    chit_type: 'AUCTION_CHIT', // Strictly 'AUCTION_CHIT' | 'DOUBLE_CHIT' (no standard chit)
+    chit_type: 'DOUBLE_CHIT', // Strictly DOUBLE_CHIT for daily routes
     route_category: 'DAILY_ROUTE', // 'DAILY_ROUTE' | 'MONTHLY_ROUTE'
     frequency: 'DAILY', // 'DAILY' | 'MONTHLY'
     location_name: '',
     installment_amount: '500',
     total_pool_amount: '10000', // Auto-calculated = 500 * 20
-    duration_periods: '100',
+    duration_periods: '50',
     total_members_limit: '20',
     foreman_commission_percent: '5.0',
     max_bid_percent: '35.0',
@@ -172,9 +172,10 @@ export function ChitGroupsPage() {
   const handleFrequencySelect = (freq) => {
     const isDaily = freq === 'DAILY';
     setForm((prev) => {
-      // Monthly chits strictly run as AUCTION_CHIT (no double chits for monthly)
-      const nextType = isDaily ? prev.chit_type : 'AUCTION_CHIT';
-      const dur = isDaily ? (nextType === 'DOUBLE_CHIT' ? '50' : '100') : '20';
+      // Daily chits strictly run as DOUBLE_CHIT (Auction Chit blocked for daily)
+      // Monthly chits strictly run as AUCTION_CHIT (Double Chit blocked for monthly)
+      const nextType = isDaily ? 'DOUBLE_CHIT' : 'AUCTION_CHIT';
+      const dur = isDaily ? '50' : '20';
       const inst = isDaily ? (parseFloat(prev.installment_amount || '0') < 5000 && parseFloat(prev.installment_amount || '0') > 0 ? prev.installment_amount : '500') : (parseFloat(prev.installment_amount || '0') >= 5000 ? prev.installment_amount : '25000');
       const members = parseInt(prev.total_members_limit || '20', 10);
       const pool = String(Math.round(parseFloat(inst || '0') * members));
@@ -194,10 +195,16 @@ export function ChitGroupsPage() {
 
   const handleSchemeTypeSelect = (type) => {
     setForm((prev) => {
-      // Monthly chits strictly run as AUCTION_CHIT (no double chit for monthly)
-      const effectiveType = prev.frequency === 'MONTHLY' ? 'AUCTION_CHIT' : type;
+      // Daily strictly uses DOUBLE_CHIT; Monthly strictly uses AUCTION_CHIT
+      if (prev.frequency === 'DAILY' && type === 'AUCTION_CHIT') {
+        return prev; // Blocked for daily
+      }
+      if (prev.frequency === 'MONTHLY' && type === 'DOUBLE_CHIT') {
+        return prev; // Blocked for monthly
+      }
+      const effectiveType = prev.frequency === 'DAILY' ? 'DOUBLE_CHIT' : 'AUCTION_CHIT';
       const isDaily = prev.frequency === 'DAILY';
-      const dur = isDaily ? (effectiveType === 'DOUBLE_CHIT' ? '50' : '100') : '20';
+      const dur = isDaily ? '50' : '20';
       const inst = prev.installment_amount || (isDaily ? '500' : '25000');
       const members = parseInt(prev.total_members_limit || '20', 10);
       const pool = String(Math.round(parseFloat(inst || '0') * members));
@@ -377,15 +384,15 @@ export function ChitGroupsPage() {
       setWizardStep(1);
       setSelectedMemberIds([]);
       setForm({
-        group_code: generateNextGroupCode('DAILY', 'AUCTION_CHIT', groups),
+        group_code: generateNextGroupCode('DAILY', 'DOUBLE_CHIT', groups),
         group_name: '',
-        chit_type: 'AUCTION_CHIT',
+        chit_type: 'DOUBLE_CHIT',
         route_category: 'DAILY_ROUTE',
         frequency: 'DAILY',
         location_name: '',
         installment_amount: '500',
         total_pool_amount: '10000',
-        duration_periods: '100',
+        duration_periods: '50',
         total_members_limit: '20',
         foreman_commission_percent: '5.0',
         max_bid_percent: '35.0',
@@ -739,7 +746,12 @@ export function ChitGroupsPage() {
                           </div>
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          ₹{parseFloat(g.total_pool_amount).toLocaleString('en-IN')}
+                          <div>₹{parseFloat(g.total_pool_amount).toLocaleString('en-IN')}</div>
+                          {isDaily && (
+                            <div className="text-[10px] font-bold text-purple-600 dark:text-purple-400 mt-0.5" title="Sum of bid amounts (Reserved Pool)">
+                              Reserve: ₹{parseFloat(g.reserved_amount || g.total_bid_discount || 0).toLocaleString('en-IN')}
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-center font-mono">
                           <span className="font-bold text-slate-900 dark:text-white">{g.enrolled_members}</span> / {g.total_members_limit}
@@ -876,6 +888,19 @@ export function ChitGroupsPage() {
                       </span>
                     </div>
                   </div>
+
+                  {/* Reserved Amount for Daily Chit (Sum of Bid Amounts) */}
+                  {isDaily && (
+                    <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-purple-50/90 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-bold">
+                        <span>⚡</span>
+                        <span>Reserved Amount:</span>
+                      </div>
+                      <span className="font-extrabold text-purple-900 dark:text-purple-200 font-mono text-xs">
+                        ₹{parseFloat(g.reserved_amount || g.total_bid_discount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
                     <span>Foreman Commission: <strong>{g.foreman_commission_percent}%</strong></span>
@@ -1114,75 +1139,87 @@ export function ChitGroupsPage() {
                   </div>
                 </div>
 
-                {/* Scheme Mechanism: STRICTLY Auction Chit or Double Chit (Standard Chit Removed) */}
-                <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-white dark:bg-[#10192e] border-2 border-slate-100 dark:border-slate-800 space-y-2.5 sm:space-y-3 shadow-xs">
+                {/* Scheme Mechanism: Daily Strictly Double Auction (Auction Chit Blocked) · Monthly Strictly Auction Chit */}
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white dark:bg-[#10192e] border-2 border-slate-100 dark:border-slate-800 space-y-2 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Select Scheme Mechanism (Strictly 2 Types · Selection is Final Once Created) *
+                      Select Scheme Mechanism *
                     </label>
                     <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold font-mono px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60">
-                      {form.frequency === 'DAILY' ? 'Daily Route' : 'Monthly Cycle'}
+                      {form.frequency === 'DAILY' ? 'Daily Route · Double Auction Only' : 'Monthly Cycle · Auction Chit Only'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                    {/* Auction Chit (Blocked for Daily Chit) */}
                     <button
                       type="button"
-                      onClick={() => handleSchemeTypeSelect('AUCTION_CHIT')}
-                      className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all cursor-pointer ${
-                        form.chit_type === 'AUCTION_CHIT'
-                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50/40 dark:from-emerald-950/40 dark:to-slate-900 text-emerald-950 dark:text-emerald-100 shadow-md shadow-emerald-500/15 ring-2 ring-emerald-500/30'
-                          : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-2xs'
+                      disabled={form.frequency === 'DAILY'}
+                      onClick={() => {
+                        if (form.frequency !== 'DAILY') {
+                          handleSchemeTypeSelect('AUCTION_CHIT');
+                        }
+                      }}
+                      className={`p-2.5 sm:p-3 rounded-xl border-2 text-left transition-all ${
+                        form.frequency === 'DAILY'
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400 select-none'
+                          : form.chit_type === 'AUCTION_CHIT'
+                            ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50/40 dark:from-emerald-950/40 dark:to-slate-900 text-emerald-950 dark:text-emerald-100 shadow-md shadow-emerald-500/15 ring-2 ring-emerald-500/30 cursor-pointer'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-2xs cursor-pointer'
                       }`}
+                      title={form.frequency === 'DAILY' ? 'Daily chits strictly use Double Auction' : 'Standard Auction Chit'}
                     >
-                      <div className="font-bold text-sm sm:text-base flex items-center justify-between text-emerald-700 dark:text-emerald-300">
+                      <div className="font-bold text-xs sm:text-sm flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span>🔨</span>
-                          <span>Auction Chit</span>
+                          <span className={form.frequency === 'DAILY' ? 'line-through text-slate-400' : 'text-emerald-700 dark:text-emerald-300'}>
+                            Auction Chit
+                          </span>
                         </div>
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 shrink-0">
-                          {form.frequency === 'MONTHLY' ? 'Monthly Scheme' : 'Single Draw'}
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                          form.frequency === 'DAILY'
+                            ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300'
+                            : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
+                        }`}>
+                          {form.frequency === 'DAILY' ? 'Blocked for Daily' : 'Single Draw'}
                         </span>
-                      </div>
-                      <div className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
-                        Reverse auction every cycle. Admin commission is deducted from the winner's prize payout; the full bid discount is divided equally among members and credited directly to subscriber passbooks (installment due remains full standard amount).
                       </div>
                     </button>
 
-                    {form.frequency === 'DAILY' ? (
-                      <button
-                        type="button"
-                        onClick={() => handleSchemeTypeSelect('DOUBLE_CHIT')}
-                        className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all cursor-pointer ${
-                          form.chit_type === 'DOUBLE_CHIT'
-                            ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-violet-50/40 dark:from-purple-950/40 dark:to-slate-900 text-purple-950 dark:text-purple-100 shadow-md shadow-purple-500/15 ring-2 ring-purple-500/30'
-                            : 'border-slate-200 dark:border-slate-800 hover:border-purple-300 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-2xs'
-                        }`}
-                      >
-                        <div className="font-bold text-sm sm:text-base flex items-center justify-between text-purple-700 dark:text-purple-300">
-                          <div className="flex items-center gap-2">
-                            <span>⚡</span>
-                            <span>Daily Double Chit</span>
-                          </div>
-                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 shrink-0">
-                            Dual Draw Slot
+                    {/* Double Chit (Required for Daily Chit) */}
+                    <button
+                      type="button"
+                      disabled={form.frequency === 'MONTHLY'}
+                      onClick={() => {
+                        if (form.frequency === 'DAILY') {
+                          handleSchemeTypeSelect('DOUBLE_CHIT');
+                        }
+                      }}
+                      className={`p-2.5 sm:p-3 rounded-xl border-2 text-left transition-all ${
+                        form.frequency === 'MONTHLY'
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400 select-none'
+                          : form.chit_type === 'DOUBLE_CHIT'
+                            ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-violet-50/40 dark:from-purple-950/40 dark:to-slate-900 text-purple-950 dark:text-purple-100 shadow-md shadow-purple-500/15 ring-2 ring-purple-500/30 cursor-pointer'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-purple-300 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-2xs cursor-pointer'
+                      }`}
+                      title={form.frequency === 'MONTHLY' ? 'Double Chit is exclusive to Daily schemes' : 'Daily Double Chit (Dual Draw)'}
+                    >
+                      <div className="font-bold text-xs sm:text-sm flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span>⚡</span>
+                          <span className={form.frequency === 'MONTHLY' ? 'line-through text-slate-400' : 'text-purple-700 dark:text-purple-300'}>
+                            Daily Double Chit
                           </span>
                         </div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
-                          Dual draws per cycle. Admin commission is deducted from winner prize. The full bid discount is saved in this chit's pool reserve so you have the option to auction that saved pool again in Draw #2 (0 passbook dividend).
-                        </div>
-                      </button>
-                    ) : (
-                      <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 text-left flex flex-col justify-center opacity-80">
-                        <div className="font-bold text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                          <span>⚡</span>
-                          <span>Double Chit Exclusive to Daily Schemes</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                          Double chit dual-draw mechanism is available only for Daily routes (50 periods). Monthly schemes operate strictly as Auction Chits.
-                        </p>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                          form.frequency === 'MONTHLY'
+                            ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300'
+                            : 'bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300'
+                        }`}>
+                          {form.frequency === 'MONTHLY' ? 'Blocked for Monthly' : 'Double Auction'}
+                        </span>
                       </div>
-                    )}
+                    </button>
                   </div>
                 </div>
 

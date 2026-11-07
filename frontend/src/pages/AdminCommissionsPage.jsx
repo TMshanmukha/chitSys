@@ -615,23 +615,56 @@ export default function AdminCommissionsPage() {
         </div>
 
         {/* Metric 2: Total Collections Received */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Total Inflows Received
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <Receipt className="w-5 h-5" />
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Total Inflows Received
+              </span>
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <Receipt className="w-5 h-5" />
+              </div>
             </div>
+            {/* Primary Total: Sum of Inflow + Reserved Amount */}
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              ₹{(
+                (overview.totalPaymentsReceived || 0) +
+                (overview.totalDoubleChitReserve || overview.totalBidDiscount || 0)
+              ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+              Total Combined Inflow Sum
+            </p>
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            ₹{(overview.totalPaymentsReceived || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </p>
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            <span>Across All Payment Modes</span>
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">
-              {overview.totalTransactionsCount || 0} Receipts Issued
-            </span>
+
+          {/* Internal Inflow & Reserved Amount Breakdown inside the card */}
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+              <span className="text-slate-600 dark:text-slate-400 font-medium flex items-center gap-1.5">
+                <span>📥</span>
+                <span>Inflow Amount:</span>
+              </span>
+              <span className="font-extrabold text-slate-900 dark:text-white font-mono">
+                ₹{(overview.totalPaymentsReceived || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-purple-50/70 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40">
+              <span className="text-purple-700 dark:text-purple-300 font-medium flex items-center gap-1.5">
+                <span>⚡</span>
+                <span>Reserved Amount:</span>
+              </span>
+              <span className="font-extrabold text-purple-900 dark:text-purple-200 font-mono">
+                ₹{(overview.totalDoubleChitReserve || overview.totalBidDiscount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+              <span>Across All Payment Modes</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                {overview.totalTransactionsCount || 0} Receipts Issued
+              </span>
+            </div>
           </div>
         </div>
 

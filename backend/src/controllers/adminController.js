@@ -872,11 +872,15 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
     const [commRows] = await pool.query(`
       SELECT 
         COALESCE(SUM(foreman_commission), 0) AS total_commission_earned,
+        COALESCE(SUM(bid_discount), 0) AS total_bid_discount,
+        COALESCE(SUM(GREATEST(COALESCE(double_chit_reserve, 0), COALESCE(bid_discount, 0))), 0) AS total_double_chit_reserve,
         COUNT(*) AS total_auctions_conducted
       FROM auctions a
       ${auctionWhereClause}
     `, auctionParams);
     const totalForemanCommission = parseFloat(commRows[0].total_commission_earned || 0);
+    const totalDoubleChitReserve = parseFloat(commRows[0].total_double_chit_reserve || commRows[0].total_bid_discount || 0);
+    const totalBidDiscount = parseFloat(commRows[0].total_bid_discount || 0);
     const totalAuctionsConducted = parseInt(commRows[0].total_auctions_conducted || 0, 10);
 
     // 3. Aggregate Collections & Payments Got
@@ -1132,6 +1136,9 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
           totalForemanCommission,
           totalAuctionsConducted,
           totalPaymentsReceived,
+          totalDoubleChitReserve,
+          totalBidDiscount,
+          totalCombinedInflows: totalPaymentsReceived + totalDoubleChitReserve,
           cashPayments,
           digitalPayments,
           chequePayments,

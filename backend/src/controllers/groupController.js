@@ -37,6 +37,8 @@ export async function listGroups(req, res, next) {
         COUNT(DISTINCT rs.id) as route_stops_count,
         CAST(GROUP_CONCAT(DISTINCT u.full_name SEPARATOR ', ') AS CHAR) as assigned_agents,
         CAST(GROUP_CONCAT(DISTINCT u.id SEPARATOR ', ') AS CHAR) as assigned_agent_ids,
+        COALESCE((SELECT SUM(GREATEST(COALESCE(a.double_chit_reserve, 0), COALESCE(a.bid_discount, 0))) FROM auctions a WHERE a.group_id = g.id), 0) AS reserved_amount,
+        COALESCE((SELECT SUM(a.bid_discount) FROM auctions a WHERE a.group_id = g.id), 0) AS total_bid_discount,
         (
           COALESCE((SELECT SUM(ama.advance_amount - ama.recovered_amount) FROM admin_member_advances ama WHERE ama.group_id = g.id AND ama.status = 'PENDING_RECOVERY'), 0)
           +
