@@ -194,8 +194,9 @@ export async function createGroup(req, res, next) {
 
     const newGroupId = insertResult.insertId;
 
-    // If an agent is assigned directly upon group creation
+    // If an agent is assigned directly upon group creation (ensure strictly 1 active agent per group)
     if (validated.assigned_agent_id) {
+      await pool.execute('UPDATE agent_group_assignments SET is_active = 0 WHERE group_id = ?', [newGroupId]);
       await pool.execute(
         `INSERT INTO agent_group_assignments (agent_id, group_id, assigned_date, is_active, assigned_by)
          VALUES (?, ?, CURDATE(), 1, ?)

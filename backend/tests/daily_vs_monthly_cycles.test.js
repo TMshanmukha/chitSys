@@ -43,7 +43,7 @@ test('Day-by-Day vs Month-by-Month Cycle Separation Test Suite', async (t) => {
   const [members] = await pool.query('SELECT id FROM members LIMIT 1');
   testMemberId = members[0].id;
 
-  const [agents] = await pool.query("SELECT id FROM users WHERE role = 'COLLECTION_AGENT' LIMIT 1");
+  const [agents] = await pool.query("SELECT id FROM users WHERE role = 'COLLECTION_AGENT' AND id NOT IN (SELECT agent_id FROM agent_leaves WHERE leave_date = CURDATE() AND status = 'APPROVED') LIMIT 1");
   testAgentId = agents[0].id;
 
   // Enroll member in both groups

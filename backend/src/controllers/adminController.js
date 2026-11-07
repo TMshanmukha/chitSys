@@ -1264,6 +1264,33 @@ export async function getAgentsDailyPerformance(req, res, next) {
       ORDER BY g.group_name ASC
     `);
 
+    // 2b. Fetch approved leaves and temporary coverages for the target date
+    const [approvedLeaves] = isAllTime ? [[]] : await pool.query(`
+      SELECT al.id as leave_id, al.agent_id, al.leave_date, al.reason,
+             u.full_name as agent_name
+      FROM agent_leaves al
+      JOIN users u ON al.agent_id = u.id
+      WHERE al.leave_date = ? AND al.status = 'APPROVED'
+    `, [targetDate]);
+
+    const [coverages] = isAllTime ? [[]] : await pool.query(`
+      SELECT 
+        alc.leave_id, alc.group_id, alc.covering_agent_id,
+        l.agent_id as absent_agent_id,
+        absent.full_name as absent_agent_name,
+        g.group_code, g.group_name, g.frequency, g.chit_type, g.location_name,
+        g.installment_amount, g.total_pool_amount, g.start_date, g.created_at,
+        COUNT(DISTINCT gm.id) as subscriber_count,
+        COALESCE(SUM(g.installment_amount), 0) as group_target_amount
+      FROM agent_leave_coverages alc
+      JOIN agent_leaves l ON alc.leave_id = l.id
+      JOIN users absent ON l.agent_id = absent.id
+      JOIN chit_groups g ON alc.group_id = g.id
+      LEFT JOIN group_memberships gm ON g.id = gm.group_id AND gm.status = 'ACTIVE'
+      WHERE l.leave_date = ? AND l.status = 'APPROVED' AND g.status = 'ACTIVE'
+      GROUP BY alc.id, alc.leave_id, alc.group_id, alc.covering_agent_id, l.agent_id, absent.full_name, g.id
+    `, [targetDate]);
+
     // 3. Fetch collections by agent for the target date (or all-time)
     let collQuery = `
       SELECT 
@@ -1318,7 +1345,59 @@ export async function getAgentsDailyPerformance(req, res, next) {
 
     // 5. Build agent ledger
     const agentReports = agents.map((agent) => {
-      const agentRoutes = assignments.filter((a) => a.agent_id === agent.id);
+      const agentLeave = approvedLeaves.find((l) => l.agent_id === agent.id);
+      const isOnLeave = Boolean(agentLeave);
+
+      // Determine absent agent's coverer, or covering agent's temporary routes
+      let coveredBy = null;
+      let agentRoutes = [];
+
+      if (isOnLeave) {
+        // Agent is absent on this date: their routes do not show as their active workload today
+        const covRows = coverages.filter((c) => c.absent_agent_id === agent.id);
+        if (covRows.length > 0) {
+          const coveringAgent = agents.find((a) => a.id === covRows[0].covering_agent_id);
+          coveredBy = coveringAgent ? coveringAgent.full_name : 'Assigned Cover Agent';
+        }
+        agentRoutes = [];
+      } else {
+        // Active agent: primary assigned routes
+        const primaryRoutes = assignments
+          .filter((a) => a.agent_id === agent.id)
+          .map((r) => ({ ...r, isTemporaryCoverage: false }));
+
+        // Plus any temporary coverage routes assigned to this agent on targetDate
+        const coveredForOthers = coverages
+          .filter((c) => c.covering_agent_id === agent.id)
+          .map((c) => ({
+            agent_id: agent.id,
+            group_id: c.group_id,
+            group_code: c.group_code,
+            group_name: c.group_name,
+            frequency: c.frequency,
+            chit_type: c.chit_type,
+            location_name: c.location_name,
+            installment_amount: c.installment_amount,
+            total_pool_amount: c.total_pool_amount,
+            start_date: c.start_date,
+            created_at: c.created_at,
+            subscriber_count: c.subscriber_count,
+            group_target_amount: c.group_target_amount,
+            isTemporaryCoverage: true,
+            absentAgentId: c.absent_agent_id,
+            absentAgentName: c.absent_agent_name,
+          }));
+
+        // Avoid duplicate inclusion if any
+        const combined = [...primaryRoutes];
+        for (const cr of coveredForOthers) {
+          if (!combined.some((r) => r.group_id === cr.group_id)) {
+            combined.push(cr);
+          }
+        }
+        agentRoutes = combined;
+      }
+
       const agentCollections = collections.filter((c) => c.agent_id === agent.id);
       const agentLogs = trackingLogs.filter((l) => l.agent_id === agent.id);
 
@@ -1368,6 +1447,10 @@ export async function getAgentsDailyPerformance(req, res, next) {
         username: agent.username,
         phone: agent.phone,
         isActive: Boolean(agent.is_active),
+        isOnLeave,
+        leaveReason: agentLeave?.reason || null,
+        coveredBy,
+        temporaryCoverageRoutesCount: agentRoutes.filter((r) => r.isTemporaryCoverage).length,
         lastLoginAt: agent.last_login_at,
         assignedRoutesCount: agentRoutes.length,
         assignedRoutes: agentRoutes.map((r) => {
@@ -1390,6 +1473,9 @@ export async function getAgentsDailyPerformance(req, res, next) {
             collectedAmount: rCollected,
             pendingAmount: rPending,
             isCompleted,
+            isTemporaryCoverage: Boolean(r.isTemporaryCoverage),
+            absentAgentName: r.absentAgentName || null,
+            absentAgentId: r.absentAgentId || null,
           };
         }),
         totalSubscribersCount: totalAssignedSubscribers,

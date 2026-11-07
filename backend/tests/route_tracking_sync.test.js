@@ -28,8 +28,10 @@ test('Synchronous Route Tracking & Agent Node State Transition Suite', async (t)
   assert.ok(members.length > 0, 'Must have at least one member');
   testMemberId = members[0].id;
 
-  // Find an existing COLLECTION_AGENT or create one
-  const [agents] = await pool.query("SELECT id FROM users WHERE role = 'COLLECTION_AGENT' LIMIT 1");
+  // Find an existing COLLECTION_AGENT who is not on leave today, or create one
+  const [agents] = await pool.query(
+    "SELECT id FROM users WHERE role = 'COLLECTION_AGENT' AND id NOT IN (SELECT agent_id FROM agent_leaves WHERE leave_date = CURDATE() AND status = 'APPROVED') LIMIT 1"
+  );
   if (agents.length > 0) {
     testAgentId = agents[0].id;
   } else {

@@ -8,8 +8,8 @@ test('Admin Agent Daily Performance & Cash Ledger Test Suite', async (t) => {
   let groupId;
   let memberId;
 
-  // Setup: Ensure an active agent exists
-  const [agents] = await pool.query("SELECT id, full_name FROM users WHERE role = 'COLLECTION_AGENT' LIMIT 1");
+  // Setup: Ensure an active agent exists who is not on leave today
+  const [agents] = await pool.query("SELECT id, full_name FROM users WHERE role = 'COLLECTION_AGENT' AND id NOT IN (SELECT agent_id FROM agent_leaves WHERE leave_date = CURDATE() AND status = 'APPROVED') LIMIT 1");
   if (agents.length > 0) {
     agentId = agents[0].id;
   } else {

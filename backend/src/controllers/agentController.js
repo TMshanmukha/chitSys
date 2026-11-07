@@ -247,6 +247,10 @@ export async function assignAgentToGroup(req, res, next) {
     }
 
     const todayIST = getTodayIST();
+
+    // Enforce business invariant: Exactly ONE agent can be assigned to a chit group
+    await pool.execute('UPDATE agent_group_assignments SET is_active = 0 WHERE group_id = ?', [groupId]);
+
     await pool.execute(
       `INSERT INTO agent_group_assignments (agent_id, group_id, assigned_date, is_active, assigned_by)
        VALUES (?, ?, ?, 1, ?)

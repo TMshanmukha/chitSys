@@ -774,14 +774,26 @@ export default function RouteTrackingPage() {
                               {agent.fullName}
                             </h4>
                             <span className="text-xs text-slate-500 font-mono">@{agent.username}</span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${agent.isActive
-                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                                }`}
-                            >
-                              {agent.isActive ? 'Active Field Agent' : 'Inactive'}
-                            </span>
+                            {agent.isOnLeave ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-850 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1">
+                                🏖️ On Approved Leave {agent.coveredBy ? `· Covered by ${agent.coveredBy}` : ''}
+                              </span>
+                            ) : agent.isActive ? (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300">
+                                  Active Field Agent
+                                </span>
+                                {agent.temporaryCoverageRoutesCount > 0 && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                    🛡️ Covering Absent Routes (+{agent.temporaryCoverageRoutesCount})
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500">
+                                Inactive
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
                             {agent.phone ? (
@@ -819,8 +831,9 @@ export default function RouteTrackingPage() {
                       )}
                     </div>
 
-                    {/* Financial Metrics Strip */}
+                    {/* Financial Metrics Strip (Standardized Order: Target -> Total Collected -> Pending -> Cash -> UPI) */}
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      {/* 1. Target Expected */}
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                           Target Expected
@@ -830,24 +843,7 @@ export default function RouteTrackingPage() {
                         </div>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
-                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
-                          Cash on Hand
-                        </span>
-                        <div className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                          ₹{Number(agent.cashCollected || 0).toLocaleString('en-IN')}
-                        </div>
-                      </div>
-
-                      <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
-                        <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
-                          UPI / Digital Inflow
-                        </span>
-                        <div className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
-                          ₹{Number(agent.onlineCollected || 0).toLocaleString('en-IN')}
-                        </div>
-                      </div>
-
+                      {/* 2. Total Collected */}
                       <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
                         <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
                           Total Collected
@@ -857,12 +853,33 @@ export default function RouteTrackingPage() {
                         </div>
                       </div>
 
+                      {/* 3. Pending Amount */}
                       <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 col-span-2 sm:col-span-1">
                         <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
                           Pending Amount
                         </span>
                         <div className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
                           ₹{Number(agent.pendingAmount || 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      {/* 4. Cash on Hand */}
+                      <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                          Cash on Hand
+                        </span>
+                        <div className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          ₹{Number(agent.cashCollected || 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      {/* 5. UPI / Digital Inflow */}
+                      <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
+                        <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
+                          UPI / Digital Inflow
+                        </span>
+                        <div className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
+                          ₹{Number(agent.onlineCollected || 0).toLocaleString('en-IN')}
                         </div>
                       </div>
                     </div>
@@ -891,7 +908,16 @@ export default function RouteTrackingPage() {
                         Assigned Routes & Scheme Details ({(agent.assignedRoutes || []).length})
                       </span>
                       {(agent.assignedRoutes || []).length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">No chit routes currently assigned to this agent.</p>
+                        agent.isOnLeave ? (
+                          <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                            <span className="text-sm">🏖️</span>
+                            <span>
+                              Agent is on approved leave for {formatDate(ledgerData.filter?.date || selectedDate)}. Assigned routes are temporarily routed to <strong>{agent.coveredBy || 'covering field agent'}</strong>.
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">No chit routes currently assigned to this agent.</p>
+                        )
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           {(agent.assignedRoutes || []).map((r) => {
@@ -923,6 +949,11 @@ export default function RouteTrackingPage() {
                                       <span className="font-mono text-[10px] font-bold text-blue-600 dark:text-blue-400">
                                         {r.groupCode}
                                       </span>
+                                      {r.isTemporaryCoverage && (
+                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                          🛡️ Temporary Coverage {r.absentAgentName ? `(${r.absentAgentName})` : ''}
+                                        </span>
+                                      )}
                                       {isCompleted && (
                                         <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500 text-white flex items-center gap-1 shadow-xs">
                                           ✓ Completed

@@ -75,6 +75,7 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     }
     if (testMember1Id) {
       await pool.execute('DELETE FROM auctions WHERE winning_member_id IN (?, ?, ?)', [testMember1Id, testMember2Id, testMember3Id]);
+      await pool.execute('DELETE FROM group_memberships WHERE member_id IN (?, ?, ?)', [testMember1Id, testMember2Id, testMember3Id]);
       await pool.execute('DELETE FROM members WHERE id IN (?, ?, ?)', [testMember1Id, testMember2Id, testMember3Id]);
     }
     await pool.end();
