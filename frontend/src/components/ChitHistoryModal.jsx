@@ -35,7 +35,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [showCompleteModal, setShowCompleteModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'members' | 'collections' | 'auctions' | 'nodes'
+  const [activeTab, setActiveTab] = useState('charts'); // 'charts' (Member Charts default) | 'overview' | 'members' | 'collections' | 'auctions' | 'nodes'
 
   // Per-chit subscriber filters & sorting
   const [memberSearch, setMemberSearch] = useState('');
@@ -51,6 +51,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen || !groupId) return;
 
+    setActiveTab('charts');
     let isMounted = true;
     async function fetchHistory() {
       try {
@@ -356,24 +357,8 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Pill Tabs Selector - Styled matching user's reference picture */}
+        {/* Pill Tabs Selector */}
         <div className="px-5 sm:px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 overflow-x-auto shrink-0 print:hidden">
-          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1 shrink-0">
-            Dossier View:
-          </span>
-          
-          <button
-            type="button"
-            onClick={() => setActiveTab('overview')}
-            className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0 cursor-pointer ${
-              activeTab === 'overview'
-                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-            }`}
-          >
-            1. Financial Overview
-          </button>
-
           <button
             type="button"
             onClick={() => setActiveTab('charts')}
@@ -384,7 +369,19 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
             }`}
           >
             <BarChart3 className="w-3.5 h-3.5" />
-            <span>2. Member Charts</span>
+            <span>1. Member Charts</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0 cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+            }`}
+          >
+            2. Financial Overview
           </button>
 
           <button
