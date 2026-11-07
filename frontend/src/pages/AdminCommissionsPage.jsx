@@ -99,11 +99,78 @@ export default function AdminCommissionsPage() {
       setError('');
 
       const params = Object.fromEntries(Object.entries(filters).filter(([,value])=>Boolean(value)));
-      const res = await api.get('/admin/commissions', { params });
-      if (res.data?.success) {
-        setData(res.data.data);
-        setAnalyticsFilters(res.data.data.collectionFilters?.active || filters);
+      const [res, duesRes] = await Promise.allSettled([
+        api.get('/admin/commissions', { params }),
+        api.get('/admin/pending-dues', { params: { groupId: filters.groupId || undefined } })
+      ]);
+
+      let backendData = {};
+      if (res.status === 'fulfilled' && res.value.data?.success) {
+        backendData = res.value.data.data;
       }
+
+      // If pending dues endpoint returned data, integrate it to ensure sum of all pending amounts of all chits is always shown
+      if (duesRes.status === 'fulfilled' && duesRes.value.data?.success) {
+        const duesData = duesRes.value.data.data;
+        const duesSummary = duesData.summary || {};
+        const duesItems = duesData.items || [];
+
+        const pendingSum = Number(duesSummary.totalPendingOverall || duesSummary.totalUnpaidAmount || 0);
+        const pendingCount = Number(duesSummary.unpaidCount || duesSummary.totalPendingSubscribersCount || duesItems.length || 0);
+
+        const currentAdv = backendData.advancesSummary || {};
+        const totalPending = Math.max(Number(currentAdv.pendingAdvancesAmount || 0), pendingSum);
+        const totalCount = Math.max(Number(currentAdv.pendingMembersCount || 0), pendingCount);
+        const recovered = Number(currentAdv.recoveredAdvancesAmount || 0);
+
+        backendData.advancesSummary = {
+          totalAdvancesAdded: totalPending + recovered,
+          pendingAdvancesAmount: totalPending,
+          recoveredAdvancesAmount: recovered,
+          pendingMembersCount: totalCount,
+        };
+
+        if (backendData.financialOverview) {
+          backendData.financialOverview.pendingAdvancesAmount = totalPending;
+          backendData.financialOverview.totalAdvancesAdded = totalPending + recovered;
+          backendData.financialOverview.pendingMembersCount = totalCount;
+        }
+
+        // Merge duesItems into adminAdvances if missing or empty
+        if (!backendData.adminAdvances || backendData.adminAdvances.length === 0) {
+          backendData.adminAdvances = duesItems.map((item) => ({
+            id: item.advanceId || `due-${item.membershipId}`,
+            advance_id: item.advanceId || null,
+            membership_id: item.membershipId,
+            group_id: item.groupId,
+            member_id: item.memberId,
+            advance_amount: item.pendingAmount,
+            advance_date: item.advanceDate || new Date().toISOString().slice(0, 10),
+            cycle_period: item.cycleType || (item.frequency === 'DAILY' ? 'Today Round' : 'Current Cycle'),
+            status: item.isAdminCovered ? 'ADMIN_COVERED' : 'PENDING_RECOVERY',
+            recovered_amount: 0,
+            notes: item.advanceNotes || `Unpaid chit cycle installment due (₹${Number(item.pendingAmount || 0).toLocaleString('en-IN')})`,
+            group_name: item.groupName,
+            group_code: item.groupCode,
+            chit_type: item.chitType,
+            frequency: item.frequency,
+            installment_amount: item.expectedAmount,
+            member_name: item.memberName,
+            member_phone: item.memberPhone,
+            member_code: item.memberCode,
+            ticket_number: item.ticketNumber,
+            added_by_name: 'Scheme Due',
+          }));
+        }
+      }
+
+      // Enforce strict ChitFund agent count from ChitFund filters
+      if (backendData.collectionFilters?.agents?.length && backendData.financialOverview) {
+        backendData.financialOverview.totalAgentsCount = backendData.collectionFilters.agents.length;
+      }
+
+      setData(backendData);
+      setAnalyticsFilters(backendData.collectionFilters?.active || filters);
     } catch (err) {
       setError(getFriendlyErrorMessage(err, 'Failed to retrieve administrator profile from database. Please try again.'));
     } finally {
