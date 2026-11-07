@@ -30,9 +30,9 @@ export async function listCollections(req, res, next) {
         m.full_name as member_name, m.phone as member_phone, m.member_code,
         u.full_name as agent_name, u.username as agent_username
       FROM collections c
-      JOIN chit_groups g ON c.group_id = g.id
-      JOIN members m ON c.member_id = m.id
-      JOIN users u ON c.agent_id = u.id
+      LEFT JOIN chit_groups g ON c.group_id = g.id
+      LEFT JOIN members m ON c.member_id = m.id
+      LEFT JOIN users u ON c.agent_id = u.id
     `;
     const params = [];
     const conditions = [];
@@ -78,12 +78,13 @@ export async function listCollections(req, res, next) {
 
 export async function recordCollection(req, res, next) {
   try {
+    const rawAgentId = req.body.agent_id ? parseInt(req.body.agent_id, 10) : undefined;
     const validated = collectionSchema.parse({
       ...req.body,
       group_id: parseInt(req.body.group_id, 10),
       member_id: parseInt(req.body.member_id, 10),
       amount: parseFloat(req.body.amount),
-      agent_id: req.body.agent_id ? parseInt(req.body.agent_id, 10) : undefined,
+      agent_id: (!isNaN(rawAgentId) && rawAgentId > 0) ? rawAgentId : undefined,
     });
 
     // Determine agent ID: if agent is logged in, use their ID; if admin, allow specifying or default to admin
@@ -92,7 +93,7 @@ export async function recordCollection(req, res, next) {
 
     // 1. Fetch Chit Group details to verify frequency rules
     const [groupRows] = await pool.execute(
-      'SELECT id, group_name, frequency, installment_amount FROM chit_groups WHERE id = ?',
+      'SELECT id, group_name, frequency, installment_amount, start_date, created_at FROM chit_groups WHERE id = ?',
       [validated.group_id]
     );
     if (groupRows.length === 0) {
@@ -100,18 +101,20 @@ export async function recordCollection(req, res, next) {
     }
     const chitGroup = groupRows[0];
 
-    if (req.user.role === 'COLLECTION_AGENT') {
-      const finalDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date)) ? req.body.collection_date : getTodayIST();
+    const finalCollectionDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date))
+      ? req.body.collection_date
+      : getTodayIST();
 
+    if (req.user.role === 'COLLECTION_AGENT') {
       // Check if day submission has already been filed or approved for this date - lock collections!
       const [lockedDay] = await pool.execute(
         `SELECT id, status FROM agent_day_submissions WHERE agent_id = ? AND work_date = ? AND status IN ('PENDING_APPROVAL', 'APPROVED') LIMIT 1`,
-        [req.user.id, finalDate]
+        [req.user.id, finalCollectionDate]
       );
       if (lockedDay.length > 0) {
         return res.status(403).json({
           success: false,
-          message: `Collections for ${finalDate} have been submitted to Admin for shift closing and are locked. If you need to record additional payments, please request Admin to unlock your shift.`
+          message: `Collections for ${finalCollectionDate} have been submitted to Admin for shift closing and are locked. If you need to record additional payments, please request Admin to unlock your shift.`
         });
       }
 
@@ -119,7 +122,7 @@ export async function recordCollection(req, res, next) {
         `SELECT 1 FROM agent_group_assignments WHERE agent_id=? AND group_id=? AND is_active=1
          UNION SELECT 1 FROM agent_leave_coverages c JOIN agent_leaves l ON l.id=c.leave_id
          WHERE c.covering_agent_id=? AND c.group_id=? AND l.leave_date=? AND l.status='APPROVED' LIMIT 1`,
-        [req.user.id, validated.group_id, req.user.id, validated.group_id, finalDate]);
+        [req.user.id, validated.group_id, req.user.id, validated.group_id, finalCollectionDate]);
       if (!access.length) return res.status(403).json({success:false,message:'This route is not assigned to you for the selected date.'});
     }
 
@@ -127,10 +130,6 @@ export async function recordCollection(req, res, next) {
     let isAdvance = false;
     let isOffCycle = false;
     let autoNotePrefix = '';
-
-    const finalCollectionDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date))
-      ? req.body.collection_date
-      : getTodayIST();
 
     let cycleInfo = null;
     if (chitGroup.frequency === 'MONTHLY') {
@@ -153,18 +152,21 @@ export async function recordCollection(req, res, next) {
       }
     }
 
-    const finalNotes = (autoNotePrefix + (validated.notes || '')).trim() || null;
+    const finalNotes = ((autoNotePrefix + (validated.notes || '')).trim() || null)?.slice(0, 255) || null;
 
     // Generate unique receipt number: REC-YYYYMMDD-XXXX
     const dateStr = finalCollectionDate.replace(/-/g, '');
     const randSuffix = crypto.randomBytes(2).toString('hex').toUpperCase();
     const receiptNumber = `REC-${dateStr}-${randSuffix}`;
     const currentTimeIST = getCurrentTimeIST();
+    const isReconciled = req.user.role === 'SUPER_ADMIN' || req.user.role === 'ADMIN';
+    const verificationStatus = isReconciled ? 'RECONCILED' : 'PENDING_RECONCILIATION';
+    const reconciledBy = isReconciled ? req.user.id : null;
 
     const [insertResult] = await pool.execute(
       `INSERT INTO collections 
-        (receipt_number, group_id, member_id, agent_id, amount, payment_method, payment_reference, collection_date, collection_time, verification_status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_RECONCILIATION', ?)`,
+        (receipt_number, group_id, member_id, agent_id, amount, payment_method, payment_reference, collection_date, collection_time, verification_status, reconciled_by, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         receiptNumber,
         validated.group_id,
@@ -175,6 +177,8 @@ export async function recordCollection(req, res, next) {
         validated.payment_reference || null,
         finalCollectionDate,
         currentTimeIST,
+        verificationStatus,
+        reconciledBy,
         finalNotes,
       ]
     );
@@ -190,10 +194,22 @@ export async function recordCollection(req, res, next) {
         validStopId = stopRows[0].id;
       }
 
+      // If Admin collected, also update tracking node for the assigned field agent so they see customer has paid!
+      let targetAgentId = recordingAgentId;
+      if (req.user.role !== 'COLLECTION_AGENT') {
+        const [assignedAgentRows] = await pool.execute(
+          'SELECT agent_id FROM agent_group_assignments WHERE group_id = ? AND is_active = 1 LIMIT 1',
+          [validated.group_id]
+        );
+        if (assignedAgentRows.length > 0) {
+          targetAgentId = assignedAgentRows[0].agent_id;
+        }
+      }
+
       await pool.execute(
         `INSERT INTO agent_tracking_logs (agent_id, group_id, member_id, stop_id, tracking_date, status, last_ping_time, notes)
-         VALUES (?, ?, ?, ?, ?, 'PAID', CURTIME(), ?)`,
-        [recordingAgentId, validated.group_id, validated.member_id, validStopId, finalCollectionDate, validated.notes || 'Paid in field']
+         VALUES (?, ?, ?, ?, ?, 'PAID', ?, ?)`,
+        [targetAgentId, validated.group_id, validated.member_id, validStopId, finalCollectionDate, currentTimeIST, (validated.notes || 'Paid in field').slice(0, 255)]
       );
     } catch (e) {
       console.error('Tracking log sync warning:', e.message);
@@ -279,8 +295,12 @@ export async function getCollectionSummary(req, res, next) {
     res.status(200).json({
       success: true,
       data: {
-        ...todayRow,
-        expectedDailyTarget: totalExpectedRow.expectedDailyTarget,
+        todayCash: Number(todayRow?.todayCash || 0),
+        todayUpi: Number(todayRow?.todayUpi || 0),
+        todayOnline: Number(todayRow?.todayOnline || 0),
+        todayTotal: Number(todayRow?.todayTotal || 0),
+        todayCount: Number(todayRow?.todayCount || 0),
+        expectedDailyTarget: Number(totalExpectedRow?.expectedDailyTarget || 0),
       },
     });
   } catch (error) {
@@ -344,7 +364,7 @@ export async function getAdminCollectionTasks(req, res, next) {
     const [collections] = await pool.query(
       `SELECT c.group_id, c.member_id, c.amount, c.collection_date, c.payment_method, u.full_name as collected_by_name
        FROM collections c
-       JOIN users u ON u.id = c.agent_id
+       LEFT JOIN users u ON u.id = c.agent_id
        WHERE c.group_id IN (?) AND c.collection_date = ? AND c.verification_status != 'CANCELLED'`,
       [groupIds, queryDate]
     );
@@ -361,51 +381,54 @@ export async function getAdminCollectionTasks(req, res, next) {
     let pendingCount = 0;
     let completedCount = 0;
 
-    const tasks = members.map((m) => {
-      const g = groupMap.get(m.group_id);
-      const isDaily = g.frequency === 'DAILY';
-      const cycleInfo = isDaily ? null : getMonthlyCycleInfo(g.start_date || g.created_at, queryDate);
-      const isDueToday = isDaily || (cycleInfo ? cycleInfo.isDeadlineToday : false);
-      const paidAmount = colMap.get(`${m.group_id}:${m.member_id}`) || 0;
-      const installment = Number(g.installment_amount);
-      const isPaid = paidAmount >= installment;
-      const isPartial = paidAmount > 0 && paidAmount < installment;
+    const tasks = members
+      .map((m) => {
+        const g = groupMap.get(m.group_id);
+        if (!g) return null;
+        const isDaily = g.frequency === 'DAILY';
+        const cycleInfo = isDaily ? null : getMonthlyCycleInfo(g.start_date || g.created_at, queryDate);
+        const isDueToday = isDaily || (cycleInfo ? cycleInfo.isDeadlineToday : false);
+        const paidAmount = colMap.get(`${m.group_id}:${m.member_id}`) || 0;
+        const installment = Number(g.installment_amount || 0);
+        const isPaid = paidAmount >= installment;
+        const isPartial = paidAmount > 0 && paidAmount < installment;
 
-      totalTarget += installment;
-      totalCollected += paidAmount;
-      if (isPaid) completedCount++;
-      else pendingCount++;
+        totalTarget += installment;
+        totalCollected += paidAmount;
+        if (isPaid) completedCount++;
+        else pendingCount++;
 
-      const isCovered = Boolean(g.covering_agent_id);
-      const currentHandlerName = isCovered ? g.covering_agent_name : (g.assigned_agent_name || 'Admin / Office');
-      const isHandledByMe = isCovered
-        ? Number(g.covering_agent_id) === Number(req.user.id)
-        : Number(g.assigned_agent_id) === Number(req.user.id);
+        const isCovered = Boolean(g.covering_agent_id);
+        const currentHandlerName = isCovered ? g.covering_agent_name : (g.assigned_agent_name || 'Admin / Office');
+        const isHandledByMe = isCovered
+          ? Number(g.covering_agent_id) === Number(req.user.id)
+          : Number(g.assigned_agent_id) === Number(req.user.id);
 
-      return {
-        group_id: g.id,
-        group_name: g.group_name,
-        group_code: g.group_code,
-        frequency: g.frequency,
-        installment_amount: installment,
-        cycle_label: isDaily ? 'Daily Installment' : `Monthly (Due: ${cycleInfo?.cycleDue || 'Anchor Date'})`,
-        is_due_today: isDueToday,
-        member_id: m.member_id,
-        member_name: m.full_name,
-        member_phone: m.phone,
-        ticket_number: m.ticket_number,
-        address: m.address,
-        paid_amount: paidAmount,
-        remaining_due: Math.max(0, installment - paidAmount),
-        is_paid: isPaid,
-        is_partial: isPartial,
-        is_covered_today: isCovered,
-        covering_agent_name: g.covering_agent_name,
-        absent_agent_name: isCovered ? g.assigned_agent_name : null,
-        current_handler_name: currentHandlerName,
-        is_handled_by_me: isHandledByMe,
-      };
-    });
+        return {
+          group_id: g.id,
+          group_name: g.group_name,
+          group_code: g.group_code,
+          frequency: g.frequency,
+          installment_amount: installment,
+          cycle_label: isDaily ? 'Daily Installment' : `Monthly (Due: ${cycleInfo?.cycleDue || 'Anchor Date'})`,
+          is_due_today: isDueToday,
+          member_id: m.member_id,
+          member_name: m.full_name,
+          member_phone: m.phone,
+          ticket_number: m.ticket_number,
+          address: m.address,
+          paid_amount: paidAmount,
+          remaining_due: Math.max(0, installment - paidAmount),
+          is_paid: isPaid,
+          is_partial: isPartial,
+          is_covered_today: isCovered,
+          covering_agent_name: g.covering_agent_name,
+          absent_agent_name: isCovered ? g.assigned_agent_name : null,
+          current_handler_name: currentHandlerName,
+          is_handled_by_me: isHandledByMe,
+        };
+      })
+      .filter(Boolean);
 
     res.json({
       success: true,
