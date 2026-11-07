@@ -988,6 +988,10 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
     const unpaidAmount = enrichedSubscribers
       .filter((s) => s.payment_status === 'NOT_PAID' || s.payment_status === 'PARTIAL')
       .reduce((sum, s) => sum + s.pending_amount, 0);
+    const paidCount = enrichedSubscribers.filter((s) => s.payment_status === 'PAID').length;
+    const paidAmount = enrichedSubscribers
+      .filter((s) => s.payment_status === 'PAID')
+      .reduce((sum, s) => sum + s.cycle_paid, 0);
     const adminCoveredCount = enrichedSubscribers.filter((s) => s.is_admin_covered).length;
     const adminCoveredAmount = enrichedSubscribers
       .filter((s) => s.is_admin_covered)
@@ -1019,9 +1023,12 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
           collectionPercentage,
           unpaidCount,
           unpaidAmount,
+          paidCount,
+          paidAmount,
           adminCoveredCount,
           adminCoveredAmount,
-          totalPendingAmount: unpaidAmount + adminCoveredAmount,
+          totalPendingAmount: unpaidAmount,
+          totalPendingCount: unpaidCount,
         },
       },
     });

@@ -449,9 +449,13 @@ export default function AuctionsPage() {
 
   // Filtered subscribers for the dedicated Scheme Breakdown table
   const schemeSubscribers = schemeBreakdown?.subscribers || [];
+  const unpaidSubscribers = schemeSubscribers.filter((s) => s.payment_status === 'NOT_PAID' || s.payment_status === 'PARTIAL');
+  const paidSubscribers = schemeSubscribers.filter((s) => s.payment_status === 'PAID');
+  const totalPendingDues = unpaidSubscribers.reduce((sum, s) => sum + Number(s.pending_amount || 0), 0);
+
   const filteredSubscribers = schemeSubscribers.filter((sub) => {
     if (subscriberFilter === 'UNPAID' && sub.payment_status !== 'NOT_PAID' && sub.payment_status !== 'PARTIAL') return false;
-    if (subscriberFilter === 'ADMIN_COVERED' && sub.payment_status !== 'ADMIN_COVERED') return false;
+    if (subscriberFilter === 'PAID' && sub.payment_status !== 'PAID') return false;
     if (subscriberFilter === 'PRIZED' && sub.is_prized !== 1) return false;
 
     if (!subscriberSearch.trim()) return true;
@@ -1015,35 +1019,36 @@ export default function AuctionsPage() {
                 </div>
               )}
 
-              {/* Pending Dues & Admin Deficit Overview Cards */}
+              {/* Pending Dues & Overview Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-heading">
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                   <span className="text-slate-500 block text-[10px] uppercase font-bold">Total Subscribers</span>
-                  <span className="text-base font-extrabold text-slate-900 dark:text-white">{schemeBreakdown?.totals?.enrolledCount || 0} Members</span>
+                  <span className="text-base font-extrabold text-slate-900 dark:text-white">{schemeSubscribers.length} Members</span>
+                  <span className="text-[9px] text-slate-400 block">Active chit participants</span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-900/60">
                   <span className="text-emerald-600 dark:text-emerald-400 block text-[10px] uppercase font-bold">Paid Installments</span>
                   <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">
-                    {Math.max(0, (schemeBreakdown?.totals?.enrolledCount || 0) - (schemeBreakdown?.totals?.adminCoveredCount || 0))} Paid
+                    {paidSubscribers.length} Paid
                   </span>
                   <span className="text-[9px] text-slate-400 block">Directly by subscribers</span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60">
-                  <span className="text-amber-600 dark:text-amber-400 block text-[10px] uppercase font-bold">Pending Amount to Admin</span>
+                  <span className="text-amber-600 dark:text-amber-400 block text-[10px] uppercase font-bold">Pending Amount</span>
                   <span className="text-base font-extrabold text-amber-600 dark:text-amber-400">
-                    ₹{Number(schemeBreakdown?.totals?.adminCoveredAmount || 0).toLocaleString('en-IN')}
+                    ₹{totalPendingDues.toLocaleString('en-IN')}
                   </span>
                   <span className="text-[9px] text-amber-600 dark:text-amber-400 block font-semibold">
-                    Total pending from chit to Admin
+                    Total unpaid installment dues
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60">
                   <span className="text-rose-600 dark:text-rose-400 block text-[10px] uppercase font-bold">Pending Members Count</span>
                   <span className="text-base font-extrabold text-rose-600 dark:text-rose-400">
-                    {schemeBreakdown?.totals?.adminCoveredCount || 0} Members
+                    {unpaidSubscribers.length} Members
                   </span>
                   <span className="text-[9px] text-rose-600 dark:text-rose-400 block font-semibold">
-                    Owe pending amount to Admin
+                    Subscribers with unpaid dues
                   </span>
                 </div>
               </div>
@@ -1055,7 +1060,7 @@ export default function AuctionsPage() {
                     <span>Subscriber Payment, Dues & Dividend Ledger ({schemeBreakdown?.subscribers?.length || 0} Members)</span>
                   </h4>
                   <span className="text-xs text-slate-500">
-                    Shows which subscriber has paid and who owes pending amounts to admin
+                    Shows subscriber installment payment status and pending dues
                   </span>
                 </div>
 
@@ -1094,19 +1099,19 @@ export default function AuctionsPage() {
                   }`}
                 >
                   <Clock className="w-3 h-3" />
-                  <span>Unpaid Deficit ({schemeBreakdown?.totals?.unpaidCount || 0})</span>
+                  <span>Unpaid Dues ({unpaidSubscribers.length})</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSubscriberFilter('ADMIN_COVERED')}
+                  onClick={() => setSubscriberFilter('PAID')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-heading flex items-center gap-1.5 ${
-                    subscriberFilter === 'ADMIN_COVERED'
-                      ? 'bg-amber-600 text-white shadow-xs'
-                      : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 hover:bg-amber-100 border border-amber-200 dark:border-amber-900/60'
+                    subscriberFilter === 'PAID'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-900/60'
                   }`}
                 >
-                  <AlertTriangle className="w-3 h-3" />
-                  <span>Admin Covered ({schemeBreakdown?.totals?.adminCoveredCount || 0})</span>
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Paid Installments ({paidSubscribers.length})</span>
                 </button>
                 <button
                   type="button"
@@ -1139,7 +1144,7 @@ export default function AuctionsPage() {
                           <th className="py-2.5 px-3">Cycle Due / Paid</th>
                           <th className="py-2.5 px-3">Chit Pending Liability</th>
                           <th className="py-2.5 px-3">Dividend Credited</th>
-                          <th className="py-2.5 px-3 text-right">Admin Action</th>
+                          <th className="py-2.5 px-3 text-right">Payment Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1258,30 +1263,15 @@ export default function AuctionsPage() {
                               </td>
 
                               <td className="py-2.5 px-3 text-right">
-                                {sub.payment_status === 'ADMIN_COVERED' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSettleAdvance(sub.advance_id, sub.full_name, sub.pending_amount)}
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs flex items-center gap-1 transition-all cursor-pointer font-heading whitespace-nowrap ml-auto"
-                                    title="Subscriber has repaid Admin - mark settled"
-                                  >
-                                    <Check className="w-3 h-3" />
-                                    <span>Mark Repaid</span>
-                                  </button>
-                                ) : sub.payment_status === 'NOT_PAID' || sub.payment_status === 'PARTIAL' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenAdminAdvance(sub)}
-                                    className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-xs flex items-center gap-1 transition-all cursor-pointer font-heading whitespace-nowrap ml-auto"
-                                    title="Admin adds amount so chit proceeds - recorded under pending recovery"
-                                  >
-                                    <PlusCircle className="w-3 h-3" />
-                                    <span>Add Amount</span>
-                                  </button>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400">
-                                    <Check className="w-3 h-3 text-emerald-500" />
+                                {sub.payment_status === 'PAID' ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] font-heading ml-auto">
+                                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                     <span>Reconciled</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold text-[11px] font-heading ml-auto">
+                                    <Clock className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                                    <span>Payment Pending</span>
                                   </span>
                                 )}
                               </td>
@@ -3075,194 +3065,6 @@ export default function AuctionsPage() {
         </ModalPortal>
       )}
 
-      {/* Admin Add Amount (Cover Due) Modal */}
-      {Boolean(adminAdvanceModal) && (
-        <ModalPortal
-          id="admin-advance-modal"
-          isOpen={Boolean(adminAdvanceModal)}
-          onClose={() => setAdminAdvanceModal(null)}
-        >
-          <div className="w-full max-w-lg p-5 sm:p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400">
-                  <Coins className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white font-heading">
-                    Add Amount as Admin (Cover Due)
-                  </h3>
-                  <span className="text-xs text-slate-500">
-                    Fund unpaid installment so chit continues; tracked under Admin Pending Recovery
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAdminAdvanceModal(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-xs space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Chit Scheme:</span>
-                <span className="font-extrabold text-blue-900 dark:text-blue-300 font-heading">
-                  {adminAdvanceModal.group_name || schemeBreakdown?.group?.group_name || 'Selected Group'} ({adminAdvanceModal.group_code || schemeBreakdown?.group?.group_code})
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Subscriber:</span>
-                <span className="font-bold text-slate-900 dark:text-white font-heading">
-                  #{adminAdvanceModal.ticket_number} - {adminAdvanceModal.full_name} ({adminAdvanceModal.phone})
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Standard Installment:</span>
-                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                  ₹{Number(adminAdvanceModal.base_installment || schemeBreakdown?.group?.installment_amount || 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div className="flex justify-between items-center border-t border-blue-200/60 dark:border-blue-900/40 pt-1.5">
-                <span className="text-rose-600 dark:text-rose-400 font-bold">Pool Deficit / Amount Due:</span>
-                <span className="font-mono font-black text-rose-600 dark:text-rose-400 text-sm">
-                  ₹{Number(adminAdvanceModal.pending_amount || adminAdvanceModal.base_installment || 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-
-            {/* Tracking Notice */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
-              <div className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <span>🛡️</span>
-                <span>Tracked in Admin Advance & Member Pending Dues</span>
-              </div>
-              <p>
-                This amount covers the chit fund pool so the auction proceeds. It is recorded as pending member recovery in <strong>Admin Commissions & Advances (/commissions)</strong> and the <strong>Member Installment & Dues Ledger</strong> below for tracking until the subscriber repays Admin.
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmitAdminAdvance} className="space-y-4">
-              {adminAdvanceModal.fromAuctionModal && groupMembers.length > 0 && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
-                    Assign Recovery Dues to Subscriber *
-                  </label>
-                  <select
-                    value={adminAdvanceForm.member_id}
-                    onChange={(e) => {
-                      const mem = groupMembers.find((m) => String(m.member_id || m.id) === String(e.target.value));
-                      setAdminAdvanceForm({
-                        ...adminAdvanceForm,
-                        member_id: e.target.value,
-                        notes: `[ADMIN_FUNDED] Admin cover on behalf of ${mem?.full_name || 'Member'} (Ticket #${mem?.ticket_number || ''}) - Pending Member Recovery`,
-                      });
-                      if (mem) {
-                        setAdminAdvanceModal((prev) => ({
-                          ...prev,
-                          member_id: mem.member_id || mem.id,
-                          ticket_number: mem.ticket_number,
-                          full_name: mem.full_name,
-                          phone: mem.phone,
-                        }));
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  >
-                    {groupMembers.map((m) => (
-                      <option key={m.member_id || m.id} value={m.member_id || m.id}>
-                        #{m.ticket_number} - {m.full_name} ({m.phone})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
-                  Total Pending Due in Admin Advance (₹) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  min="1"
-                  onWheel={(e) => e.target.blur()}
-                  value={adminAdvanceForm.amount}
-                  onChange={(e) => setAdminAdvanceForm({ ...adminAdvanceForm, amount: e.target.value })}
-                  placeholder="e.g. 500"
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                />
-                <span className="text-[10px] text-slate-400 block mt-1">
-                  Total pending deficit due from member to Admin.
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
-                  Admin Payment Source / Method
-                </label>
-                <select
-                  value={adminAdvanceForm.payment_method}
-                  onChange={(e) => setAdminAdvanceForm({ ...adminAdvanceForm, payment_method: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                >
-                  <option value="CASH">Cash (Admin Cash Outlay)</option>
-                  <option value="UPI">UPI / Digital (Admin Bank)</option>
-                  <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
-                  <option value="CHEQUE">Cheque</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 font-heading">
-                  Remarks / Audit Note
-                </label>
-                <input
-                  type="text"
-                  value={adminAdvanceForm.notes}
-                  onChange={(e) => setAdminAdvanceForm({ ...adminAdvanceForm, notes: e.target.value })}
-                  placeholder="e.g. Covered by Admin on behalf of subscriber"
-                  className="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center gap-2 text-xs text-amber-900 dark:text-amber-200">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>
-                  This deposit will credit the chit fund ledger and record a pending recovery of ₹{Number(adminAdvanceForm.amount || 0).toLocaleString('en-IN')} against {adminAdvanceModal.full_name}.
-                </span>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setAdminAdvanceModal(null)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={advanceSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md hover:shadow-lg flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer font-heading"
-                >
-                  {advanceSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Adding Amount...</span>
-                    </>
-                  ) : (
-                    <span>Confirm & Add Amount</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </ModalPortal>
-      )}
 
       {/* Confirmation Dialog for Auction Finalization */}
       <ConfirmModal
