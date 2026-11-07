@@ -32,6 +32,8 @@ import {
   RotateCcw,
   Sliders,
   Gavel,
+  Eye,
+  X,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
@@ -91,6 +93,12 @@ export default function AdminCommissionsPage() {
   const [paymentPageSize, setPaymentPageSize] = useState(10);
   const [advancesPage, setAdvancesPage] = useState(1);
   const [advancesPageSize, setAdvancesPageSize] = useState(10);
+
+  // Pending Chits Eye Modal & Pagination states
+  const [showPendingChitsModal, setShowPendingChitsModal] = useState(false);
+  const [pendingChitsPage, setPendingChitsPage] = useState(1);
+  const [pendingChitsPageSize, setPendingChitsPageSize] = useState(10);
+  const [pendingSearch, setPendingSearch] = useState('');
 
   const loadData = async (isManual = false, filters = analyticsFilters) => {
     try {
@@ -257,6 +265,26 @@ export default function AdminCommissionsPage() {
   const paginatedAdvances = filteredAdvances.slice(
     (advancesPage - 1) * advancesPageSize,
     advancesPage * advancesPageSize
+  );
+
+  // Filtered Pending Chits & Deficits for Modal (Min 10 per page, pagination when > 10)
+  const filteredPendingChits = adminAdvances
+    .filter((adv) => adv.status === 'PENDING_RECOVERY' || adv.status === 'ADMIN_COVERED' || adv.status === 'NOT_PAID' || adv.status === 'PARTIAL')
+    .filter((adv) => {
+      if (!pendingSearch) return true;
+      const q = pendingSearch.toLowerCase();
+      return (
+        adv.member_name?.toLowerCase().includes(q) ||
+        adv.member_phone?.toLowerCase().includes(q) ||
+        String(adv.ticket_number).includes(q) ||
+        adv.group_name?.toLowerCase().includes(q) ||
+        adv.group_code?.toLowerCase().includes(q)
+      );
+    });
+
+  const paginatedPendingChits = filteredPendingChits.slice(
+    (pendingChitsPage - 1) * pendingChitsPageSize,
+    pendingChitsPage * pendingChitsPageSize
   );
 
   // Filtered Auction Ledger
@@ -729,17 +757,35 @@ export default function AdminCommissionsPage() {
                 </span>
               )}
             </div>
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <CreditCard className="w-5 h-5" />
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingChitsPage(1);
+                setShowPendingChitsModal(true);
+              }}
+              className="w-9 h-9 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center transition-colors cursor-pointer"
+              title="View Pending Chits"
+              aria-label="View Pending Chits"
+            >
+              <Eye className="w-5 h-5" />
+            </button>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
               ₹{(advancesSummary.pendingAdvancesAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </p>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Total Dues: <strong className="text-slate-800 dark:text-slate-200">₹{(advancesSummary.totalAdvancesAdded || 0).toLocaleString('en-IN')}</strong> · Recovered: <strong className="text-emerald-600 dark:text-emerald-400">₹{(advancesSummary.recoveredAdvancesAmount || 0).toLocaleString('en-IN')}</strong>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingChitsPage(1);
+                setShowPendingChitsModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="View Pending Chits List"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View Pending Chits</span>
+            </button>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
             <span>Unpaid member installment dues pending recovery across chit schemes</span>
@@ -763,22 +809,6 @@ export default function AdminCommissionsPage() {
         >
           <Shield className="w-4 h-4" />
           <span>Full Admin Profile</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveSection('firm');
-            smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-            activeSection === 'firm'
-              ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          <span>Firm & Regulatory Details</span>
         </button>
 
         <button
@@ -1010,112 +1040,6 @@ export default function AdminCommissionsPage() {
         </div>
       )}
 
-      {/* SECTION 2: Firm & Regulatory Details */}
-      {activeSection === 'firm' && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                Chit Fund Firm & Statutory Registration Dossier
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Government license and administrative authority records registered in database
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-              <Building2 className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
-              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Registered Firm Name
-              </span>
-              <p className="text-base font-extrabold text-slate-900 dark:text-white">
-                {profile.firm_name || 'ChitFund Pro Enterprise Services'}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
-              <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Registration / License Number
-                </span>
-                <p className="text-base font-mono font-extrabold text-blue-600 dark:text-blue-400">
-                  {profile.registration_number || 'CF/TS/2026/8849'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleCopy(profile.registration_number || 'CF/TS/2026/8849', 'reg')}
-                className="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer"
-                title="Copy Registration Number"
-              >
-                {copiedKey === 'reg' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
-              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Governing Act & Legal Compliance
-              </span>
-              <p className="font-semibold text-slate-900 dark:text-white">
-                {profile.act_compliance || 'Chit Funds Act, 1982 (Act No. 40 of 1982)'}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
-              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Registrar Office Jurisdiction
-              </span>
-              <p className="font-semibold text-slate-900 dark:text-white">
-                {profile.registrar_office || 'Office of the Registrar of Chits, Telangana'}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 md:col-span-2">
-              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Official Registered Headquarters Address
-              </span>
-              <p className="font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
-                {profile.office_address || 'Plot No. 42, Financial District, Gachibowli, Hyderabad, Telangana - 500032'}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
-              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Official Correspondence Email
-              </span>
-              <p className="font-mono text-slate-900 dark:text-white">
-                {profile.official_email || 'contact@chitfundpro.com'}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
-              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Official Contact Telephone
-              </span>
-              <p className="font-mono text-slate-900 dark:text-white">
-                {profile.official_phone || user.phone || '+91 98765 43210'}
-              </p>
-            </div>
-
-            {profile.notes && (
-              <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 md:col-span-2">
-                <span className="block text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider mb-1">
-                  Enterprise Operational Directives & Notes
-                </span>
-                <p className="text-xs text-blue-900 dark:text-blue-200 leading-relaxed">
-                  {profile.notes}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-
       {/* SECTION 4: Foreman Commission Ledger (Auctions from DB) */}
       {activeSection === 'auctions' && (
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -1127,9 +1051,6 @@ export default function AdminCommissionsPage() {
                   5% Section 21
                 </span>
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Exact statutory foreman commissions earned from conducted auctions in MySQL ledger
-              </p>
             </div>
 
             {/* Search Input */}
@@ -1354,6 +1275,164 @@ export default function AdminCommissionsPage() {
               />
             </div>
           )}
+        </div>
+      )}
+
+      {/* PENDING CHITS & DUES AUDIT MODAL (Eye Icon Trigger) */}
+      {showPendingChitsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200"
+          onClick={() => setShowPendingChitsModal(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <Eye className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Pending Chits & Member Deficits</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-bold border border-rose-200 dark:border-rose-900">
+                      {filteredPendingChits.length} Deficits
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Unpaid installment dues tracked across chit schemes pending collection or recovery
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPendingChitsModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close Modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Search & Summary Bar */}
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search chit scheme, member, ticket..."
+                  value={pendingSearch}
+                  onChange={(e) => {
+                    setPendingSearch(e.target.value);
+                    setPendingChitsPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                />
+              </div>
+
+              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <span>Total Pending Dues:</span>
+                <strong className="text-amber-600 dark:text-amber-400 text-sm font-extrabold">
+                  ₹{filteredPendingChits.reduce((acc, cur) => acc + Number(cur.advance_amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </strong>
+              </div>
+            </div>
+
+            {/* Modal Table Body */}
+            <div className="overflow-y-auto flex-1 p-4">
+              {filteredPendingChits.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 dark:text-slate-400 text-sm">
+                  <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500 mb-2" />
+                  <p className="font-bold text-slate-800 dark:text-slate-200">No pending chits found</p>
+                  <p className="text-xs text-slate-400 mt-1">All subscribers have cleared their scheduled installments.</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
+                        <tr>
+                          <th className="py-3 px-3">Chit Scheme</th>
+                          <th className="py-3 px-3">Subscriber / Ticket</th>
+                          <th className="py-3 px-3 font-bold text-slate-900 dark:text-white">Pending Due</th>
+                          <th className="py-3 px-3">Installment</th>
+                          <th className="py-3 px-3">Cycle / Round</th>
+                          <th className="py-3 px-3">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {paginatedPendingChits.map((item, idx) => (
+                          <tr key={item.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 px-3">
+                              <span className="font-bold text-slate-900 dark:text-white block">
+                                {item.group_name || 'Chit Scheme'}
+                              </span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="font-mono text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900/40">
+                                  {item.group_code}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
+                                  {item.frequency || 'MONTHLY'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="font-semibold text-slate-900 dark:text-white block">
+                                {item.member_name || 'Subscriber'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                Ticket #{item.ticket_number || 'N/A'} {item.member_phone ? `· ${item.member_phone}` : ''}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-extrabold text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
+                              ₹{Number(item.advance_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-3 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                              ₹{Number(item.installment_amount || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-3 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                              {item.cycle_period || (item.frequency === 'DAILY' ? 'Today Round' : 'Current Cycle')}
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
+                                {item.status === 'ADMIN_COVERED' ? 'ADMIN COVERED' : 'UNPAID'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Pagination: 10 per page by default, page out technique when > 10 */}
+            {filteredPendingChits.length > 0 && (
+              <Pagination
+                currentPage={pendingChitsPage}
+                totalItems={filteredPendingChits.length}
+                pageSize={pendingChitsPageSize}
+                onPageChange={setPendingChitsPage}
+                onPageSizeChange={setPendingChitsPageSize}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            )}
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end bg-slate-50/50 dark:bg-slate-900/50">
+              <button
+                type="button"
+                onClick={() => setShowPendingChitsModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
