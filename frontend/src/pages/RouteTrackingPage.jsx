@@ -378,8 +378,12 @@ export default function RouteTrackingPage() {
     smoothScrollTo('route-trajectory-map', { offset: 32, behavior: 'smooth', delay: 100 });
   };
 
-  // Filter agents by search term and selected agent
-  const filteredAgents = (ledgerData.agents || []).filter((agent) => {
+  // Filter agents by search term and selected agent (Strictly ChitFund Pro Only)
+  const chitFundAgents = (ledgerData.agents || []).filter(
+    (ag) => ag.assigned_business !== 'INTEREST' && !ag.isInterestAgent && ag.username !== 'shanmukha1'
+  );
+
+  const filteredAgents = chitFundAgents.filter((agent) => {
     if (ledgerAgentFilter !== 'ALL' && agent.agentId !== Number(ledgerAgentFilter)) {
       return false;
     }
@@ -632,8 +636,8 @@ export default function RouteTrackingPage() {
                   onChange={(e) => setLedgerAgentFilter(e.target.value)}
                   className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none cursor-pointer"
                 >
-                  <option value="ALL">All Field Agents ({ledgerData.agents?.length || 0})</option>
-                  {(ledgerData.agents || []).map((ag) => (
+                  <option value="ALL">All Field Agents ({chitFundAgents.length})</option>
+                  {chitFundAgents.map((ag) => (
                     <option key={ag.agentId} value={ag.agentId}>
                       {ag.fullName} (@{ag.username})
                     </option>
@@ -1461,9 +1465,9 @@ export default function RouteTrackingPage() {
                   className="bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
                 >
                   <option value="ALL">All Field Agents</option>
-                  {(ledgerData.agents || []).map((ag) => (
+                  {chitFundAgents.map((ag) => (
                     <option key={ag.agentId} value={ag.agentId}>
-                      {ag.agentName}
+                      {ag.agentName || ag.fullName}
                     </option>
                   ))}
                 </select>

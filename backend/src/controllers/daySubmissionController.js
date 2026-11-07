@@ -556,6 +556,9 @@ export async function getMyDaySubmissions(req, res, next) {
          AND c.collection_date <= CURRENT_DATE
          AND c.verification_status != 'CANCELLED'
          AND u.role = 'COLLECTION_AGENT'
+         AND (u.assigned_business = 'CHITFUND' OR (u.assigned_business = 'ALL' AND u.role IN ('SUPER_ADMIN', 'ADMIN')) OR (u.assigned_business IS NULL AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)))
+         AND (u.assigned_business != 'INTEREST')
+         AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)
          AND NOT EXISTS (
            SELECT 1 FROM agent_day_submissions ads
            WHERE ads.agent_id = c.agent_id
@@ -610,7 +613,9 @@ export async function listDaySubmissionsForAdmin(req, res, next) {
       FROM agent_day_submissions ads
       JOIN users u ON ads.agent_id = u.id
       LEFT JOIN users approver ON ads.approved_by = approver.id
-      WHERE 1=1
+      WHERE (u.assigned_business = 'CHITFUND' OR (u.assigned_business = 'ALL' AND u.role IN ('SUPER_ADMIN', 'ADMIN')) OR (u.assigned_business IS NULL AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)))
+        AND (u.assigned_business != 'INTEREST')
+        AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)
     `;
     const params = [];
 

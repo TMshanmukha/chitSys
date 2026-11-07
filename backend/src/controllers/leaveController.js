@@ -116,7 +116,7 @@ export async function reviewLeave(req, res, next) {
       for (const item of assignments) {
         const groupId=Number(item.group_id), agentId=Number(item.covering_agent_id);
         if (!groupIds.has(groupId) || assigned.has(groupId) || agentId===leave.agent_id) throw Object.assign(new Error('Assign each absent route to a different active agent.'),{status:400});
-        const [agents] = await conn.execute("SELECT id, role, full_name FROM users WHERE id=? AND role IN ('COLLECTION_AGENT', 'ADMIN', 'SUPER_ADMIN') AND is_active=1",[agentId]);
+        const [agents] = await conn.execute("SELECT id, role, full_name FROM users WHERE id=? AND role IN ('COLLECTION_AGENT', 'ADMIN', 'SUPER_ADMIN') AND is_active=1 AND (assigned_business = 'CHITFUND' OR assigned_business = 'ALL' OR (assigned_business IS NULL AND id NOT IN (SELECT user_id FROM interest_user_profiles))) AND (assigned_business != 'INTEREST') AND id NOT IN (SELECT user_id FROM interest_user_profiles)",[agentId]);
         if (!agents.length) throw Object.assign(new Error('Choose an active collection agent or administrator for coverage.'),{status:400});
         assigned.add(groupId);
       }

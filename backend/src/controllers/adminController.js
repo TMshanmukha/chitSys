@@ -99,16 +99,27 @@ export async function getDashboardOverview(req, res, next) {
       totalMembers = allMembers || 0;
     }
 
-    // 3. Agents Count - Respects Scheme & Agent Filters
+    // 3. Agents Count - Respects Scheme & Agent Filters (Strict ChitFund Isolation)
     let totalAgents = 0;
     if (agentId) {
       const [[agentRow]] = await pool.query(
-        'SELECT COUNT(*) as totalAgents FROM users WHERE id = ? AND role = "COLLECTION_AGENT" AND is_active = 1',
+        `SELECT COUNT(*) as totalAgents FROM users 
+         WHERE id = ? AND role = "COLLECTION_AGENT" AND is_active = 1
+           AND (assigned_business = 'CHITFUND' OR (assigned_business = 'ALL' AND role IN ('SUPER_ADMIN', 'ADMIN')) OR (assigned_business IS NULL AND id NOT IN (SELECT user_id FROM interest_user_profiles)))
+           AND (assigned_business != 'INTEREST')
+           AND id NOT IN (SELECT user_id FROM interest_user_profiles)`,
         [agentId]
       );
       totalAgents = agentRow?.totalAgents || 0;
     } else if (groupId || frequency) {
-      const agentConds = ["aga.is_active = 1", "u.is_active = 1", "u.role = 'COLLECTION_AGENT'"];
+      const agentConds = [
+        "aga.is_active = 1",
+        "u.is_active = 1",
+        "u.role = 'COLLECTION_AGENT'",
+        "(u.assigned_business = 'CHITFUND' OR (u.assigned_business = 'ALL' AND u.role IN ('SUPER_ADMIN', 'ADMIN')) OR (u.assigned_business IS NULL AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)))",
+        "(u.assigned_business != 'INTEREST')",
+        "u.id NOT IN (SELECT user_id FROM interest_user_profiles)"
+      ];
       const agentParams = [];
       if (groupId) { agentConds.push('g.id = ?'); agentParams.push(groupId); }
       if (frequency) { agentConds.push('g.frequency = ?'); agentParams.push(frequency); }
@@ -122,7 +133,11 @@ export async function getDashboardOverview(req, res, next) {
       totalAgents = agentRows[0]?.totalAgents || 0;
     } else {
       const [[{ totalAgents: allAgents }]] = await pool.execute(
-        'SELECT COUNT(*) as totalAgents FROM users WHERE role = "COLLECTION_AGENT" AND is_active = 1'
+        `SELECT COUNT(*) as totalAgents FROM users 
+         WHERE role = "COLLECTION_AGENT" AND is_active = 1
+           AND (assigned_business = 'CHITFUND' OR (assigned_business = 'ALL' AND role IN ('SUPER_ADMIN', 'ADMIN')) OR (assigned_business IS NULL AND id NOT IN (SELECT user_id FROM interest_user_profiles)))
+           AND (assigned_business != 'INTEREST')
+           AND id NOT IN (SELECT user_id FROM interest_user_profiles)`
       );
       totalAgents = allAgents || 0;
     }
@@ -309,8 +324,14 @@ export async function getDashboardOverview(req, res, next) {
       LIMIT 50
     `, groupListParams);
 
-    // 9. Agent Collection Status - Dynamically respects filters & date range
-    const agentSummaryConds = ["u.role = 'COLLECTION_AGENT'", "u.is_active = 1"];
+    // 9. Agent Collection Status - Dynamically respects filters & date range (Strict ChitFund Isolation)
+    const agentSummaryConds = [
+      "u.role = 'COLLECTION_AGENT'",
+      "u.is_active = 1",
+      "(u.assigned_business = 'CHITFUND' OR (u.assigned_business = 'ALL' AND u.role IN ('SUPER_ADMIN', 'ADMIN')) OR (u.assigned_business IS NULL AND u.id NOT IN (SELECT user_id FROM interest_user_profiles)))",
+      "(u.assigned_business != 'INTEREST')",
+      "u.id NOT IN (SELECT user_id FROM interest_user_profiles)"
+    ];
     const agentSummaryParams = [];
     if (agentId) { agentSummaryConds.push('u.id = ?'); agentSummaryParams.push(agentId); }
     if (groupId) {
@@ -416,7 +437,7 @@ export async function getDashboardOverview(req, res, next) {
         recentAuctions,
         availableFilters: {
           groups: (await pool.query('SELECT id, group_name, group_code, frequency, chit_type FROM chit_groups ORDER BY group_name ASC'))[0] || [],
-          agents: (await pool.query("SELECT id, full_name, username FROM users WHERE role = 'COLLECTION_AGENT' AND is_active = 1 ORDER BY full_name ASC"))[0] || [],
+          agents: (await pool.query("SELECT id, full_name, username FROM users WHERE role = 'COLLECTION_AGENT' AND is_active = 1 AND (assigned_business = 'CHITFUND' OR (assigned_business = 'ALL' AND role IN ('SUPER_ADMIN', 'ADMIN')) OR (assigned_business IS NULL AND id NOT IN (SELECT user_id FROM interest_user_profiles))) AND (assigned_business != 'INTEREST') AND id NOT IN (SELECT user_id FROM interest_user_profiles) ORDER BY full_name ASC"))[0] || [],
         },
       },
     });
@@ -870,7 +891,9 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
     // 5. Total Groups, Members, Agents, and Payouts Managed by Admin
     const [groupsCountRow] = await pool.query('SELECT COUNT(*) AS total FROM chit_groups');
     const [membersCountRow] = await pool.query('SELECT COUNT(*) AS total FROM members');
-    const [agentsCountRow] = await pool.query("SELECT COUNT(*) AS total FROM users WHERE role = 'COLLECTION_AGENT'");
+    const [agentsCountRow] = await pool.query(
+      "SELECT COUNT(*) AS total FROM users WHERE role = 'COLLECTION_AGENT' AND (assigned_business = 'CHITFUND' OR (assigned_business = 'ALL' AND role IN ('SUPER_ADMIN', 'ADMIN')) OR (assigned_business IS NULL AND id NOT IN (SELECT user_id FROM interest_user_profiles))) AND (assigned_business != 'INTEREST') AND id NOT IN (SELECT user_id FROM interest_user_profiles)"
+    );
     const [payoutsRow] = await pool.query("SELECT COALESCE(SUM(net_payable_amount), 0) AS total_payouts FROM payouts WHERE status = 'DISBURSED'");
 
     const totalGroupsCount = parseInt(groupsCountRow[0]?.total || 0, 10);
@@ -911,7 +934,9 @@ export async function getAdminCommissionsAndProfile(req, res, next) {
       LIMIT 500
     `, collectionParams);
 
-    const [filterAgents] = await pool.query("SELECT id,full_name FROM users WHERE role='COLLECTION_AGENT' AND is_active=1 ORDER BY full_name");
+    const [filterAgents] = await pool.query(
+      "SELECT id,full_name FROM users WHERE role='COLLECTION_AGENT' AND is_active=1 AND (assigned_business = 'CHITFUND' OR (assigned_business = 'ALL' AND role IN ('SUPER_ADMIN', 'ADMIN')) OR (assigned_business IS NULL AND id NOT IN (SELECT user_id FROM interest_user_profiles))) AND (assigned_business != 'INTEREST') AND id NOT IN (SELECT user_id FROM interest_user_profiles) ORDER BY full_name"
+    );
     const [filterGroups] = await pool.query("SELECT id,group_name,group_code,frequency FROM chit_groups ORDER BY group_name");
 
     // 8. Withdrawals History
@@ -1234,11 +1259,14 @@ export async function getAgentsDailyPerformance(req, res, next) {
     const dateObj = new Date(targetDate);
     const isFirstDayOfSelectedDate = dateObj.getDate() === 1;
 
-    // 1. Fetch collection agents
+    // 1. Fetch collection agents (Strict ChitFund Isolation - exclude FinLend/Interest agents)
     let agentQuery = `
       SELECT id, full_name, username, phone, role, is_active, last_login_at, created_at
       FROM users
       WHERE role = 'COLLECTION_AGENT'
+        AND (assigned_business = 'CHITFUND' OR (assigned_business = 'ALL' AND role IN ('SUPER_ADMIN', 'ADMIN')) OR (assigned_business IS NULL AND id NOT IN (SELECT user_id FROM interest_user_profiles)))
+        AND (assigned_business != 'INTEREST')
+        AND id NOT IN (SELECT user_id FROM interest_user_profiles)
     `;
     const agentParams = [];
     if (agentId && agentId !== 'ALL') {
