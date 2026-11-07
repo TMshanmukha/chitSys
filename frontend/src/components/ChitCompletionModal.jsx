@@ -105,7 +105,7 @@ export default function ChitCompletionModal({ group, isOpen, onClose, onComplete
   // 1) 0 days remaining
   // 2) Every member has 0 due
   const isDurationComplete = periodsRemaining <= 0;
-  const areAllMembersCleared = members.length > 0 && sumTotalPendingDue === 0 && membersWithDue.length === 0;
+  const areAllMembersCleared = sumTotalPendingDue === 0 && membersWithDue.length === 0;
   const canComplete = isDurationComplete && areAllMembersCleared;
 
   const filteredMembers = memberLedger.filter((m) => {
@@ -221,11 +221,11 @@ export default function ChitCompletionModal({ group, isOpen, onClose, onComplete
               <div className="mt-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                 {isDurationComplete ? (
                   <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> All {totalPeriods} {periodLabel.toLowerCase()} have elapsed. Time requirement fulfilled.
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Yes — Duration completed.
                   </span>
                 ) : (
                   <span className="text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Chit cannot complete yet. {periodsRemaining} {periodLabel.toLowerCase()} still remaining.
+                    <AlertTriangle className="w-3.5 h-3.5" /> No — {periodsRemaining} {periodLabel.toLowerCase()} remaining.
                   </span>
                 )}
               </div>
@@ -270,11 +270,11 @@ export default function ChitCompletionModal({ group, isOpen, onClose, onComplete
               <div className="mt-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                 {areAllMembersCleared ? (
                   <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> All members have paid 100%. Total due is ₹0.
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Yes — 0 pending dues.
                   </span>
                 ) : (
                   <span className="text-rose-700 dark:text-rose-400 font-semibold flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Chit cannot complete yet. {membersWithDue.length} member(s) have unpaid dues.
+                    <AlertTriangle className="w-3.5 h-3.5" /> No — {membersWithDue.length} member(s) have unpaid dues.
                   </span>
                 )}
               </div>
@@ -401,46 +401,31 @@ export default function ChitCompletionModal({ group, isOpen, onClose, onComplete
               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 shadow-sm'
               : 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-900 text-rose-950 dark:text-rose-100 shadow-sm'
           }`}>
-            <div className="flex items-center gap-2 font-black text-sm uppercase tracking-wide">
+            <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
               {canComplete ? (
                 <>
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span className="text-emerald-700 dark:text-emerald-400">Closure Verification: Fully Eligible for Completion</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="text-emerald-700 dark:text-emerald-400">Ready for Completion</span>
                 </>
               ) : (
                 <>
-                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
-                  <span className="text-rose-700 dark:text-rose-400">Closure Verification: Ineligible for Completion</span>
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span className="text-rose-700 dark:text-rose-400">Not Eligible for Completion</span>
                 </>
               )}
             </div>
 
-            <p className="text-xs sm:text-sm mt-2 leading-relaxed">
+            <p className="text-xs mt-1 font-medium">
               {canComplete ? (
-                <>
-                  <strong>Conclusion:</strong> All <strong>{totalPeriods} {periodLabel.toLowerCase()}</strong> are finished (0 days remaining) and all <strong>{members.length} subscribers</strong> have paid 100% of their installments with <strong>₹0 pending dues</strong>. This chit scheme is completely settled and eligible to be closed and moved to <strong>Completed / Inactive Schemes</strong>.
-                </>
+                <span>Yes — Duration completed and all subscriber dues cleared.</span>
               ) : (
-                <>
-                  <strong>Conclusion:</strong> This chit cannot be completed because{' '}
-                  {periodsRemaining > 0 && sumTotalPendingDue > 0 ? (
-                    <>
-                      <strong>{periodsRemaining} {periodLabel.toLowerCase()}</strong> are still remaining until maturity, and{' '}
-                      <strong>{membersWithDue.length} subscriber(s)</strong> have unpaid dues totaling{' '}
-                      <strong>₹{sumTotalPendingDue.toLocaleString('en-IN')}</strong>.
-                    </>
-                  ) : periodsRemaining > 0 ? (
-                    <>
-                      <strong>{periodsRemaining} {periodLabel.toLowerCase()}</strong> are still remaining until maturity.
-                    </>
-                  ) : (
-                    <>
-                      <strong>{membersWithDue.length} subscriber(s)</strong> have unpaid dues totaling{' '}
-                      <strong>₹{sumTotalPendingDue.toLocaleString('en-IN')}</strong>.
-                    </>
-                  )}{' '}
-                  A chit scheme can only be marked completed when <strong>0 {periodLabel.toLowerCase()} remain</strong> and <strong>every member has zero pending due</strong>.
-                </>
+                <span>
+                  {periodsRemaining > 0 && sumTotalPendingDue > 0
+                    ? `No — ${periodsRemaining} ${periodLabel.toLowerCase()} remaining and ${membersWithDue.length} member(s) have unpaid dues.`
+                    : periodsRemaining > 0
+                    ? `No — ${periodsRemaining} ${periodLabel.toLowerCase()} remaining until maturity.`
+                    : `No — ${membersWithDue.length} member(s) have unpaid dues.`}
+                </span>
               )}
             </p>
           </div>
