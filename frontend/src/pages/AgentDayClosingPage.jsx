@@ -513,10 +513,17 @@ export default function AgentDayClosingPage() {
 
                     <div className="flex items-center gap-4 sm:gap-6 justify-between md:justify-end">
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-400 font-bold block">Collected</span>
-                        <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 font-heading">
-                          ₹{Number(chit.totalCollected).toLocaleString('en-IN')}
+                        <span className="text-[10px] text-slate-400 font-bold block">
+                          {Number(chit.adminCollected || 0) > 0 ? 'Agent Collected' : 'Collected'}
                         </span>
+                        <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 font-heading">
+                          ₹{Number(chit.agentCollected != null ? chit.agentCollected : chit.totalCollected).toLocaleString('en-IN')}
+                        </span>
+                        {Number(chit.adminCollected || 0) > 0 && (
+                          <span className="text-[10px] text-purple-600 dark:text-purple-400 block font-semibold">
+                            + ₹{Number(chit.adminCollected).toLocaleString('en-IN')} by Admin
+                          </span>
+                        )}
                       </div>
 
                       <div className="text-right">
@@ -547,19 +554,41 @@ export default function AgentDayClosingPage() {
                             chit.paidMembers.map((m, idx) => (
                               <div
                                 key={idx}
-                                className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-xs flex items-center justify-between gap-2"
+                                className={`p-2 rounded-xl text-xs flex items-center justify-between gap-2 ${
+                                  m.completedByAdmin
+                                    ? 'bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900'
+                                    : 'bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900'
+                                }`}
                               >
                                 <div className="min-w-0">
-                                  <span className="font-bold text-slate-900 dark:text-white block font-heading truncate">
-                                    {m.memberName} (#{m.ticketNumber})
-                                  </span>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-bold text-slate-900 dark:text-white block font-heading truncate">
+                                      {m.memberName} (#{m.ticketNumber})
+                                    </span>
+                                    {m.completedByAdmin ? (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-purple-100 text-purple-800 dark:bg-purple-900/80 dark:text-purple-200 border border-purple-300">
+                                        Paid by Admin, not by Agent
+                                      </span>
+                                    ) : (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-200">
+                                        Agent Collected
+                                      </span>
+                                    )}
+                                  </div>
                                   <span className="text-[10px] text-slate-500 font-mono truncate block">
-                                    {m.paymentMethod} · {m.receiptNumber}
+                                    {m.paymentMethod} · {m.receiptNumber} {m.completedByAdmin ? '· Office Collection' : ''}
                                   </span>
                                 </div>
-                                <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">
-                                  ₹{Number(m.amount).toLocaleString('en-IN')}
-                                </span>
+                                <div className="text-right shrink-0">
+                                  <span className={`font-black ${m.completedByAdmin ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                    ₹{Number(m.amount).toLocaleString('en-IN')}
+                                  </span>
+                                  {m.completedByAdmin && (
+                                    <span className="block text-[9px] font-bold text-purple-600 dark:text-purple-400">
+                                      Office Paid
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             ))
                           )}

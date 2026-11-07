@@ -592,10 +592,16 @@ export default function AdminDaySubmissionsPage() {
                               </div>
 
                               <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-                                <span>Cash: ₹{Number(chit.cashCollected).toLocaleString('en-IN')}</span>
+                                <span>Agent Cash: ₹{Number(chit.agentCashCollected ?? chit.cashCollected).toLocaleString('en-IN')}</span>
                                 <span>UPI: ₹{Number(chit.upiCollected).toLocaleString('en-IN')}</span>
                                 <span>Dues: ₹{Number(chit.pendingAmount).toLocaleString('en-IN')}</span>
                               </div>
+
+                              {Number(chit.adminCollected || 0) > 0 && (
+                                <div className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800">
+                                  ⚡ Paid by Admin, not by Agent: ₹{Number(chit.adminCollected).toLocaleString('en-IN')}
+                                </div>
+                              )}
 
                               <div className="text-[11px] text-slate-500">
                                 Paid members: <strong>{chit.paidMembers?.length || 0}</strong> · Pending:{' '}

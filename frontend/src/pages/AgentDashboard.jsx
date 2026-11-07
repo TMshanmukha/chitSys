@@ -541,34 +541,25 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     });
   }, [tasksList, taskFrequencyFilter, taskChitFilter]);
 
-  // Active agent tasks: exclude members who already paid directly to Admin/Office
-  // If normally total tasks is 5 and 1 member paid to admin, total tasks becomes 4!
-  const activeAgentTasks = useMemo(() => {
-    return baseSchemeTasks.filter((t) => !t.isPaidToAdmin);
-  }, [baseSchemeTasks]);
-
-  const adminPaidTasks = useMemo(() => {
-    return baseSchemeTasks.filter((t) => t.isPaidToAdmin);
-  }, [baseSchemeTasks]);
-
-  const totalTasksCount = activeAgentTasks.length;
-  const completedTasksCount = activeAgentTasks.filter((t) => t.isPaid).length;
-  const pendingTasksCount = activeAgentTasks.filter((t) => !t.isPaid).length;
-  const adminPaidTasksCount = adminPaidTasks.length;
-  const remarksTasksCount = activeAgentTasks.filter((t) => t.hasCustomRemark).length;
-  const taskProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : (adminPaidTasksCount > 0 ? 100 : 0);
+  // For agent tasks: if admin paid amount of any member, that member shows PAID!
+  const totalTasksCount = baseSchemeTasks.length;
+  const completedTasksCount = baseSchemeTasks.filter((t) => t.isPaid).length;
+  const pendingTasksCount = baseSchemeTasks.filter((t) => !t.isPaid).length;
+  const adminPaidTasksCount = baseSchemeTasks.filter((t) => t.isPaidToAdmin).length;
+  const remarksTasksCount = baseSchemeTasks.filter((t) => t.hasCustomRemark).length;
+  const taskProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
   const totalTargetExpected = useMemo(() => {
-    return activeAgentTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
-  }, [activeAgentTasks]);
+    return baseSchemeTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
+  }, [baseSchemeTasks]);
 
   const filteredTasks = useMemo(() => {
     return baseSchemeTasks.filter((t) => {
       if (taskFilter === 'PENDING') {
-        if (t.isPaid || t.isPaidToAdmin) return false;
+        if (t.isPaid) return false;
       }
       if (taskFilter === 'COMPLETED') {
-        if (!t.isPaid || t.isPaidToAdmin) return false;
+        if (!t.isPaid) return false;
       }
       if (taskFilter === 'ADMIN_PAID') {
         if (!t.isPaidToAdmin) return false;
@@ -1759,7 +1750,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                               {groupPaidCount} of {groupTotalCount} stops ({groupPercent}%)
                               {groupAdminPaidCount > 0 && (
                                 <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300">
-                                  ⚡ {groupAdminPaidCount} Paid to Admin (-{groupAdminPaidCount} Task)
+                                  ⚡ {groupAdminPaidCount} Paid by Admin (-{groupAdminPaidCount} Task)
                                 </span>
                               )}
                             </span>
@@ -1830,7 +1821,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                   </span>
                                   {task.isPaidToAdmin && (
                                     <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border border-purple-300">
-                                      ⚡ PAID TO ADMIN (TASK DEDUCTED)
+                                      ✓ PAID (Paid by Admin, not by Agent)
                                     </span>
                                   )}
                                   {task.isTemporaryCoverage && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Covering {task.absentAgentName || 'absent agent'}</span>}
@@ -1866,7 +1857,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                 {task.isPaidToAdmin ? (
                                   <div className="text-[11px] text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-1.5 mt-1 bg-purple-50 dark:bg-purple-950/40 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                                    <span>Paid directly to Office / Admin ({task.completedByName || 'Admin'}) · Task Deducted from Agent Target</span>
+                                    <span>Paid by Admin, not by Agent · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod || 'CASH'}) · Stop Completed</span>
                                   </div>
                                 ) : task.isPaid ? (
                                   <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1 mt-1">
@@ -3207,7 +3198,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                             <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1 pt-0.5">
                                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                               <span>
-                                                Paid Today · ₹{Number(member.collected_amount || group.installment_amount).toLocaleString('en-IN')} ({member.payment_method}) · Receipt #{member.receipt_number || 'REC-ISSUED'}{member.collection_time ? ` · ${formatTime(member.collection_time)}` : ''}
+                                                Paid Today · {Boolean(member.is_paid_to_admin || member.completed_by_admin) ? 'Paid by Admin, not by Agent' : 'Agent Collected'} · ₹{Number(member.collected_amount || group.installment_amount).toLocaleString('en-IN')} ({member.payment_method || 'CASH'}) · Receipt #{member.receipt_number || 'REC-ISSUED'}{member.collection_time ? ` · ${formatTime(member.collection_time)}` : ''}
                                               </span>
                                             </div>
                                           ) : (

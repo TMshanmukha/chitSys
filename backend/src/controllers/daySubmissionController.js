@@ -114,15 +114,27 @@ export async function calculateDayWorkData(agentId, workDate) {
       const gMembers = enrolledMembers.filter((m) => m.group_id === g.id);
       const gCollections = collections.filter((c) => c.group_id === g.id);
 
-      const gCash = gCollections
+      // Separate agent collections from admin collections
+      const gAdminColls = gCollections.filter((c) => 
+        ['ADMIN','SUPER_ADMIN'].includes((c.collector_role || '').toUpperCase()) || 
+        (c.collector_id && Number(c.collector_id) !== Number(agentId))
+      );
+      const gAgentColls = gCollections.filter((c) => 
+        !['ADMIN','SUPER_ADMIN'].includes((c.collector_role || '').toUpperCase()) && 
+        (!c.collector_id || Number(c.collector_id) === Number(agentId))
+      );
+
+      const gAdminAmount = gAdminColls.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+      const gAgentCash = gAgentColls
         .filter((c) => (c.payment_method || '').toUpperCase().trim() === 'CASH')
         .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
 
-      const gUpi = gCollections
+      const gAgentUpi = gAgentColls
         .filter((c) => (c.payment_method || '').toUpperCase().trim() !== 'CASH')
         .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
 
-      const gTotal = gCash + gUpi;
+      const gAgentTotal = gAgentCash + gAgentUpi;
+      const gTotal = gAgentTotal + gAdminAmount;
 
       // Target expected for today's shift:
       // - Daily chits have installments due every day.
@@ -146,19 +158,33 @@ export async function calculateDayWorkData(agentId, workDate) {
         const coll = memberCollections[0] || null;
         if (collectedForMember >= installmentAmt && installmentAmt > 0) {
           totalStopsVisited++;
+          const adminAmt = memberCollections
+            .filter((item) => ['ADMIN','SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) || (item.collector_id && Number(item.collector_id) !== Number(agentId)))
+            .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+          const agentAmt = memberCollections
+            .filter((item) => !['ADMIN','SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) && (!item.collector_id || Number(item.collector_id) === Number(agentId)))
+            .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+          const isPaidByAdmin = adminAmt > 0;
+          const isSolelyAdmin = isPaidByAdmin && agentAmt === 0;
+
           paidMembers.push({
             memberId: m.member_id,
             memberName: m.full_name,
             ticketNumber: m.ticket_number,
             phone: m.phone,
             amount: collectedForMember,
+            agentAmount: agentAmt,
+            adminAmount: adminAmt,
             paymentMethod: coll.payment_method,
             receiptNumber: coll.receipt_number,
             collectionTime: coll.collection_time,
             completedBy: [...new Set(memberCollections.map((item)=>item.completed_by_name).filter(Boolean))].join(', ') || null,
-            completedByAdmin: memberCollections.some((item)=>['ADMIN','SUPER_ADMIN'].includes(item.collector_role)),
+            completedByAdmin: isPaidByAdmin,
+            paidByNotice: isSolelyAdmin
+              ? 'Paid by Admin, not by Agent'
+              : (isPaidByAdmin ? `₹${adminAmt} paid by Admin, ₹${agentAmt} collected by Agent` : 'Collected by Agent'),
             notes: coll.notes || '',
-            statusLabel: 'Collected Today',
+            statusLabel: isSolelyAdmin ? 'Paid by Admin, not by Agent' : 'Collected Today',
           });
         } else {
           totalStopsPending++;
@@ -210,8 +236,10 @@ export async function calculateDayWorkData(agentId, workDate) {
         chitType: g.chit_type,
         installmentAmount: installmentAmt,
         expectedTarget,
-        cashCollected: gCash,
-        upiCollected: gUpi,
+        cashCollected: gAgentCash,
+        upiCollected: gAgentUpi,
+        agentCollected: gAgentTotal,
+        adminCollected: gAdminAmount,
         totalCollected: gTotal,
         pendingAmount,
         progressPercent,
