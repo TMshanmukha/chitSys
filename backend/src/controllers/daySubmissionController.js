@@ -436,15 +436,24 @@ export async function previewAgentDayWork(req, res, next) {
 
     if (pendingSubs.length > 0) {
       // Active pending submission currently awaiting admin review
-      isSubmitted = true;
+      const prevChits = (pendingSubs[0]?.details?.chitBreakdown || []);
+      const prevGroupIds = new Set(prevChits.map((c) => c.groupId));
+      const hasNewAssignedGroups = (data.chitBreakdown || []).some((c) => !prevGroupIds.has(c.groupId));
+      const hasNewCollections = data.totalReceipts > (pendingSubs[0]?.total_receipts || 0);
+
+      isSubmitted = false; // Allow re-submitting updated handover
       currentSubmission = pendingSubs[0];
       shiftNumber = approvedSubs.length + pendingSubs.length;
+      hasAdditionalWork = hasNewAssignedGroups || hasNewCollections || data.totalStopsPending > 0;
     } else if (approvedSubs.length > 0) {
       // Previous shift was approved & closed. Check if Admin assigned new work or if there are new collections
+      const prevChits = (approvedSubs[0]?.details?.chitBreakdown || []);
+      const prevGroupIds = new Set(prevChits.map((c) => c.groupId));
+      const hasNewAssignedGroups = (data.chitBreakdown || []).some((c) => !prevGroupIds.has(c.groupId));
       const hasPendingStops = data.totalStopsPending > 0;
       const hasNewCollections = shiftTotal > 0 || shiftReceipts > 0;
 
-      if (hasPendingStops || hasNewCollections) {
+      if (hasPendingStops || hasNewCollections || hasNewAssignedGroups) {
         // Automatically re-open Day Submit for Shift #2 (Additional Assignment)!
         isSubmitted = false;
         currentSubmission = null;

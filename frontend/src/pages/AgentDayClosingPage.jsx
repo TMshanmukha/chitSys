@@ -172,9 +172,10 @@ export default function AgentDayClosingPage() {
     }
   };
 
-  const isApproved = data?.submission?.status === 'APPROVED';
-  const isPending = data?.submission?.status === 'PENDING_APPROVAL';
-  const isDiscrepancy = data?.submission?.status === 'REJECTED_DISCREPANCY';
+  const hasAdditionalWork = Boolean(data?.hasAdditionalWork);
+  const isApproved = !hasAdditionalWork && data?.submission?.status === 'APPROVED';
+  const isPending = !hasAdditionalWork && data?.submission?.status === 'PENDING_APPROVAL';
+  const isDiscrepancy = !hasAdditionalWork && data?.submission?.status === 'REJECTED_DISCREPANCY';
 
   const summary = data?.graphsAnalyses || {};
   const chitBreakdown = data?.chitBreakdown || [];
@@ -190,7 +191,7 @@ export default function AgentDayClosingPage() {
       const cAdmin = Number(chit.adminCollected || 0);
       if (cAdmin > 0) return sum + cAdmin;
       const adminMembers = (chit.paidMembers || []).filter((m) => Boolean(
-        m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin')) || (m.completedBy && m.completedBy.toLowerCase().includes('admin'))
+        m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin')) || (m.completedBy && m.completedBy.toLowerCase().includes('admin')) || (m.paidByNotice && m.paidByNotice.toLowerCase().includes('admin'))
       ));
       return sum + adminMembers.reduce((mSum, m) => mSum + Number(m.adminAmount || (m.completedByAdmin && !m.agentAmount ? m.amount : 0) || 0), 0);
     }, 0);
@@ -208,7 +209,7 @@ export default function AgentDayClosingPage() {
         return sum + Number(chit.adminPaidSubscribersCount);
       }
       const adminMembers = (chit.paidMembers || []).filter((m) => Boolean(
-        m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin')) || (m.completedBy && m.completedBy.toLowerCase().includes('admin'))
+        m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin')) || (m.completedBy && m.completedBy.toLowerCase().includes('admin')) || (m.paidByNotice && m.paidByNotice.toLowerCase().includes('admin'))
       ));
       return sum + adminMembers.length;
     }, 0);
@@ -218,8 +219,8 @@ export default function AgentDayClosingPage() {
     const rawTarget = Number(summary.grandExpectedTarget || data?.expectedTarget || 0);
     const agentCollected = Number(data?.totalCollected || 0);
     if (rawTarget > 0) {
-      if (adminTotalCollected > 0 && rawTarget > agentCollected) {
-        return Math.max(agentCollected, rawTarget - adminTotalCollected);
+      if (adminTotalCollected > 0 && rawTarget > adminTotalCollected) {
+        return rawTarget - adminTotalCollected;
       }
       return rawTarget;
     }
@@ -228,9 +229,8 @@ export default function AgentDayClosingPage() {
 
   const effectiveStopsVisited = useMemo(() => {
     const rawVisited = Number(data?.totalStopsVisited || 0);
-    const receipts = Number(data?.totalReceipts || 0);
-    if (adminPaidCount > 0 && rawVisited > receipts && receipts > 0) {
-      return Math.max(receipts, rawVisited - adminPaidCount);
+    if (adminPaidCount > 0 && rawVisited >= adminPaidCount) {
+      return Math.max(0, rawVisited - adminPaidCount);
     }
     return rawVisited;
   }, [data, adminPaidCount]);
@@ -615,6 +615,19 @@ export default function AgentDayClosingPage() {
           <div className="space-y-3">
             {chitBreakdown.map((chit) => {
               const isExpanded = expandedChitId === chit.groupId;
+              const chitAdminCollected = Number(chit.adminCollected || 0) > 0
+                ? Number(chit.adminCollected)
+                : (chit.paidMembers || []).filter((m) => Boolean(
+                    m.completedByAdmin || 
+                    (m.statusLabel && m.statusLabel.includes('Admin')) || 
+                    (m.completedBy && m.completedBy.toLowerCase().includes('admin')) ||
+                    (m.paidByNotice && m.paidByNotice.toLowerCase().includes('admin'))
+                  )).reduce((sum, m) => sum + Number(m.adminAmount || (m.completedByAdmin && !m.agentAmount ? m.amount : 0) || (m.paidByNotice?.includes('Admin') ? m.amount : 0) || 0), 0);
+
+              const chitAgentCollected = chit.agentCollected != null
+                ? Number(chit.agentCollected)
+                : Math.max(0, Number(chit.totalCollected || 0) - chitAdminCollected);
+
               return (
                 <div
                   key={chit.groupId}
@@ -637,21 +650,21 @@ export default function AgentDayClosingPage() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Installment: ₹{Number(chit.installmentAmount).toLocaleString('en-IN')} · Subscribers: {chit.totalSubscribersCount} {Number(chit.adminPaidSubscribersCount || 0) > 0 ? `(${chit.totalSubscribersCount - chit.adminPaidSubscribersCount} Active · ${chit.adminPaidSubscribersCount} Paid to Admin)` : ''} · {chit.scheduleAnalysisNotice}
+                        Installment: ₹{Number(chit.installmentAmount).toLocaleString('en-IN')} · Subscribers: {chit.totalSubscribersCount} {chitAdminCollected > 0 ? `(${chit.totalSubscribersCount - (chit.adminPaidSubscribersCount || 1)} Active · ${chit.adminPaidSubscribersCount || 1} Paid to Admin)` : ''} · {chit.scheduleAnalysisNotice}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-4 sm:gap-6 justify-between md:justify-end">
                       <div className="text-right">
                         <span className="text-[10px] text-slate-400 font-bold block">
-                          {Number(chit.adminCollected || 0) > 0 ? 'Agent Collected' : 'Collected'}
+                          {chitAdminCollected > 0 ? 'Agent Collected' : 'Collected'}
                         </span>
                         <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 font-heading">
-                          ₹{Number(chit.agentCollected != null ? chit.agentCollected : Math.max(0, Number(chit.totalCollected || 0) - Number(chit.adminCollected || 0))).toLocaleString('en-IN')}
+                          ₹{Number(chitAgentCollected).toLocaleString('en-IN')}
                         </span>
-                        {Number(chit.adminCollected || 0) > 0 && (
+                        {chitAdminCollected > 0 && (
                           <span className="text-[10px] text-purple-600 dark:text-purple-400 block font-semibold">
-                            + ₹{Number(chit.adminCollected).toLocaleString('en-IN')} by Admin
+                            + ₹{Number(chitAdminCollected).toLocaleString('en-IN')} by Admin
                           </span>
                         )}
                       </div>
@@ -675,7 +688,10 @@ export default function AgentDayClosingPage() {
                       <div className="space-y-2">
                         <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center justify-between font-heading">
                           <span>Paid Subscribers Today ({chit.paidMembers.length})</span>
-                          <span className="font-mono">₹{Number(chit.totalCollected).toLocaleString('en-IN')}</span>
+                          <span className="font-mono">
+                            ₹{Number(chitAgentCollected).toLocaleString('en-IN')}
+                            {chitAdminCollected > 0 ? ` (+ ₹${Number(chitAdminCollected).toLocaleString('en-IN')} Admin)` : ''}
+                          </span>
                         </div>
                         <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
                           {chit.paidMembers.length === 0 ? (
