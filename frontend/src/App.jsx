@@ -28,6 +28,7 @@ import NotFound from './pages/NotFound';
 import LeaveManagementPage from './pages/LeaveManagementPage';
 import AgentDayClosingPage from './pages/AgentDayClosingPage';
 import AdminDaySubmissionsPage from './pages/AdminDaySubmissionsPage';
+import CollectionEditRequestsPage from './pages/CollectionEditRequestsPage';
 import AgentLayout from './components/AgentLayout';
 
 // FinLend Pro Components & Pages (VeeCredit-style Simplified UI)
@@ -92,6 +93,8 @@ export default function App() {
                   <Route path="agents" element={<UsersPage />} />
                   <Route path="leaves" element={<LeaveManagementPage />} />
                   <Route path="day-reviews" element={<AdminDaySubmissionsPage />} />
+                  <Route path="collection-edits" element={<CollectionEditRequestsPage />} />
+                  <Route path="edit-requests" element={<CollectionEditRequestsPage />} />
                   <Route path="members" element={<MembersPage />} />
                   <Route path="collections" element={<CollectionsPage />} />
                   <Route path="profile" element={<AdminCommissionsPage />} />

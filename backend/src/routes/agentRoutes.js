@@ -7,6 +7,11 @@ import { submitAgentDayWork, getMyDaySubmissions,
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 import { listLeaves, createLeave, listCoverageHistory } from '../controllers/leaveController.js';
+import {
+  requestCollectionEdit,
+  applyCollectionEdit,
+  getMyCollectionEditRequests,
+} from '../controllers/collectionEditController.js';
 
 const router = Router();
 
@@ -23,6 +28,12 @@ router.post('/collections', recordCollection);
 
 // View agent's own collection history
 router.get('/collections', listCollections);
+
+// Collection Edit / Correction Flow (Agent wrong amount correction)
+router.post('/collections/:id/request-edit', requestCollectionEdit);
+router.post('/collections/request-edit', requestCollectionEdit);
+router.put('/collections/:id/apply-edit', applyCollectionEdit);
+router.get('/collection-edits/my-requests', getMyCollectionEditRequests);
 
 // Log stop activity (closed shop, callback, visited)
 router.post('/tracking/log-activity', logAgentStopActivity);

@@ -51,6 +51,8 @@ import {
   LayoutGrid,
   List,
   Target,
+  Edit3,
+  FilePenLine,
 } from 'lucide-react';
 import { formatDate, formatTime, formatDateTime, getServerDate, getServerYMD } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
@@ -194,6 +196,153 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const [pendingCollectNotes, setPendingCollectNotes] = useState('');
   const [submittingPendingCollect, setSubmittingPendingCollect] = useState(false);
   const [pendingCollectError, setPendingCollectError] = useState('');
+
+  // Wrong Amount Correction Flow States
+  const [requestEditModal, setRequestEditModal] = useState({
+    isOpen: false,
+    member: null,
+    group: null,
+    collectionId: null,
+    currentAmount: 0,
+    currentMethod: 'CASH',
+    requestedAmount: '',
+    requestedMethod: 'CASH',
+    reason: '',
+    submitting: false,
+    error: '',
+    success: '',
+  });
+
+  const [applyEditModal, setApplyEditModal] = useState({
+    isOpen: false,
+    member: null,
+    group: null,
+    collectionId: null,
+    amount: '',
+    paymentMethod: 'CASH',
+    notes: '',
+    adminNotes: '',
+    submitting: false,
+    error: '',
+  });
+
+  const openRequestEditModal = (group, member, receipt = null) => {
+    const collId = receipt?.id || member?.my_collection_id || member?.collection_id;
+    const currentAmt = receipt?.amount || member?.collected_amount || member?.total_cycle_collected || group?.installment_amount || 0;
+    const currentMethod = (receipt?.payment_method || member?.payment_method || 'CASH').toUpperCase();
+
+    setRequestEditModal({
+      isOpen: true,
+      member: member || { full_name: receipt?.memberName || 'Member', ticket_number: receipt?.ticketNumber || '' },
+      group: group || { group_name: receipt?.groupName || 'Chit Group', group_code: receipt?.groupCode || '' },
+      collectionId: collId,
+      currentAmount: currentAmt,
+      currentMethod,
+      requestedAmount: '',
+      requestedMethod: currentMethod,
+      reason: '',
+      submitting: false,
+      error: '',
+      success: '',
+    });
+  };
+
+  const handleRequestEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!requestEditModal.collectionId) {
+      setRequestEditModal((prev) => ({ ...prev, error: 'Collection receipt not found. Please refresh.' }));
+      return;
+    }
+    const reqAmt = parseFloat(requestEditModal.requestedAmount);
+    if (isNaN(reqAmt) || reqAmt <= 0) {
+      setRequestEditModal((prev) => ({ ...prev, error: 'Please enter a valid positive correct amount.' }));
+      return;
+    }
+    if (!requestEditModal.reason.trim()) {
+      setRequestEditModal((prev) => ({ ...prev, error: 'Please provide a reason explaining why the entered amount was wrong.' }));
+      return;
+    }
+
+    setRequestEditModal((prev) => ({ ...prev, submitting: true, error: '', success: '' }));
+
+    try {
+      const res = await api.post(`/agent/collections/${requestEditModal.collectionId}/request-edit`, {
+        requested_amount: reqAmt,
+        requested_payment_method: requestEditModal.requestedMethod,
+        reason: requestEditModal.reason,
+      });
+
+      if (res.data?.success) {
+        setRequestEditModal((prev) => ({
+          ...prev,
+          submitting: false,
+          success: 'Edit request submitted to Admin! Admin will review and approve in their panel.',
+        }));
+        setTimeout(() => {
+          setRequestEditModal((prev) => ({ ...prev, isOpen: false }));
+        }, 1600);
+        await loadAgentData();
+      }
+    } catch (err) {
+      setRequestEditModal((prev) => ({
+        ...prev,
+        submitting: false,
+        error: getFriendlyErrorMessage(err, 'Failed to submit edit request.'),
+      }));
+    }
+  };
+
+  const openApplyEditModal = (group, member) => {
+    const collId = member?.my_collection_id || member?.collection_id;
+    const editReq = member?.edit_request;
+    const proposedAmt = editReq?.requested_amount || member?.collected_amount || '';
+    const proposedMethod = editReq?.requested_payment_method || member?.payment_method || 'CASH';
+
+    setApplyEditModal({
+      isOpen: true,
+      member,
+      group,
+      collectionId: collId,
+      amount: String(proposedAmt),
+      paymentMethod: proposedMethod,
+      notes: '',
+      adminNotes: editReq?.admin_notes || '',
+      submitting: false,
+      error: '',
+    });
+  };
+
+  const handleApplyEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!applyEditModal.collectionId) return;
+
+    const amt = parseFloat(applyEditModal.amount);
+    if (isNaN(amt) || amt <= 0) {
+      setApplyEditModal((prev) => ({ ...prev, error: 'Please enter a valid positive amount.' }));
+      return;
+    }
+
+    setApplyEditModal((prev) => ({ ...prev, submitting: true, error: '' }));
+
+    try {
+      const res = await api.put(`/agent/collections/${applyEditModal.collectionId}/apply-edit`, {
+        amount: amt,
+        payment_method: applyEditModal.paymentMethod,
+        notes: applyEditModal.notes,
+      });
+
+      if (res.data?.success) {
+        setApplyEditModal({ isOpen: false, member: null, group: null, collectionId: null, amount: '', paymentMethod: 'CASH', notes: '', adminNotes: '', submitting: false, error: '' });
+        await loadAgentData();
+      }
+    } catch (err) {
+      setApplyEditModal((prev) => ({
+        ...prev,
+        submitting: false,
+        error: getFriendlyErrorMessage(err, 'Failed to update collection.'),
+      }));
+    }
+  };
 
   // Effects: declared safely after all state declarations
   useEffect(() => {
@@ -1940,14 +2089,47 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                     <span className="hidden sm:inline">Receipt</span>
                                   </button>
                                 ) : task.isPaid ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => openReceiptForPaidMember(task.rawGroup, task.rawMember)}
-                                    className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                                  >
-                                    <Printer className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">Receipt</span>
-                                  </button>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <button
+                                      type="button"
+                                      onClick={() => openReceiptForPaidMember(task.rawGroup, task.rawMember)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                                      title="View Receipt"
+                                    >
+                                      <Printer className="w-3.5 h-3.5" />
+                                      <span className="hidden sm:inline">Receipt</span>
+                                    </button>
+
+                                    {task.rawMember?.edit_request?.status === 'APPROVED' ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => openApplyEditModal(task.rawGroup, task.rawMember)}
+                                        className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black flex items-center gap-1 cursor-pointer transition-all animate-pulse"
+                                        title="Admin approved edit! Click to correct payment."
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                        <span>Edit</span>
+                                      </button>
+                                    ) : task.rawMember?.edit_request?.status === 'PENDING' ? (
+                                      <span
+                                        className="px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800 text-[10px] font-bold flex items-center gap-1"
+                                        title="Correction request is pending Admin approval."
+                                      >
+                                        <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                                        <span>Pending</span>
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => openRequestEditModal(task.rawGroup, task.rawMember)}
+                                        className="px-2 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800/80 bg-amber-50/50 hover:bg-amber-100 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                                        title="Entered wrong amount? Request admin approval to edit."
+                                      >
+                                        <FilePenLine className="w-3.5 h-3.5 text-amber-600" />
+                                        <span className="hidden sm:inline">Edit</span>
+                                      </button>
+                                    )}
+                                  </div>
                                 ) : (
                                   <>
                                     <button
@@ -2314,14 +2496,46 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                           <span>Paid to Admin</span>
                                         </button>
                                       ) : isPaid ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => openReceiptForPaidMember(group, member)}
-                                          className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                                        >
-                                          <Printer className="w-3.5 h-3.5" />
-                                          <span>View Receipt</span>
-                                        </button>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <button
+                                            type="button"
+                                            onClick={() => openReceiptForPaidMember(group, member)}
+                                            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                          >
+                                            <Printer className="w-3.5 h-3.5" />
+                                            <span>Receipt</span>
+                                          </button>
+
+                                          {member.edit_request?.status === 'APPROVED' ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => openApplyEditModal(group, member)}
+                                              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer animate-pulse"
+                                              title="Admin approved your edit request! Click to correct this payment."
+                                            >
+                                              <Edit3 className="w-3.5 h-3.5" />
+                                              <span>Edit (Approved)</span>
+                                            </button>
+                                          ) : member.edit_request?.status === 'PENDING' ? (
+                                            <span
+                                              className="px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800 text-[10px] font-extrabold flex items-center gap-1"
+                                              title="Correction request is pending Admin approval."
+                                            >
+                                              <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                                              <span>Edit Pending</span>
+                                            </span>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              onClick={() => openRequestEditModal(group, member)}
+                                              className="px-2 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800/80 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-100/80 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                              title="Entered wrong amount? Request admin approval to edit this payment."
+                                            >
+                                              <FilePenLine className="w-3 h-3 text-amber-600" />
+                                              <span>Request Edit</span>
+                                            </button>
+                                          )}
+                                        </div>
                                       ) : (
                                         <>
                                           <button
@@ -4442,6 +4656,23 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 <span>Send via WhatsApp</span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => {
+                  const modalData = receiptModal;
+                  setReceiptModal(null);
+                  openRequestEditModal(
+                    { id: modalData.groupId, group_name: modalData.groupName, group_code: modalData.groupCode },
+                    { member_id: modalData.memberId, full_name: modalData.memberName, ticket_number: modalData.ticketNumber },
+                    modalData
+                  );
+                }}
+                className="w-full py-2 px-3 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer hover:bg-amber-100"
+              >
+                <FilePenLine className="w-3.5 h-3.5 text-amber-600" />
+                <span>Entered Wrong Amount? Request Edit</span>
+              </button>
+
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -5424,6 +5655,255 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
           />
         );
       })()}
+
+      {/* 1. Request Collection Edit Modal (When agent entered wrong amount) */}
+      {requestEditModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                  <FilePenLine className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white font-heading">
+                    Request Amount Correction
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Submit a correction request for Admin approval
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRequestEditModal((prev) => ({ ...prev, isOpen: false }))}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {requestEditModal.success ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-bold text-center space-y-2">
+                <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-600" />
+                <p>{requestEditModal.success}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleRequestEditSubmit} className="space-y-4 text-xs">
+                {requestEditModal.error && (
+                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 text-rose-700 text-xs font-semibold">
+                    {requestEditModal.error}
+                  </div>
+                )}
+
+                {/* Subscriber and Scheme Details */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Subscriber:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {requestEditModal.member?.full_name} {requestEditModal.member?.ticket_number ? `(#${requestEditModal.member?.ticket_number})` : ''}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Scheme:</span>
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                      {requestEditModal.group?.group_name} ({requestEditModal.group?.group_code})
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
+                    <span className="text-rose-600 font-semibold">Currently Recorded:</span>
+                    <span className="font-black text-rose-600">
+                      ₹{Number(requestEditModal.currentAmount).toLocaleString('en-IN')} ({requestEditModal.currentMethod})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Requested Correct Amount Input */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1 font-heading">
+                    Correct Amount Actually Received (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    required
+                    placeholder="Enter correct amount..."
+                    value={requestEditModal.requestedAmount}
+                    onChange={(e) => setRequestEditModal({ ...requestEditModal, requestedAmount: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                {/* Payment Method */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1 font-heading">
+                    Payment Method
+                  </label>
+                  <select
+                    value={requestEditModal.requestedMethod}
+                    onChange={(e) => setRequestEditModal({ ...requestEditModal, requestedMethod: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold"
+                  >
+                    <option value="CASH">CASH</option>
+                    <option value="UPI">UPI / Digital</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CHEQUE">Cheque</option>
+                  </select>
+                </div>
+
+                {/* Reason Explanation */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1 font-heading">
+                    Reason for Correction *
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="e.g. Accidental typo: subscriber gave ₹400 but entered ₹500 by mistake..."
+                    value={requestEditModal.reason}
+                    onChange={(e) => setRequestEditModal({ ...requestEditModal, reason: e.target.value })}
+                    className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setRequestEditModal((prev) => ({ ...prev, isOpen: false }))}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={requestEditModal.submitting}
+                    className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black shadow-sm flex items-center gap-2 cursor-pointer"
+                  >
+                    {requestEditModal.submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>Submit Request to Admin</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 2. Apply Collection Edit Modal (When Admin approved and Agent can edit ONLY this payment) */}
+      {applyEditModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white font-heading">
+                    Edit Collection (Approved)
+                  </h3>
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                    Admin approved edit access for this payment
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApplyEditModal((prev) => ({ ...prev, isOpen: false }))}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleApplyEditSubmit} className="space-y-4 text-xs">
+              {applyEditModal.error && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 text-rose-700 text-xs font-semibold">
+                  {applyEditModal.error}
+                </div>
+              )}
+
+              {/* Security Banner: Strictly limited to this payment only */}
+              <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-blue-900 dark:text-blue-200 text-[11px] leading-relaxed">
+                <strong>🔒 Single Payment Edit Lock:</strong> This edit permission is unlocked exclusively for <strong>{applyEditModal.member?.full_name} (#{applyEditModal.member?.ticket_number})</strong>. Once saved, this payment will lock again automatically.
+              </div>
+
+              {applyEditModal.adminNotes && (
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs">
+                  <span className="font-bold text-slate-500">Admin Remark: </span>
+                  <span className="text-slate-700 dark:text-slate-300">{applyEditModal.adminNotes}</span>
+                </div>
+              )}
+
+              {/* Corrected Amount Input */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1 font-heading">
+                  Correct Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="any"
+                  required
+                  value={applyEditModal.amount}
+                  onChange={(e) => setApplyEditModal({ ...applyEditModal, amount: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-base font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1 font-heading">
+                  Payment Method
+                </label>
+                <select
+                  value={applyEditModal.paymentMethod}
+                  onChange={(e) => setApplyEditModal({ ...applyEditModal, paymentMethod: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold"
+                >
+                  <option value="CASH">CASH</option>
+                  <option value="UPI">UPI / Digital</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="CHEQUE">Cheque</option>
+                </select>
+              </div>
+
+              {/* Optional Notes */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1 font-heading">
+                  Correction Note (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Corrected cash count confirmed with subscriber"
+                  value={applyEditModal.notes}
+                  onChange={(e) => setApplyEditModal({ ...applyEditModal, notes: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setApplyEditModal((prev) => ({ ...prev, isOpen: false }))}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={applyEditModal.submitting}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-sm flex items-center gap-2 cursor-pointer"
+                >
+                  {applyEditModal.submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save & Lock Correction</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

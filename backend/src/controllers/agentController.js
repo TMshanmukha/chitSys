@@ -365,6 +365,18 @@ export async function getMyAssignedRoutes(req, res, next) {
         [groupIds, todayStr]
       );
 
+      // 4. Fetch active collection edit requests for this agent
+      let editRequests = [];
+      try {
+        const [cerRows] = await pool.query(
+          `SELECT cer.id, cer.collection_id, cer.status, cer.requested_amount, cer.requested_payment_method, cer.reason, cer.admin_notes
+           FROM collection_edit_requests cer
+           WHERE cer.agent_id = ? AND cer.status IN ('PENDING', 'APPROVED')`,
+          [agentId]
+        );
+        editRequests = cerRows;
+      } catch (_) {}
+
       members = memberRows.map((m) => {
         const g = groupMap.get(m.group_id);
         const isDaily = g ? g.frequency === 'DAILY' : m.group_frequency === 'DAILY';
@@ -415,6 +427,8 @@ export async function getMyAssignedRoutes(req, res, next) {
         const status = isFullyPaid ? 'PAID' : (isPartiallyPaid ? 'PARTIAL' : (atl?.status === 'PAID' ? 'NOT_PAID' : (atl?.status || 'NOT_PAID')));
         const nodeColor = isFullyPaid ? 'GREEN' : (isPartiallyPaid ? 'YELLOW' : 'RED');
         const latestColl = inCycleColls[0] || null;
+        const myCollection = inCycleColls.find((c) => Number(c.agent_id) === Number(agentId));
+        const matchedEditReq = myCollection ? editRequests.find((er) => er.collection_id === myCollection.id) : null;
 
         // Check if member paid directly to admin/office or another collector
         const hasAdminColl = inCycleColls.some((c) => {
@@ -498,6 +512,16 @@ export async function getMyAssignedRoutes(req, res, next) {
           node_color: isPaidToAdmin ? 'GREEN' : nodeColor,
           today_notes: notes,
           cycle_notes: notes,
+          collection_id: myCollection?.id || latestColl?.id || null,
+          my_collection_id: myCollection?.id || null,
+          edit_request: matchedEditReq ? {
+            id: matchedEditReq.id,
+            status: matchedEditReq.status,
+            requested_amount: matchedEditReq.requested_amount,
+            requested_payment_method: matchedEditReq.requested_payment_method,
+            reason: matchedEditReq.reason,
+            admin_notes: matchedEditReq.admin_notes,
+          } : null,
           receipt_number: latestColl?.receipt_number || null,
           payment_method: latestColl?.payment_method || null,
           collection_date: latestColl?.collection_date || null,

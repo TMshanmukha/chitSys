@@ -577,38 +577,55 @@ export default function AdminDaySubmissionsPage() {
                         </h3>
 
                         <div className="grid md:grid-cols-2 gap-3">
-                          {breakdown.map((chit, cIdx) => (
-                            <div
-                              key={cIdx}
-                              className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 text-xs space-y-2"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-extrabold text-slate-900 dark:text-white font-heading">
-                                  {chit.groupName} ({chit.groupCode})
-                                </span>
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400 font-heading">
-                                  ₹{Number(chit.totalCollected).toLocaleString('en-IN')}
-                                </span>
-                              </div>
+                          {breakdown.map((chit, cIdx) => {
+                            const adminAmt = Number(chit.adminCollected || 0);
+                            const agentCollAmt = chit.agentCollected != null
+                              ? Number(chit.agentCollected)
+                              : Math.max(0, Number(chit.totalCollected || 0) - adminAmt);
+                            const agentUpiAmt = chit.agentUpiCollected != null
+                              ? Number(chit.agentUpiCollected)
+                              : Math.max(0, Number(chit.upiCollected || 0) - adminAmt);
+                            const agentCashAmt = Number(chit.agentCashCollected ?? chit.cashCollected ?? 0);
 
-                              <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-                                <span>Agent Cash: ₹{Number(chit.agentCashCollected ?? chit.cashCollected).toLocaleString('en-IN')}</span>
-                                <span>UPI: ₹{Number(chit.upiCollected).toLocaleString('en-IN')}</span>
-                                <span>Dues: ₹{Number(chit.pendingAmount).toLocaleString('en-IN')}</span>
-                              </div>
+                            const adminPaidCount = chit.paidMembers?.filter((m) => m.completedByAdmin || (m.statusLabel && m.statusLabel.includes('Admin'))).length || Number(chit.adminPaidSubscribersCount || 0);
+                            const agentPaidCount = Math.max(0, (chit.paidMembers?.length || 0) - adminPaidCount);
 
-                              {Number(chit.adminCollected || 0) > 0 && (
-                                <div className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800">
-                                  ⚡ Paid by Admin, not by Agent: ₹{Number(chit.adminCollected).toLocaleString('en-IN')}
+                            return (
+                              <div
+                                key={cIdx}
+                                className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 text-xs space-y-2"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-extrabold text-slate-900 dark:text-white font-heading">
+                                    {chit.groupName} ({chit.groupCode})
+                                  </span>
+                                  <span className="font-bold text-emerald-600 dark:text-emerald-400 font-heading">
+                                    ₹{agentCollAmt.toLocaleString('en-IN')}
+                                  </span>
                                 </div>
-                              )}
 
-                              <div className="text-[11px] text-slate-500">
-                                Paid members: <strong>{chit.paidMembers?.length || 0}</strong> · Pending:{' '}
-                                <strong>{chit.unpaidMembers?.length || 0}</strong>
+                                <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+                                  <span>Agent Cash: ₹{agentCashAmt.toLocaleString('en-IN')}</span>
+                                  <span>UPI: ₹{agentUpiAmt.toLocaleString('en-IN')}</span>
+                                  <span>Dues: ₹{Number(chit.pendingAmount || 0).toLocaleString('en-IN')}</span>
+                                </div>
+
+                                {adminAmt > 0 && (
+                                  <div className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    ⚡ Paid by Admin, not by Agent: ₹{adminAmt.toLocaleString('en-IN')}
+                                  </div>
+                                )}
+
+                                <div className="text-[11px] text-slate-500">
+                                  Paid members: <strong>{agentPaidCount} by Agent</strong>
+                                  {adminPaidCount > 0 && (
+                                    <span className="text-purple-600 dark:text-purple-400 font-semibold"> (+ {adminPaidCount} paid to Admin)</span>
+                                  )}
+                                  {' '}· Pending: <strong>{chit.unpaidMembers?.length || 0}</strong>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}

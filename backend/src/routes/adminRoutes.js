@@ -22,6 +22,11 @@ import { listDaySubmissionsForAdmin, approveAndCloseDaySubmission, unlockDaySubm
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 import { listLeaves, createLeave, reviewLeave, listCoverageHistory } from '../controllers/leaveController.js';
+import {
+  listCollectionEditRequestsForAdmin,
+  approveCollectionEditRequest,
+  rejectCollectionEditRequest,
+} from '../controllers/collectionEditController.js';
 
 const router = Router();
 
@@ -101,6 +106,12 @@ router.get('/day-submissions', listDaySubmissionsForAdmin);
 router.post('/day-submissions/:id/approve', approveAndCloseDaySubmission);
 router.post('/day-submissions/:id/unlock', unlockDaySubmissionForAdmin);
 router.post('/day-submissions/remind', remindAgentUnsubmittedShift);
+
+// Collection Edit Requests & Corrections Flow (Admin Approval)
+router.get('/collection-edits', listCollectionEditRequestsForAdmin);
+router.put('/collection-edits/:id/approve', approveCollectionEditRequest);
+router.put('/collection-edits/:id/reject', rejectCollectionEditRequest);
+
 router.get('/leaves', listLeaves);
 router.post('/leaves', createLeave);
 router.get('/leaves/coverage-history', listCoverageHistory);

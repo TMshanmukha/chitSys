@@ -21,6 +21,7 @@ import {
   Landmark,
   Percent,
   ArrowRight,
+  FilePenLine,
 } from 'lucide-react';
 import FinLendLogo from './FinLendLogo';
 import { useNotifications } from '../context/NotificationContext';
@@ -77,6 +78,15 @@ const NAV_ITEMS = [
     path: '/admin/day-reviews',
     icon: ClipboardCheck,
     activeGradient: 'from-amber-600 to-orange-600',
+    glowColor: 'rgba(245, 158, 11, 0.4)',
+    hoverBg: 'hover:bg-amber-50/70 dark:hover:bg-amber-950/40',
+    hoverText: 'hover:text-amber-600 dark:hover:text-amber-400',
+  },
+  {
+    name: 'Edit Requests',
+    path: '/admin/collection-edits',
+    icon: FilePenLine,
+    activeGradient: 'from-amber-500 to-rose-500',
     glowColor: 'rgba(245, 158, 11, 0.4)',
     hoverBg: 'hover:bg-amber-50/70 dark:hover:bg-amber-950/40',
     hoverText: 'hover:text-amber-600 dark:hover:text-amber-400',
