@@ -110,6 +110,8 @@ export async function calculateDayWorkData(agentId, workDate) {
       const isDaily = g.frequency === 'DAILY';
       const cycleInfo = isDaily ? null : getMonthlyCycleInfo(g.start_date || g.created_at, workDate);
       const installmentAmt = parseFloat(g.installment_amount || 0);
+      const isDeadlineToday = isDaily || Boolean(cycleInfo && cycleInfo.isDeadlineToday);
+      const hasTimeRemaining = !isDaily && Boolean(cycleInfo && cycleInfo.daysRemaining > 0);
 
       const gMembers = enrolledMembers.filter((m) => m.group_id === g.id);
       const gCollections = collections.filter((c) => c.group_id === g.id);
@@ -221,8 +223,6 @@ export async function calculateDayWorkData(agentId, workDate) {
 
       // Target expected for agent: deduct members collected directly by Admin at office
       const agentActiveSubscribersCount = Math.max(0, gMembers.length - adminSolelyMembersCount);
-      const isDeadlineToday = isDaily || (cycleInfo && cycleInfo.isDeadlineToday);
-      const hasTimeRemaining = !isDaily && cycleInfo && cycleInfo.daysRemaining > 0;
       const expectedTarget = isDaily 
         ? agentActiveSubscribersCount * installmentAmt 
         : (cycleInfo?.isDeadlineToday ? agentActiveSubscribersCount * installmentAmt : 0);

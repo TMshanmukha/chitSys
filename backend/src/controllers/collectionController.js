@@ -126,16 +126,31 @@ export async function recordCollection(req, res, next) {
       if (!access.length) return res.status(403).json({success:false,message:'This route is not assigned to you for the selected date.'});
     }
 
-    // 2. Real-Life Flexibility: Handle standard, partial, advance, and off-cycle payments seamlessly without blocking!
+    // 2. Prevent Duplicate Payment: Oppose duplicate collections when subscriber has already cleared their required installment
     let isAdvance = false;
     let isOffCycle = false;
     let autoNotePrefix = '';
 
-    let cycleInfo = null;
-    if (chitGroup.frequency === 'MONTHLY') {
-      cycleInfo = getMonthlyCycleInfo(chitGroup.start_date || chitGroup.created_at, finalCollectionDate);
+    const installmentAmt = parseFloat(chitGroup.installment_amount || 0);
+
+    if (chitGroup.frequency === 'DAILY') {
+      const [existingDaily] = await pool.execute(
+        `SELECT COALESCE(SUM(amount), 0) as total_paid_today
+         FROM collections
+         WHERE group_id = ? AND member_id = ? AND collection_date = ? AND verification_status != 'CANCELLED'`,
+        [validated.group_id, validated.member_id, finalCollectionDate]
+      );
+      const paidToday = parseFloat(existingDaily[0]?.total_paid_today || 0);
+      if (installmentAmt > 0 && paidToday >= installmentAmt) {
+        return res.status(400).json({
+          success: false,
+          message: `Subscriber has already paid their full installment (₹${paidToday.toLocaleString('en-IN')}) for today (${finalCollectionDate}). Duplicate collection is restricted.`,
+        });
+      }
+    } else if (chitGroup.frequency === 'MONTHLY') {
+      const cycleInfo = getMonthlyCycleInfo(chitGroup.start_date || chitGroup.created_at, finalCollectionDate);
       const [existingInCycle] = await pool.execute(
-        `SELECT COALESCE(SUM(amount), 0) as total_paid_in_cycle, COUNT(id) as collections_count
+        `SELECT COALESCE(SUM(amount), 0) as total_paid_in_cycle
          FROM collections 
          WHERE group_id = ? AND member_id = ? AND verification_status != 'CANCELLED'
            AND collection_date >= ? AND collection_date <= ?`,
@@ -143,12 +158,11 @@ export async function recordCollection(req, res, next) {
       );
 
       const currentPaid = parseFloat(existingInCycle[0]?.total_paid_in_cycle || 0);
-      const installmentAmt = parseFloat(chitGroup.installment_amount || 0);
-
-      // If current cycle installment is already satisfied, treat as Advance collection for subscriber!
-      if (currentPaid >= installmentAmt) {
-        isAdvance = true;
-        autoNotePrefix += '[Advance Collection] ';
+      if (installmentAmt > 0 && currentPaid >= installmentAmt) {
+        return res.status(400).json({
+          success: false,
+          message: `Subscriber has already cleared their full installment (₹${currentPaid.toLocaleString('en-IN')}) for this monthly cycle (${cycleInfo.cycleDue}). Duplicate collection is restricted.`,
+        });
       }
     }
 

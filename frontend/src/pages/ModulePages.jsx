@@ -50,7 +50,7 @@ import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
 import ModalPortal from '../components/ModalPortal';
-import { sendWhatsAppMessage, getReceiptWhatsAppText, getPassbookWhatsAppText } from '../utils/whatsappUtils';
+import { sendWhatsAppMessage, getReceiptWhatsAppText, getPassbookWhatsAppText, getPaymentReminderWhatsAppText } from '../utils/whatsappUtils';
 
 
 /* Helper to dynamically generate guaranteed collision-free unique chit scheme codes */
@@ -3605,6 +3605,47 @@ export function CollectionsPage() {
         </div>
       </div>
 
+      {/* Generated Receipt WhatsApp Notification Banner (Universal across tabs) */}
+      {generatedReceipt && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-md animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-extrabold text-sm sm:text-base text-emerald-950 dark:text-emerald-100 font-heading">
+                Payment Recorded · Receipt #{generatedReceipt.receiptNumber}
+              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                ₹{parseFloat(generatedReceipt.amount).toLocaleString('en-IN')} collected via {generatedReceipt.paymentMethod}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                const text = getReceiptWhatsAppText(generatedReceipt);
+                const mem = members.find((m) => String(m.id) === String(generatedReceipt.memberId));
+                sendWhatsAppMessage(generatedReceipt.memberPhone || mem?.phone, text);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md text-xs font-heading"
+              title="Send Receipt via WhatsApp"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Share Receipt on WhatsApp</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setGeneratedReceipt(null)}
+              className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white px-2 py-1 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* SECTION 1: CHIT SCHEMES GRID (Clicking any Chit opens its specific Collection Form) */}
       {activeSection === 'tasks' && (
         <section className="space-y-4 animate-fadeIn">
@@ -3898,6 +3939,28 @@ export function CollectionsPage() {
                                 >
                                   {task.is_paid ? 'Paid' : `Due: ₹${task.remaining_due.toLocaleString('en-IN')}`}
                                 </span>
+                                {task.member_phone && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const text = task.is_paid
+                                        ? `*CHITFUND PRO - PAYMENT ACKNOWLEDGEMENT*\nHello ${task.member_name}, your installment of ₹${chit.installment_amount} for chit '${chit.group_name}' is received and marked Paid. Thank you!`
+                                        : getPaymentReminderWhatsAppText({
+                                            memberName: task.member_name,
+                                            groupName: chit.group_name,
+                                            groupCode: chit.group_code,
+                                            ticketNumber: task.ticket_number,
+                                            amount: task.remaining_due || chit.installment_amount,
+                                            date: getServerYMD(),
+                                          });
+                                      sendWhatsAppMessage(task.member_phone, text);
+                                    }}
+                                    className="p-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-700 transition-colors cursor-pointer"
+                                    title={task.is_paid ? 'Share WhatsApp Confirmation' : 'Send WhatsApp Payment Reminder'}
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                                 {!task.is_paid && (
                                   <button
                                     type="button"
@@ -3938,44 +4001,6 @@ export function CollectionsPage() {
       {/* SECTION 2: COLLECTIONS HISTORY LEDGER TABLE */}
       {activeSection === 'ledger' && (
         <section className="space-y-4 animate-fadeIn">
-
-      {generatedReceipt && (
-        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <div>
-              <p className="font-bold text-emerald-900 dark:text-emerald-200">
-                Receipt Issued: {generatedReceipt.receiptNumber}
-              </p>
-              <p className="text-emerald-700 dark:text-emerald-300">
-                Amount: ₹{parseFloat(generatedReceipt.amount).toLocaleString('en-IN')} via {generatedReceipt.paymentMethod}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const text = getReceiptWhatsAppText(generatedReceipt);
-                const mem = members.find((m) => String(m.id) === String(generatedReceipt.memberId));
-                sendWhatsAppMessage(generatedReceipt.memberPhone || mem?.phone, text);
-              }}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs text-xs"
-              title="Send Receipt via WhatsApp"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>WhatsApp Receipt</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setGeneratedReceipt(null)}
-              className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline px-2 py-1 cursor-pointer"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Collections Ledger Table with Automatic Window Move */}
       <div id="collections-table-container" className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden scroll-mt-6">
@@ -4159,47 +4184,142 @@ export function CollectionsPage() {
                 </select>
               </div>
 
+              {/* Subscriber Dropdown with Paid Restrictions */}
               <div>
                 <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
                   Subscriber Participant (Enrolled in Selected Chit) *
                 </label>
-                <select
-                  required
-                  value={form.member_id}
-                  onChange={(e) => {
-                    const chosenId = e.target.value;
-                    const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(form.group_id));
-                    const chosenTask = tasksForGroup.find((t) => String(t.member_id) === String(chosenId));
-                    const selectedGroup = groups.find((g) => String(g.id) === String(form.group_id));
-                    setForm((prev) => ({
-                      ...prev,
-                      member_id: chosenId,
-                      amount: chosenTask ? String(chosenTask.remaining_due > 0 ? chosenTask.remaining_due : chosenTask.installment_amount) : (selectedGroup ? String(selectedGroup.installment_amount) : prev.amount),
-                    }));
-                  }}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                >
-                  <option value="">
-                    {form.group_id ? '-- Choose Subscriber --' : '-- First Select a Chit Scheme above --'}
-                  </option>
-                  {(() => {
-                    if (!form.group_id) return null;
-                    const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(form.group_id));
-                    if (tasksForGroup.length > 0) {
-                      return tasksForGroup.map((t) => (
-                        <option key={t.member_id} value={t.member_id}>
-                          {t.member_name} · Ticket #{t.ticket_number} {t.member_phone ? `· 📞 ${t.member_phone}` : ''} {t.is_paid ? '✓ (Already Paid Today)' : `(Due: ₹${Number(t.remaining_due || t.installment_amount).toLocaleString('en-IN')})`}
+                {(() => {
+                  if (!form.group_id) {
+                    return (
+                      <select
+                        disabled
+                        className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 text-sm font-semibold opacity-60 cursor-not-allowed"
+                      >
+                        <option value="">-- First Select a Chit Scheme above --</option>
+                      </select>
+                    );
+                  }
+
+                  const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(form.group_id));
+                  const unpaidTasksForGroup = tasksForGroup.filter((t) => !t.is_paid && Number(t.remaining_due || t.installment_amount) > 0);
+                  const allPaidForGroup = tasksForGroup.length > 0 && unpaidTasksForGroup.length === 0;
+
+                  return (
+                    <div className="space-y-3">
+                      {allPaidForGroup && (
+                        <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs font-bold flex items-center gap-2.5 shadow-xs">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>✓ All {tasksForGroup.length} members in this chit scheme have already paid for this cycle! No pending dues.</span>
+                        </div>
+                      )}
+
+                      <select
+                        required
+                        disabled={allPaidForGroup}
+                        value={form.member_id}
+                        onChange={(e) => {
+                          const chosenId = e.target.value;
+                          const chosenTask = tasksForGroup.find((t) => String(t.member_id) === String(chosenId));
+                          const selectedGroup = groups.find((g) => String(g.id) === String(form.group_id));
+                          setForm((prev) => ({
+                            ...prev,
+                            member_id: chosenId,
+                            amount: chosenTask ? String(chosenTask.remaining_due > 0 ? chosenTask.remaining_due : chosenTask.installment_amount) : (selectedGroup ? String(selectedGroup.installment_amount) : prev.amount),
+                          }));
+                        }}
+                        className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none transition-all ${
+                          allPaidForGroup
+                            ? 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-75'
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white'
+                        }`}
+                      >
+                        <option value="">
+                          {allPaidForGroup
+                            ? '✓ All members have already paid'
+                            : `-- Choose Subscriber (${unpaidTasksForGroup.length} pending dues) --`}
                         </option>
-                      ));
-                    }
-                    return members.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.full_name} {m.phone ? `· ${m.phone}` : ''}
-                      </option>
-                    ));
-                  })()}
-                </select>
+                        {tasksForGroup.length > 0
+                          ? unpaidTasksForGroup.map((t) => (
+                              <option key={t.member_id} value={t.member_id}>
+                                {t.member_name} · Ticket #{t.ticket_number} {t.member_phone ? `· 📞 ${t.member_phone}` : ''} · (Due: ₹{Number(t.remaining_due || t.installment_amount).toLocaleString('en-IN')})
+                              </option>
+                            ))
+                          : members.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.full_name} {m.phone ? `· ${m.phone}` : ''}
+                              </option>
+                            ))}
+                      </select>
+                    </div>
+                  );
+                })()}
               </div>
+
+              {/* Selected Subscriber Details & WhatsApp Message Island */}
+              {(() => {
+                if (!form.group_id || !form.member_id) return null;
+                const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(form.group_id));
+                const chosenTask = tasksForGroup.find((t) => String(t.member_id) === String(form.member_id));
+                const chosenMember = members.find((m) => String(m.id) === String(form.member_id));
+                const name = chosenTask?.member_name || chosenMember?.full_name || 'Subscriber';
+                const phone = chosenTask?.member_phone || chosenMember?.phone;
+                const ticket = chosenTask?.ticket_number;
+                const isPaid = chosenTask?.is_paid || (chosenTask && Number(chosenTask.remaining_due || 0) <= 0);
+                const selectedGroup = groups.find((g) => String(g.id) === String(form.group_id));
+
+                if (isPaid) {
+                  return (
+                    <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-bold flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>⚠️ {name} has already paid their installment for this cycle. Duplicate collection is restricted.</span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-slate-900 dark:text-white font-heading">
+                          {name}
+                        </span>
+                        {ticket && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                            Ticket #{ticket}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 font-mono">
+                        {phone ? `📞 ${phone}` : 'No phone number available'} · Installment: ₹{Number(chosenTask?.remaining_due || selectedGroup?.installment_amount || 0).toLocaleString('en-IN')}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={!phone}
+                        onClick={() => {
+                          const text = getPaymentReminderWhatsAppText({
+                            memberName: name,
+                            groupName: selectedGroup?.group_name,
+                            groupCode: selectedGroup?.group_code,
+                            ticketNumber: ticket,
+                            amount: form.amount || chosenTask?.remaining_due || selectedGroup?.installment_amount,
+                            date: form.collection_date || getServerYMD(),
+                          });
+                          sendWhatsAppMessage(phone, text);
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer font-heading"
+                        title="Send WhatsApp payment reminder & UPI QR to subscriber"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Send WhatsApp Reminder</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
@@ -4273,22 +4393,42 @@ export function CollectionsPage() {
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Payment & Issue Receipt'}
-                </button>
-              </div>
+              {/* Submit Action Buttons with Protection */}
+              {(() => {
+                const tasksForGroup = form.group_id ? adminTasks.filter((t) => String(t.group_id) === String(form.group_id)) : [];
+                const unpaidTasksForGroup = tasksForGroup.filter((t) => !t.is_paid && Number(t.remaining_due || t.installment_amount) > 0);
+                const allPaidForGroup = form.group_id && tasksForGroup.length > 0 && unpaidTasksForGroup.length === 0;
+                const chosenTask = tasksForGroup.find((t) => String(t.member_id) === String(form.member_id));
+                const isPaid = chosenTask?.is_paid || (chosenTask && Number(chosenTask.remaining_due || 0) <= 0);
+                const isDisabled = submitting || allPaidForGroup || isPaid || !form.group_id || !form.member_id || !form.amount;
+
+                return (
+                  <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isDisabled}
+                      className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : allPaidForGroup ? (
+                        'All Members Paid ✓'
+                      ) : isPaid ? (
+                        'Already Paid (Restricted)'
+                      ) : (
+                        'Confirm Payment & Issue Receipt'
+                      )}
+                    </button>
+                  </div>
+                );
+              })()}
             </form>
           </div>
         </ModalPortal>

@@ -24,3 +24,4 @@ CREATE TABLE IF NOT EXISTS collection_edit_requests (
   INDEX idx_cer_collection (collection_id),
   INDEX idx_cer_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

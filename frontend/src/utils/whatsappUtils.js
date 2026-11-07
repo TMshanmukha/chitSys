@@ -96,3 +96,20 @@ Verified Receipts Issued: ${receiptsCount}
 Official account passbook record issued by ChitFund Pro. For statement inquiries, please contact management.`;
 }
 
+/**
+ * 4. Payment Reminder / Bill Notification for WhatsApp while collecting
+ */
+export function getPaymentReminderWhatsAppText({ memberName, groupName, groupCode, ticketNumber, amount, date }) {
+  const dateStr = date ? formatDate(date) : 'Today';
+  return `*CHITFUND PRO - INSTALLMENT PAYMENT DUE*
+Subscriber: ${memberName || 'Valued Member'}
+Ticket #: ${ticketNumber || 'N/A'}
+Chit Scheme: ${groupName || 'Chit Scheme'} ${groupCode ? `(${groupCode})` : ''}
+Installment Due: ₹${Number(amount || 0).toLocaleString('en-IN')}
+Date: ${dateStr}
+
+Please pay your installment via Physical Cash or Digital UPI at the branch or to your designated field collector.
+Thank you for your trust!`;
+}
+
+
