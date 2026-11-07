@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
+import { getTodayIST, getCurrentTimeIST } from '../utils/dateUtils.js';
 
 export async function getAuditLogs(req, res, next) {
   try {
@@ -127,13 +128,15 @@ export async function getDashboardOverview(req, res, next) {
     }
 
     // 4. Collections Totals: Split into Day-by-Day (Today) and Month-by-Month (Current Month)
+    const todayIST = getTodayIST();
+    const [currentYearIST, currentMonthIST] = todayIST.split('-');
     const collConds = ["c.verification_status != 'CANCELLED'"];
     const collParams = [];
     if (groupId) { collConds.push('c.group_id = ?'); collParams.push(groupId); }
     if (agentId) { collConds.push('c.agent_id = ?'); collParams.push(agentId); }
     if (startDate) { collConds.push('c.collection_date >= ?'); collParams.push(startDate); }
     if (endDate) { collConds.push('c.collection_date <= ?'); collParams.push(endDate); }
-    if (!startDate && !endDate) { collConds.push('c.collection_date = CURDATE()'); }
+    if (!startDate && !endDate) { collConds.push('c.collection_date = ?'); collParams.push(todayIST); }
     if (frequency) { collConds.push('g.frequency = ?'); collParams.push(frequency); }
 
     const [collectionRows] = await pool.query(`
@@ -155,7 +158,7 @@ export async function getDashboardOverview(req, res, next) {
     if (agentId) { dailyConds.push('c.agent_id = ?'); dailyParams.push(agentId); }
     if (startDate) { dailyConds.push('c.collection_date >= ?'); dailyParams.push(startDate); }
     if (endDate) { dailyConds.push('c.collection_date <= ?'); dailyParams.push(endDate); }
-    if (!startDate && !endDate) { dailyConds.push('c.collection_date = CURDATE()'); }
+    if (!startDate && !endDate) { dailyConds.push('c.collection_date = ?'); dailyParams.push(todayIST); }
 
     const [dailyCollectionRows] = await pool.query(`
       SELECT 
@@ -177,7 +180,8 @@ export async function getDashboardOverview(req, res, next) {
     if (startDate) { monthlyConds.push('c.collection_date >= ?'); monthlyParams.push(startDate); }
     if (endDate) { monthlyConds.push('c.collection_date <= ?'); monthlyParams.push(endDate); }
     if (!startDate && !endDate) {
-      monthlyConds.push('YEAR(c.collection_date) = YEAR(CURDATE()) AND MONTH(c.collection_date) = MONTH(CURDATE())');
+      monthlyConds.push('YEAR(c.collection_date) = ? AND MONTH(c.collection_date) = ?');
+      monthlyParams.push(currentYearIST, currentMonthIST);
     }
 
     const [monthlyCollectionRows] = await pool.query(`
@@ -233,25 +237,25 @@ export async function getDashboardOverview(req, res, next) {
     }
 
     // 6. Auctions & Dividends stats
-    let auctionStats = { 
-      totalAuctionsCount: 0, 
-      todayAuctionsCount: 0, 
-      dailyAuctionsCount: 0, 
-      monthlyAuctionsCount: 0, 
-      totalDividendsGenerated: 0, 
-      totalPrizeMoneyDisbursed: 0 
+    let auctionStats = {
+      totalAuctionsCount: 0,
+      todayAuctionsCount: 0,
+      dailyAuctionsCount: 0,
+      monthlyAuctionsCount: 0,
+      totalDividendsGenerated: 0,
+      totalPrizeMoneyDisbursed: 0
     };
     const [aucStatsRows] = await pool.query(`
       SELECT 
         COUNT(a.id) as totalAuctionsCount,
-        COUNT(CASE WHEN DATE(a.auction_date) = CURDATE() THEN a.id END) as todayAuctionsCount,
+        COUNT(CASE WHEN DATE(a.auction_date) = ? THEN a.id END) as todayAuctionsCount,
         COUNT(CASE WHEN g.frequency = 'DAILY' THEN a.id END) as dailyAuctionsCount,
         COUNT(CASE WHEN g.frequency = 'MONTHLY' THEN a.id END) as monthlyAuctionsCount,
         COALESCE(SUM(a.total_dividend), 0) as totalDividendsGenerated,
         COALESCE(SUM(a.net_payable_amount), 0) as totalPrizeMoneyDisbursed
       FROM auctions a
       LEFT JOIN chit_groups g ON a.group_id = g.id
-    `);
+    `, [todayIST]);
     if (aucStatsRows.length > 0) {
       auctionStats = { ...auctionStats, ...aucStatsRows[0] };
     }
@@ -267,7 +271,7 @@ export async function getDashboardOverview(req, res, next) {
     // 7. Recent Collections - Dynamically respects filters
     const [recentCollections] = await pool.query(`
       SELECT 
-        c.id, c.receipt_number, c.amount, c.payment_method, c.collection_time, c.created_at,
+        c.id, c.receipt_number, c.amount, c.payment_method, c.collection_date, c.collection_time, c.created_at,
         g.group_name, g.group_code, g.chit_type, g.frequency, g.route_category,
         m.full_name as member_name,
         u.full_name as agent_name
@@ -315,10 +319,11 @@ export async function getDashboardOverview(req, res, next) {
     }
     const agentCollDateCond = (startDate || endDate)
       ? `${startDate ? 'c.collection_date >= ?' : '1=1'} AND ${endDate ? 'c.collection_date <= ?' : '1=1'}`
-      : 'c.collection_date = CURDATE()';
+      : 'c.collection_date = ?';
     const agentDateParams = [];
     if (startDate) agentDateParams.push(startDate);
     if (endDate) agentDateParams.push(endDate);
+    if (!startDate && !endDate) agentDateParams.push(todayIST);
 
     const [agentsSummary] = await pool.query(`
       SELECT 
@@ -383,8 +388,8 @@ export async function getDashboardOverview(req, res, next) {
           online: parseFloat(dailyCollectionRow.dailyOnline || 0),
           total: parseFloat(dailyCollectionRow.dailyTotal || 0),
           count: parseInt(dailyCollectionRow.dailyCount || 0),
-          progressPercent: dailyTargetRow.expectedDailyTarget > 0 
-            ? Math.round((parseFloat(dailyCollectionRow.dailyTotal || 0) / parseFloat(dailyTargetRow.expectedDailyTarget)) * 100) 
+          progressPercent: dailyTargetRow.expectedDailyTarget > 0
+            ? Math.round((parseFloat(dailyCollectionRow.dailyTotal || 0) / parseFloat(dailyTargetRow.expectedDailyTarget)) * 100)
             : 0,
         },
         // Explicit Month-by-Month (Monthly Chits) Overview
@@ -394,8 +399,8 @@ export async function getDashboardOverview(req, res, next) {
           online: parseFloat(monthlyCollectionRow.monthlyOnline || 0),
           total: parseFloat(monthlyCollectionRow.monthlyTotal || 0),
           count: parseInt(monthlyCollectionRow.monthlyCount || 0),
-          progressPercent: monthlyTargetRow.expectedMonthlyTarget > 0 
-            ? Math.round((parseFloat(monthlyCollectionRow.monthlyTotal || 0) / parseFloat(monthlyTargetRow.expectedMonthlyTarget)) * 100) 
+          progressPercent: monthlyTargetRow.expectedMonthlyTarget > 0
+            ? Math.round((parseFloat(monthlyCollectionRow.monthlyTotal || 0) / parseFloat(monthlyTargetRow.expectedMonthlyTarget)) * 100)
             : 0,
         },
         totalAuctionsCount: Number(auctionStats.totalAuctionsCount) || 0,
@@ -435,10 +440,14 @@ export async function getReportsAnalytics(req, res, next) {
       colWhere += " AND c.group_id = ?";
       colParams.push(groupId);
     }
+    const reportTodayIST = getTodayIST();
+    const [reportYearIST, reportMonthIST] = reportTodayIST.split('-');
     if (period === 'TODAY') {
-      colWhere += " AND c.collection_date = CURDATE()";
+      colWhere += " AND c.collection_date = ?";
+      colParams.push(reportTodayIST);
     } else if (period === 'MONTH') {
-      colWhere += " AND MONTH(c.collection_date) = MONTH(CURDATE()) AND YEAR(c.collection_date) = YEAR(CURDATE())";
+      colWhere += " AND MONTH(c.collection_date) = ? AND YEAR(c.collection_date) = ?";
+      colParams.push(reportMonthIST, reportYearIST);
     }
 
     const [collections] = await pool.query(`
@@ -482,9 +491,9 @@ export async function getReportsAnalytics(req, res, next) {
           WHERE c2.group_id = gm.group_id AND c2.member_id = gm.member_id 
           AND c2.verification_status != 'CANCELLED'
           AND (
-            (g.frequency = 'DAILY' AND c2.collection_date = CURDATE())
+            (g.frequency = 'DAILY' AND c2.collection_date = '${reportTodayIST}')
             OR
-            (g.frequency = 'MONTHLY' AND YEAR(c2.collection_date) = YEAR(CURDATE()) AND MONTH(c2.collection_date) = MONTH(CURDATE()))
+            (g.frequency = 'MONTHLY' AND c2.collection_date >= DATE_SUB('${reportTodayIST}', INTERVAL 30 DAY))
           )
         ) as cycle_paid,
         (
@@ -520,9 +529,9 @@ export async function getReportsAnalytics(req, res, next) {
           WHERE c3.group_id = gm.group_id AND c3.member_id = gm.member_id 
           AND c3.verification_status != 'CANCELLED'
           AND (
-            (g.frequency = 'DAILY' AND c3.collection_date = CURDATE())
+            (g.frequency = 'DAILY' AND c3.collection_date = '${reportTodayIST}')
             OR
-            (g.frequency = 'MONTHLY' AND YEAR(c3.collection_date) = YEAR(CURDATE()) AND MONTH(c3.collection_date) = MONTH(CURDATE()))
+            (g.frequency = 'MONTHLY' AND c3.collection_date >= DATE_SUB('${reportTodayIST}', INTERVAL 30 DAY))
           )
           ORDER BY c3.id DESC
           LIMIT 1
@@ -532,9 +541,9 @@ export async function getReportsAnalytics(req, res, next) {
           FROM agent_tracking_logs atl
           WHERE atl.group_id = gm.group_id AND atl.member_id = gm.member_id 
           AND (
-            (g.frequency = 'DAILY' AND atl.tracking_date = CURDATE())
+            (g.frequency = 'DAILY' AND atl.tracking_date = '${reportTodayIST}')
             OR
-            (g.frequency = 'MONTHLY' AND YEAR(atl.tracking_date) = YEAR(CURDATE()) AND MONTH(atl.tracking_date) = MONTH(CURDATE()))
+            (g.frequency = 'MONTHLY' AND atl.tracking_date >= DATE_SUB('${reportTodayIST}', INTERVAL 30 DAY))
           )
           ORDER BY atl.id DESC LIMIT 1
         ) as agent_notes
@@ -1028,7 +1037,7 @@ export async function recordCommissionWithdrawal(req, res, next) {
       });
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getTodayIST();
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const withdrawalNumber = `WDR-${todayStr.replace(/-/g, '')}-${randomSuffix}`;
 
@@ -1221,7 +1230,7 @@ export async function getAgentsDailyPerformance(req, res, next) {
   try {
     const { date, mode, agentId } = req.query;
     const isAllTime = mode === 'ALL_TIME';
-    const targetDate = date || new Date().toISOString().slice(0, 10);
+    const targetDate = date || getTodayIST();
     const dateObj = new Date(targetDate);
     const isFirstDayOfSelectedDate = dateObj.getDate() === 1;
 
@@ -1433,7 +1442,7 @@ export async function getAgentsDailyPerformance(req, res, next) {
         filter: {
           date: targetDate,
           mode: isAllTime ? 'ALL_TIME' : 'DAILY',
-          isToday: targetDate === new Date().toISOString().slice(0, 10),
+          isToday: targetDate === getTodayIST(),
           isFirstDayOfMonth: isFirstDayOfSelectedDate,
         },
         summary: {
@@ -1461,6 +1470,7 @@ export async function getAgentsDailyPerformance(req, res, next) {
  */
 export async function getPendingDuesAndAdvances(req, res, next) {
   try {
+    const duesTodayIST = getTodayIST();
     const { groupId, status } = req.query; // status: 'ALL' | 'UNPAID' | 'ADMIN_COVERED' | 'RECOVERED'
     let whereClause = "g.status = 'ACTIVE' AND gm.status = 'ACTIVE'";
     const params = [];
@@ -1481,9 +1491,9 @@ export async function getPendingDuesAndAdvances(req, res, next) {
           WHERE c2.group_id = gm.group_id AND c2.member_id = gm.member_id 
           AND c2.verification_status != 'CANCELLED'
           AND (
-            (g.frequency = 'DAILY' AND c2.collection_date = CURDATE())
+            (g.frequency = 'DAILY' AND c2.collection_date = '${duesTodayIST}')
             OR
-            (g.frequency = 'MONTHLY' AND YEAR(c2.collection_date) = YEAR(CURDATE()) AND MONTH(c2.collection_date) = MONTH(CURDATE()))
+            (g.frequency = 'MONTHLY' AND c2.collection_date >= DATE_SUB('${duesTodayIST}', INTERVAL 30 DAY))
           )
         ) as cycle_paid,
         (
@@ -1654,11 +1664,13 @@ export async function recordAdminAdvance(req, res, next) {
       : 'CASH';
 
     const advanceNotes = notes || `[ADMIN_FUNDED] Covered by Admin for ${member.full_name} (Ticket #${member.ticket_number}) - Pending Member Recovery`;
+    const todayIST = getTodayIST();
+    const currentTimeIST = getCurrentTimeIST();
 
     const [collResult] = await connection.execute(
       `INSERT INTO collections 
         (receipt_number, group_id, member_id, agent_id, amount, payment_method, payment_reference, collection_date, collection_time, verification_status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME(), 'RECONCILED', ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECONCILED', ?)`,
       [
         receiptNumber,
         parsedGroupId,
@@ -1667,6 +1679,8 @@ export async function recordAdminAdvance(req, res, next) {
         parsedAmount,
         paymentMethod,
         `ADMIN_ADV_${Date.now()}`,
+        todayIST,
+        currentTimeIST,
         advanceNotes,
       ]
     );
@@ -1675,12 +1689,13 @@ export async function recordAdminAdvance(req, res, next) {
     const [advResult] = await connection.execute(
       `INSERT INTO admin_member_advances
         (group_id, member_id, collection_id, advance_amount, advance_date, cycle_period, status, recovered_amount, notes, created_by)
-       VALUES (?, ?, ?, ?, CURDATE(), ?, 'PENDING_RECOVERY', 0.00, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, 'PENDING_RECOVERY', 0.00, ?, ?)`,
       [
         parsedGroupId,
         parsedMemberId,
         collResult.insertId,
         parsedAmount,
+        todayIST,
         cycle_period || (group.frequency === 'DAILY' ? 'DAILY_ROUND' : 'MONTHLY_ROUND'),
         advanceNotes,
         req.user.id,
@@ -1711,7 +1726,7 @@ export async function recordAdminAdvance(req, res, next) {
       message: `Admin covered unpaid installment of ₹${parsedAmount.toLocaleString('en-IN')} for ${member.full_name} in ${group.group_name} (Ticket #${member.ticket_number}). Marked as Pending Recovery.`,
       type: 'COLLECTION',
       link: '/admin/reports',
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.status(201).json({
       success: true,
@@ -1767,11 +1782,12 @@ export async function settleAdminAdvance(req, res, next) {
       ? parseFloat(recovered_amount)
       : parseFloat(adv.advance_amount);
 
+    const todayIST = getTodayIST();
     await pool.execute(
       `UPDATE admin_member_advances
-       SET status = 'RECOVERED', recovered_amount = ?, recovered_date = CURDATE(), notes = CONCAT(COALESCE(notes, ''), ' | Recovered: ', ?)
+       SET status = 'RECOVERED', recovered_amount = ?, recovered_date = ?, notes = CONCAT(COALESCE(notes, ''), ' | Recovered: ', ?)
        WHERE id = ?`,
-      [recAmount, notes || 'Fully repaid by subscriber to admin', advanceId]
+      [recAmount, todayIST, notes || 'Fully repaid by subscriber to admin', advanceId]
     );
 
     await recordAuditLog({
@@ -1794,7 +1810,7 @@ export async function settleAdminAdvance(req, res, next) {
       message: `Subscriber ${adv.member_name} (Ticket #${adv.ticket_number || ''}) has repaid ₹${recAmount.toLocaleString('en-IN')} to Admin for scheme ${adv.group_name}. Advance settled.`,
       type: 'COLLECTION',
       link: '/admin/reports',
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.status(200).json({
       success: true,

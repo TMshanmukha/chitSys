@@ -2,6 +2,7 @@ import { pool } from '../config/db.js';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
+import { getTodayIST } from '../utils/dateUtils.js';
 
 /**
  * Submit agent's day collections & route work for Admin verification and day closing.
@@ -352,7 +353,7 @@ export async function calculateDayWorkData(agentId, workDate) {
 export async function previewAgentDayWork(req, res, next) {
   try {
     const agentId = req.user.id;
-    const workDate = req.query.date || new Date().toISOString().slice(0, 10);
+    const workDate = req.query.date || getTodayIST();
     const data = await calculateDayWorkData(agentId, workDate);
 
     const [existing] = await pool.query(
@@ -394,7 +395,7 @@ export async function previewAgentDayWork(req, res, next) {
 export async function submitAgentDayWork(req, res, next) {
   try {
     const agentId = req.user.id;
-    const workDate = req.body.work_date || new Date().toISOString().slice(0, 10);
+    const workDate = req.body.work_date || getTodayIST();
     const agentNotes = req.body.agent_notes || '';
 
     const {
@@ -747,17 +748,18 @@ export async function approveAndCloseDaySubmission(req, res, next) {
     await connection.beginTransaction();
 
     // 1. Update submission record with Admin approval stamp
+    const todayIST = getTodayIST();
     await connection.query(
       `UPDATE agent_day_submissions
        SET status = ?,
            approved_by = ?,
-           approval_date = CURDATE(),
+           approval_date = ?,
            approved_at = CURRENT_TIMESTAMP,
            admin_notes = ?,
            verified_cash_amount = ?,
            verified_upi_amount = ?
        WHERE id = ?`,
-      [status, adminId, admin_notes.trim(), finalCash, finalUpi, id]
+      [status, adminId, todayIST, admin_notes.trim(), finalCash, finalUpi, id]
     );
 
     // 2. If approved, reconcile all collections for this agent on that work date

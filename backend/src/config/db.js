@@ -36,6 +36,16 @@ export const pool = mysql.createPool({
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
   dateStrings: true,
+  timezone: '+05:30',
+});
+
+// Enforce Indian Standard Time (IST UTC+5:30) across all pooled database connections
+pool.on('connection', (connection) => {
+  connection.query("SET time_zone = '+05:30';", (err) => {
+    if (err) {
+      logger.warn('Could not set session time_zone to +05:30:', { message: err.message });
+    }
+  });
 });
 
 export async function testConnection() {

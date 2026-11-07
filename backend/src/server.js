@@ -14,6 +14,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import agentRoutes from './routes/agentRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import interestRoutes from './routes/interestRoutes.js';
+import { getTodayIST } from './utils/dateUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -128,12 +129,13 @@ app.get(['/health', '/api/health'], (req, res) => {
 // Authoritative Server Time endpoint (ensures calendars and dates match server time)
 app.get(['/time', '/api/time', '/server-time', '/api/server-time'], (req, res) => {
   const now = new Date();
+  const todayIST = getTodayIST(now);
   res.status(200).json({
     status: 'ok',
     serverTime: now.toISOString(),
     timestamp: now.getTime(),
-    currentDate: now.toISOString().slice(0, 10),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
+    currentDate: todayIST,
+    timezone: 'Asia/Kolkata',
   });
 });
 
@@ -254,18 +256,28 @@ async function startServer() {
     process.exit(1);
   });
 
-  // Test MySQL connection and optionally run migrations in background
+  // Test MySQL connection, run migrations, and auto-repair missing loan schedules
   (async () => {
     const dbConnected = await testConnection();
     if (!dbConnected) {
       logger.warn('⚠️ Server started without active MySQL connection. Some routes will fail until database is available.');
-    } else if (env.AUTO_MIGRATE === 'true') {
+    } else {
+      if (env.AUTO_MIGRATE === 'true') {
+        try {
+          const { runMigrations } = await import('./scripts/migrate.js');
+          await runMigrations();
+          logger.info('✅ Auto-migrations completed on startup.');
+        } catch (migErr) {
+          logger.error('❌ Auto-migration error on startup:', { message: migErr.message });
+        }
+      }
+
+      // Reconcile and auto-generate schedules for any loans created without schedules
       try {
-        const { runMigrations } = await import('./scripts/migrate.js');
-        await runMigrations();
-        logger.info('✅ Auto-migrations completed on startup.');
-      } catch (migErr) {
-        logger.error('❌ Auto-migration error on startup:', { message: migErr.message });
+        const { repairMissingLoanSchedules } = await import('./controllers/interestController.js');
+        await repairMissingLoanSchedules();
+      } catch (repErr) {
+        logger.error('⚠️ Loan schedule auto-repair check error:', { message: repErr.message });
       }
     }
   })();

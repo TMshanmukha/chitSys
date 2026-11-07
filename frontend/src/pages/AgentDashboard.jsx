@@ -1124,7 +1124,17 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
         {/* Metrics Grid - 6 Cards in Exact Requested Order: Today's Collections, Cash on Hand, UPI, Today's Target, Pending, Today's Tasks */}
         {(activeTab === 'tasks' || activeTab === 'routes') && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold px-1">
+            <span className="flex items-center gap-1.5 font-heading text-blue-600 dark:text-blue-400 uppercase tracking-wider text-[11px]">
+              <Calendar className="w-3.5 h-3.5" />
+              Today's Field Operations · {formatDate(getServerDate())}
+            </span>
+            <span className="text-[10px] sm:text-[11px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">
+              Resets daily at 12:00 AM midnight
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {/* 1. Today's Collections */}
           <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
@@ -1254,6 +1264,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               />
             </div>
           </div>
+        </div>
         </div>
         )}
 

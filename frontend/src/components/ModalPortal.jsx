@@ -86,7 +86,7 @@ export default function ModalPortal({
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
       }}
-      className={`fixed inset-0 z-[9999] flex items-start sm:items-center justify-center p-3 sm:p-6 pt-14 sm:pt-8 pb-12 bg-slate-950/60 backdrop-blur-md overflow-y-auto animate-fadeIn ${className}`}
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-md overflow-y-auto animate-fadeIn ${className}`}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >

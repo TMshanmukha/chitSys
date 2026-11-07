@@ -2,6 +2,7 @@ import { pool } from '../config/db.js';
 import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
+import { getTodayIST } from '../utils/dateUtils.js';
 
 const groupSchema = z.object({
   group_code: z.string().optional(),
@@ -24,6 +25,7 @@ const groupSchema = z.object({
 
 export async function listGroups(req, res, next) {
   try {
+    const todayIST = getTodayIST();
     const { frequency, routeCategory, chitType, status } = req.query;
     let query = `
       SELECT 
@@ -38,7 +40,7 @@ export async function listGroups(req, res, next) {
         (
           COALESCE((SELECT SUM(ama.advance_amount - ama.recovered_amount) FROM admin_member_advances ama WHERE ama.group_id = g.id AND ama.status = 'PENDING_RECOVERY'), 0)
           +
-          GREATEST(0, (COUNT(DISTINCT gm.id) * g.installment_amount) - COALESCE((SELECT SUM(c.amount) FROM collections c WHERE c.group_id = g.id AND (g.frequency = 'DAILY' AND c.collection_date = CURDATE() OR g.frequency = 'MONTHLY' AND c.collection_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY))), 0))
+          GREATEST(0, (COUNT(DISTINCT gm.id) * g.installment_amount) - COALESCE((SELECT SUM(c.amount) FROM collections c WHERE c.group_id = g.id AND (g.frequency = 'DAILY' AND c.collection_date = '${todayIST}' OR g.frequency = 'MONTHLY' AND c.collection_date >= DATE_SUB('${todayIST}', INTERVAL 30 DAY))), 0))
         ) AS total_pending_amount
       FROM chit_groups g
       LEFT JOIN group_memberships gm ON g.id = gm.group_id

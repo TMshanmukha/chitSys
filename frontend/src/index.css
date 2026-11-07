@@ -58,6 +58,32 @@
     letter-spacing: inherit;
   }
 
+  /* Beautiful, spacious dropdown selects and options */
+  select {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+    padding-left: 0.875rem;
+    padding-right: 2.25rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    cursor: pointer;
+  }
+
+  select option {
+    padding: 10px 14px;
+    margin: 4px 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    background-color: #ffffff;
+    color: #1e293b;
+  }
+
+  html.dark select option {
+    background-color: #0c1220;
+    color: #f1f5f9;
+  }
+
   /* Disable number input spin buttons while preserving clean manual typing */
   input::-webkit-outer-spin-button,
   input::-webkit-inner-spin-button,

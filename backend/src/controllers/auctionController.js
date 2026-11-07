@@ -3,6 +3,7 @@ import { pool } from '../config/db.js';
 import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
+import { getTodayIST } from '../utils/dateUtils.js';
 
 const draw2Schema = z.object({
   winning_member_id: z.number().int().positive('Winning member for Draw #2 is required'),
@@ -849,6 +850,7 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
       [groupId]
     );
 
+    const todayIST = getTodayIST();
     // 3. Fetch all enrolled subscribers with prized status, individual dividend totals, cycle payment, and admin advances
     const [subscribers] = await pool.execute(
       `SELECT gm.id as membership_id, gm.ticket_number, gm.joined_date, gm.status,
@@ -881,9 +883,9 @@ export async function getSchemeAuctionBreakdown(req, res, next) {
          JOIN chit_groups g2 ON c.group_id = g2.id
          WHERE c.group_id = ? AND c.verification_status != 'CANCELLED'
            AND (
-             (g2.frequency = 'DAILY' AND c.collection_date = CURDATE())
+             (g2.frequency = 'DAILY' AND c.collection_date = '${todayIST}')
              OR
-             (g2.frequency = 'MONTHLY' AND YEAR(c.collection_date) = YEAR(CURDATE()) AND MONTH(c.collection_date) = MONTH(CURDATE()))
+             (g2.frequency = 'MONTHLY' AND c.collection_date >= DATE_SUB('${todayIST}', INTERVAL 30 DAY))
            )
          GROUP BY c.member_id, c.group_id
        ) col_cycle ON col_cycle.member_id = gm.member_id

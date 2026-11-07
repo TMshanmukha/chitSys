@@ -39,7 +39,11 @@ export function getPeriodRateDecimal(rate, ratePeriod, frequency) {
   else if (ratePeriod === 'DAILY') annualRatePercent = r * 365;
 
   // Now convert annual percentage to decimal per installment frequency
-  if (frequency === 'DAILY') return (annualRatePercent / 365) / 100;
+  // For daily micro-loans with monthly rate, 1 month = 30 days standard
+  if (frequency === 'DAILY') {
+    if (ratePeriod === 'MONTHLY') return (r / 100) / 30;
+    return (annualRatePercent / 365) / 100;
+  }
   if (frequency === 'WEEKLY') return (annualRatePercent / 52) / 100;
   if (frequency === 'MONTHLY') return (annualRatePercent / 12) / 100;
   if (frequency === 'BULLET') return (annualRatePercent / 12) / 100;
@@ -300,13 +304,39 @@ export function calculateLoanSchedule({
     };
   }
 
-  // Fallback to simple installment split
+  // Fallback to simple installment split (always generate N schedules)
+  const baseInstallment = roundMoney(P / N);
+  let fallbackRunningSum = 0;
+  for (let i = 1; i <= N; i++) {
+    const dueDate = i === 1 ? firstDueDateStr : addInterval(firstDueDateStr, repayment_frequency, i - 1);
+    let pDue = baseInstallment;
+    if (i === N) {
+      pDue = roundMoney(P - fallbackRunningSum);
+    } else {
+      fallbackRunningSum = roundMoney(fallbackRunningSum + pDue);
+    }
+    schedules.push({
+      installment_number: i,
+      due_date: dueDate,
+      principal_due: pDue,
+      interest_due: 0.00,
+      penalty_due: 0.00,
+      total_due: pDue,
+      principal_paid: 0.00,
+      interest_paid: 0.00,
+      penalty_paid: 0.00,
+      total_paid: 0.00,
+      status: 'PENDING',
+      remaining_balance: roundMoney(P - (fallbackRunningSum + (i === N ? pDue : 0))),
+    });
+  }
+
   return {
-    installment_amount: roundMoney(P / N),
+    installment_amount: baseInstallment,
     total_interest_expected: 0.00,
     total_payable: P,
-    maturity_date: firstDueDateStr,
-    schedules: [],
+    maturity_date: schedules[schedules.length - 1]?.due_date || firstDueDateStr,
+    schedules,
   };
 }
 

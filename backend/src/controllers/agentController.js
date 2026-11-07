@@ -3,6 +3,7 @@ import { pool } from '../config/db.js';
 import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { getMonthlyCycleInfo, formatYMD } from '../utils/cycleHelper.js';
+import { getTodayIST } from '../utils/dateUtils.js';
 
 const agentSchema = z.object({
   full_name: z.string().min(2, 'Agent full name is required'),
@@ -14,6 +15,7 @@ const agentSchema = z.object({
 export async function listAgents(req, res, next) {
   try {
     const { role } = req.query;
+    const todayIST = getTodayIST();
     let query = `
       SELECT 
         u.id, u.full_name, u.username, u.role, u.assigned_business, u.phone, u.is_active, u.last_login_at, u.created_at,
@@ -33,12 +35,12 @@ export async function listAgents(req, res, next) {
                SUM(CASE WHEN UPPER(TRIM(payment_method)) != 'CASH' THEN amount ELSE 0 END) as today_online,
                SUM(amount) as today_total
         FROM collections
-        WHERE collection_date = CURDATE() AND verification_status != 'CANCELLED'
+        WHERE collection_date = ? AND verification_status != 'CANCELLED'
         GROUP BY agent_id
       ) colls ON u.id = colls.agent_id
     `;
     const conditions = [];
-    const params = [];
+    const params = [todayIST];
 
     // STRICT BUSINESS ISOLATION:
     // Only return ChitFund Pro agents or Super Admins. Strictly exclude FinLend Pro ('INTEREST') users/collectors.
@@ -244,11 +246,12 @@ export async function assignAgentToGroup(req, res, next) {
       return res.status(400).json({ success: false, message: 'Agent ID and Group ID are required.' });
     }
 
+    const todayIST = getTodayIST();
     await pool.execute(
       `INSERT INTO agent_group_assignments (agent_id, group_id, assigned_date, is_active, assigned_by)
-       VALUES (?, ?, CURDATE(), 1, ?)
+       VALUES (?, ?, ?, 1, ?)
        ON DUPLICATE KEY UPDATE is_active = 1, assigned_by = VALUES(assigned_by)`,
-      [agentId, groupId, req.user.id]
+      [agentId, groupId, todayIST, req.user.id]
     );
 
     await recordAuditLog({
@@ -271,6 +274,7 @@ export async function getMyAssignedRoutes(req, res, next) {
   try {
     // For the logged-in agent, get their active assigned groups and members
     const agentId = req.user.id;
+    const todayStr = getTodayIST();
 
     const [groups] = await pool.execute(
       `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
@@ -279,9 +283,9 @@ export async function getMyAssignedRoutes(req, res, next) {
        FROM agent_group_assignments aga
        JOIN chit_groups g ON aga.group_id = g.id
        WHERE aga.agent_id = ? AND aga.is_active = 1 AND g.status = 'ACTIVE'
-         AND NOT EXISTS (SELECT 1 FROM agent_leaves al WHERE al.agent_id=aga.agent_id AND al.leave_date=CURDATE() AND al.status='APPROVED')
+         AND NOT EXISTS (SELECT 1 FROM agent_leaves al WHERE al.agent_id=aga.agent_id AND al.leave_date=? AND al.status='APPROVED')
        ORDER BY g.route_category ASC, g.id ASC`,
-      [agentId]
+      [agentId, todayStr]
     );
 
     // Approved leave coverage adds the absent agent's routes only for the covered day.
@@ -291,10 +295,8 @@ export async function getMyAssignedRoutes(req, res, next) {
               l.agent_id AS absent_agent_id, absent.full_name AS absent_agent_name
        FROM agent_leave_coverages c JOIN agent_leaves l ON l.id=c.leave_id
        JOIN chit_groups g ON g.id=c.group_id JOIN users absent ON absent.id=l.agent_id
-       WHERE c.covering_agent_id=? AND l.leave_date=CURDATE() AND l.status='APPROVED' AND g.status='ACTIVE'`, [agentId]);
+       WHERE c.covering_agent_id=? AND l.leave_date=? AND l.status='APPROVED' AND g.status='ACTIVE'`, [agentId, todayStr]);
     for (const g of coveredGroups) if (!groups.some((mine) => mine.id === g.id)) groups.push({ ...g, temporary_coverage: true });
-
-    const todayStr = new Date().toISOString().slice(0, 10);
 
     const enrichedGroups = groups.map((g) => {
       const isDaily = g.frequency === 'DAILY';
@@ -345,18 +347,18 @@ export async function getMyAssignedRoutes(req, res, next) {
          FROM collections c
          LEFT JOIN users collector ON collector.id=c.agent_id
          WHERE c.group_id IN (?) AND c.verification_status != 'CANCELLED'
-           AND c.collection_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+           AND c.collection_date >= DATE_SUB(?, INTERVAL 60 DAY)
          ORDER BY c.collection_date DESC, c.collection_time DESC, c.id DESC`,
-        [groupIds]
+        [groupIds, todayStr]
       );
 
       // 3. Fetch tracking logs within the last 60 days
       const [trackingLogs] = await pool.query(
         `SELECT atl.id, atl.group_id, atl.member_id, atl.stop_id, atl.tracking_date, atl.status, atl.notes, atl.last_ping_time
          FROM agent_tracking_logs atl
-         WHERE atl.group_id IN (?) AND atl.tracking_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+         WHERE atl.group_id IN (?) AND atl.tracking_date >= DATE_SUB(?, INTERVAL 60 DAY)
          ORDER BY atl.tracking_date DESC, atl.last_ping_time DESC, atl.id DESC`,
-        [groupIds]
+        [groupIds, todayStr]
       );
 
       members = memberRows.map((m) => {
@@ -499,9 +501,9 @@ export async function getMyAssignedRoutes(req, res, next) {
               COUNT(id) as totalCollectionsCount
        FROM collections
        WHERE agent_id = ? 
-         AND (collection_date = CURDATE() OR collection_date = ? OR DATE(created_at) = CURDATE() OR DATE(created_at) = ?)
+         AND collection_date = ?
          AND verification_status != 'CANCELLED'`,
-      [agentId, todayStr, todayStr]
+      [agentId, todayStr]
     );
 
     const dailyGroups = enrichedGroups.filter((g) => g.frequency === 'DAILY');
@@ -582,8 +584,7 @@ export async function getMemberPendingBreakdown(req, res, next) {
       collByDate[dStr] = (collByDate[dStr] || 0) + parseFloat(c.amount || 0);
     }
 
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = getTodayIST();
     const pendingDates = [];
 
     if (isDaily) {

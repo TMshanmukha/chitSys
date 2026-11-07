@@ -55,15 +55,19 @@ export function getServerDate() {
 }
 
 /**
- * Returns current server time in YYYY-MM-DD format
- * @returns {string} e.g. '2026-11-06'
+ * Returns current server time in YYYY-MM-DD format based on Indian Standard Time (Asia/Kolkata)
+ * @returns {string} e.g. '2026-11-07'
  */
 export function getServerYMD() {
   const d = getServerDate();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  try {
+    return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  } catch {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 }
 
 /**
@@ -158,18 +162,19 @@ export function formatDate(dateInput) {
     const d = new Date(dateInput);
     if (isNaN(d.getTime())) return String(dateInput);
 
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-
-    return `${day}-${month}-${year}`;
+    return d.toLocaleDateString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).replace(/\//g, '-');
   } catch {
     return String(dateInput);
   }
 }
 
 /**
- * Formats any date input into DD-MM-YYYY, HH:mm AM/PM (12-hour format)
+ * Formats any date input into DD-MM-YYYY, HH:mm AM/PM (12-hour format in IST)
  * @param {string|Date|number|null|undefined} dateInput 
  * @param {boolean} includeSeconds 
  * @returns {string} Formatted date like '27-10-2026, 08:30 PM'
@@ -181,30 +186,29 @@ export function formatDateTime(dateInput, includeSeconds = false) {
     const d = new Date(dateInput);
     if (isNaN(d.getTime())) return String(dateInput);
 
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
+    const datePart = d.toLocaleDateString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).replace(/\//g, '-');
 
-    let hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // '0' should be '12'
-    const formattedHours = String(hours).padStart(2, '0');
+    const timePart = d.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      ...(includeSeconds ? { second: '2-digit' } : {}),
+      hour12: true,
+    });
 
-    if (includeSeconds) {
-      const seconds = String(d.getSeconds()).padStart(2, '0');
-      return `${day}-${month}-${year}, ${formattedHours}:${minutes}:${seconds} ${ampm}`;
-    }
-
-    return `${day}-${month}-${year}, ${formattedHours}:${minutes} ${ampm}`;
+    return `${datePart}, ${timePart}`;
   } catch {
     return String(dateInput);
   }
 }
 
 /**
- * Formats time only to HH:mm AM/PM
+ * Formats time only to HH:mm AM/PM (in IST)
  * @param {string|Date|number|null|undefined} timeInput 
  * @returns {string} Formatted time like '08:30 PM'
  */
@@ -225,11 +229,12 @@ export function formatTime(timeInput) {
     const d = new Date(timeInput);
     if (isNaN(d.getTime())) return String(timeInput);
 
-    let hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+    return d.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
   } catch {
     return String(timeInput);
   }

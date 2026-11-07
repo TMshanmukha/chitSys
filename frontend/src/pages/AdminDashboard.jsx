@@ -805,7 +805,7 @@ export default function AdminDashboard() {
                         {c.agent_name || 'Admin'}
                       </td>
                       <td className="py-3 px-4 text-slate-500 font-mono whitespace-nowrap">
-                        {formatDate(c.created_at)} {c.collection_time ? `· ${formatTime(c.collection_time)}` : ''}
+                        {formatDate(c.collection_date || c.created_at)} {c.collection_time ? `· ${formatTime(c.collection_time)}` : ''}
                       </td>
                     </tr>
                   );

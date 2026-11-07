@@ -34,8 +34,7 @@ import {
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { formatCurrency, formatDate, formatTime, getServerDate, getServerYMD } from '../../utils/interestUtils';
-import Keypad from '../../components/interest-ui/Keypad';
+import { formatCurrency, formatDate, formatTime, getServerDate, getServerYMD, onServerTimeSync } from '../../utils/interestUtils';
 import BigButton from '../../components/interest-ui/BigButton';
 import FinLendChangePasswordModal from '../../components/interest-ui/FinLendChangePasswordModal';
 import AnimatedFinLendBackground from '../../components/AnimatedFinLendBackground';
@@ -113,13 +112,28 @@ export default function InterestAgentPortalPage() {
     }
   };
 
+  const [todayStr, setTodayStr] = useState(getServerYMD());
+
   useEffect(() => {
     loadData();
+    const unsub = onServerTimeSync(() => setTodayStr(getServerYMD()));
+    const timer = setInterval(() => {
+      const nextYmd = getServerYMD();
+      setTodayStr((prev) => {
+        if (prev !== nextYmd) {
+          loadData(true);
+          return nextYmd;
+        }
+        return prev;
+      });
+    }, 15000);
+    return () => {
+      unsub();
+      clearInterval(timer);
+    };
   }, []);
 
   // Compute metrics
-  const todayStr = useMemo(() => getServerYMD(), []);
-
   const totalDueToday = useMemo(() => {
     return assignedLoans.reduce((sum, l) => {
       const due = Number(l.current_due_amount || 0);
@@ -134,10 +148,11 @@ export default function InterestAgentPortalPage() {
   const filteredLoans = useMemo(() => {
     return assignedLoans.filter((loan) => {
       const due = Number(loan.current_due_amount || 0);
+      const isAdvance = loan.paid_until_date && loan.paid_until_date >= todayStr && due <= 0;
       const isOverdue = loan.oldest_pending_date && loan.oldest_pending_date < todayStr && due > 0;
-      const isPaid = due <= 0;
+      const isPaid = due <= 0 || isAdvance;
 
-      if (filter === 'PENDING' && (isPaid || isOverdue)) return false;
+      if (filter === 'PENDING' && (isPaid || isOverdue || isAdvance)) return false;
       if (filter === 'PAID' && !isPaid) return false;
       if (filter === 'OVERDUE' && !isOverdue) return false;
 
@@ -168,23 +183,6 @@ export default function InterestAgentPortalPage() {
     setSelectedLoan(null);
     setAmountStr('');
     setCollectError('');
-  };
-
-  // Keypad Handlers
-  const handleKeypadPress = (key) => {
-    if (key === '.') {
-      if (!amountStr.includes('.')) {
-        setAmountStr(amountStr ? amountStr + '.' : '0.');
-      }
-      return;
-    }
-    // Prevent more than 2 decimal places
-    if (amountStr.includes('.') && amountStr.split('.')[1].length >= 2) return;
-    setAmountStr(amountStr + key);
-  };
-
-  const handleKeypadDelete = () => {
-    setAmountStr((prev) => prev.slice(0, -1));
   };
 
   // Submit Collection
@@ -473,6 +471,12 @@ export default function InterestAgentPortalPage() {
                   const isOverdue = loan.oldest_pending_date && loan.oldest_pending_date < todayStr && due > 0;
                   const initial = (loan.customer_name || 'B').charAt(0).toUpperCase();
 
+                  const completedDays = Number(loan.completed_installments || 0);
+                  const totalDays = Number(loan.total_installments || loan.tenure_periods || 0);
+                  const remainingDays = Math.max(0, totalDays - completedDays);
+                  const daysPercent = totalDays > 0 ? Math.min(100, Math.round((completedDays / totalDays) * 100)) : 0;
+                  const balanceToClose = Number(loan.principal_outstanding || 0) + Number(loan.interest_outstanding || 0);
+
                   return (
                     <div
                       key={loan.id}
@@ -533,75 +537,93 @@ export default function InterestAgentPortalPage() {
                       </div>
 
                       {/* Days Progress Bar */}
-                      <div className="pt-2 border-t border-slate-100 dark:border-white/5 space-y-1">
+                      <div className="pt-2 border-t border-slate-100 dark:border-white/5 space-y-1.5">
                         <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                           <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            Days: {loan.completed_installments || 0} / {loan.total_installments || 0}
-                            {loan.total_installments > 0 && (
+                            Days: {completedDays} / {totalDays}
+                            {totalDays > 0 && (
                               <span className="text-slate-400 font-normal ml-1">
-                                ({Math.round(((loan.completed_installments || 0) / loan.total_installments) * 100)}%)
+                                ({daysPercent}%)
                               </span>
                             )}
                           </span>
-                          {loan.paid_until_date && loan.paid_until_date >= todayStr && (
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                              Paid up to {loan.paid_until_date}
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">
+                            ⏳ {remainingDays} Days Left
+                          </span>
+                        </div>
+                        {totalDays > 0 && (
+                          <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden flex">
+                            <div
+                              className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300"
+                              style={{ width: `${Math.max(daysPercent > 0 ? 3 : 0, daysPercent)}%` }}
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-[10px]">
+                          {loan.paid_until_date && loan.paid_until_date >= todayStr ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              Paid up to {formatDate(loan.paid_until_date)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">
+                              Next Due: {formatDate(loan.next_due_date || loan.first_due_date || todayStr)}
                             </span>
                           )}
                           {Number(loan.overdue_amount || 0) > 0 && (
-                            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
+                            <span className="text-rose-600 dark:text-rose-400 font-bold">
                               Overdue: ₹{Number(loan.overdue_amount).toLocaleString('en-IN')}
                             </span>
                           )}
                         </div>
-                        {Number(loan.total_installments || 0) > 0 && (
-                          <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="bg-indigo-600 dark:bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
-                              style={{
-                                width: `${Math.min(100, Math.round(((loan.completed_installments || 0) / loan.total_installments) * 100))}%`,
-                              }}
-                            />
-                          </div>
-                        )}
                       </div>
 
                       {/* Bottom row: Amount & Action button */}
                       <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-white/5 mt-1">
                         <div>
                           <div className="text-[11px] font-medium text-slate-400">
-                            {isPaid ? 'Balance Remaining' : 'Due Amount'}
+                            {isPaid ? 'Balance to Close' : 'Due Amount'}
                           </div>
                           <div
                             className={`text-base sm:text-lg font-black font-heading ${
                               isPaid
-                                ? 'text-slate-600 dark:text-slate-400'
+                                ? 'text-slate-800 dark:text-slate-200'
                                 : isOverdue
                                 ? 'text-rose-600 dark:text-rose-400'
                                 : 'text-slate-900 dark:text-white'
                             }`}
                           >
-                            {isPaid
-                              ? `₹${Number(loan.principal_outstanding || 0).toLocaleString('en-IN')}`
-                              : formatCurrency(due)}
+                            {isPaid ? formatCurrency(balanceToClose) : formatCurrency(due)}
                           </div>
+                          {isPaid && (
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              P: ₹{Number(loan.principal_outstanding || 0).toLocaleString('en-IN')} + I: ₹{Number(loan.interest_outstanding || 0).toLocaleString('en-IN')}
+                            </div>
+                          )}
                         </div>
 
-                        {!isPaid ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isPaid && (
+                            <div className="h-10 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>{isAdvance ? 'Advance' : 'Paid'}</span>
+                            </div>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => openCollectSheet(loan)}
-                            className="h-11 px-5 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 font-heading shrink-0"
+                            className={`h-10 px-4 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer font-heading ${
+                              !isPaid
+                                ? 'bg-gradient-to-tr from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-emerald-600/20'
+                                : 'bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60'
+                            }`}
+                            title={isPaid ? 'Collect advance payment for future days' : 'Collect today due'}
                           >
                             <Coins className="w-4 h-4" />
-                            <span>₹ Collect</span>
+                            <span>{isPaid ? '+ Advance' : '₹ Collect'}</span>
                           </button>
-                        ) : (
-                          <div className="h-10 px-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>{isAdvance ? 'Advance Paid' : 'Paid Today'}</span>
-                          </div>
-                        )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -695,24 +717,6 @@ export default function InterestAgentPortalPage() {
         {/* ========================================================================= */}
         {activeTab === 'handover' && (
           <div className="space-y-4 animate-fadeIn">
-            {/* Cash in Hand Banner */}
-            <div className="rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-700 p-6 text-white shadow-lg shadow-emerald-600/20">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-100">
-                  Cash In Hand
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-semibold">
-                  Shift Active
-                </span>
-              </div>
-              <div className="text-3xl sm:text-4xl font-black mt-2 font-heading tracking-tight">
-                {formatCurrency(summary.today_cash)}
-              </div>
-              <p className="text-xs text-emerald-100 mt-1">
-                Physical cash to be handed over to administrator / owner
-              </p>
-            </div>
-
             {/* Handover Breakdown Card */}
             <div className="rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs space-y-4">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white font-heading">
@@ -819,60 +823,80 @@ export default function InterestAgentPortalPage() {
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5">
                 <div className="text-[11px] text-slate-400">Due Today</div>
                 <div className="text-sm font-black text-slate-900 dark:text-white font-heading mt-0.5">
-                  {formatCurrency(selectedLoan.current_due_amount || selectedLoan.installment_amount || 0)}
+                  {formatCurrency(selectedLoan.current_due_amount || 0)}
                 </div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5">
-                <div className="text-[11px] text-slate-400">Balance Left</div>
+                <div className="text-[11px] text-slate-400">Balance to Close</div>
                 <div className="text-sm font-black text-slate-900 dark:text-white font-heading mt-0.5">
-                  {formatCurrency(selectedLoan.principal_outstanding || 0)}
+                  {formatCurrency(Number(selectedLoan.principal_outstanding || 0) + Number(selectedLoan.interest_outstanding || 0))}
                 </div>
               </div>
             </div>
 
-            {/* Amount Input with Currency Symbol */}
-            <div>
-              <div className="text-center py-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Collection Amount
-                </span>
-                <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white font-mono flex items-center justify-center gap-1">
-                  <span className="text-indigo-600 dark:text-indigo-400">₹</span>
-                  <span>{amountStr || '0'}</span>
+            {/* Amount Input with Currency Symbol & Quick Chips */}
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1.5 font-heading">
+                  Collection Amount (₹)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                    ₹
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    value={amountStr}
+                    onChange={(e) => setAmountStr(e.target.value)}
+                    placeholder="Enter amount..."
+                    className="w-full pl-10 pr-20 py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-2xl font-black text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    autoFocus
+                  />
+                  {amountStr && (
+                    <button
+                      type="button"
+                      onClick={() => setAmountStr('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2.5 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-700/70 cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Quick Amount Chips */}
-              <div className="flex gap-2 justify-center pt-2">
+              <div className="flex gap-2 justify-center flex-wrap pt-1">
                 <button
                   type="button"
                   onClick={() => setAmountStr(String(Number(selectedLoan.current_due_amount || selectedLoan.installment_amount || 0)))}
-                  className="px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-white/5 text-slate-700 dark:text-slate-300 transition-colors"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-white/5 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
                 >
                   Due Amount
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAmountStr(String(Number(selectedLoan.principal_outstanding || 0)))}
-                  className="px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-white/5 text-slate-700 dark:text-slate-300 transition-colors"
+                  onClick={() => setAmountStr(String(Number(selectedLoan.principal_outstanding || 0) + Number(selectedLoan.interest_outstanding || 0)))}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-white/5 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
                 >
                   Full Balance
                 </button>
                 <button
                   type="button"
                   onClick={() => setAmountStr((prev) => String((Number(prev) || 0) + 500))}
-                  className="px-3 py-1 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 transition-colors"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer"
                 >
                   +₹500
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setAmountStr((prev) => String((Number(prev) || 0) + 1000))}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer"
+                >
+                  +₹1,000
+                </button>
               </div>
             </div>
-
-            {/* Numeric Keypad (Eliminates mobile virtual keyboard jumping) */}
-            <Keypad
-              onKeyPress={handleKeypadPress}
-              onDelete={handleKeypadDelete}
-            />
 
             {/* Cash vs UPI Toggle */}
             <div className="grid grid-cols-2 gap-2 pt-1">

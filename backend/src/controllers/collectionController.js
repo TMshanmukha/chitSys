@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
+import { getTodayIST, getCurrentTimeIST } from '../utils/dateUtils.js';
 
 const collectionSchema = z.object({
   group_id: z.number().int().positive('Chit Group selection is required'),
@@ -100,7 +101,7 @@ export async function recordCollection(req, res, next) {
     const chitGroup = groupRows[0];
 
     if (req.user.role === 'COLLECTION_AGENT') {
-      const finalDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date)) ? req.body.collection_date : new Date().toISOString().slice(0, 10);
+      const finalDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date)) ? req.body.collection_date : getTodayIST();
 
       // Check if day submission has already been filed or approved for this date - lock collections!
       const [lockedDay] = await pool.execute(
@@ -129,7 +130,7 @@ export async function recordCollection(req, res, next) {
 
     const finalCollectionDate = (req.body.collection_date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.collection_date))
       ? req.body.collection_date
-      : new Date().toISOString().slice(0, 10);
+      : getTodayIST();
 
     let cycleInfo = null;
     if (chitGroup.frequency === 'MONTHLY') {
@@ -158,11 +159,12 @@ export async function recordCollection(req, res, next) {
     const dateStr = finalCollectionDate.replace(/-/g, '');
     const randSuffix = crypto.randomBytes(2).toString('hex').toUpperCase();
     const receiptNumber = `REC-${dateStr}-${randSuffix}`;
+    const currentTimeIST = getCurrentTimeIST();
 
     const [insertResult] = await pool.execute(
       `INSERT INTO collections 
         (receipt_number, group_id, member_id, agent_id, amount, payment_method, payment_reference, collection_date, collection_time, verification_status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURTIME(), 'PENDING_RECONCILIATION', ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_RECONCILIATION', ?)`,
       [
         receiptNumber,
         validated.group_id,
@@ -172,6 +174,7 @@ export async function recordCollection(req, res, next) {
         validated.payment_method,
         validated.payment_reference || null,
         finalCollectionDate,
+        currentTimeIST,
         finalNotes,
       ]
     );
@@ -253,6 +256,7 @@ export async function recordCollection(req, res, next) {
 
 export async function getCollectionSummary(req, res, next) {
   try {
+    const todayIST = getTodayIST();
     const [[todayRow]] = await pool.execute(`
       SELECT 
         COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'CASH' THEN amount ELSE 0 END), 0) as todayCash,
@@ -261,8 +265,8 @@ export async function getCollectionSummary(req, res, next) {
         COALESCE(SUM(amount), 0) as todayTotal,
         COUNT(id) as todayCount
       FROM collections
-      WHERE collection_date = CURDATE() AND verification_status != 'CANCELLED'
-    `);
+      WHERE collection_date = ? AND verification_status != 'CANCELLED'
+    `, [todayIST]);
 
     const [[totalExpectedRow]] = await pool.execute(`
       SELECT COALESCE(SUM(g.installment_amount * (
@@ -286,7 +290,7 @@ export async function getCollectionSummary(req, res, next) {
 
 export async function getAdminCollectionTasks(req, res, next) {
   try {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getTodayIST();
     const queryDate = (req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)) ? req.query.date : todayStr;
     const filterAssignedToMe = req.query.only_me === 'true';
 

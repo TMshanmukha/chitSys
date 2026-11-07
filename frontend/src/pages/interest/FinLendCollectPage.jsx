@@ -246,9 +246,14 @@ Thank you for your payment!`;
             </div>
           ) : (
             filteredLoans.map((loan) => {
-              const due = Number(loan.current_due_amount || loan.installment_amount || 0);
-              const balance = Number(loan.principal_outstanding || 0);
+              const due = Number(loan.current_due_amount || 0);
+              const isOverdue = loan.oldest_pending_date && loan.oldest_pending_date < todayStr && due > 0;
+              const balanceToClose = Number(loan.principal_outstanding || 0) + Number(loan.interest_outstanding || 0);
               const initial = (loan.customer_name || 'B').charAt(0).toUpperCase();
+              const completedDays = Number(loan.completed_installments || 0);
+              const totalDays = Number(loan.total_installments || 0);
+              const isPaidAhead = loan.paid_until_date && loan.paid_until_date > todayStr;
+              const isPaidToday = loan.paid_until_date && loan.paid_until_date >= todayStr;
 
               return (
                 <div
@@ -256,17 +261,64 @@ Thank you for your payment!`;
                   className="rounded-2xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-white/20 transition-all"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-200/60 dark:border-indigo-800/40 font-heading">
+                    <button
+                      type="button"
+                      onClick={() => window.location.href = `/interest/customers/${loan.customer_id}`}
+                      className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-200/60 dark:border-indigo-800/40 font-heading hover:scale-105 transition-transform cursor-pointer"
+                      title="View Customer Passbook & Charts"
+                    >
                       {initial}
-                    </div>
+                    </button>
                     <div className="min-w-0">
-                      <div className="font-extrabold text-sm text-slate-900 dark:text-white truncate font-heading">
-                        {loan.customer_name}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <a
+                          href={`/interest/customers/${loan.customer_id}`}
+                          className="font-extrabold text-sm text-slate-900 dark:text-white truncate font-heading hover:text-indigo-600 transition-colors"
+                        >
+                          {loan.customer_name}
+                        </a>
+
+                        {/* Status Badge */}
+                        {isOverdue ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/40">
+                            Overdue: {formatCurrency(due)}
+                          </span>
+                        ) : due > 0 ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/40">
+                            Due Today: {formatCurrency(due)}
+                          </span>
+                        ) : isPaidAhead ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/40">
+                            ✓ Paid Ahead ({formatDate(loan.paid_until_date)})
+                          </span>
+                        ) : isPaidToday ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/40">
+                            ✓ Paid Today
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            Up to Date
+                          </span>
+                        )}
+
+                        {/* Days Progress pill */}
+                        {totalDays > 0 && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                            {completedDays}/{totalDays} Days
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+
+                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1">
                         <span>{loan.customer_phone || 'No phone'}</span>
                         <span>•</span>
                         <span className="font-mono text-[11px]">{loan.loan_account_number}</span>
+                        {loan.scheme_name && (
+                          <>
+                            <span>•</span>
+                            <span className="text-slate-400 text-[11px] truncate">{loan.scheme_name}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -274,17 +326,19 @@ Thank you for your payment!`;
                   <div className="flex items-center justify-between sm:justify-end gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-white/5">
                     <div className="text-left sm:text-right">
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                        Due: <strong className="text-slate-900 dark:text-white">{formatCurrency(due)}</strong>
+                        Due: <strong className={due > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                          {due > 0 ? formatCurrency(due) : '₹0 (Paid)'}
+                        </strong>
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                        Balance: <strong className="text-slate-700 dark:text-slate-300">{formatCurrency(balance)}</strong>
+                        Balance to Close: <strong className="text-slate-800 dark:text-slate-200 font-heading">{formatCurrency(balanceToClose)}</strong>
                       </div>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => handleOpenCollect(loan)}
-                      className="py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer active:scale-95 font-heading"
+                      className="py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer active:scale-95 font-heading shrink-0"
                     >
                       <Coins className="w-3.5 h-3.5" />
                       <span>Collect</span>

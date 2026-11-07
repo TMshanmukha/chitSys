@@ -222,7 +222,7 @@ export default function FinLendCustomersPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
                       <span className="flex items-center gap-1">
                         <Phone className="w-3 h-3 text-slate-400" />
                         {c.phone}
@@ -236,16 +236,39 @@ export default function FinLendCustomersPage() {
                           </span>
                         </>
                       )}
+                      {Number(c.active_loans_count || 0) > 0 && (
+                        <>
+                          <span>•</span>
+                          <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                            {c.active_loans_count} Active Loan{c.active_loans_count !== 1 ? 's' : ''}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hidden sm:inline">
-                    Open Passbook
-                  </span>
-                  <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                    <ChevronRight className="w-4 h-4" />
+                <div className="flex items-center gap-4 shrink-0">
+                  {Number(c.total_balance_to_close || 0) > 0 ? (
+                    <div className="text-right hidden sm:block">
+                      <div className="text-[10px] text-slate-400">Balance to Close</div>
+                      <div className="text-xs font-black text-slate-900 dark:text-white font-heading">
+                        {formatCurrency(c.total_balance_to_close)}
+                      </div>
+                    </div>
+                  ) : Number(c.total_loans_count || 0) > 0 ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 hidden sm:inline">
+                      All Settled
+                    </span>
+                  ) : null}
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hidden sm:inline">
+                      Passbook
+                    </span>
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import { pool } from '../config/db.js';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
+import { getTodayIST, getCurrentTimeIST } from '../utils/dateUtils.js';
 
 export async function getRouteTrackingOverview(req, res, next) {
   try {
@@ -65,9 +66,10 @@ export async function getRouteTrackingOverview(req, res, next) {
       [groupIds]
     );
 
+    const todayIST = getTodayIST();
     // Fetch collections on these groups for their respective active cycles:
-    // - Daily groups: c.collection_date = CURDATE() (Day-by-Day tracking)
-    // - Monthly groups: current calendar month YEAR(c.collection_date) = YEAR(CURDATE()) AND MONTH(c.collection_date) = MONTH(CURDATE()) (Month-by-Month tracking)
+    // - Daily groups: c.collection_date = todayIST (Day-by-Day tracking)
+    // - Monthly groups: last 30 days (Month-by-Month tracking)
     const [cycleCollections] = await pool.query(
       `SELECT c.id, c.group_id, c.member_id, c.amount, c.payment_method, c.receipt_number, c.collection_date, c.collection_time, c.notes,
               c.agent_id, u.full_name as agent_name, g.frequency as group_frequency
@@ -77,9 +79,9 @@ export async function getRouteTrackingOverview(req, res, next) {
        WHERE c.group_id IN (?) 
          AND c.verification_status != 'CANCELLED'
          AND (
-           (g.frequency = 'DAILY' AND c.collection_date = CURDATE())
+           (g.frequency = 'DAILY' AND c.collection_date = '${todayIST}')
            OR
-           (g.frequency = 'MONTHLY' AND YEAR(c.collection_date) = YEAR(CURDATE()) AND MONTH(c.collection_date) = MONTH(CURDATE()))
+           (g.frequency = 'MONTHLY' AND c.collection_date >= DATE_SUB('${todayIST}', INTERVAL 30 DAY))
          )
        ORDER BY c.collection_time ASC`,
       [groupIds]
@@ -92,9 +94,9 @@ export async function getRouteTrackingOverview(req, res, next) {
        JOIN chit_groups g ON atl.group_id = g.id
        WHERE atl.group_id IN (?)
          AND (
-           (g.frequency = 'DAILY' AND atl.tracking_date = CURDATE())
+           (g.frequency = 'DAILY' AND atl.tracking_date = '${todayIST}')
            OR
-           (g.frequency = 'MONTHLY' AND YEAR(atl.tracking_date) = YEAR(CURDATE()) AND MONTH(atl.tracking_date) = MONTH(CURDATE()))
+           (g.frequency = 'MONTHLY' AND atl.tracking_date >= DATE_SUB('${todayIST}', INTERVAL 30 DAY))
          )
        ORDER BY atl.id DESC`,
       [groupIds]
@@ -497,10 +499,12 @@ export async function logAgentStopActivity(req, res, next) {
       }
     }
 
+    const todayIST = getTodayIST();
+    const currentTimeIST = getCurrentTimeIST();
     await pool.execute(
       `INSERT INTO agent_tracking_logs (agent_id, group_id, member_id, stop_id, tracking_date, status, last_ping_time, notes)
-       VALUES (?, ?, ?, ?, CURDATE(), ?, CURTIME(), ?)`,
-      [agentId, groupId, targetMemberId, validStopId, targetStatus, notes || null]
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [agentId, groupId, targetMemberId, validStopId, todayIST, targetStatus, currentTimeIST, notes || null]
     );
 
     if (targetStatus === 'PAID') {
