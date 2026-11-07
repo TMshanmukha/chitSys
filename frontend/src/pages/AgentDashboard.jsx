@@ -1122,7 +1122,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
           </div>
         </div>
 
-        {/* Metrics Grid - 6 Cards in Standard Financial Order: Today's Target, Today's Collections, Pending Amount, Today's Tasks, Cash on Hand, UPI / Digital */}
+        {/* Metrics Grid - 6 Cards in Standard Financial Order: Today's Target, Today's Collections, Cash on Hand, UPI / Digital, Pending Amount, Today's Tasks */}
         {(activeTab === 'tasks' || activeTab === 'routes') && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-bold px-1">
@@ -1191,7 +1191,38 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             </div>
           </div>
 
-          {/* 3. Pending Amount */}
+          {/* 3. Cash on Hand */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
+              Cash on Hand
+            </span>
+            <div
+              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate font-mono tracking-tight"
+              title={`₹${Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}`}
+            >
+              ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}
+            </div>
+            <span className="text-[11px] text-slate-400 mt-1 block truncate">To reconcile with admin</span>
+          </div>
+
+          {/* 4. UPI / Digital Collected */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+            <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 block uppercase tracking-wider truncate font-heading">
+              UPI / Digital Collected
+            </span>
+            <div
+              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-purple-600 dark:text-purple-400 mt-1 truncate font-mono tracking-tight"
+              title={`₹${Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}`}
+            >
+              ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
+              <CreditCard className="w-3 h-3 text-purple-500 shrink-0" />
+              <span className="truncate">GPay, PhonePe & Netbanking</span>
+            </div>
+          </div>
+
+          {/* 5. Pending Amount */}
           <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
             <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 block uppercase tracking-wider truncate font-heading">
               Pending Amount
@@ -1208,7 +1239,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             </div>
           </div>
 
-          {/* 4. Today's Tasks (Work Volume) */}
+          {/* 6. Today's Tasks (Work Volume) */}
           <div
             onClick={() => {
               handleTabSwitch('tasks');
@@ -1231,37 +1262,6 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 className="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
                 style={{ width: `${taskProgressPercent}%` }}
               />
-            </div>
-          </div>
-
-          {/* 5. Cash on Hand */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
-              Cash on Hand
-            </span>
-            <div
-              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}`}
-            >
-              ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}
-            </div>
-            <span className="text-[11px] text-slate-400 mt-1 block truncate">To reconcile with admin</span>
-          </div>
-
-          {/* 6. UPI / Digital Collected */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
-            <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 block uppercase tracking-wider truncate font-heading">
-              UPI / Digital Collected
-            </span>
-            <div
-              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-purple-600 dark:text-purple-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}`}
-            >
-              ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
-              <CreditCard className="w-3 h-3 text-purple-500 shrink-0" />
-              <span className="truncate">GPay, PhonePe & Netbanking</span>
             </div>
           </div>
         </div>

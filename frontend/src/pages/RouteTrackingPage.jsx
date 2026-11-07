@@ -655,7 +655,7 @@ export default function RouteTrackingPage() {
 
           </div>
 
-          {/* Grand Executive Summary KPI Strip (Ordered: Target Expected -> Total Inflow -> Pending Amount -> Work Volume -> Cash on Hand -> UPI / Digital) */}
+          {/* Grand Executive Summary KPI Strip (Ordered: Target Expected -> Total Inflow -> Cash on Hand -> UPI / Digital -> Pending Amount -> Work Volume) */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             {/* 1. Target Expected */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
@@ -681,33 +681,7 @@ export default function RouteTrackingPage() {
               <span className="text-[10px] text-slate-400 block mt-0.5">Gross collections achieved</span>
             </div>
 
-            {/* 3. Total Pending */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 shadow-xs">
-              <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Pending Amount</span>
-                <Clock className="w-4 h-4" />
-              </div>
-              <div className="text-lg sm:text-xl font-extrabold text-amber-600 dark:text-amber-400">
-                ₹{Number(ledgerData.summary?.grandPending || 0).toLocaleString('en-IN')}
-              </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">{ledgerData.summary?.averageCompletionPercent || 0}% overall efficiency</span>
-            </div>
-
-            {/* 4. Receipts & Active Agents (Work Volume) */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Work Volume</span>
-                <Receipt className="w-4 h-4 text-blue-500" />
-              </div>
-              <div className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
-                {ledgerData.summary?.grandReceipts || 0} Receipts
-              </div>
-              <span className="text-[10px] text-slate-400 block mt-0.5">
-                {ledgerData.summary?.activeFieldAgentsCount || 0} / {ledgerData.summary?.totalAgentsCount || 0} active agents
-              </span>
-            </div>
-
-            {/* 5. Cash on Hand */}
+            {/* 3. Cash on Hand */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
               <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider">Cash on Hand</span>
@@ -719,7 +693,7 @@ export default function RouteTrackingPage() {
               <span className="text-[10px] text-slate-400 block mt-0.5">Physical currency with agents</span>
             </div>
 
-            {/* 6. Digital / UPI */}
+            {/* 4. Digital / UPI */}
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs">
               <div className="flex items-center justify-between text-purple-600 dark:text-purple-400 mb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider">UPI / Digital Collected</span>
@@ -729,6 +703,32 @@ export default function RouteTrackingPage() {
                 ₹{Number(ledgerData.summary?.grandOnline || 0).toLocaleString('en-IN')}
               </div>
               <span className="text-[10px] text-slate-400 block mt-0.5">UPI, QR & direct bank transfers</span>
+            </div>
+
+            {/* 5. Total Pending */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 shadow-xs">
+              <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Pending Amount</span>
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-amber-600 dark:text-amber-400">
+                ₹{Number(ledgerData.summary?.grandPending || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">{ledgerData.summary?.averageCompletionPercent || 0}% overall efficiency</span>
+            </div>
+
+            {/* 6. Receipts & Active Agents (Work Volume) */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Work Volume</span>
+                <Receipt className="w-4 h-4 text-blue-500" />
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                {ledgerData.summary?.grandReceipts || 0} Receipts
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">
+                {ledgerData.summary?.activeFieldAgentsCount || 0} / {ledgerData.summary?.totalAgentsCount || 0} active agents
+              </span>
             </div>
           </div>
 
@@ -831,7 +831,7 @@ export default function RouteTrackingPage() {
                       )}
                     </div>
 
-                    {/* Financial Metrics Strip (Standardized Order: Target -> Total Collected -> Pending -> Cash -> UPI) */}
+                    {/* Financial Metrics Strip (Standardized Order: Target -> Total Collected -> Cash -> UPI -> Pending) */}
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                       {/* 1. Target Expected */}
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
@@ -853,17 +853,7 @@ export default function RouteTrackingPage() {
                         </div>
                       </div>
 
-                      {/* 3. Pending Amount */}
-                      <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 col-span-2 sm:col-span-1">
-                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
-                          Pending Amount
-                        </span>
-                        <div className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
-                          ₹{Number(agent.pendingAmount || 0).toLocaleString('en-IN')}
-                        </div>
-                      </div>
-
-                      {/* 4. Cash on Hand */}
+                      {/* 3. Cash on Hand */}
                       <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
                         <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
                           Cash on Hand
@@ -873,13 +863,23 @@ export default function RouteTrackingPage() {
                         </div>
                       </div>
 
-                      {/* 5. UPI / Digital Inflow */}
+                      {/* 4. UPI / Digital Inflow */}
                       <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
                         <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
                           UPI / Digital Inflow
                         </span>
                         <div className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
                           ₹{Number(agent.onlineCollected || 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      {/* 5. Pending Amount */}
+                      <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 col-span-2 sm:col-span-1">
+                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+                          Pending Amount
+                        </span>
+                        <div className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
+                          ₹{Number(agent.pendingAmount || 0).toLocaleString('en-IN')}
                         </div>
                       </div>
                     </div>
