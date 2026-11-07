@@ -25,10 +25,13 @@ import {
   CalendarClock,
   Search,
   Download,
+  Phone,
+  MessageSquare,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime, getServerDate } from '../utils/dateUtils';
 import ModalPortal from './ModalPortal';
 import ChitCompletionModal from './ChitCompletionModal';
+import { sendWhatsAppMessage, getChartReminderWhatsAppText, getPassbookWhatsAppText } from '../utils/whatsappUtils';
 
 export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
   const [loading, setLoading] = useState(true);
@@ -1060,8 +1063,8 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                           <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-right text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white">
                             Pending Amount
                           </th>
-                          <th className="py-2.5 px-3 text-center text-xs font-extrabold text-blue-950 dark:text-white w-24">
-                            Passbook
+                          <th className="py-2.5 px-3 text-center text-xs font-extrabold text-blue-950 dark:text-white">
+                            Actions
                           </th>
                         </tr>
                       </thead>
@@ -1118,13 +1121,51 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                                   ₹{Number(m.amountRemaining || 0).toLocaleString('en-IN')}
                                 </td>
                                 <td className="py-2.5 px-3 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenMemberPassbook(m)}
-                                    className="px-2.5 py-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/50 rounded-md border border-blue-200 dark:border-blue-900/60 hover:bg-blue-100 transition-colors cursor-pointer"
-                                  >
-                                    View
-                                  </button>
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    {/* WhatsApp Reminder Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const text = getChartReminderWhatsAppText(m, group, totalPeriods, periodLabel);
+                                        sendWhatsAppMessage(m.phone, text);
+                                      }}
+                                      disabled={!m.phone}
+                                      className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 transition-colors cursor-pointer disabled:opacity-40"
+                                      title={m.phone ? `WhatsApp Reminder for ${m.full_name}` : 'No phone number'}
+                                      aria-label="Send WhatsApp Reminder"
+                                    >
+                                      <MessageSquare className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* Call Button */}
+                                    {m.phone ? (
+                                      <a
+                                        href={`tel:${m.phone.replace(/[^0-9+]/g, '')}`}
+                                        className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
+                                        title={`Call ${m.full_name} (${m.phone})`}
+                                        aria-label="Call Subscriber"
+                                      >
+                                        <Phone className="w-3.5 h-3.5" />
+                                      </a>
+                                    ) : (
+                                      <span
+                                        className="p-1.5 rounded-lg bg-slate-100 text-slate-400 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 opacity-40 cursor-not-allowed"
+                                        title="No phone number"
+                                      >
+                                        <Phone className="w-3.5 h-3.5" />
+                                      </span>
+                                    )}
+
+                                    {/* Passbook View Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenMemberPassbook(m)}
+                                      className="px-2 py-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/50 rounded-md border border-blue-200 dark:border-blue-900/60 hover:bg-blue-100 transition-colors cursor-pointer whitespace-nowrap"
+                                      title="View Passbook"
+                                    >
+                                      Passbook
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -1204,16 +1245,33 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                     Ticket #{selectedChitMember.ticket_number} · Phone: {selectedChitMember.phone}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedChitMember(null);
-                    setPassbookData(null);
-                  }}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {passbookData && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const text = getPassbookWhatsAppText(selectedChitMember, passbookData, group);
+                        sendWhatsAppMessage(selectedChitMember?.phone, text);
+                      }}
+                      disabled={!selectedChitMember?.phone}
+                      className="px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+                      title="Send Passbook Statement on WhatsApp"
+                    >
+                      <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>WhatsApp Passbook</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedChitMember(null);
+                      setPassbookData(null);
+                    }}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-blue-900 dark:text-blue-200 text-xs flex items-center justify-between">

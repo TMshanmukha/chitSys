@@ -40,6 +40,8 @@ import {
   AlertTriangle,
   Info,
   ArrowLeft,
+  MessageSquare,
+  Phone,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime, getServerYMD, getServerDate } from '../utils/dateUtils';
 import ChitHistoryModal from '../components/ChitHistoryModal';
@@ -48,6 +50,7 @@ import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
 import ModalPortal from '../components/ModalPortal';
+import { sendWhatsAppMessage, getReceiptWhatsAppText, getPassbookWhatsAppText } from '../utils/whatsappUtils';
 
 
 /* Helper to dynamically generate guaranteed collision-free unique chit scheme codes */
@@ -3121,6 +3124,21 @@ export function MembersPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                {passbookData && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = getPassbookWhatsAppText(selectedMember, passbookData);
+                      sendWhatsAppMessage(selectedMember?.phone, text);
+                    }}
+                    disabled={!selectedMember?.phone}
+                    className="px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+                    title="Send Full Passbook Statement on WhatsApp"
+                  >
+                    <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>WhatsApp Passbook</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -3934,13 +3952,28 @@ export function CollectionsPage() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setGeneratedReceipt(null)}
-            className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
-          >
-            Dismiss
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const text = getReceiptWhatsAppText(generatedReceipt);
+                const mem = members.find((m) => String(m.id) === String(generatedReceipt.memberId));
+                sendWhatsAppMessage(generatedReceipt.memberPhone || mem?.phone, text);
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs text-xs"
+              title="Send Receipt via WhatsApp"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>WhatsApp Receipt</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setGeneratedReceipt(null)}
+              className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline px-2 py-1 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 
@@ -3957,16 +3990,17 @@ export function CollectionsPage() {
                 <th className="py-3.5 px-4">Amount</th>
                 <th className="py-3.5 px-4">Method</th>
                 <th className="py-3.5 px-4">Recorded By</th>
+                <th className="py-3.5 px-4 text-center">Receipt</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="py-8 text-center text-slate-400">Loading collections ledger...</td>
+                  <td colSpan="8" className="py-8 text-center text-slate-400">Loading collections ledger...</td>
                 </tr>
               ) : collections.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-8 text-center text-slate-500">
+                  <td colSpan="8" className="py-8 text-center text-slate-500">
                     No payment records yet. Click "Record Payment" to enter cash or UPI collections.
                   </td>
                 </tr>
@@ -4003,6 +4037,21 @@ export function CollectionsPage() {
                       </td>
                       <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 font-medium">
                         {c.agent_name}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const text = getReceiptWhatsAppText(c);
+                            const mem = members.find((m) => String(m.id) === String(c.member_id) || m.full_name === c.member_name);
+                            sendWhatsAppMessage(c.member_phone || mem?.phone, text);
+                          }}
+                          className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors cursor-pointer"
+                          title="Share Receipt on WhatsApp"
+                          aria-label="Share Receipt on WhatsApp"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   ))

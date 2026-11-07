@@ -63,6 +63,7 @@ import WelcomeCelebrationModal from '../components/WelcomeCelebrationModal';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ModalPortal from '../components/ModalPortal';
+import { sendWhatsAppMessage, getReceiptWhatsAppText } from '../utils/whatsappUtils';
 
 export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const { user, logout } = useAuth();
@@ -4322,22 +4323,37 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="space-y-2">
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                onClick={() => {
+                  const text = getReceiptWhatsAppText(receiptModal);
+                  sendWhatsAppMessage(receiptModal?.memberPhone, text);
+                }}
+                disabled={!receiptModal?.memberPhone}
+                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs disabled:opacity-40"
               >
-                <Printer className="w-4 h-4" />
-                <span>Print Receipt</span>
+                <MessageSquare className="w-4 h-4" />
+                <span>Send via WhatsApp</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setReceiptModal(null)}
-                className="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Done
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print Receipt</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReceiptModal(null)}
+                  className="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </ModalPortal>
@@ -4572,6 +4588,31 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
               {/* Form Footer */}
               <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/50 dark:bg-slate-800/40">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = isPaid
+                      ? getReceiptWhatsAppText({
+                          receiptNumber: member?.receipt_number,
+                          memberName: member?.full_name,
+                          groupName: group?.group_name,
+                          groupCode: group?.group_code,
+                          amount: member?.collected_amount || group?.installment_amount,
+                          paymentMethod: member?.payment_method || 'CASH',
+                          agentName: user?.full_name || 'Field Agent',
+                          date: getServerYMD(),
+                        })
+                      : `*CHITFUND PRO - PAYMENT REMINDER*\nSubscriber: ${member?.full_name}\nChit Scheme: ${group?.group_name} (${group?.group_code || ''})\nInstallment Due: ₹${Number(remainingDueAmt || group?.installment_amount || 0).toLocaleString('en-IN')}\n\nPlease clear your pending chit installment today. Thank you!`;
+                    sendWhatsAppMessage(member?.phone, text);
+                  }}
+                  disabled={!member?.phone}
+                  className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+                  title="Send WhatsApp Message"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
+                </button>
+
                 {!isPaid && (
                   <>
                     <button

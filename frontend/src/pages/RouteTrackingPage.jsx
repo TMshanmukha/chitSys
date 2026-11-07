@@ -49,6 +49,7 @@ import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
 import ModalPortal from '../components/ModalPortal';
+import { sendWhatsAppMessage, getReceiptWhatsAppText } from '../utils/whatsappUtils';
 
 export default function RouteTrackingPage() {
   const [loading, setLoading] = useState(true);
@@ -2472,6 +2473,30 @@ export default function RouteTrackingPage() {
                                 <div className="text-[11px] text-slate-500 mt-0.5 font-sans">
                                   Note: {selectedStop.notes}
                                 </div>
+                              )}
+                              {selectedStop.collectionDetails && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const text = getReceiptWhatsAppText({
+                                      receiptNumber: selectedStop.collectionDetails.receiptNumber,
+                                      memberName: selectedStop.memberName,
+                                      groupName: activeRouteGroup?.group_name,
+                                      groupCode: activeRouteGroup?.group_code,
+                                      amount: selectedStop.collectionDetails.amount,
+                                      paymentMethod: selectedStop.collectionDetails.paymentMethod,
+                                      agentName: activeRouteGroup?.agent_name || 'Agent',
+                                      date: trackingDate,
+                                    });
+                                    sendWhatsAppMessage(selectedStop.memberPhone, text);
+                                  }}
+                                  disabled={!selectedStop.memberPhone}
+                                  className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-sans text-[11px] font-bold transition-colors cursor-pointer shadow-2xs disabled:opacity-40"
+                                  title="Send Receipt via WhatsApp"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span>WhatsApp Receipt</span>
+                                </button>
                               )}
                             </div>
                           ) : (
