@@ -148,7 +148,7 @@ export default function AdminCommissionsPage() {
       const res = await api.post('/admin/pending-dues/recover', {
         advance_id: adv.id,
         recovered_amount: adv.advance_amount,
-        notes: 'Repaid by subscriber and confirmed on Admin Profile',
+        notes: 'Repaid by subscriber and confirmed on Profile Ledger',
       });
       if (res.data?.success) {
         await loadData(true);
@@ -642,12 +642,12 @@ export default function AdminCommissionsPage() {
           </div>
         </div>
 
-        {/* Metric 7: Auction Advances & Member Deficits Ledger */}
+        {/* Metric 7: Auction Member Receivables Ledger */}
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Auction Advances & Member Receivables
+                Auction Dues & Member Receivables
               </span>
               {Number(advancesSummary.pendingMembersCount || 0) > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
@@ -664,11 +664,11 @@ export default function AdminCommissionsPage() {
               ₹{(advancesSummary.pendingAdvancesAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </p>
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Total Added: <strong className="text-slate-800 dark:text-slate-200">₹{(advancesSummary.totalAdvancesAdded || 0).toLocaleString('en-IN')}</strong> · Recovered: <strong className="text-emerald-600 dark:text-emerald-400">₹{(advancesSummary.recoveredAdvancesAmount || 0).toLocaleString('en-IN')}</strong>
+              Total Dues: <strong className="text-slate-800 dark:text-slate-200">₹{(advancesSummary.totalAdvancesAdded || 0).toLocaleString('en-IN')}</strong> · Recovered: <strong className="text-emerald-600 dark:text-emerald-400">₹{(advancesSummary.recoveredAdvancesAmount || 0).toLocaleString('en-IN')}</strong>
             </div>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            <span>Money Added by Admin/Firm to complete auctions when members have not paid</span>
+            <span>Unpaid member installment dues pending recovery across chit schemes</span>
             <button
               type="button"
               onClick={() => {
@@ -677,7 +677,7 @@ export default function AdminCommissionsPage() {
               }}
               className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
             >
-              View Member Advance Ledger →
+              View Member Receivables Ledger →
             </button>
           </div>
         </div>
@@ -762,7 +762,7 @@ export default function AdminCommissionsPage() {
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          <span>Auction Advances & Member Dues ({adminAdvances.length})</span>
+          <span>Member Receivables & Dues ({adminAdvances.length})</span>
           {Number(advancesSummary.pendingMembersCount || 0) > 0 && (
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">
               {advancesSummary.pendingMembersCount}
@@ -1320,7 +1320,7 @@ export default function AdminCommissionsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
             <div>
               <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Auction Advances & Member Deficits Ledger</span>
+                <span>Member Receivables & Unpaid Dues Ledger</span>
                 {Number(advancesSummary.pendingMembersCount || 0) > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
                     {advancesSummary.pendingMembersCount} Pending Recovery
@@ -1328,7 +1328,7 @@ export default function AdminCommissionsPage() {
                 )}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Amounts added by Administrator or firm to cover unpaid subscribers during auctions, tracked per member and chit scheme until repayment
+                Unpaid subscriber installment dues tracked per member and chit scheme until full recovery and settlement
               </p>
             </div>
 
@@ -1352,7 +1352,7 @@ export default function AdminCommissionsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs">
               <div>
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px] font-medium">Total Advances Added</span>
+                <span className="text-slate-500 dark:text-slate-400 block text-[11px] font-medium">Total Dues Recorded</span>
                 <span className="text-base font-extrabold text-slate-900 dark:text-white">
                   ₹{Number(advancesSummary.totalAdvancesAdded || 0).toLocaleString('en-IN')}
                 </span>
@@ -1372,7 +1372,7 @@ export default function AdminCommissionsPage() {
 
             <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between text-xs">
               <div>
-                <span className="text-emerald-800 dark:text-emerald-300 block text-[11px] font-bold">Recovered to Admin</span>
+                <span className="text-emerald-800 dark:text-emerald-300 block text-[11px] font-bold">Total Dues Recovered</span>
                 <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
                   ₹{Number(advancesSummary.recoveredAdvancesAmount || 0).toLocaleString('en-IN')}
                 </span>
@@ -1423,9 +1423,9 @@ export default function AdminCommissionsPage() {
           {filteredAdvances.length === 0 ? (
             <div className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
               <CreditCard className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700 mb-2" />
-              <p className="font-semibold">No auction advance records found.</p>
+              <p className="font-semibold">No unpaid member dues found.</p>
               <p className="text-xs text-slate-400 mt-1">
-                When an auction is conducted and unpaid member amounts are covered by the administrator, they appear here.
+                When an auction is conducted with unpaid subscriber installments, dues appear here for recovery.
               </p>
             </div>
           ) : (
@@ -1436,8 +1436,8 @@ export default function AdminCommissionsPage() {
                     <tr>
                       <th className="py-3 px-3">Subscriber Member</th>
                       <th className="py-3 px-3">Respective Chit Scheme</th>
-                      <th className="py-3 px-3 font-bold text-amber-600 dark:text-amber-400">Advance Covered</th>
-                      <th className="py-3 px-3">Added By</th>
+                      <th className="py-3 px-3 font-bold text-amber-600 dark:text-amber-400">Unpaid Due</th>
+                      <th className="py-3 px-3">Recorded By</th>
                       <th className="py-3 px-3">Date Added</th>
                       <th className="py-3 px-3">Status</th>
                       <th className="py-3 px-3">Notes</th>
@@ -1500,7 +1500,7 @@ export default function AdminCommissionsPage() {
                             </button>
                           ) : (
                             <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                              ✓ Repaid to Admin
+                              ✓ Fully Recovered
                             </span>
                           )}
                         </td>

@@ -1901,7 +1901,7 @@ export async function settleAdminAdvance(req, res, next) {
       `UPDATE admin_member_advances
        SET status = 'RECOVERED', recovered_amount = ?, recovered_date = ?, notes = CONCAT(COALESCE(notes, ''), ' | Recovered: ', ?)
        WHERE id = ?`,
-      [recAmount, todayIST, notes || 'Fully repaid by subscriber to admin', advanceId]
+      [recAmount, todayIST, notes || 'Fully repaid by subscriber', advanceId]
     );
 
     await recordAuditLog({
@@ -1921,7 +1921,7 @@ export async function settleAdminAdvance(req, res, next) {
     createNotification({
       targetRole: 'ADMIN',
       title: `✅ Recovered: ₹${recAmount.toLocaleString('en-IN')}`,
-      message: `Subscriber ${adv.member_name} (Ticket #${adv.ticket_number || ''}) has repaid ₹${recAmount.toLocaleString('en-IN')} to Admin for scheme ${adv.group_name}. Advance settled.`,
+      message: `Subscriber ${adv.member_name} (Ticket #${adv.ticket_number || ''}) has repaid ₹${recAmount.toLocaleString('en-IN')} for scheme ${adv.group_name}. Dues settled.`,
       type: 'COLLECTION',
       link: '/admin/reports',
     }).catch(() => { });

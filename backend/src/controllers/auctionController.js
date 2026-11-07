@@ -536,7 +536,7 @@ export async function conductAuction(req, res, next) {
                 shortfall,
                 validated.auction_date,
                 `Round #${validated.period_number}`,
-                `Round #${validated.period_number} auction shortfall deficit owed to Admin`,
+                `Round #${validated.period_number} auction shortfall installment due`,
                 req.user.id,
               ]
             );

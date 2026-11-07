@@ -530,7 +530,7 @@ export default function AuctionsPage() {
 
       if (res.data?.success) {
         setAdminAdvanceModal(null);
-        setAdvanceSuccess(res.data.message || 'Amount added successfully by Admin!');
+        setAdvanceSuccess(res.data.message || 'Amount recorded successfully!');
         if (selectedSchemeId) {
           await loadSchemeBreakdown(selectedSchemeId);
         }
@@ -540,14 +540,14 @@ export default function AuctionsPage() {
         await loadData();
       }
     } catch (err) {
-      setError(getFriendlyErrorMessage(err, 'Failed to record Admin covered amount.'));
+      setError(getFriendlyErrorMessage(err, 'Failed to record installment dues coverage.'));
     } finally {
       setAdvanceSubmitting(false);
     }
   };
 
   const handleSettleAdvance = async (advanceId, memberName, amount) => {
-    if (!window.confirm(`Confirm that ${memberName} has repaid ₹${Number(amount).toLocaleString('en-IN')} to Admin? This will settle the pending recovery.`)) {
+    if (!window.confirm(`Confirm that ${memberName} has repaid ₹${Number(amount).toLocaleString('en-IN')}? This will settle the pending recovery.`)) {
       return;
     }
     try {
@@ -555,7 +555,7 @@ export default function AuctionsPage() {
       const res = await api.post('/admin/pending-dues/recover', {
         advance_id: advanceId,
         recovered_amount: amount,
-        notes: 'Repaid by subscriber to admin',
+        notes: 'Repaid by subscriber',
       });
       if (res.data?.success) {
         setAdvanceSuccess(`Successfully recorded repayment of ₹${Number(amount).toLocaleString('en-IN')} from ${memberName}.`);
@@ -1033,15 +1033,6 @@ export default function AuctionsPage() {
                   </span>
                   <span className="text-[9px] text-slate-400 block">Directly by subscribers</span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60">
-                  <span className="text-amber-600 dark:text-amber-400 block text-[10px] uppercase font-bold">Pending Amount</span>
-                  <span className="text-base font-extrabold text-amber-600 dark:text-amber-400">
-                    ₹{totalPendingDues.toLocaleString('en-IN')}
-                  </span>
-                  <span className="text-[9px] text-amber-600 dark:text-amber-400 block font-semibold">
-                    Total unpaid installment dues
-                  </span>
-                </div>
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60">
                   <span className="text-rose-600 dark:text-rose-400 block text-[10px] uppercase font-bold">Pending Members Count</span>
                   <span className="text-base font-extrabold text-rose-600 dark:text-rose-400">
@@ -1049,6 +1040,15 @@ export default function AuctionsPage() {
                   </span>
                   <span className="text-[9px] text-rose-600 dark:text-rose-400 block font-semibold">
                     Subscribers with unpaid dues
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60">
+                  <span className="text-amber-600 dark:text-amber-400 block text-[10px] uppercase font-bold">Pending Amount</span>
+                  <span className="text-base font-extrabold text-amber-600 dark:text-amber-400">
+                    ₹{totalPendingDues.toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-[9px] text-amber-600 dark:text-amber-400 block font-semibold">
+                    Total unpaid installment dues
                   </span>
                 </div>
               </div>
@@ -1858,7 +1858,7 @@ export default function AuctionsPage() {
                     </span>
                   </div>
                   <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed pl-6">
-                    As per chit fund practice, auction is conducted up to the full chit pool amount. Any subscriber installment shortfall automatically adds as a <strong>Pending Amount to Admin</strong> from respective member(s) once this auction completes.
+                    As per chit fund practice, auction is conducted up to the full chit pool amount. Any subscriber installment shortfall automatically adds as a <strong>Pending Member Due</strong> from respective member(s) once this auction completes.
                   </p>
                 </div>
               )}

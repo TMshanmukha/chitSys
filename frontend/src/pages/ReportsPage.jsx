@@ -143,7 +143,7 @@ export default function ReportsPage() {
   };
 
   const handleSettleAdvance = async (advanceId, memberName, amount) => {
-    if (!window.confirm(`Confirm that ${memberName} has repaid ₹${Number(amount).toLocaleString('en-IN')} to Admin? This will settle the pending recovery.`)) {
+    if (!window.confirm(`Confirm that ${memberName} has repaid ₹${Number(amount).toLocaleString('en-IN')}? This will settle the pending recovery.`)) {
       return;
     }
     try {
@@ -151,7 +151,7 @@ export default function ReportsPage() {
       const res = await api.post('/admin/pending-dues/recover', {
         advance_id: advanceId,
         recovered_amount: amount,
-        notes: 'Repaid by subscriber to admin',
+        notes: 'Repaid by subscriber',
       });
       if (res.data?.success) {
         setAdvanceSuccess(`Successfully recorded repayment of ₹${Number(amount).toLocaleString('en-IN')} from ${memberName}.`);
@@ -968,7 +968,7 @@ export default function ReportsPage() {
                                 type="button"
                                 onClick={() => handleSettleAdvance(d.advanceId, d.memberName, d.dueAmount)}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
-                                title="Mark as repaid by member to admin"
+                                title="Mark as repaid by member"
                               >
                                 <Check className="w-3.5 h-3.5" />
                                 <span>Mark Repaid</span>
