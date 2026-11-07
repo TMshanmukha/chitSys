@@ -146,7 +146,9 @@ export default function AdminCommissionsPage() {
     try {
       setRecoveringId(adv.id);
       const res = await api.post('/admin/pending-dues/recover', {
-        advance_id: adv.id,
+        advance_id: adv.advance_id || adv.id,
+        group_id: adv.group_id,
+        member_id: adv.member_id,
         recovered_amount: adv.advance_amount,
         notes: 'Repaid by subscriber and confirmed on Profile Ledger',
       });
