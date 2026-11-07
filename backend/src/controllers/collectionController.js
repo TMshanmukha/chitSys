@@ -238,7 +238,6 @@ export async function recordCollection(req, res, next) {
       link: '/admin/collections',
     }).catch(() => {});
 
-    const installmentAmt = parseFloat(chitGroup.installment_amount || 0);
     const remainingBalance = Math.max(0, installmentAmt - validated.amount);
 
     res.status(201).json({
