@@ -292,7 +292,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
       id="chit-history-modal"
       className="print:p-0 print:bg-white print:fixed print:inset-0"
     >
-      <div className="relative w-full max-w-5xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto print:max-h-none print:shadow-none print:border-none">
+      <div className="relative w-full max-w-6xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto print:max-h-none print:shadow-none print:border-none">
         
         {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4 bg-slate-50/70 dark:bg-slate-900/90 shrink-0">
@@ -358,80 +358,86 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
         </div>
 
         {/* Pill Tabs Selector */}
-        <div className="px-5 sm:px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 overflow-x-auto shrink-0 print:hidden">
+        <div className="px-3 sm:px-5 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-1 sm:gap-1.5 shrink-0 print:hidden overflow-hidden">
           <button
             type="button"
             onClick={() => setActiveTab('charts')}
-            className={`px-3.5 py-1.5 rounded-lg border text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+            className={`flex-1 min-w-0 px-1 sm:px-2 py-1.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
               activeTab === 'charts'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-xs'
                 : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40'
             }`}
+            title="1. Member Charts"
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>1. Member Charts</span>
+            <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">1. Member Charts</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 px-1 sm:px-2 py-1.5 rounded-lg border text-[11px] sm:text-xs font-semibold transition-all cursor-pointer text-center truncate ${
               activeTab === 'overview'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
+            title="2. Financial Overview"
           >
-            2. Financial Overview
+            <span className="truncate">2. Financial Overview</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('members')}
-            className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 px-1 sm:px-2 py-1.5 rounded-lg border text-[11px] sm:text-xs font-semibold transition-all cursor-pointer text-center truncate ${
               activeTab === 'members'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
+            title={`3. Subscribers (${members.length})`}
           >
-            3. Enrolled Subscribers ({members.length})
+            <span className="truncate">3. Subscribers ({members.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('collections')}
-            className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 px-1 sm:px-2 py-1.5 rounded-lg border text-[11px] sm:text-xs font-semibold transition-all cursor-pointer text-center truncate ${
               activeTab === 'collections'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
+            title={`4. Collections (${collections.length})`}
           >
-            4. Collection Ledger ({collections.length} Receipts)
+            <span className="truncate">4. Collections ({collections.length})</span>
           </button>
 
           {group?.chit_type !== 'DAILY_CHIT' && (
             <button
               type="button"
               onClick={() => setActiveTab('auctions')}
-              className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0 cursor-pointer ${
+              className={`flex-1 min-w-0 px-1 sm:px-2 py-1.5 rounded-lg border text-[11px] sm:text-xs font-semibold transition-all cursor-pointer text-center truncate ${
                 activeTab === 'auctions'
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
               }`}
+              title={`5. Auctions (${auctions.length})`}
             >
-              5. Auction & Dividend Draws ({auctions.length})
+              <span className="truncate">5. Auctions ({auctions.length})</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={() => setActiveTab('nodes')}
-            className={`px-3.5 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 px-1 sm:px-2 py-1.5 rounded-lg border text-[11px] sm:text-xs font-semibold transition-all cursor-pointer text-center truncate ${
               activeTab === 'nodes'
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
+            title={`${group?.chit_type !== 'DAILY_CHIT' ? '6. Chit Nodes' : '5. Chit Nodes'} (${stops.length})`}
           >
-            {group?.chit_type !== 'DAILY_CHIT' ? '6. Assigned Chit Nodes' : '5. Assigned Chit Nodes'} ({stops.length})
+            <span className="truncate">{group?.chit_type !== 'DAILY_CHIT' ? '6. Chit Nodes' : '5. Chit Nodes'} ({stops.length})</span>
           </button>
         </div>
 
