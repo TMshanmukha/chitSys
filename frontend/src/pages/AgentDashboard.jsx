@@ -3583,8 +3583,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   <span>
                     {currentDaySubmission?.status === 'APPROVED'
                       ? 'View Approved Handover'
-                      : currentDaySubmission?.status === 'PENDING_APPROVAL'
-                      ? 'View Submitted Handover'
+                      : currentDaySubmission
+                      ? 'Update / Re-Submit Handover'
                       : 'Submit Day Work to Admin'}
                   </span>
                 </button>

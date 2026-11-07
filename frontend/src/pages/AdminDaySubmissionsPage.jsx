@@ -467,7 +467,7 @@ export default function AdminDaySubmissionsPage() {
                               : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300'
                           }`}
                         >
-                          {sub.status}
+                          {isApproved ? 'Approved & Closed' : isPending ? 'Pending Verification' : 'Discrepancy Flagged'}
                         </span>
                       </div>
 
@@ -480,7 +480,7 @@ export default function AdminDaySubmissionsPage() {
                         <span className="font-mono">
                           Submitted: {sub.submitted_at ? formatDateTime(sub.submitted_at) : 'N/A'}
                         </span>
-                        {sub.approved_by_name && (
+                        {isApproved && sub.approved_by_name && (
                           <>
                             <span>·</span>
                             <span className="text-emerald-600 font-bold">
@@ -631,109 +631,135 @@ export default function AdminDaySubmissionsPage() {
                     )}
 
                     {/* Cash Counting & Verification Action Box */}
-                    <div className="p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Banknote className="w-5 h-5 text-amber-600" />
-                        <h4 className="font-extrabold text-sm text-amber-950 dark:text-amber-200 font-heading">
-                          Physical Cash Counting & Verification Actions
-                        </h4>
-                      </div>
-
-                      <div className="grid sm:grid-cols-2 gap-4 text-xs">
-                        <div>
-                          <label className="block font-bold text-amber-900 dark:text-amber-300 mb-1">
-                            Counted Physical Cash (₹) *
-                          </label>
-                          <input
-                            type="number"
-                            value={form.cash}
-                            onChange={(e) =>
-                              setVerifyForms((vf) => ({
-                                ...vf,
-                                [sub.id]: { ...form, cash: parseFloat(e.target.value) || 0 },
-                              }))
-                            }
-                            className="w-full rounded-xl border border-amber-300 dark:border-amber-700 p-2.5 font-bold font-mono bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          />
-                          <span className="text-[10px] text-amber-700 dark:text-amber-400 mt-1 block">
-                            Reported by agent: ₹{Number(sub.cash_collected).toLocaleString('en-IN')}
-                          </span>
+                    {isApproved ? (
+                      <div className="p-5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-300 dark:border-emerald-700 flex items-center justify-center shrink-0">
+                            <Check className="w-5 h-5 text-emerald-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-extrabold text-sm text-emerald-950 dark:text-emerald-200 font-heading">
+                                Day Shift Formally Approved & Closed
+                              </span>
+                              <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                                (Closed by {sub.approved_by_name || 'Admin'}{sub.approved_at ? ` on ${formatDateTime(sub.approved_at)}` : ''})
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs font-semibold text-slate-700 dark:text-slate-300 flex-wrap">
+                              <span>Verified Cash: <strong className="text-emerald-700 dark:text-emerald-300 font-mono">₹{Number(sub.verified_cash_amount ?? sub.cash_collected).toLocaleString('en-IN')}</strong></span>
+                              <span>·</span>
+                              <span>Verified UPI: <strong className="text-purple-700 dark:text-purple-300 font-mono">₹{Number(sub.verified_upi_amount ?? sub.upi_collected).toLocaleString('en-IN')}</strong></span>
+                              {sub.admin_notes && (
+                                <span className="text-slate-500 italic block w-full mt-0.5">Admin Note: "{sub.admin_notes}"</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        <div>
-                          <label className="block font-bold text-amber-900 dark:text-amber-300 mb-1">
-                            Verified UPI / Digital Amount (₹) *
-                          </label>
-                          <input
-                            type="number"
-                            value={form.upi}
-                            onChange={(e) =>
-                              setVerifyForms((vf) => ({
-                                ...vf,
-                                [sub.id]: { ...form, upi: parseFloat(e.target.value) || 0 },
-                              }))
-                            }
-                            className="w-full rounded-xl border border-amber-300 dark:border-amber-700 p-2.5 font-bold font-mono bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          />
-                          <span className="text-[10px] text-purple-700 dark:text-purple-400 mt-1 block">
-                            Bank Statement match: ₹{Number(sub.upi_collected).toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-amber-900 dark:text-amber-300 mb-1">
-                          Admin Verification Notes (Optional / Required if Discrepancy)
-                        </label>
-                        <input
-                          type="text"
-                          value={form.notes}
-                          onChange={(e) =>
-                            setVerifyForms((vf) => ({
-                              ...vf,
-                              [sub.id]: { ...form, notes: e.target.value },
-                            }))
-                          }
-                          placeholder="Note down currency denominations, safe deposit receipt, or discrepancy details..."
-                          className="w-full rounded-xl border border-amber-300 dark:border-amber-700 p-2.5 text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-end gap-3 pt-2 flex-wrap">
                         <button
                           type="button"
                           disabled={submittingAction}
                           onClick={() => handleUnlockSubmission(sub.id)}
-                          className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                          title="Unlock shift so agent can record additional collections"
+                          className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-sm"
+                          title="Unlock shift so agent can modify collections and re-submit"
                         >
                           <LockOpen className="w-4 h-4" />
-                          <span>Unlock for Re-collection</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={submittingAction}
-                          onClick={() => handleAction(sub, 'REJECTED_DISCREPANCY')}
-                          className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                        >
-                          <X className="w-4 h-4" />
-                          <span>Flag Cash Discrepancy</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={submittingAction}
-                          onClick={() => handleAction(sub, 'APPROVED')}
-                          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-colors cursor-pointer"
-                        >
-                          <Check className="w-4 h-4" />
-                          <span>
-                            {isApproved ? 'Update Approved Closure' : 'Approve & Close Day Shift'}
-                          </span>
+                          <span>Unlock Day Shift</span>
                         </button>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Banknote className="w-5 h-5 text-amber-600" />
+                          <h4 className="font-extrabold text-sm text-amber-950 dark:text-amber-200 font-heading">
+                            Physical Cash Counting & Verification Actions
+                          </h4>
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 gap-4 text-xs">
+                          <div>
+                            <label className="block font-bold text-amber-900 dark:text-amber-300 mb-1">
+                              Counted Physical Cash (₹) *
+                            </label>
+                            <input
+                              type="number"
+                              value={form.cash}
+                              onChange={(e) =>
+                                setVerifyForms((vf) => ({
+                                  ...vf,
+                                  [sub.id]: { ...form, cash: parseFloat(e.target.value) || 0 },
+                                }))
+                              }
+                              className="w-full rounded-xl border border-amber-300 dark:border-amber-700 p-2.5 font-bold font-mono bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            />
+                            <span className="text-[10px] text-amber-700 dark:text-amber-400 mt-1 block">
+                              Reported by agent: ₹{Number(sub.cash_collected).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+
+                          <div>
+                            <label className="block font-bold text-amber-900 dark:text-amber-300 mb-1">
+                              Verified UPI / Digital Amount (₹) *
+                            </label>
+                            <input
+                              type="number"
+                              value={form.upi}
+                              onChange={(e) =>
+                                setVerifyForms((vf) => ({
+                                  ...vf,
+                                  [sub.id]: { ...form, upi: parseFloat(e.target.value) || 0 },
+                                }))
+                              }
+                              className="w-full rounded-xl border border-amber-300 dark:border-amber-700 p-2.5 font-bold font-mono bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            />
+                            <span className="text-[10px] text-purple-700 dark:text-purple-400 mt-1 block">
+                              Bank Statement match: ₹{Number(sub.upi_collected).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-amber-900 dark:text-amber-300 mb-1">
+                            Admin Verification Notes (Optional / Required if Discrepancy)
+                          </label>
+                          <input
+                            type="text"
+                            value={form.notes}
+                            onChange={(e) =>
+                              setVerifyForms((vf) => ({
+                                ...vf,
+                                [sub.id]: { ...form, notes: e.target.value },
+                              }))
+                            }
+                            placeholder="Note down currency denominations, safe deposit receipt, or discrepancy details..."
+                            className="w-full rounded-xl border border-amber-300 dark:border-amber-700 p-2.5 text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 pt-2 flex-wrap">
+                          <button
+                            type="button"
+                            disabled={submittingAction}
+                            onClick={() => handleAction(sub, 'REJECTED_DISCREPANCY')}
+                            className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                            <span>Flag Cash Discrepancy</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={submittingAction}
+                            onClick={() => handleAction(sub, 'APPROVED')}
+                            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-colors cursor-pointer"
+                          >
+                            <Check className="w-4 h-4" />
+                            <span>Approve & Close Day Shift</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </article>

@@ -460,10 +460,12 @@ export async function submitAgentDayWork(req, res, next) {
       payloadJson,
     } = await calculateDayWorkData(agentId, workDate);
 
+    const normalizedWorkDate = String(workDate).slice(0, 10);
+
     // 7. Check if an active submission already exists for this agent and date
     const [existing] = await pool.query(
-      `SELECT id, status FROM agent_day_submissions WHERE agent_id = ? AND work_date = ? LIMIT 1`,
-      [agentId, workDate]
+      `SELECT id, status FROM agent_day_submissions WHERE agent_id = ? AND DATE(work_date) = DATE(?) ORDER BY id DESC LIMIT 1`,
+      [agentId, normalizedWorkDate]
     );
 
     let submissionId;
@@ -472,7 +474,7 @@ export async function submitAgentDayWork(req, res, next) {
       if (existing[0].status === 'APPROVED') {
         return res.status(400).json({
           success: false,
-          message: `Day handover for ${workDate} has already been approved and closed by Admin.`,
+          message: `Day handover for ${normalizedWorkDate} has already been approved and closed by Admin. Please request Admin to unlock your shift if you need to make changes.`,
         });
       }
 
@@ -489,7 +491,12 @@ export async function submitAgentDayWork(req, res, next) {
              chit_breakdown_json = ?,
              agent_notes = ?,
              status = 'PENDING_APPROVAL',
-             submitted_at = CURRENT_TIMESTAMP
+             submitted_at = CURRENT_TIMESTAMP,
+             approved_by = NULL,
+             approved_at = NULL,
+             approval_date = NULL,
+             verified_cash_amount = NULL,
+             verified_upi_amount = NULL
          WHERE id = ?`,
         [
           cashCollected,
@@ -512,7 +519,7 @@ export async function submitAgentDayWork(req, res, next) {
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')`,
         [
           agentId,
-          workDate,
+          normalizedWorkDate,
           cashCollected,
           upiCollected,
           chequeCollected,
@@ -954,25 +961,39 @@ export async function unlockDaySubmissionForAdmin(req, res, next) {
       ? submission.work_date.slice(0, 10)
       : new Date(submission.work_date).toISOString().slice(0, 10);
 
+    // Reset status to PENDING_APPROVAL and completely clear all approval markers and notes
     await pool.query(
       `UPDATE agent_day_submissions 
-       SET status = 'REJECTED_DISCREPANCY', 
-           admin_remarks = CONCAT(COALESCE(admin_remarks, ''), ' [Unlocked by Admin for additional collections]')
+       SET status = 'PENDING_APPROVAL', 
+           approved_by = NULL,
+           approved_at = NULL,
+           approval_date = NULL,
+           verified_cash_amount = NULL,
+           verified_upi_amount = NULL,
+           admin_notes = NULL
        WHERE id = ?`,
       [id]
     );
 
+    // Reset collections verification_status back to PENDING_RECONCILIATION
+    await pool.query(
+      `UPDATE collections
+       SET verification_status = 'PENDING_RECONCILIATION'
+       WHERE agent_id = ? AND collection_date = ? AND verification_status = 'RECONCILED'`,
+      [submission.agent_id, workDateStr]
+    );
+
     await createNotification({
       userId: submission.agent_id,
-      title: 'Day Shift Unlocked for Collections',
-      message: `Admin has unlocked your day shift for ${workDateStr}. You can now record additional collections and resubmit when ready.`,
+      title: 'Day Shift Unlocked by Admin',
+      message: `Admin has unlocked your day shift for ${workDateStr}. You can now review, update collections, and re-submit your day closing.`,
       type: 'COLLECTION',
       link: '/agent/day-closing'
     });
 
     res.json({
       success: true,
-      message: `Day shift for ${workDateStr} unlocked. ${submission.agent_name} can now record collections and resubmit.`
+      message: `Day shift for ${workDateStr} unlocked successfully. ${submission.agent_name} can now update collections and re-submit.`
     });
   } catch (error) {
     next(error);
