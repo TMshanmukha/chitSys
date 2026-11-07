@@ -541,17 +541,28 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     });
   }, [tasksList, taskFrequencyFilter, taskChitFilter]);
 
-  // For agent tasks: if admin paid amount of any member, that member shows PAID!
-  const totalTasksCount = baseSchemeTasks.length;
-  const completedTasksCount = baseSchemeTasks.filter((t) => t.isPaid).length;
-  const pendingTasksCount = baseSchemeTasks.filter((t) => !t.isPaid).length;
+  // Agent's active tasks: tasks already collected directly by Admin at office are deducted from agent quota
+  const agentActiveTasks = useMemo(() => {
+    return baseSchemeTasks.filter((t) => !t.isPaidToAdmin);
+  }, [baseSchemeTasks]);
+
+  const totalTasksCount = agentActiveTasks.length;
+  const completedTasksCount = agentActiveTasks.filter((t) => t.isPaid).length;
+  const pendingTasksCount = agentActiveTasks.filter((t) => !t.isPaid).length;
   const adminPaidTasksCount = baseSchemeTasks.filter((t) => t.isPaidToAdmin).length;
-  const remarksTasksCount = baseSchemeTasks.filter((t) => t.hasCustomRemark).length;
+  const remarksTasksCount = agentActiveTasks.filter((t) => t.hasCustomRemark).length;
   const taskProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
+  // Actual pending dues strictly across agent's active unpaid tasks:
+  const totalTaskPendingAmount = useMemo(() => {
+    return agentActiveTasks
+      .filter((t) => !t.isPaid)
+      .reduce((sum, t) => sum + (t.remainingBalance || t.expectedAmount), 0);
+  }, [agentActiveTasks]);
+
   const totalTargetExpected = useMemo(() => {
-    return baseSchemeTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
-  }, [baseSchemeTasks]);
+    return agentActiveTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
+  }, [agentActiveTasks]);
 
   const filteredTasks = useMemo(() => {
     return baseSchemeTasks.filter((t) => {
@@ -642,21 +653,23 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
     const targetExpected = isDue ? activeMembers.length * installmentAmt : 0;
 
-    const cashCollected = groupMembers
+    const cashCollected = activeMembers
       .filter((m) => m.payment_method === 'CASH')
       .reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
 
-    const upiCollected = groupMembers
+    const upiCollected = activeMembers
       .filter((m) => m.payment_method === 'UPI' || (m.payment_method && m.payment_method.toUpperCase().includes('UPI')))
       .reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
 
-    const onlineCollected = groupMembers
+    const onlineCollected = activeMembers
       .filter((m) => m.payment_method && m.payment_method !== 'CASH')
       .reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
 
-    const totalCollected = groupMembers.reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
-    const pendingAmount = isDue ? Math.max(0, targetExpected - totalCollected) : 0;
-    const progressPercent = targetExpected > 0 ? Math.round((totalCollected / targetExpected) * 100) : (totalCollected > 0 ? 100 : 0);
+    const totalCollected = cashCollected + onlineCollected;
+    const pendingAmount = isDue
+      ? unpaidMembers.reduce((sum, m) => sum + Number(m.remaining_balance || installmentAmt), 0)
+      : 0;
+    const progressPercent = targetExpected > 0 ? Math.min(100, Math.round((totalCollected / targetExpected) * 100)) : (totalCollected > 0 ? 100 : 0);
 
     const isAuction = !isDaily || group.chit_type === 'AUCTION_CHIT';
     const isDouble = isDaily && group.chit_type === 'DOUBLE_CHIT';
@@ -664,8 +677,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     return {
       groupMembers,
       activeMembers,
+      agentMembers: activeMembers,
       adminPaidMembers,
       adminPaidCount: adminPaidMembers.length,
+      adminPaidAmount: adminPaidMembers.reduce((sum, m) => sum + Number(m.admin_collected_amount || m.collected_amount || installmentAmt), 0),
       effectiveTasksCount: activeMembers.length,
       paidMembers,
       fullyPaidMembers,
@@ -676,6 +691,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       isDouble,
       isDue,
       targetExpected,
+      agentTargetExpected: targetExpected,
       cashCollected,
       upiCollected,
       onlineCollected,
@@ -1261,9 +1277,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             </span>
             <div
               className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${targetRemainingAmount.toLocaleString('en-IN')}`}
+              title={`₹${totalTaskPendingAmount.toLocaleString('en-IN')}`}
             >
-              ₹{targetRemainingAmount.toLocaleString('en-IN')}
+              ₹{totalTaskPendingAmount.toLocaleString('en-IN')}
             </div>
             <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
               <Clock className="w-3 h-3 text-amber-500 shrink-0" />
@@ -2848,7 +2864,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                         <div className="space-y-1 pt-1">
                           <div className="flex justify-between text-[10px] font-bold text-slate-500">
                             <span>Progress</span>
-                            <span>{stats.paidMembers.length}/{stats.groupMembers.length} Paid ({stats.progressPercent}%)</span>
+                            <span>{stats.paidMembers.length}/{stats.agentMembers.length} Paid ({stats.progressPercent}%)</span>
                           </div>
                           <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                             <div
@@ -3098,7 +3114,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                               <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
                                 <span>Cycle Collection Progress</span>
                                 <span>
-                                  <strong>{stats.paidMembers.length}</strong> of {stats.groupMembers.length} Subscribers Paid ({stats.progressPercent}%) · Total Collected: <strong>₹{stats.totalCollected.toLocaleString('en-IN')}</strong>
+                                  <strong>{stats.paidMembers.length}</strong> of {stats.agentMembers.length} Subscribers Paid ({stats.progressPercent}%) · Total Collected: <strong>₹{stats.totalCollected.toLocaleString('en-IN')}</strong>
                                 </span>
                               </div>
                               <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
