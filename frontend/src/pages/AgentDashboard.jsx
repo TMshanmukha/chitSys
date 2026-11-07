@@ -462,6 +462,17 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             ? Math.max(0, expectedAmount - collectedAmount)
             : 0;
 
+        const isPaidToAdmin = Boolean(
+          (isPaid || m.is_paid) && (
+            m.is_paid_to_admin ||
+            m.task_deducted ||
+            m.collected_by_admin ||
+            m.completed_by_role === 'ADMIN' ||
+            m.completed_by_role === 'SUPER_ADMIN' ||
+            (m.completed_by_name && !m.completed_by_name.toLowerCase().includes((user?.full_name || '').toLowerCase()))
+          )
+        );
+
         const hasCustomRemark =
           Boolean(m.today_notes) &&
           m.today_notes !== 'Awaiting payment' &&
@@ -486,9 +497,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
           collectedAmount,
           remainingBalance,
           isPaid,
+          isPaidToAdmin,
           isPartial,
-          nodeColor: m.node_color || (isPaid ? 'GREEN' : (isPartial ? 'YELLOW' : 'RED')),
-          statusLabel: isPaid ? 'Paid' : (isPartial ? 'Partial' : (m.status_label || 'Unpaid')),
+          nodeColor: isPaidToAdmin ? 'GREEN' : (m.node_color || (isPaid ? 'GREEN' : (isPartial ? 'YELLOW' : 'RED'))),
+          statusLabel: isPaidToAdmin ? 'Paid to Admin' : (isPaid ? 'Paid' : (isPartial ? 'Partial' : (m.status_label || 'Unpaid'))),
           notes: m.today_notes,
           hasCustomRemark,
           receiptNumber: m.receipt_number,
@@ -508,7 +520,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       });
     });
     return list;
-  }, [routesData.groups, routesData.members, scheduleViewMode]);
+  }, [routesData.groups, routesData.members, scheduleViewMode, user]);
 
   // Routes visible on the Agent Profile:
   // All assigned schemes (both Daily and Monthly) are visible and collectible at all times!
@@ -529,20 +541,38 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     });
   }, [tasksList, taskFrequencyFilter, taskChitFilter]);
 
-  const totalTasksCount = baseSchemeTasks.length;
-  const completedTasksCount = baseSchemeTasks.filter((t) => t.isPaid).length;
-  const pendingTasksCount = baseSchemeTasks.filter((t) => !t.isPaid).length;
-  const remarksTasksCount = baseSchemeTasks.filter((t) => t.hasCustomRemark).length;
-  const taskProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+  // Active agent tasks: exclude members who already paid directly to Admin/Office
+  // If normally total tasks is 5 and 1 member paid to admin, total tasks becomes 4!
+  const activeAgentTasks = useMemo(() => {
+    return baseSchemeTasks.filter((t) => !t.isPaidToAdmin);
+  }, [baseSchemeTasks]);
+
+  const adminPaidTasks = useMemo(() => {
+    return baseSchemeTasks.filter((t) => t.isPaidToAdmin);
+  }, [baseSchemeTasks]);
+
+  const totalTasksCount = activeAgentTasks.length;
+  const completedTasksCount = activeAgentTasks.filter((t) => t.isPaid).length;
+  const pendingTasksCount = activeAgentTasks.filter((t) => !t.isPaid).length;
+  const adminPaidTasksCount = adminPaidTasks.length;
+  const remarksTasksCount = activeAgentTasks.filter((t) => t.hasCustomRemark).length;
+  const taskProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : (adminPaidTasksCount > 0 ? 100 : 0);
 
   const totalTargetExpected = useMemo(() => {
-    return baseSchemeTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
-  }, [baseSchemeTasks]);
+    return activeAgentTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
+  }, [activeAgentTasks]);
 
   const filteredTasks = useMemo(() => {
     return baseSchemeTasks.filter((t) => {
-      if (taskFilter === 'PENDING' && t.isPaid) return false;
-      if (taskFilter === 'COMPLETED' && !t.isPaid) return false;
+      if (taskFilter === 'PENDING') {
+        if (t.isPaid || t.isPaidToAdmin) return false;
+      }
+      if (taskFilter === 'COMPLETED') {
+        if (!t.isPaid || t.isPaidToAdmin) return false;
+      }
+      if (taskFilter === 'ADMIN_PAID') {
+        if (!t.isPaidToAdmin) return false;
+      }
       if (taskFilter === 'REMARKS' && !t.hasCustomRemark) return false;
 
       if (taskSearch.trim()) {
@@ -599,21 +629,27 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const getGroupStats = (group) => {
     const groupMembers = (routesData.members || []).filter((m) => m.group_id === group.id);
     const installmentAmt = Number(group.installment_amount || 0);
+
+    const adminPaidMembers = groupMembers.filter((m) => Boolean(
+      m.is_paid_to_admin || m.task_deducted || m.collected_by_admin || m.completed_by_role === 'ADMIN' || m.completed_by_role === 'SUPER_ADMIN'
+    ));
+    const activeMembers = groupMembers.filter((m) => !adminPaidMembers.includes(m));
+
     // STRICT: only count as fully paid if backend confirmed it AND installment > 0
-    const fullyPaidMembers = groupMembers.filter(
+    const fullyPaidMembers = activeMembers.filter(
       (m) => Boolean(m.is_paid) && installmentAmt > 0
     );
-    const partialMembers = groupMembers.filter(
+    const partialMembers = activeMembers.filter(
       (m) => !Boolean(m.is_paid) && Number(m.total_cycle_collected || 0) > 0
     );
     const paidMembers = fullyPaidMembers;
-    const unpaidMembers = groupMembers.filter(
+    const unpaidMembers = activeMembers.filter(
       (m) => !Boolean(m.is_paid) && Number(m.total_cycle_collected || 0) === 0
     );
     const isDaily = group.frequency === 'DAILY';
     const isDue = isDaily || isCollectionDayForMonthly;
 
-    const targetExpected = isDue ? groupMembers.length * installmentAmt : 0;
+    const targetExpected = isDue ? activeMembers.length * installmentAmt : 0;
 
     const cashCollected = groupMembers
       .filter((m) => m.payment_method === 'CASH')
@@ -636,6 +672,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
     return {
       groupMembers,
+      activeMembers,
+      adminPaidMembers,
+      adminPaidCount: adminPaidMembers.length,
+      effectiveTasksCount: activeMembers.length,
       paidMembers,
       fullyPaidMembers,
       partialMembers,
@@ -682,9 +722,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     if (totalTargetExpected > 0) return totalTargetExpected;
     const profileTarget = Number(user?.daily_target || user?.target_amount || 0);
     if (profileTarget > 0) return profileTarget;
-    // Fallback: sum of all installment amounts * member count
+    // Fallback: sum of all installment amounts * active member count (excluding members paid to admin)
     return (routesData.groups || []).reduce((sum, g) => {
-      const mCount = (routesData.members || []).filter((m) => m.group_id === g.id).length;
+      const mCount = (routesData.members || []).filter((m) => m.group_id === g.id && !m.is_paid_to_admin).length;
       return sum + (mCount * Number(g.installment_amount || 0));
     }, 0);
   }, [totalRouteTargetExpected, totalTargetExpected, user, routesData.groups, routesData.members]);
@@ -1317,6 +1357,20 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   >
                     Collected ({completedTasksCount})
                   </button>
+                  {adminPaidTasksCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTaskFilter('ADMIN_PAID')}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        taskFilter === 'ADMIN_PAID'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100'
+                      }`}
+                      title="Subscribers who gave money directly to Admin/Office (Deducted from your task count)"
+                    >
+                      <span>⚡ Paid to Admin ({adminPaidTasksCount})</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setTaskFilter('REMARKS')}
@@ -1615,14 +1669,16 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   const isDouble =
                     group.chit_type === 'DOUBLE_CHIT' ||
                     (group.group_name || '').toLowerCase().includes('double');
-                  const groupPaidCount = groupTasks.filter((t) => t.isPaid).length;
-                  const groupTotalCount = groupTasks.length;
+                  const groupAdminPaidCount = groupTasks.filter((t) => t.isPaidToAdmin).length;
+                  const groupActiveTasks = groupTasks.filter((t) => !t.isPaidToAdmin);
+                  const groupPaidCount = groupActiveTasks.filter((t) => t.isPaid).length;
+                  const groupTotalCount = groupActiveTasks.length;
                   const groupPercent =
-                    groupTotalCount > 0 ? Math.round((groupPaidCount / groupTotalCount) * 100) : 0;
-                  const groupCollectedAmt = groupTasks
+                    groupTotalCount > 0 ? Math.round((groupPaidCount / groupTotalCount) * 100) : (groupAdminPaidCount > 0 ? 100 : 0);
+                  const groupCollectedAmt = groupActiveTasks
                     .filter((t) => t.isPaid)
                     .reduce((sum, t) => sum + (t.rawMember?.collected_amount || t.expectedAmount), 0);
-                  const groupTargetAmt = groupTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
+                  const groupTargetAmt = groupActiveTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
 
                   return (
                     <div
@@ -1701,6 +1757,11 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                             </span>
                             <span className="text-[10px] text-slate-400 font-medium">
                               {groupPaidCount} of {groupTotalCount} stops ({groupPercent}%)
+                              {groupAdminPaidCount > 0 && (
+                                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300">
+                                  ⚡ {groupAdminPaidCount} Paid to Admin (-{groupAdminPaidCount} Task)
+                                </span>
+                              )}
                             </span>
                           </div>
                           <div className="w-16 bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
@@ -1725,7 +1786,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                           <div
                             key={`${task.groupId}-${task.memberId}`}
                             className={`p-4 rounded-2xl border transition-all duration-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                              task.isPaid
+                              task.isPaidToAdmin
+                                ? 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-900/40'
+                                : task.isPaid
                                 ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40'
                                 : task.isPartial
                                 ? 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800'
@@ -1738,14 +1801,16 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                             <div className="flex items-start gap-3 flex-1 min-w-0">
                               <div
                                 className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-xs ${
-                                  task.isPaid
+                                  task.isPaidToAdmin
+                                    ? 'bg-purple-600 text-white'
+                                    : task.isPaid
                                     ? 'bg-emerald-600 text-white'
                                     : task.isPartial
                                     ? 'bg-amber-500 text-white'
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                 }`}
                               >
-                                {task.isPaid ? '✓' : task.isPartial ? '½' : `#${task.ticketNumber}`}
+                                {task.isPaidToAdmin ? '🏛️' : task.isPaid ? '✓' : task.isPartial ? '½' : `#${task.ticketNumber}`}
                               </div>
 
                               <div className="space-y-1 flex-1 min-w-0">
@@ -1763,8 +1828,13 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                   >
                                     Ticket #{task.ticketNumber} · {task.groupCode}
                                   </span>
+                                  {task.isPaidToAdmin && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 border border-purple-300">
+                                      ⚡ PAID TO ADMIN (TASK DEDUCTED)
+                                    </span>
+                                  )}
                                   {task.isTemporaryCoverage && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Covering {task.absentAgentName || 'absent agent'}</span>}
-                                  {task.isPaid && task.completedByName && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Completed by {task.completedByName}</span>}
+                                  {task.isPaid && !task.isPaidToAdmin && task.completedByName && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Completed by {task.completedByName}</span>}
                                   {task.isPartial && (
                                     <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400/60">
                                       PARTIAL PAID
@@ -1793,7 +1863,12 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                 </div>
 
                                 {/* Status / Remark banner */}
-                                {task.isPaid ? (
+                                {task.isPaidToAdmin ? (
+                                  <div className="text-[11px] text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-1.5 mt-1 bg-purple-50 dark:bg-purple-950/40 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                    <span>Paid directly to Office / Admin ({task.completedByName || 'Admin'}) · Task Deducted from Agent Target</span>
+                                  </div>
+                                ) : task.isPaid ? (
                                   <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1 mt-1">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                     <span>
@@ -1839,15 +1914,25 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                             <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
                               <div className="text-right">
                                 <span className="text-[10px] text-slate-400 block uppercase font-bold">
-                                  {task.isPartial ? 'Remaining Balance' : 'Due Amount'}
+                                  {task.isPaidToAdmin ? 'Paid to Office' : task.isPartial ? 'Remaining Balance' : 'Due Amount'}
                                 </span>
-                                <span className={`text-base font-extrabold ${task.isPartial ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                                  ₹{(task.isPartial ? task.remainingBalance : task.expectedAmount).toLocaleString('en-IN')}
+                                <span className={`text-base font-extrabold ${task.isPaidToAdmin ? 'text-purple-600 dark:text-purple-400' : task.isPartial ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                  ₹{(task.isPaidToAdmin ? (task.collectedAmount || task.expectedAmount) : task.isPartial ? task.remainingBalance : task.expectedAmount).toLocaleString('en-IN')}
                                 </span>
                               </div>
 
                               <div className="flex items-center gap-1.5">
-                                {task.isPaid ? (
+                                {task.isPaidToAdmin ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openReceiptForPaidMember(task.rawGroup, task.rawMember)}
+                                    className="px-3 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-200 dark:border-purple-800 flex items-center gap-1 cursor-pointer transition-colors"
+                                    title="View Office collection receipt"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Receipt</span>
+                                  </button>
+                                ) : task.isPaid ? (
                                   <button
                                     type="button"
                                     onClick={() => openReceiptForPaidMember(task.rawGroup, task.rawMember)}
@@ -2134,7 +2219,11 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                         </button>
 
                                         {/* Prominent Synchronous Status Badge with Cycle Label */}
-                                        {isPaid ? (
+                                        {member.is_paid_to_admin ? (
+                                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-400 dark:border-purple-700 flex items-center gap-1">
+                                            <span>🏛️ PAID TO ADMIN</span>
+                                          </span>
+                                        ) : isPaid ? (
                                           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 flex items-center gap-1">
                                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                             <span>{isDaily ? 'PAID TODAY' : 'PAID FOR MONTH'}</span>
@@ -2208,7 +2297,16 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                     </button>
 
                                     <div className="flex items-center gap-2 ml-auto">
-                                      {isPaid ? (
+                                      {member.is_paid_to_admin ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => openReceiptForPaidMember(group, member)}
+                                          className="px-3 py-1.5 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-200 dark:border-purple-800 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                        >
+                                          <Printer className="w-3.5 h-3.5" />
+                                          <span>Paid to Admin</span>
+                                        </button>
+                                      ) : isPaid ? (
                                         <button
                                           type="button"
                                           onClick={() => openReceiptForPaidMember(group, member)}

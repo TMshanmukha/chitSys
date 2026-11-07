@@ -347,7 +347,7 @@ export async function getMyAssignedRoutes(req, res, next) {
       // 2. Fetch collections for assigned groups within the last 60 days
       const [colls] = await pool.query(
         `SELECT c.id, c.group_id, c.member_id, c.amount, c.payment_method, c.receipt_number,
-                c.collection_date, c.collection_time, c.notes, collector.full_name AS collector_name, collector.role AS collector_role
+                c.collection_date, c.collection_time, c.notes, c.agent_id, collector.full_name AS collector_name, collector.role AS collector_role
          FROM collections c
          LEFT JOIN users collector ON collector.id=c.agent_id
          WHERE c.group_id IN (?) AND c.verification_status != 'CANCELLED'
@@ -416,8 +416,25 @@ export async function getMyAssignedRoutes(req, res, next) {
         const nodeColor = isFullyPaid ? 'GREEN' : (isPartiallyPaid ? 'YELLOW' : 'RED');
         const latestColl = inCycleColls[0] || null;
 
+        // Check if member paid directly to admin/office or another collector
+        const hasAdminColl = inCycleColls.some((c) => {
+          const role = (c.collector_role || '').toUpperCase();
+          const collAgentId = c.agent_id != null ? Number(c.agent_id) : null;
+          return role === 'ADMIN' || role === 'SUPER_ADMIN' || (collAgentId !== null && collAgentId !== Number(agentId));
+        });
+        const isPaidToAdmin = Boolean(isFullyPaid && hasAdminColl);
+        const adminCollectedAmt = inCycleColls
+          .filter((c) => {
+            const role = (c.collector_role || '').toUpperCase();
+            const collAgentId = c.agent_id != null ? Number(c.agent_id) : null;
+            return role === 'ADMIN' || role === 'SUPER_ADMIN' || (collAgentId !== null && collAgentId !== Number(agentId));
+          })
+          .reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
         let defaultNote = '';
-        if (isFullyPaid) {
+        if (isPaidToAdmin) {
+          defaultNote = `Paid directly to Office / Admin (${latestColl?.collector_name || 'Admin'}) · Task Deducted`;
+        } else if (isFullyPaid) {
           defaultNote = isDaily ? 'Paid for today' : `Paid for monthly cycle (Due: ${g?.cycle_due})`;
         } else if (isPartiallyPaid) {
           defaultNote = `Partial collection (Paid: ₹${collectedAmt.toLocaleString('en-IN')}, Remaining: ₹${remainingBalance.toLocaleString('en-IN')})`;
@@ -435,15 +452,17 @@ export async function getMyAssignedRoutes(req, res, next) {
         }
 
         const notes = latestColl?.notes || atl?.notes || defaultNote;
-        const statusLabel = isFullyPaid 
-          ? (isDaily ? 'Paid for Today' : 'Paid for Month')
-          : (isPartiallyPaid 
-              ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')})` 
-              : (isDaily 
-                  ? 'Not Paid Today' 
-                  : (g?.has_time_remaining 
-                      ? `In Progress (${g.cycle_days_remaining}d left)` 
-                      : (g?.is_deadline_today ? 'Due Today!' : 'Overdue'))));
+        const statusLabel = isPaidToAdmin
+          ? 'Paid to Admin'
+          : isFullyPaid 
+            ? (isDaily ? 'Paid for Today' : 'Paid for Month')
+            : (isPartiallyPaid 
+                ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')})` 
+                : (isDaily 
+                    ? 'Not Paid Today' 
+                    : (g?.has_time_remaining 
+                        ? `In Progress (${g.cycle_days_remaining}d left)` 
+                        : (g?.is_deadline_today ? 'Due Today!' : 'Overdue'))));
 
         return {
           group_id: m.group_id,
@@ -458,6 +477,11 @@ export async function getMyAssignedRoutes(req, res, next) {
           kyc_type: m.kyc_type || 'Aadhaar Card',
           kyc_number: m.kyc_number || 'Verified',
           is_paid: isPaid,
+          is_paid_to_admin: isPaidToAdmin,
+          collected_by_admin: hasAdminColl,
+          admin_collected_amount: adminCollectedAmt,
+          task_deducted: isPaidToAdmin,
+          task_deducted_reason: isPaidToAdmin ? 'Paid directly to Office / Admin' : null,
           is_partial: isPartiallyPaid,
           pending_amount: remainingBalance,
           remaining_balance: remainingBalance,
@@ -471,7 +495,7 @@ export async function getMyAssignedRoutes(req, res, next) {
           cycle_type: m.group_frequency,
           cycle_mode: isDaily ? 'DAY_BY_DAY' : 'MONTH_BY_MONTH',
           cycle_period_label: isDaily ? 'Daily Installment' : `Monthly Installment (Due: ${g?.cycle_due})`,
-          node_color: nodeColor,
+          node_color: isPaidToAdmin ? 'GREEN' : nodeColor,
           today_notes: notes,
           cycle_notes: notes,
           receipt_number: latestColl?.receipt_number || null,
@@ -494,6 +518,24 @@ export async function getMyAssignedRoutes(req, res, next) {
       });
     }
 
+    // Attach task deduction counts per group
+    const finalGroups = enrichedGroups.map((g) => {
+      const gMembers = members.filter((m) => m.group_id === g.id);
+      const totalEnrolled = gMembers.length;
+      const adminPaid = gMembers.filter((m) => m.is_paid_to_admin).length;
+      const effectiveTasks = Math.max(0, totalEnrolled - adminPaid);
+      const agentCompleted = gMembers.filter((m) => !m.is_paid_to_admin && m.is_paid).length;
+      const agentPending = gMembers.filter((m) => !m.is_paid_to_admin && !m.is_paid).length;
+      return {
+        ...g,
+        total_subscribers: totalEnrolled,
+        admin_paid_count: adminPaid,
+        effective_tasks_count: effectiveTasks,
+        agent_completed_count: agentCompleted,
+        agent_pending_count: agentPending,
+      };
+    });
+
     // Today's collections by this agent
     const [todayCollections] = await pool.execute(
       `SELECT COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'CASH' THEN amount ELSE 0 END), 0) as todayCash,
@@ -510,24 +552,29 @@ export async function getMyAssignedRoutes(req, res, next) {
       [agentId, todayStr]
     );
 
-    const dailyGroups = enrichedGroups.filter((g) => g.frequency === 'DAILY');
-    const monthlyGroups = enrichedGroups.filter((g) => g.frequency === 'MONTHLY');
+    const dailyGroups = finalGroups.filter((g) => g.frequency === 'DAILY');
+    const monthlyGroups = finalGroups.filter((g) => g.frequency === 'MONTHLY');
     const dailyMembers = members.filter((m) => m.cycle_type === 'DAILY');
     const monthlyMembers = members.filter((m) => m.cycle_type === 'MONTHLY');
+    const activeDailyMembers = dailyMembers.filter((m) => !m.is_paid_to_admin);
+    const activeMonthlyMembers = monthlyMembers.filter((m) => !m.is_paid_to_admin);
 
     res.status(200).json({
       success: true,
       data: {
-        groups: enrichedGroups,
+        groups: finalGroups,
         members,
         summary: {
           ...todayCollections[0],
           dailyGroupsCount: dailyGroups.length,
           monthlyGroupsCount: monthlyGroups.length,
-          dailyMembersCount: dailyMembers.length,
-          monthlyMembersCount: monthlyMembers.length,
-          dailyPaidMembersCount: dailyMembers.filter((m) => m.is_paid).length,
-          monthlyPaidMembersCount: monthlyMembers.filter((m) => m.is_paid).length,
+          dailyMembersCount: activeDailyMembers.length,
+          monthlyMembersCount: activeMonthlyMembers.length,
+          totalAssignedSubscribers: members.length,
+          adminDeductedTasksCount: members.filter((m) => m.is_paid_to_admin).length,
+          effectiveAgentTasksCount: members.filter((m) => !m.is_paid_to_admin).length,
+          dailyPaidMembersCount: activeDailyMembers.filter((m) => m.is_paid).length,
+          monthlyPaidMembersCount: activeMonthlyMembers.filter((m) => m.is_paid).length,
         },
       },
     });

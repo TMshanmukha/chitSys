@@ -95,3 +95,4 @@ Verified Receipts Issued: ${receiptsCount}
 
 Official account passbook record issued by ChitFund Pro. For statement inquiries, please contact management.`;
 }
+

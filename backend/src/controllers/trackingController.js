@@ -160,7 +160,7 @@ export async function getRouteTrackingOverview(req, res, next) {
     // - Monthly groups: last 30 days (Month-by-Month tracking)
     const [cycleCollections] = await pool.query(
       `SELECT c.id, c.group_id, c.member_id, c.amount, c.payment_method, c.receipt_number, c.collection_date, c.collection_time, c.notes,
-              c.agent_id, u.full_name as agent_name, g.frequency as group_frequency
+              c.agent_id, u.full_name as agent_name, u.role as collector_role, g.frequency as group_frequency
        FROM collections c
        JOIN chit_groups g ON c.group_id = g.id
        JOIN users u ON c.agent_id = u.id
@@ -293,6 +293,14 @@ export async function getRouteTrackingOverview(req, res, next) {
         const isFullyPaid = memberTotalPaid > 0 && expectedAmt > 0 && memberTotalPaid >= expectedAmt;
         const isPartiallyPaid = !isFullyPaid && memberTotalPaid > 0;
 
+        // Check if member paid directly to office/admin
+        const hasAdminColl = memberColls.some((c) => {
+          const role = (c.collector_role || '').toUpperCase();
+          const collAgentId = c.agent_id != null ? Number(c.agent_id) : null;
+          return role === 'ADMIN' || role === 'SUPER_ADMIN' || (grp.agent_id && collAgentId !== Number(grp.agent_id));
+        });
+        const isPaidToAdmin = Boolean(isFullyPaid && hasAdminColl);
+
         let status = 'NOT_PAID'; // NOT PAID (Red)
         let nodeColor = 'RED'; // 'GREEN' | 'YELLOW' | 'RED'
         let statusText = isDaily ? 'Not Paid (Today)' : 'Not Paid (This Month)';
@@ -302,7 +310,7 @@ export async function getRouteTrackingOverview(req, res, next) {
         if (isFullyPaid) {
           status = 'PAID';
           nodeColor = 'GREEN';
-          statusText = isDaily ? 'Paid for Today' : 'Paid for Current Month';
+          statusText = isPaidToAdmin ? 'Paid to Admin' : (isDaily ? 'Paid for Today' : 'Paid for Current Month');
           paidCount++;
           // Track the latest paid stop index by actual collection time, not array order
           const collTime = latestColl?.collection_time || latestColl?.collection_date || null;
@@ -318,9 +326,13 @@ export async function getRouteTrackingOverview(req, res, next) {
               paymentMethod: latestColl.payment_method,
               date: latestColl.collection_date,
               time: latestColl.collection_time,
+              collectorRole: latestColl.collector_role,
+              collectorName: latestColl.agent_name,
             };
           }
-          notes = latestColl?.notes || log?.notes || (isDaily ? 'Paid for today' : 'Paid for current monthly cycle');
+          notes = isPaidToAdmin
+            ? `Paid directly to Office / Admin (${latestColl?.agent_name || 'Admin'}) · Task Deducted`
+            : (latestColl?.notes || log?.notes || (isDaily ? 'Paid for today' : 'Paid for current monthly cycle'));
         } else if (isPartiallyPaid) {
           status = 'PARTIAL';
           nodeColor = 'YELLOW';
@@ -390,6 +402,9 @@ export async function getRouteTrackingOverview(req, res, next) {
           totalPaid: memberTotalPaid,
           remainingBalance: remainingBalance,
           isPaid: isFullyPaid,
+          isPaidToAdmin: Boolean(isPaidToAdmin),
+          collectedByAdmin: Boolean(hasAdminColl),
+          taskDeducted: Boolean(isPaidToAdmin),
           isPartial: isPartiallyPaid,
           coordX,
           coordY,
@@ -472,7 +487,12 @@ export async function getRouteTrackingOverview(req, res, next) {
         monthlyOnlineCollected += onlineCollected;
       }
 
-      const routeTargetAmount = totalStops * parseFloat(grp.installment_amount || 0);
+      const adminPaidStopsCount = mappedStops.filter((s) => s.isPaidToAdmin).length;
+      const effectiveAgentStops = Math.max(0, totalStops - adminPaidStopsCount);
+      const agentCompletedStops = mappedStops.filter((s) => !s.isPaidToAdmin && s.isPaid).length;
+      const agentPendingStops = Math.max(0, effectiveAgentStops - agentCompletedStops);
+
+      const routeTargetAmount = effectiveAgentStops * parseFloat(grp.installment_amount || 0);
       const routeTotalCollected = cashCollected + onlineCollected;
       const routePendingAmount = Math.max(0, routeTargetAmount - routeTotalCollected);
 
@@ -499,8 +519,14 @@ export async function getRouteTrackingOverview(req, res, next) {
         isTemporaryCoverage: Boolean(grp.is_temporary_coverage),
         absentAgentName: grp.absent_agent_name || null,
         absentAgentId: grp.absent_agent_id || null,
+        adminPaidCount: adminPaidStopsCount,
+        effectiveAgentStops,
         stats: {
           totalStops,
+          adminPaidStopsCount,
+          effectiveAgentStops,
+          agentCompletedStops,
+          agentPendingStops,
           visitedStops: paidCount,
           pendingStops: totalStops - paidCount,
           progressPercent,

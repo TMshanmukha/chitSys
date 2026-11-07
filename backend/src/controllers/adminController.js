@@ -1487,8 +1487,8 @@ export async function getAgentsDailyPerformance(req, res, next) {
     }
 
     if (agentId && agentId !== 'ALL') {
-      collQuery += ' AND c.agent_id = ?';
-      collParams.push(agentId);
+      collQuery += ' AND (c.agent_id = ? OR c.group_id IN (SELECT group_id FROM agent_group_assignments WHERE agent_id = ?))';
+      collParams.push(agentId, agentId);
     }
 
     collQuery += ' ORDER BY c.collection_date DESC, c.collection_time DESC';
@@ -1575,6 +1575,15 @@ export async function getAgentsDailyPerformance(req, res, next) {
       const agentCollections = collections.filter((c) => c.agent_id === agent.id);
       const agentLogs = trackingLogs.filter((l) => l.agent_id === agent.id);
 
+      // Check collections on this agent's routes collected directly by office/admin
+      const routeGroupIds = new Set(agentRoutes.map((r) => r.group_id));
+      const adminCollectionsOnRoutes = collections.filter(
+        (c) => routeGroupIds.has(c.group_id) && c.agent_id !== agent.id
+      );
+      const totalAdminPaidAmount = adminCollectionsOnRoutes.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+      const adminPaidMemberIds = new Set(adminCollectionsOnRoutes.map((c) => c.member_id));
+      const adminPaidSubscribersCount = adminPaidMemberIds.size;
+
       // Financial calculations
       const cashCollected = agentCollections
         .filter((c) => c.payment_method === 'CASH')
@@ -1586,7 +1595,7 @@ export async function getAgentsDailyPerformance(req, res, next) {
 
       const totalCollected = cashCollected + onlineCollected;
 
-      // Calculate Target expected for date:
+      // Calculate Target expected for date (reduced by subscribers who paid office/admin directly):
       // Daily routes have installments due every day.
       // Monthly routes have cycle deadline on anchor day (start_date day).
       let targetExpected = 0;
@@ -1595,10 +1604,13 @@ export async function getAgentsDailyPerformance(req, res, next) {
         const cycleInfo = isDaily ? null : getMonthlyCycleInfo(r.start_date || r.created_at, targetDate);
         const isMonthlyDue = r.frequency === 'MONTHLY' && cycleInfo?.isDeadlineToday;
 
+        const rAdminColls = adminCollectionsOnRoutes.filter((c) => c.group_id === r.group_id);
+        const rAdminAmt = rAdminColls.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
         if (isAllTime) {
-          targetExpected += Number(r.group_target_amount || 0);
+          targetExpected += Math.max(0, Number(r.group_target_amount || 0) - rAdminAmt);
         } else if (isDaily || isMonthlyDue) {
-          targetExpected += Number(r.group_target_amount || 0);
+          targetExpected += Math.max(0, Number(r.group_target_amount || 0) - rAdminAmt);
         }
       });
 
@@ -1614,6 +1626,7 @@ export async function getAgentsDailyPerformance(req, res, next) {
       ]);
 
       const totalAssignedSubscribers = agentRoutes.reduce((sum, r) => sum + Number(r.subscriber_count || 0), 0);
+      const effectiveAssignedSubscribers = Math.max(0, totalAssignedSubscribers - adminPaidSubscribersCount);
 
       return {
         agentId: agent.id,
@@ -1627,12 +1640,20 @@ export async function getAgentsDailyPerformance(req, res, next) {
         temporaryCoverageRoutesCount: agentRoutes.filter((r) => r.isTemporaryCoverage).length,
         lastLoginAt: agent.last_login_at,
         assignedRoutesCount: agentRoutes.length,
+        totalAssignedSubscribers,
+        effectiveAssignedSubscribers,
+        adminPaidSubscribersCount,
+        adminPaidAmount: totalAdminPaidAmount,
         assignedRoutes: agentRoutes.map((r) => {
           const rCollections = agentCollections.filter((c) => c.group_id === r.group_id);
           const rCollected = rCollections.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-          const rTarget = Number(r.group_target_amount || 0);
+          const rAdminColls = adminCollectionsOnRoutes.filter((c) => c.group_id === r.group_id);
+          const rAdminAmt = rAdminColls.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+          const rAdminPaidSubs = new Set(rAdminColls.map((c) => c.member_id)).size;
+          const rTarget = Math.max(0, Number(r.group_target_amount || 0) - rAdminAmt);
           const rPending = Math.max(0, rTarget - rCollected);
           const isCompleted = (rTarget > 0 && rCollected >= rTarget) || (Number(r.subscriber_count || 0) > 0 && rCollected > 0 && rPending === 0);
+          const rEffectiveSubscribers = Math.max(0, Number(r.subscriber_count || 0) - rAdminPaidSubs);
           return {
             groupId: r.group_id,
             groupCode: r.group_code,

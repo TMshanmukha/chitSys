@@ -2055,9 +2055,16 @@ export default function RouteTrackingPage() {
 
                       <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                         <span className="truncate">👤 {route.agent?.name || 'Unassigned'}{route.isTemporaryCoverage ? ' (Covering)' : ''}</span>
-                        <span className="font-semibold shrink-0">
-                          {routeStats.visitedStops || 0}/{routeStats.totalStops || 0} Paid
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className="font-semibold">
+                            {routeStats.visitedStops || 0}/{routeStats.totalStops || 0} Paid
+                          </span>
+                          {route.adminPaidCount > 0 && (
+                            <span className="ml-1 text-[9px] font-bold text-purple-600 dark:text-purple-400 block">
+                              ⚡ {route.adminPaidCount} to Admin (-{route.adminPaidCount} Task)
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Progress Bar */}
@@ -2160,10 +2167,15 @@ export default function RouteTrackingPage() {
                       style={{ width: `${activeRoute.stats.progressPercent}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-[11px] text-slate-400">
+                  <div className="flex justify-between text-[11px] text-slate-400 gap-1 flex-wrap">
                     <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
                       {activeRoute.stats.visitedStops} Paid (Green)
                     </span>
+                    {activeRoute.stats.adminPaidStopsCount > 0 && (
+                      <span className="text-purple-600 dark:text-purple-400 font-bold">
+                        ⚡ {activeRoute.stats.adminPaidStopsCount} to Office (-{activeRoute.stats.adminPaidStopsCount} task)
+                      </span>
+                    )}
                     <span className="text-rose-600 dark:text-rose-400 font-semibold">
                       {activeRoute.stats.pendingStops} Not Paid (Red)
                     </span>
@@ -2342,17 +2354,17 @@ export default function RouteTrackingPage() {
                             Ticket #{stop.stopOrder}
                           </text>
 
-                          {/* Prominent PAID (Green), PARTIAL (Yellow) or NOT PAID (Red) text below */}
+                          {/* Prominent PAID (Green), PAID ADMIN (Purple), PARTIAL (Yellow) or NOT PAID (Red) text below */}
                           <text
                             x={stop.coordX}
                             y={stop.coordY + 40}
                             textAnchor="middle"
-                            fill={isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444')}
+                            fill={stop.isPaidToAdmin ? '#8b5cf6' : (isPaid ? '#10b981' : (isPartial ? '#f59e0b' : '#ef4444'))}
                             fontSize="9"
                             fontWeight="800"
                             className="pointer-events-none select-none tracking-tight uppercase"
                           >
-                            {isPaid ? 'PAID' : (isPartial ? 'PARTIAL' : 'NOT PAID')}
+                            {stop.isPaidToAdmin ? 'PAID ADMIN' : isPaid ? 'PAID' : (isPartial ? 'PARTIAL' : 'NOT PAID')}
                           </text>
                         </g>
                       );
@@ -2430,7 +2442,11 @@ export default function RouteTrackingPage() {
                             </h4>
 
                             {/* Synchronous Status Pill */}
-                            {isPaid ? (
+                            {selectedStop.isPaidToAdmin ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-400 dark:border-purple-700 flex items-center gap-1">
+                                <span>🏛️ PAID TO ADMIN (TASK DEDUCTED)</span>
+                              </span>
+                            ) : isPaid ? (
                               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 flex items-center gap-1">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                 <span>PAID</span>
