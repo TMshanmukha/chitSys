@@ -63,11 +63,11 @@ export async function getDashboardOverview(req, res, next) {
     const [groupCountRows] = await pool.query(`
       SELECT 
         COUNT(*) as totalGroups,
-        COALESCE(SUM(CASE WHEN chit_type = 'DAILY_CHIT' THEN 1 ELSE 0 END), 0) as dailyChitGroups,
-        COALESCE(SUM(CASE WHEN chit_type = 'AUCTION_CHIT' THEN 1 ELSE 0 END), 0) as auctionChitGroups,
-        COALESCE(SUM(CASE WHEN chit_type = 'DOUBLE_CHIT' THEN 1 ELSE 0 END), 0) as doubleChitGroups,
-        COALESCE(SUM(CASE WHEN route_category = 'DAILY_ROUTE' THEN 1 ELSE 0 END), 0) as dailyRoutes,
-        COALESCE(SUM(CASE WHEN route_category = 'MONTHLY_ROUTE' THEN 1 ELSE 0 END), 0) as monthlyRoutes
+        COALESCE(SUM(CASE WHEN frequency = 'DAILY' OR route_category = 'DAILY_ROUTE' OR chit_type = 'DAILY_CHIT' THEN 1 ELSE 0 END), 0) as dailyChitGroups,
+        COALESCE(SUM(CASE WHEN frequency = 'MONTHLY' OR route_category = 'MONTHLY_ROUTE' OR chit_type IN ('AUCTION_CHIT', 'MONTHLY_AUCTION', 'MONTHLY_DOUBLE') THEN 1 ELSE 0 END), 0) as auctionChitGroups,
+        COALESCE(SUM(CASE WHEN chit_type LIKE '%DOUBLE%' THEN 1 ELSE 0 END), 0) as doubleChitGroups,
+        COALESCE(SUM(CASE WHEN route_category = 'DAILY_ROUTE' OR frequency = 'DAILY' THEN 1 ELSE 0 END), 0) as dailyRoutes,
+        COALESCE(SUM(CASE WHEN route_category = 'MONTHLY_ROUTE' OR frequency = 'MONTHLY' THEN 1 ELSE 0 END), 0) as monthlyRoutes
       FROM chit_groups
       WHERE ${groupCountConds.join(' AND ')}
     `, groupCountParams);
@@ -416,6 +416,7 @@ export async function getDashboardOverview(req, res, next) {
         totalGroups: groupCounts.totalGroups,
         dailyChitGroups: groupCounts.dailyChitGroups,
         auctionChitGroups: groupCounts.auctionChitGroups,
+        monthlyChitGroups: groupCounts.auctionChitGroups,
         doubleChitGroups: groupCounts.doubleChitGroups,
         dailyRoutes: groupCounts.dailyRoutes,
         monthlyRoutes: groupCounts.monthlyRoutes,

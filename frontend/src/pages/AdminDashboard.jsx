@@ -105,8 +105,8 @@ export default function AdminDashboard() {
   }, []);
 
   const totalGroups = Number(data?.totalGroups) || 0;
-  const dailyChitGroups = Number(data?.dailyChitGroups) || 0;
-  const auctionChitGroups = Number(data?.auctionChitGroups) || 0;
+  const dailyChitGroups = Number(data?.dailyChitGroups ?? data?.dailyRoutes) || 0;
+  const auctionChitGroups = Number(data?.monthlyChitGroups ?? data?.auctionChitGroups ?? data?.monthlyRoutes) || 0;
   const doubleChitGroups = Number(data?.doubleChitGroups) || 0;
   const totalMembers = Number(data?.totalMembers) || 0;
   const totalAgents = Number(data?.totalAgents) || 0;
