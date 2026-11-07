@@ -2018,7 +2018,7 @@ export default function RouteTrackingPage() {
                   >
                     <div>
                       <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-mono text-[11px] font-extrabold text-blue-600 dark:text-blue-400 uppercase">
                             {route.groupCode}
                           </span>
@@ -2031,6 +2031,11 @@ export default function RouteTrackingPage() {
                           >
                             {route.frequency === 'DAILY' || route.chitType === 'DAILY_CHIT' ? 'Daily' : 'Monthly'}
                           </span>
+                          {route.isTemporaryCoverage && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                              🛡️ Coverage {route.absentAgentName ? `(${route.absentAgentName})` : ''}
+                            </span>
+                          )}
                         </div>
                         {isSelected ? (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-600 text-white shadow-xs">
@@ -2048,7 +2053,7 @@ export default function RouteTrackingPage() {
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                        <span className="truncate">👤 {route.agent?.name || 'Unassigned'}</span>
+                        <span className="truncate">👤 {route.agent?.name || 'Unassigned'}{route.isTemporaryCoverage ? ' (Covering)' : ''}</span>
                         <span className="font-semibold shrink-0">
                           {routeStats.visitedStops || 0}/{routeStats.totalStops || 0} Paid
                         </span>
@@ -2132,6 +2137,11 @@ export default function RouteTrackingPage() {
                       <strong className="text-slate-800 dark:text-slate-200">
                         {activeRoute.agent?.name || 'Unassigned'}
                       </strong>
+                      {activeRoute.isTemporaryCoverage && (
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          🛡️ Covering for {activeRoute.absentAgentName}
+                        </span>
+                      )}
                     </span>
                     {activeRoute.agent?.phone && <span>· 📞 {activeRoute.agent.phone}</span>}
                   </div>

@@ -6,15 +6,14 @@ import { getTodayIST, getCurrentTimeIST } from '../utils/dateUtils.js';
 export async function getRouteTrackingOverview(req, res, next) {
   try {
     const { routeCategory, groupId, agentId } = req.query;
+    const todayIST = getTodayIST();
 
+    // 1. Fetch active chit groups DISTINCTLY (guarantee exactly 1 entry per chit group)
     let groupQuery = `
       SELECT 
         g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
-        g.location_name, g.installment_amount, g.total_pool_amount,
-        u.id as agent_id, u.full_name as agent_name, u.phone as agent_phone, u.username as agent_username
+        g.location_name, g.installment_amount, g.total_pool_amount
       FROM chit_groups g
-      LEFT JOIN agent_group_assignments aga ON g.id = aga.group_id AND aga.is_active = 1
-      LEFT JOIN users u ON aga.agent_id = u.id
       WHERE g.status = 'ACTIVE'
     `;
     const params = [];
@@ -27,18 +26,108 @@ export async function getRouteTrackingOverview(req, res, next) {
       groupQuery += ' AND g.id = ?';
       params.push(groupId);
     }
-    if (agentId) {
-      groupQuery += ' AND u.id = ?';
-      params.push(agentId);
-    }
 
     groupQuery += ' ORDER BY g.route_category ASC, g.id ASC';
 
-    const [groups] = await pool.query(groupQuery, params);
+    const [activeGroups] = await pool.query(groupQuery, params);
 
     // If no groups found, return empty
-    if (groups.length === 0) {
+    if (activeGroups.length === 0) {
       return res.status(200).json({ success: true, data: { routes: [], summary: {} } });
+    }
+
+    const allGroupIds = activeGroups.map((g) => g.id);
+
+    // 2. Fetch single active assignment per group (taking the latest row by id if duplicates exist)
+    const [assignments] = await pool.query(
+      `SELECT aga.group_id, aga.agent_id, u.full_name as agent_name, u.phone as agent_phone, u.username as agent_username
+       FROM agent_group_assignments aga
+       JOIN users u ON aga.agent_id = u.id
+       WHERE aga.group_id IN (?) AND aga.is_active = 1
+       ORDER BY aga.id DESC`,
+      [allGroupIds]
+    );
+    const assignmentMap = new Map();
+    for (const a of assignments) {
+      if (!assignmentMap.has(a.group_id)) {
+        assignmentMap.set(a.group_id, a);
+      }
+    }
+
+    // 3. Fetch approved leaves for today (todayIST) and any temporary coverages for these groups
+    const [approvedCoverages] = await pool.query(
+      `SELECT 
+         alc.group_id, alc.covering_agent_id,
+         coverer.full_name as covering_agent_name, coverer.phone as covering_agent_phone, coverer.username as covering_agent_username,
+         l.agent_id as absent_agent_id,
+         absent.full_name as absent_agent_name
+       FROM agent_leave_coverages alc
+       JOIN agent_leaves l ON alc.leave_id = l.id
+       JOIN users coverer ON alc.covering_agent_id = coverer.id
+       JOIN users absent ON l.agent_id = absent.id
+       WHERE alc.group_id IN (?)
+         AND l.leave_date = ?
+         AND l.status = 'APPROVED'`,
+      [allGroupIds, todayIST]
+    );
+    const coverageMap = new Map();
+    for (const c of approvedCoverages) {
+      if (!coverageMap.has(c.group_id)) {
+        coverageMap.set(c.group_id, c);
+      }
+    }
+
+    // 4. Attach effective agent dynamically:
+    // If assigned agent is on approved leave today -> route temporarily moves to covering agent
+    // On the next day after leave ends -> automatically reverts back to normal assigned agent!
+    let groups = activeGroups.map((g) => {
+      const normal = assignmentMap.get(g.id);
+      const cov = coverageMap.get(g.id);
+
+      if (cov) {
+        return {
+          ...g,
+          agent_id: cov.covering_agent_id,
+          agent_name: cov.covering_agent_name,
+          agent_phone: cov.covering_agent_phone,
+          agent_username: cov.covering_agent_username,
+          is_temporary_coverage: true,
+          absent_agent_name: cov.absent_agent_name,
+          absent_agent_id: cov.absent_agent_id,
+        };
+      }
+
+      if (normal) {
+        return {
+          ...g,
+          agent_id: normal.agent_id,
+          agent_name: normal.agent_name,
+          agent_phone: normal.agent_phone,
+          agent_username: normal.agent_username,
+          is_temporary_coverage: false,
+          absent_agent_name: null,
+          absent_agent_id: null,
+        };
+      }
+
+      return {
+        ...g,
+        agent_id: null,
+        agent_name: null,
+        agent_phone: null,
+        agent_username: null,
+        is_temporary_coverage: false,
+        absent_agent_name: null,
+        absent_agent_id: null,
+      };
+    });
+
+    // 5. If agentId filter is passed, filter by the effective agent for today
+    if (agentId) {
+      groups = groups.filter((g) => String(g.agent_id) === String(agentId));
+      if (groups.length === 0) {
+        return res.status(200).json({ success: true, data: { routes: [], summary: {} } });
+      }
     }
 
     const groupIds = groups.map((g) => g.id);
@@ -66,7 +155,6 @@ export async function getRouteTrackingOverview(req, res, next) {
       [groupIds]
     );
 
-    const todayIST = getTodayIST();
     // Fetch collections on these groups for their respective active cycles:
     // - Daily groups: c.collection_date = todayIST (Day-by-Day tracking)
     // - Monthly groups: last 30 days (Month-by-Month tracking)
@@ -408,6 +496,9 @@ export async function getRouteTrackingOverview(req, res, next) {
           phone: grp.agent_phone,
           username: grp.agent_username,
         } : null,
+        isTemporaryCoverage: Boolean(grp.is_temporary_coverage),
+        absentAgentName: grp.absent_agent_name || null,
+        absentAgentId: grp.absent_agent_id || null,
         stats: {
           totalStops,
           visitedStops: paidCount,
