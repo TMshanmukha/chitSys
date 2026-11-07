@@ -31,6 +31,7 @@ import {
   Sliders,
   RotateCcw,
   Edit3,
+  Info,
 } from 'lucide-react';
 import { formatDate, getServerYMD } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
