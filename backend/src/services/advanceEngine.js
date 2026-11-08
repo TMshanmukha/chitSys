@@ -302,3 +302,4 @@ export async function calculateMemberDaysSchedule(memberId, groupId, {
     fullyCoveredFutureDays: Math.floor(advanceBal / instAmt),
   };
 }
+
