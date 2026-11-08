@@ -975,17 +975,28 @@ export async function recordCollection(req, res) {
         customer_name: loan.customer_name,
         customer_phone: loan.customer_phone,
         amount_collected: paymentAmt,
+        amount_paid: paymentAmt,
         payment_method,
         collection_date,
-        allocation,
-        remaining_principal: newPrincipalOutstanding,
+        allocation: {
+          principal: allocPrincipal,
+          interest: allocInterest,
+          penalty: allocPenalty,
+          excess: allocExcess,
+        },
+        remaining_principal: principalOutstanding,
+        new_principal_outstanding: principalOutstanding,
+        remaining_interest: interestOutstanding,
         is_closed: isLoanClosed,
       },
     });
   } catch (error) {
     await connection.rollback();
-    logger.error('Failed to record collection', error);
-    res.status(500).json({ success: false, message: 'Failed to record collection' });
+    logger.error('Failed to record collection:', {
+      message: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ success: false, message: error.message || 'Failed to record collection' });
   } finally {
     connection.release();
   }

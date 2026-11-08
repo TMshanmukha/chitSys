@@ -293,11 +293,6 @@ export async function calculateDayWorkData(agentId, workDate) {
         unpaidSubscribersCount: unpaidMembers.length,
         paidMembers,
         unpaidMembers,
-        totalSubscribersCount: gMembers.length,
-        paidSubscribersCount: paidMembers.length,
-        unpaidSubscribersCount: unpaidMembers.length,
-        paidMembers,
-        unpaidMembers,
         cycleInfo: cycleInfo ? {
           cycleStart: cycleInfo.cycleStart,
           cycleDue: cycleInfo.cycleDue,
