@@ -250,7 +250,7 @@ export async function getMemberPassbook(req, res, next) {
 
     // 3. Collections Ledger (Payments Made - strictly isolated to groupId if requested)
     let colQuery = `
-      SELECT c.id, c.receipt_number, c.amount, c.payment_method, c.payment_reference,
+      SELECT c.id, c.receipt_number, c.amount, c.normal_amount, c.advance_amount, c.payment_method, c.payment_reference,
              c.collection_date, c.collection_time, c.verification_status, c.notes,
              g.group_name, g.group_code, g.chit_type,
              u.full_name as agent_name

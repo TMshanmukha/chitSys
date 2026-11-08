@@ -189,12 +189,18 @@ export async function calculateDayWorkData(agentId, workDate) {
             totalStopsVisited++;
           }
 
+          const memberAdvanceAmount = memberCollections.reduce((sum, c) => sum + parseFloat(c.advance_amount || 0), 0);
+          const memberNormalAmount = installmentAmt > 0 ? Math.min(collectedForMember, installmentAmt) : collectedForMember;
+
           paidMembers.push({
             memberId: m.member_id,
             memberName: m.full_name,
             ticketNumber: m.ticket_number,
             phone: m.phone,
             amount: collectedForMember > 0 ? collectedForMember : installmentAmt,
+            normalAmount: memberNormalAmount,
+            advanceAmount: memberAdvanceAmount,
+            hasAdvance: memberAdvanceAmount > 0,
             agentAmount: agentAmt,
             adminAmount: adminAmt,
             isAdvanceCovered: isCoveredByAdvance,

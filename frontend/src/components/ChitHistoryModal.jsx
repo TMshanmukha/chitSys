@@ -1055,7 +1055,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                             Paid {periodLabel}
                           </th>
                           <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-center text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white">
-                            Pending {periodLabel}
+                            {periodLabel} Left
                           </th>
                           <th className="py-2.5 px-4 border-r border-blue-200 dark:border-slate-700 text-right text-xs sm:text-sm font-extrabold text-blue-950 dark:text-white">
                             Paid Amount
@@ -1112,7 +1112,13 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                                   {m.daysPaid}
                                 </td>
                                 <td className="py-2.5 px-4 border-r border-blue-100 dark:border-slate-800 text-center font-mono font-bold text-amber-700 dark:text-amber-400">
-                                  {m.daysLeft}
+                                  <div>{m.daysLeft}</div>
+                                  <span className="text-[10px] text-slate-400 font-sans block">{periodLabel} Left</span>
+                                  {m.daysPaid > targetPeriodsToDate && (
+                                    <span className="inline-block mt-0.5 px-1 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300">
+                                      +{m.daysPaid - targetPeriodsToDate} Adv
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="py-2.5 px-4 border-r border-blue-100 dark:border-slate-800 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
                                   ₹{Number(m.totalPaid || 0).toLocaleString('en-IN')}

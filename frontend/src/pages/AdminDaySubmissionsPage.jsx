@@ -680,6 +680,26 @@ export default function AdminDaySubmissionsPage() {
                                   )}
                                   {' '}· Pending: <strong>{chit.unpaidMembers?.length || 0}</strong>
                                 </div>
+
+                                {chit.paidMembers?.some((m) => Number(m.advanceAmount || 0) > 0) && (
+                                  <div className="pt-1.5 border-t border-slate-200 dark:border-slate-700/60 space-y-1">
+                                    <div className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                                      Subscribers with Advance:
+                                    </div>
+                                    {chit.paidMembers
+                                      .filter((m) => Number(m.advanceAmount || 0) > 0)
+                                      .map((advM, advIdx) => (
+                                        <div key={advIdx} className="flex items-center justify-between text-[11px] bg-amber-50/80 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-200 dark:border-amber-900/60 font-mono">
+                                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                                            {advM.memberName} (#{advM.ticketNumber})
+                                          </span>
+                                          <span className="text-amber-800 dark:text-amber-300 font-extrabold">
+                                            ₹{Number(advM.amount).toLocaleString('en-IN')} (₹{Number(advM.advanceAmount).toLocaleString('en-IN')} Adv)
+                                          </span>
+                                        </div>
+                                      ))}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}

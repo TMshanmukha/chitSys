@@ -394,7 +394,7 @@ export async function getMyAssignedRoutes(req, res, next) {
 
       // 2. Fetch collections for assigned groups within the last 60 days
       const [colls] = await pool.query(
-        `SELECT c.id, c.group_id, c.member_id, c.amount, c.payment_method, c.receipt_number,
+        `SELECT c.id, c.group_id, c.member_id, c.amount, c.normal_amount, c.advance_amount, c.payment_method, c.receipt_number,
                 c.collection_date, c.collection_time, c.notes, c.agent_id, collector.full_name AS collector_name, collector.role AS collector_role
          FROM collections c
          LEFT JOIN users collector ON collector.id=c.agent_id

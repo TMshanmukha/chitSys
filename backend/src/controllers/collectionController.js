@@ -26,7 +26,7 @@ export async function listCollections(req, res, next) {
     const { date, groupId, agentId, paymentMethod } = req.query;
     let query = `
       SELECT 
-        c.id, c.receipt_number, c.amount, c.payment_method, c.payment_reference,
+        c.id, c.receipt_number, c.amount, c.normal_amount, c.advance_amount, c.payment_method, c.payment_reference,
         c.collection_date, c.collection_time, c.verification_status, c.notes, c.created_at,
         g.group_name, g.group_code, g.frequency,
         m.full_name as member_name, m.phone as member_phone, m.member_code,
@@ -137,17 +137,9 @@ export async function recordCollection(req, res, next) {
       }
     }
 
-    // Agent must get Admin approval to collect more than installment amount
-    if (req.user.role === 'COLLECTION_AGENT' && installmentAmt > 0 && validated.amount > installmentAmt && !approvedEditRequest) {
-      return res.status(400).json({
-        success: false,
-        requiresApproval: true,
-        message: `Collection amount (₹${validated.amount.toLocaleString('en-IN')}) exceeds regular installment (₹${installmentAmt.toLocaleString('en-IN')}). Please submit an Advance Collection request for Admin approval first.`,
-        normalDue: installmentAmt,
-        advanceAmount: validated.amount - installmentAmt,
-        totalProposed: validated.amount,
-      });
-    }
+    // Note: Entering an amount that exceeds regular installment does not require Admin permission;
+    // excess amount is automatically treated as advance for future days.
+    // Admin request is only needed to change or correct an already confirmed payment.
 
     if (chitGroup.frequency === 'DAILY') {
       const [existingDaily] = await pool.execute(

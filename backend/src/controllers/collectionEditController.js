@@ -326,6 +326,8 @@ export async function listCollectionEditRequestsForAdmin(req, res, next) {
 
 /**
  * ADMIN: Approve collection edit request.
+ * Automatically applies the requested correction/advance directly to the collection record
+ * and member advance credit, eliminating the need for the agent to re-collect manually.
  */
 export async function approveCollectionEditRequest(req, res, next) {
   try {
@@ -334,7 +336,7 @@ export async function approveCollectionEditRequest(req, res, next) {
     const adminNotes = (req.body.admin_notes || '').trim();
 
     const [rows] = await pool.query(
-      `SELECT cer.*, c.receipt_number, m.full_name as member_name, g.group_name
+      `SELECT cer.*, c.receipt_number, c.collection_date, m.full_name as member_name, g.group_name, g.installment_amount
        FROM collection_edit_requests cer
        LEFT JOIN collections c ON cer.collection_id = c.id
        JOIN members m ON cer.member_id = m.id
@@ -353,47 +355,143 @@ export async function approveCollectionEditRequest(req, res, next) {
       return res.status(400).json({ success: false, message: 'This collection edit has already been applied.' });
     }
 
+    const installmentAmt = parseFloat(request.installment_amount || 0);
+    const newAmount = parseFloat(request.requested_amount);
+    const newPaymentMethod = (request.requested_payment_method || 'CASH').toUpperCase();
+    const normalPortion = installmentAmt > 0 ? Math.min(newAmount, installmentAmt) : newAmount;
+    const advancePortion = Math.max(0, newAmount - normalPortion);
+
+    let targetCollectionId = request.collection_id;
+    let receiptNumber = request.receipt_number;
+
+    if (targetCollectionId) {
+      // 1a. Update existing collection record directly
+      const updatedNotes = `Corrected to ₹${newAmount} with Admin Approval${advancePortion > 0 ? ` (Advance: ₹${advancePortion})` : ''}`;
+      await pool.query(
+        `UPDATE collections
+         SET amount = ?,
+             normal_amount = ?,
+             advance_amount = ?,
+             payment_method = ?,
+             notes = ?
+         WHERE id = ?`,
+        [newAmount, normalPortion, advancePortion, newPaymentMethod, updatedNotes, targetCollectionId]
+      );
+    } else {
+      // 1b. Insert new collection record if request was created prior to initial collection
+      const todayIST = getTodayIST();
+      const randDigits = Math.floor(1000 + Math.random() * 9000);
+      receiptNumber = `REC-${todayIST.replace(/-/g, '')}-${randDigits}`;
+
+      const [newColl] = await pool.query(
+        `INSERT INTO collections (
+          receipt_number, group_id, member_id, agent_id, amount, normal_amount, advance_amount,
+          payment_method, collection_date, collection_time, notes, verification_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIME(), ?, 'VERIFIED')`,
+        [
+          receiptNumber,
+          request.group_id,
+          request.member_id,
+          request.agent_id,
+          newAmount,
+          normalPortion,
+          advancePortion,
+          newPaymentMethod,
+          todayIST,
+          `Collected with Admin Approval (Advance: ₹${advancePortion})`,
+        ]
+      );
+      targetCollectionId = newColl.insertId;
+    }
+
+    // 2. If excess amount was approved, create or update Advance Credit
+    if (advancePortion > 0) {
+      await createAdvanceCredit(pool, {
+        groupId: request.group_id,
+        memberId: request.member_id,
+        collectionId: targetCollectionId,
+        advanceAmount: advancePortion,
+        createdDate: request.collection_date || getTodayIST(),
+      });
+    }
+
+    // 3. Mark request as APPLIED with timestamp
     await pool.query(
       `UPDATE collection_edit_requests
-       SET status = 'APPROVED',
+       SET status = 'APPLIED',
            admin_notes = ?,
            reviewed_by = ?,
-           reviewed_at = CURRENT_TIMESTAMP
+           reviewed_at = CURRENT_TIMESTAMP,
+           applied_at = CURRENT_TIMESTAMP,
+           collection_id = COALESCE(collection_id, ?)
        WHERE id = ?`,
-      [adminNotes || null, req.user.id, requestId]
+      [adminNotes || null, req.user.id, targetCollectionId, requestId]
     );
 
-    // Audit Log
+    // 4. Audit Log
     await recordAuditLog({
       userId: req.user.id,
-      action: 'APPROVE_COLLECTION_EDIT',
+      action: 'APPROVE_AND_APPLY_COLLECTION_EDIT',
       resource: 'COLLECTION_EDIT_REQUESTS',
-      details: { requestId, collectionId: request.collection_id, agentId: request.agent_id, adminNotes },
+      details: {
+        requestId,
+        collectionId: targetCollectionId,
+        agentId: request.agent_id,
+        newAmount,
+        advancePortion,
+        adminNotes,
+      },
     });
 
-    const isAdvance = request.request_type === 'ADVANCE_COLLECTION';
-    const notifMsg = isAdvance
-      ? `Admin approved your advance collection request for ${request.member_name} (Total: ₹${Number(request.requested_amount).toLocaleString('en-IN')}, Advance: ₹${Number(request.advance_amount).toLocaleString('en-IN')}). You can now enter the payment.`
-      : `Admin approved your correction request for ${request.member_name} (${request.receipt_number ? `Receipt #${request.receipt_number}` : request.group_name}). You can now edit this payment.`;
+    // 5. Notify agent that payment was updated automatically
+    const notifMsg = `Admin approved your edit request for ${request.member_name}. Payment has been updated to ₹${Number(newAmount).toLocaleString('en-IN')}${advancePortion > 0 ? ` (₹${Number(advancePortion).toLocaleString('en-IN')} Advance for future days)` : ''} automatically.`;
 
     createNotification({
       targetUserId: request.agent_id,
-      title: isAdvance ? '✅ Advance Collection Request Approved' : '✅ Collection Edit Request Approved',
+      title: '✅ Payment Edit Approved & Applied',
       message: notifMsg,
       type: 'COLLECTION',
-      link: '/agent/tasks',
+      link: '/agent/history',
     }).catch(() => {});
+
+    // 6. Broadcast Real-time sync across Admin and Agent dashboards
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collections',
+      action: 'UPDATE',
+      data: {
+        collectionId: targetCollectionId,
+        groupId: request.group_id,
+        memberId: request.member_id,
+        amount: newAmount,
+        advanceAmount: advancePortion,
+      },
+    });
 
     broadcastSync({
       business: 'chitfund',
       entity: 'collection_edits',
-      action: 'APPROVE',
-      data: { requestId, collectionId: request.collection_id, agentId: request.agent_id },
+      action: 'APPLY',
+      data: { requestId, collectionId: targetCollectionId, agentId: request.agent_id, status: 'APPLIED' },
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'groups',
+      action: 'UPDATE',
+      data: { groupId: request.group_id },
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'day_closing',
+      action: 'UPDATE',
+      data: { date: request.collection_date || getTodayIST() },
     });
 
     res.status(200).json({
       success: true,
-      message: 'Edit request approved successfully. Agent can now edit/enter this collection.',
+      message: 'Edit request approved and payment updated automatically.',
     });
   } catch (error) {
     next(error);

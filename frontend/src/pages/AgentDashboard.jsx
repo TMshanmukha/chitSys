@@ -1171,26 +1171,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       }
     } catch (err) {
       setShowCollectConfirm(false);
-      const isApprovalNeeded = err.response?.data?.requiresApproval;
-      if (isApprovalNeeded) {
-        const respData = err.response.data;
-        const selectedGroup = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
-        const selectedMember = routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id));
-        setCollectError(
-          `Amount (₹${Number(collectForm.amount).toLocaleString('en-IN')}) exceeds regular installment (₹${Number(respData.normalDue || 0).toLocaleString('en-IN')}). Excess ₹${Number(respData.advanceAmount || 0).toLocaleString('en-IN')} requires Admin approval.`
-        );
-        setTimeout(() => {
-          openRequestEditModal(selectedGroup, selectedMember);
-          setRequestEditModal((prev) => ({
-            ...prev,
-            requestedAmount: String(collectForm.amount),
-            requestedMethod: collectForm.payment_method || 'CASH',
-            reason: `Subscriber wishes to pay ₹${Number(collectForm.amount).toLocaleString('en-IN')} (₹${Number(respData.advanceAmount || 0).toLocaleString('en-IN')} Advance for future days).`,
-          }));
-        }, 500);
-      } else {
-        setCollectError(getFriendlyErrorMessage(err, 'Failed to record collection. Please check details and try again.'));
-      }
+      setCollectError(getFriendlyErrorMessage(err, 'Failed to record collection. Please check details and try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -3734,7 +3715,12 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                         </td>
                         <td className="py-2.5 px-3 text-slate-500">{col.group_name}</td>
                         <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
-                          ₹{Number(col.amount).toLocaleString('en-IN')}
+                          <div>₹{Number(col.amount).toLocaleString('en-IN')}</div>
+                          {Number(col.advance_amount || 0) > 0 && (
+                            <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 block font-heading">
+                              ⚡ Advance: ₹{Number(col.advance_amount).toLocaleString('en-IN')}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-3">
                           <span

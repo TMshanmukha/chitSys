@@ -3767,7 +3767,14 @@ export function MembersPage() {
                               <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{formatDate(col.collection_date)}</td>
                               <td className="py-2 px-3">{col.group_name}</td>
                               <td className="py-2 px-3 font-semibold">{col.payment_method}</td>
-                              <td className="py-2 px-3 font-bold text-emerald-600 dark:text-emerald-400">₹{Number(col.amount).toLocaleString('en-IN')}</td>
+                              <td className="py-2 px-3 font-bold text-emerald-600 dark:text-emerald-400">
+                                <div>₹{Number(col.amount).toLocaleString('en-IN')}</div>
+                                {Number(col.advance_amount || 0) > 0 && (
+                                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 block font-heading">
+                                    ⚡ Advance: ₹{Number(col.advance_amount).toLocaleString('en-IN')}
+                                  </span>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>

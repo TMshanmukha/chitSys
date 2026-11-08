@@ -721,6 +721,11 @@ export default function AgentDayClosingPage() {
                                     <span className="font-bold text-slate-900 dark:text-white block font-heading truncate">
                                       {m.memberName} (#{m.ticketNumber})
                                     </span>
+                                    {Number(m.advanceAmount || 0) > 0 && (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300">
+                                        ⚡ Advance: ₹{Number(m.advanceAmount).toLocaleString('en-IN')}
+                                      </span>
+                                    )}
                                     {m.completedByAdmin ? (
                                       <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-purple-100 text-purple-800 dark:bg-purple-900/80 dark:text-purple-200 border border-purple-300">
                                         Paid by Admin, not by Agent
@@ -739,11 +744,15 @@ export default function AgentDayClosingPage() {
                                   <span className={`font-black ${m.completedByAdmin ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                                     ₹{Number(m.amount).toLocaleString('en-IN')}
                                   </span>
-                                  {m.completedByAdmin && (
+                                  {Number(m.advanceAmount || 0) > 0 ? (
+                                    <span className="block text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                                      (₹{Number(m.normalAmount || (m.amount - m.advanceAmount)).toLocaleString('en-IN')} Due + ₹{Number(m.advanceAmount).toLocaleString('en-IN')} Adv)
+                                    </span>
+                                  ) : m.completedByAdmin ? (
                                     <span className="block text-[9px] font-bold text-purple-600 dark:text-purple-400">
                                       Office Paid
                                     </span>
-                                  )}
+                                  ) : null}
                                 </div>
                               </div>
                             ))

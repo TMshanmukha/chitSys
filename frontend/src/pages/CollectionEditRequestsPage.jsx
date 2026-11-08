@@ -132,8 +132,8 @@ export default function CollectionEditRequestsPage() {
       if (res.data?.success) {
         setMessage(
           actionModal.type === 'APPROVE'
-            ? `✅ Request approved! Edit access unlocked ONLY for ${actionModal.request.agent_name} to correct ${actionModal.request.member_name}'s payment.`
-            : `Request rejected.`
+            ? `✅ Request approved! Payment for ${actionModal.request.member_name} has been updated to ₹${Number(actionModal.request.requested_amount).toLocaleString('en-IN')} automatically in ledgers and reports.`
+            : `Request rejected. Notification sent to ${actionModal.request.agent_name}.`
         );
         setActionModal({ isOpen: false, type: 'APPROVE', request: null, adminNotes: '', submitting: false });
         await fetchRequests();
