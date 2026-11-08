@@ -373,7 +373,7 @@ export default function FinLendUsersPage() {
 
       {/* Role Filter Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {['ALL', 'OWNER', 'MANAGER', 'AGENT', 'VIEWER'].map((r) => (
+        {['ALL', 'OWNER', 'AGENT'].map((r) => (
           <button
             key={r}
             type="button"
@@ -516,18 +516,18 @@ export default function FinLendUsersPage() {
                 />
               </div>
 
-              {/* Role: 4 Big Pills */}
+              {/* Role: 2 Big Pills (Owner & Agent) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Select Role *
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {['OWNER', 'MANAGER', 'AGENT', 'VIEWER'].map((r) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {['OWNER', 'AGENT'].map((r) => (
                     <button
                       key={r}
                       type="button"
                       onClick={() => setAddForm({ ...addForm, role: r })}
-                      className={`py-2 px-2.5 rounded-xl text-xs font-bold font-heading border transition-all cursor-pointer ${
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold font-heading border transition-all cursor-pointer ${
                         addForm.role === r
                           ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                           : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100'
