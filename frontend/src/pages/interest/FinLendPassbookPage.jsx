@@ -17,6 +17,7 @@ import {
   Sparkles,
   Check,
   Plus,
+  Layers,
 } from 'lucide-react';
 import api from '../../api/client';
 import { useRealtimeSync } from '../../context/RealtimeContext';
