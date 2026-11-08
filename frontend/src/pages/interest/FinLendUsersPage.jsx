@@ -82,6 +82,77 @@ export default function FinLendUsersPage() {
   });
   const [savingAdd, setSavingAdd] = useState(false);
 
+  // Edit User / Staff Form
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    username: '',
+    phone: '',
+    role: 'AGENT',
+    assigned_area: '',
+    daily_target: '0',
+    password: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const handleOpenEdit = (user, e) => {
+    if (e) e.stopPropagation();
+    setError('');
+    setSuccess('');
+    setEditingUser(user);
+    setEditForm({
+      full_name: user.full_name || '',
+      username: user.username || '',
+      phone: user.phone || '',
+      role: user.role === 'OWNER' ? 'OWNER' : 'AGENT',
+      assigned_area: user.assigned_area || '',
+      daily_target: String(user.daily_target || '0'),
+      password: '',
+    });
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setError('');
+    setSuccess('');
+
+    if (!editForm.full_name.trim()) {
+      setError('Please enter user full name.');
+      return;
+    }
+    if (!editForm.username.trim()) {
+      setError('Please choose a username or login ID.');
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      const res = await api.put(`/interest/users/${editingUser.user_id}`, {
+        full_name: editForm.full_name.trim(),
+        username: editForm.username.trim().toLowerCase(),
+        phone: editForm.phone.trim(),
+        role: editForm.role,
+        assigned_area: editForm.assigned_area.trim(),
+        daily_target: editForm.daily_target,
+        password: editForm.password ? editForm.password.trim() : undefined,
+      });
+
+      if (res.data?.success) {
+        setSuccess(`Staff account '${editForm.full_name}' updated successfully.`);
+        setEditingUser(null);
+        if (selectedUserDetail?.user_id === editingUser.user_id) {
+          handleOpenDetail(editingUser);
+        }
+        await loadUsers(true);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update staff member.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const loadUsers = async (isManual = false) => {
     try {
       if (isManual) setRefreshing(true);
@@ -465,8 +536,22 @@ export default function FinLendUsersPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                    <span>Manage</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => handleOpenEdit(u, e)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDetail(u)}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Manage
+                    </button>
                   </div>
                 </div>
               </div>
@@ -642,6 +727,167 @@ export default function FinLendUsersPage() {
         </ModalPortal>
       )}
 
+      {/* 1-PAGE EDIT STAFF MODAL */}
+      {editingUser && (
+        <ModalPortal id="finlend-edit-user-modal" isOpen={Boolean(editingUser)} onClose={() => setEditingUser(null)} preventBackdropClose={true}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto my-auto animate-scaleUp"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/5">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white font-heading">
+                  Edit Staff Member
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Update personal details, role, and collection routes
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Full Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Anand Sharma"
+                  value={editForm.full_name}
+                  onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Role: 2 Big Pills (Owner & Agent) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Select Role *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['OWNER', 'AGENT'].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, role: r })}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold font-heading border transition-all cursor-pointer ${
+                        editForm.role === r
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                          : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 leading-snug">
+                  💡 {ROLE_DESCRIPTIONS[editForm.role]}
+                </p>
+              </div>
+
+              {/* Username & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Username (Login ID) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. anand_agent"
+                    value={editForm.username}
+                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Mobile Phone
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="10-digit number"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '') })}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Area & Target */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Assigned Route / Area (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Main Market Route"
+                    value={editForm.assigned_area}
+                    onChange={(e) => setEditForm({ ...editForm, assigned_area: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Daily Target (₹ Optional)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="30000"
+                    value={editForm.daily_target}
+                    onChange={(e) => setEditForm({ ...editForm, daily_target: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Optional Password Update */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Change Password (Leave blank to keep current)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter new password if changing"
+                  value={editForm.password}
+                  onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="flex-1 py-3 px-4 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="flex-1 py-3 px-4 rounded-xl text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 font-heading cursor-pointer disabled:opacity-50"
+                >
+                  {savingEdit ? 'Saving...' : 'Update Staff Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
+
       {/* USER DETAIL & PERMISSION MANAGEMENT MODAL */}
       {selectedUserDetail && (
         <ModalPortal id="finlend-user-detail-modal" isOpen={Boolean(selectedUserDetail)} onClose={() => setSelectedUserDetail(null)} preventBackdropClose={true}>
@@ -668,13 +914,23 @@ export default function FinLendUsersPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedUserDetail(null)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenEdit(selectedUserDetail)}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit Details</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedUserDetail(null)}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Quick Metrics */}

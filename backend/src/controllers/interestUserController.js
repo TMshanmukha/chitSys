@@ -72,8 +72,7 @@ export async function listUsers(req, res) {
         ) as month_collected_amount
       FROM users u
       JOIN interest_user_profiles p ON u.id = p.user_id
-      WHERE (u.assigned_business = 'INTEREST' OR u.assigned_business = 'ALL' OR u.assigned_business IS NULL)
-        AND (u.assigned_business != 'CHITFUND')
+      WHERE 1=1
     `;
 
     const params = [];
@@ -176,8 +175,20 @@ export async function createUser(req, res) {
         });
       }
       targetUserId = existing.id;
+
+      // Update password hash, full_name, phone, and ensure assigned_business = 'ALL'
+      const passwordHash = await bcrypt.hash(temp_password.trim(), 12);
+      await connection.query(
+        `UPDATE users 
+         SET password_hash = ?, 
+             assigned_business = 'ALL',
+             full_name = COALESCE(?, full_name),
+             phone = COALESCE(?, phone)
+         WHERE id = ?`,
+        [passwordHash, full_name.trim(), cleanPhone, targetUserId]
+      );
     } else {
-      // Create new user in users table (shared table untouched, assigned_business = INTEREST)
+      // Create new user in users table
       const passwordHash = await bcrypt.hash(temp_password.trim(), 12);
       const appRole = role === 'OWNER' || role === 'MANAGER' ? 'ADMIN' : 'COLLECTION_AGENT';
 
@@ -356,10 +367,10 @@ export async function getUserById(req, res) {
 export async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { role, permissions, assigned_area, daily_target, full_name, phone } = req.body;
+    const { role, permissions, assigned_area, daily_target, full_name, phone, username, password } = req.body;
 
     const [[existing]] = await pool.query(
-      `SELECT u.full_name, p.* FROM users u JOIN interest_user_profiles p ON u.id = p.user_id WHERE u.id = ?`,
+      `SELECT u.full_name, u.username, p.* FROM users u JOIN interest_user_profiles p ON u.id = p.user_id WHERE u.id = ?`,
       [id]
     );
 
@@ -370,6 +381,25 @@ export async function updateUser(req, res) {
     // Protection rule: An Owner cannot demote themselves
     if (Number(id) === Number(req.user.id) && existing.role === 'OWNER' && role && role !== 'OWNER') {
       return res.status(400).json({ success: false, message: 'You cannot remove your own Owner role.' });
+    }
+
+    // Check username collision if username is being changed
+    if (username && username.trim().toLowerCase() !== existing.username?.toLowerCase()) {
+      const cleanUsername = username.trim().toLowerCase();
+      const [[collision]] = await pool.query(
+        `SELECT id FROM users WHERE username = ? AND id != ? LIMIT 1`,
+        [cleanUsername, id]
+      );
+      if (collision) {
+        return res.status(400).json({ success: false, message: `Username '${cleanUsername}' is already taken by another account.` });
+      }
+      await pool.query(`UPDATE users SET username = ? WHERE id = ?`, [cleanUsername, id]);
+    }
+
+    // Update password if provided
+    if (password && password.trim().length >= 4) {
+      const passwordHash = await bcrypt.hash(password.trim(), 12);
+      await pool.query(`UPDATE users SET password_hash = ? WHERE id = ?`, [passwordHash, id]);
     }
 
     // Update full_name and phone in users table if provided

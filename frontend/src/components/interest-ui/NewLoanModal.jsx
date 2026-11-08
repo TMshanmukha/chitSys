@@ -22,7 +22,7 @@ import {
 import ModalPortal from '../ModalPortal';
 import { formatDate } from '../../utils/dateUtils';
 
-export default function NewLoanModal({ isOpen, onClose, onCreated }) {
+export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, initialCustomerId }) {
 
   const [customers, setCustomers] = useState([]);
   const [schemes, setSchemes] = useState([]);
@@ -284,13 +284,10 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
 
       const res = await api.post('/interest/loans', payload);
       if (res.data?.success) {
-        const custObj = customers.find((c) => String(c.id) === String(selectedCustomerId));
-        setCreatedLoan({
-          ...res.data.data,
-          customer_name: custObj?.full_name || 'Borrower',
-          customer_phone: custObj?.phone || '',
-        });
-        if (onCreated) onCreated();
+        if (onCreated) onCreated(res.data.data);
+        if (onSuccess) onSuccess(res.data.data);
+        // Automatically close modal immediately upon successful disbursement
+        onClose();
       } else {
         setError(res.data?.message || 'Failed to disburse loan');
       }

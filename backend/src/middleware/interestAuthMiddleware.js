@@ -120,6 +120,11 @@ export async function attachInterestProfile(req, res, next) {
  */
 export function requireInterestRole(...allowedRoles) {
   return (req, res, next) => {
+    // Platform administrators always have full access
+    if (req.user?.role === 'SUPER_ADMIN' || req.user?.role === 'ADMIN') {
+      return next();
+    }
+
     if (!req.interestUser) {
       return res.status(403).json({ success: false, message: 'FinLend profile not attached' });
     }

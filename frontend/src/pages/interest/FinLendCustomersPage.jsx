@@ -120,13 +120,15 @@ export default function FinLendCustomersPage() {
       const res = await api.post('/interest/customers', formData);
       if (res.data?.success) {
         setIsAddOpen(false);
+        setPhotoPreview('');
         setFormData({
           full_name: '',
           phone: '',
           city: '',
           address: '',
           aadhaar_number: '',
-          pan_number,
+          pan_number: '',
+          photo_url: '',
         });
         await loadCustomers(true);
         if (res.data.data?.id) {
