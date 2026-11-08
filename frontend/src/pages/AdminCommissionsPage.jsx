@@ -270,32 +270,30 @@ export default function AdminCommissionsPage() {
     advancesPage * advancesPageSize
   );
 
-  // Combined Pending Chits & Deficits List (from live dues & advances)
-  const pendingDuesList = React.useMemo(() => {
-    const list = [];
-    const seen = new Set();
+  // Combined Pending Chits List (Aggregated per chit scheme with total pending sum, without showing individual members)
+  const pendingChitsList = React.useMemo(() => {
+    const groupMap = new Map();
 
     const rawDues = data.duesItems || [];
     for (const item of rawDues) {
       const pendingAmt = Number(item.pendingAmount || 0);
       if (pendingAmt > 0 || item.status === 'NOT_PAID' || item.status === 'PARTIAL' || item.status === 'ADMIN_COVERED') {
-        const key = `${item.groupId}:${item.memberId}`;
-        seen.add(key);
-        list.push({
-          id: item.membershipId || key,
-          group_id: item.groupId,
-          group_name: item.groupName || 'Chit Scheme',
-          group_code: item.groupCode || '',
-          chit_type: item.chitType || '',
-          frequency: item.frequency || 'DAILY',
-          member_id: item.memberId,
-          member_name: item.memberName || 'Subscriber',
-          member_phone: item.memberPhone || '',
-          ticket_number: item.ticketNumber ?? '',
-          pending_amount: pendingAmt,
-          installment_amount: Number(item.expectedAmount || 0),
-          status: item.status === 'ADMIN_COVERED' ? 'ADMIN COVERED' : 'UNPAID',
-        });
+        const gId = item.groupId || item.group_id;
+        if (!groupMap.has(gId)) {
+          groupMap.set(gId, {
+            group_id: gId,
+            group_name: item.groupName || item.group_name || 'Chit Scheme',
+            group_code: item.groupCode || item.group_code || '',
+            chit_type: item.chitType || item.chit_type || '',
+            frequency: item.frequency || 'DAILY',
+            installment_amount: Number(item.expectedAmount || item.installment_amount || 0),
+            pending_amount: 0,
+            unpaid_count: 0,
+          });
+        }
+        const g = groupMap.get(gId);
+        g.pending_amount += pendingAmt;
+        g.unpaid_count += 1;
       }
     }
 
@@ -303,47 +301,47 @@ export default function AdminCommissionsPage() {
     for (const adv of rawAdvances) {
       const advAmt = Number(adv.advance_amount || 0);
       if (adv.status === 'PENDING_RECOVERY' || adv.status === 'ADMIN_COVERED') {
-        const key = `${adv.group_id}:${adv.member_id}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          list.push({
-            id: adv.id || key,
-            group_id: adv.group_id,
-            group_name: adv.group_name || 'Chit Scheme',
-            group_code: adv.group_code || '',
-            chit_type: adv.chit_type || '',
-            frequency: adv.frequency || 'DAILY',
-            member_id: adv.member_id,
-            member_name: adv.member_name || 'Subscriber',
-            member_phone: adv.member_phone || '',
-            ticket_number: adv.ticket_number ?? '',
-            pending_amount: advAmt,
-            installment_amount: Number(adv.installment_amount || 0),
-            status: adv.status === 'ADMIN_COVERED' ? 'ADMIN COVERED' : 'UNPAID',
-          });
+        // If this member due wasn't already counted in duesItems
+        const alreadyCounted = rawDues.some((d) => String(d.groupId || d.group_id) === String(adv.group_id) && String(d.memberId || d.member_id) === String(adv.member_id));
+        if (!alreadyCounted) {
+          const gId = adv.group_id;
+          if (!groupMap.has(gId)) {
+            groupMap.set(gId, {
+              group_id: gId,
+              group_name: adv.group_name || 'Chit Scheme',
+              group_code: adv.group_code || '',
+              chit_type: adv.chit_type || '',
+              frequency: adv.frequency || 'DAILY',
+              installment_amount: Number(adv.installment_amount || 0),
+              pending_amount: 0,
+              unpaid_count: 0,
+            });
+          }
+          const g = groupMap.get(gId);
+          g.pending_amount += advAmt;
+          g.unpaid_count += 1;
         }
       }
     }
 
-    return list;
+    return Array.from(groupMap.values()).filter((g) => g.pending_amount > 0);
   }, [data]);
 
   const totalPendingAmount = React.useMemo(() => {
-    const sum = pendingDuesList.reduce((acc, cur) => acc + Number(cur.pending_amount || 0), 0);
+    const sum = pendingChitsList.reduce((acc, cur) => acc + Number(cur.pending_amount || 0), 0);
     return sum || Number(advancesSummary.pendingAdvancesAmount || 0);
-  }, [pendingDuesList, advancesSummary]);
+  }, [pendingChitsList, advancesSummary]);
 
   const filteredPendingChits = React.useMemo(() => {
-    if (!pendingSearch.trim()) return pendingDuesList;
+    if (!pendingSearch.trim()) return pendingChitsList;
     const q = pendingSearch.toLowerCase().trim();
-    return pendingDuesList.filter((item) =>
+    return pendingChitsList.filter((item) =>
       item.group_name?.toLowerCase().includes(q) ||
       item.group_code?.toLowerCase().includes(q) ||
-      item.member_name?.toLowerCase().includes(q) ||
-      item.member_phone?.toLowerCase().includes(q) ||
-      String(item.ticket_number).includes(q)
+      item.frequency?.toLowerCase().includes(q) ||
+      item.chit_type?.toLowerCase().includes(q)
     );
-  }, [pendingDuesList, pendingSearch]);
+  }, [pendingChitsList, pendingSearch]);
 
   const totalPendingPages = pendingChitsPageSize === 0 ? 1 : Math.max(1, Math.ceil(filteredPendingChits.length / pendingChitsPageSize));
   const paginatedPendingChits = React.useMemo(() => {
@@ -818,9 +816,9 @@ export default function AdminCommissionsPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Auction Dues & Member Receivables
               </span>
-              {pendingDuesList.length > 0 && (
+              {pendingChitsList.length > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
-                  {pendingDuesList.length} Unpaid Deficits
+                  {pendingChitsList.length} Pending Scheme{pendingChitsList.length > 1 ? 's' : ''}
                 </span>
               )}
             </div>
@@ -846,13 +844,13 @@ export default function AdminCommissionsPage() {
               title="Toggle Pending Chits List"
             >
               <Eye className="w-4 h-4" />
-              <span>Pending Chits ({pendingDuesList.length})</span>
+              <span>Pending Chits ({pendingChitsList.length})</span>
               {isPendingChitsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           </div>
 
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            <span>Unpaid member installment dues pending recovery across chit schemes</span>
+            <span>Total unpaid installment dues pending recovery across chit schemes</span>
           </div>
 
           {/* INLINE DROPDOWN LIST (Picture 2 style) - Does NOT open modal, expands right here */}
@@ -864,7 +862,7 @@ export default function AdminCommissionsPage() {
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search chit name, group code, subscriber..."
+                    placeholder="Search chit scheme name, group code..."
                     value={pendingSearch}
                     onChange={(e) => {
                       setPendingSearch(e.target.value);
@@ -894,7 +892,7 @@ export default function AdminCommissionsPage() {
                 </div>
               </div>
 
-              {/* Items List (Picture 2 layout) */}
+              {/* Items List - Showing ONLY pending chits and total pending sum side-by-side */}
               {filteredPendingChits.length === 0 ? (
                 <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700/60 text-center space-y-1">
                   <CheckCircle2 className="w-7 h-7 text-emerald-500 mx-auto" />
@@ -902,39 +900,40 @@ export default function AdminCommissionsPage() {
                     No pending chits found
                   </p>
                   <p className="text-[11px] text-slate-400">
-                    All subscribers have cleared their scheduled installments.
+                    All chit schemes have cleared their scheduled installments.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                  {paginatedPendingChits.map((item, idx) => (
+                  {paginatedPendingChits.map((chit) => (
                     <div
-                      key={item.id || `${item.group_id}-${item.member_id}-${idx}`}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between gap-3 text-xs hover:border-amber-300 dark:hover:border-amber-700/60 transition-colors"
+                      key={chit.group_id}
+                      className="p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between gap-3 text-xs hover:border-amber-300 dark:hover:border-amber-700/60 transition-colors"
                     >
-                      <div className="space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-extrabold text-slate-900 dark:text-white font-heading">
-                            {item.group_name}
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="font-extrabold text-slate-900 dark:text-white font-heading text-sm sm:text-base">
+                          {chit.group_name}
+                        </span>
+                        {chit.group_code && (
+                          <span className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900/40">
+                            {chit.group_code}
                           </span>
-                          {item.group_code && (
-                            <span className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/40">
-                              {item.group_code}
-                            </span>
-                          )}
-                          <span className="text-slate-300 dark:text-slate-600">·</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">
-                            {item.member_name}
+                        )}
+                        {chit.frequency && (
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-200/70 dark:bg-slate-700/60 px-1.5 py-0.5 rounded uppercase">
+                            {chit.frequency}
                           </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-mono">
-                          Ticket #{item.ticket_number || 'N/A'} {item.member_phone ? `· ${item.member_phone}` : ''}
-                        </div>
+                        )}
+                        {chit.chit_type && (
+                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-900/40 uppercase">
+                            {String(chit.chit_type).replace(/_/g, ' ')}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
-                          Due: ₹{Number(item.pending_amount).toLocaleString('en-IN')}
+                        <span className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-black bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900 font-mono shadow-2xs">
+                          Due: ₹{Number(chit.pending_amount).toLocaleString('en-IN')}
                         </span>
                       </div>
                     </div>
