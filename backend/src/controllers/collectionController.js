@@ -306,7 +306,8 @@ export async function recordCollection(req, res, next) {
       },
     });
 
-    const remainingBalance = Math.max(0, installmentAmt - validated.amount);
+    const remainingBalance = Math.max(0, installmentAmt - normalPortion);
+    const isAdvance = advancePortion > 0;
 
     res.status(201).json({
       success: true,
@@ -318,14 +319,16 @@ export async function recordCollection(req, res, next) {
       receipt: {
         id: insertResult.insertId,
         receiptNumber,
+        memberId: validated.member_id,
+        groupId: validated.group_id,
         amount: validated.amount,
+        normalAmount: normalPortion,
+        advanceAmount: advancePortion,
         remainingBalance,
         installmentAmount: installmentAmt,
         paymentMethod: validated.payment_method,
         date: finalCollectionDate,
         isAdvance,
-        isOffCycle,
-        cycleInfo,
       },
     });
   } catch (error) {
