@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { useRealtimeSync } from '../../context/RealtimeContext';
 import { formatCurrency, formatDate, formatTime } from '../../utils/interestUtils';
 import RoleChip from '../../components/interest-ui/RoleChip';
 import PermissionSwitch from '../../components/interest-ui/PermissionSwitch';
@@ -102,6 +103,10 @@ export default function FinLendUsersPage() {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  useRealtimeSync(['finlend:users', 'users'], () => {
+    loadUsers(true);
+  });
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {

@@ -2,6 +2,7 @@ import { pool } from '../config/db.js';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getTodayIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 let tableEnsured = false;
 export async function ensureCollectionEditTable() {
@@ -152,6 +153,13 @@ export async function requestCollectionEdit(req, res, next) {
       link: '/admin/collection-edits',
     }).catch(() => {});
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collection_edits',
+      action: 'REQUEST',
+      data: { requestId, collectionId, requestedAmount },
+    });
+
     res.status(201).json({
       success: true,
       message: 'Edit request submitted to Admin successfully. Once approved, you will be able to edit this payment.',
@@ -288,6 +296,13 @@ export async function approveCollectionEditRequest(req, res, next) {
       link: '/agent/tasks',
     }).catch(() => {});
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collection_edits',
+      action: 'APPROVE',
+      data: { requestId, collectionId: request.collection_id, agentId: request.agent_id },
+    });
+
     res.status(200).json({
       success: true,
       message: 'Edit request approved successfully. Agent can now edit this specific collection.',
@@ -347,6 +362,13 @@ export async function rejectCollectionEditRequest(req, res, next) {
       type: 'COLLECTION',
       link: '/agent/tasks',
     }).catch(() => {});
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collection_edits',
+      action: 'REJECT',
+      data: { requestId, collectionId: request.collection_id, agentId: request.agent_id },
+    });
 
     res.status(200).json({
       success: true,
@@ -456,6 +478,19 @@ export async function applyCollectionEdit(req, res, next) {
       type: 'COLLECTION',
       link: '/admin/collection-edits',
     }).catch(() => {});
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collections',
+      action: 'UPDATE',
+      data: { collectionId, amount: newAmount, paymentMethod: newPaymentMethod },
+    });
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collection_edits',
+      action: 'APPLY',
+      data: { collectionId },
+    });
 
     res.status(200).json({
       success: true,

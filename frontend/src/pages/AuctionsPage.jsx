@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   Gavel,
@@ -143,9 +144,9 @@ export default function AuctionsPage() {
     setSubscriberPage(1);
   }, [subscriberSearch, subscriberFilter]);
 
-  const loadData = async () => {
+  const loadData = async (quiet = false) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const [auctionsRes, groupsRes, summaryRes] = await Promise.all([
         api.get('/admin/auctions'),
         api.get('/admin/groups'),
@@ -169,13 +170,17 @@ export default function AuctionsPage() {
     } catch (err) {
       console.error('Failed to load auctions data:', err);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useRealtimeSync(['auctions', 'groups'], () => {
+    loadData(true);
+  });
 
   // Fetch Scheme Distribution Breakdown whenever selectedSchemeId changes
   const loadSchemeBreakdown = async (groupId) => {

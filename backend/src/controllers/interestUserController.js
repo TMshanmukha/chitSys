@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import pool from '../config/db.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_ROLE_PERMISSIONS } from '../middleware/interestAuthMiddleware.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 /**
  * Record action to FinLend audit log
@@ -220,6 +221,13 @@ export async function createUser(req, res) {
       req,
     });
 
+    broadcastSync({
+      business: 'interest',
+      entity: 'users',
+      action: 'CREATE',
+      data: { user_id: targetUserId, username: cleanUsername, role },
+    });
+
     res.status(201).json({
       success: true,
       message: `User '${cleanUsername}' created with temporary password.`,
@@ -405,6 +413,13 @@ export async function updateUser(req, res) {
       req,
     });
 
+    broadcastSync({
+      business: 'interest',
+      entity: 'users',
+      action: 'UPDATE',
+      data: { user_id: id },
+    });
+
     res.json({ success: true, message: 'User profile updated successfully.' });
   } catch (error) {
     logger.error('Failed to update FinLend user', error);
@@ -458,6 +473,13 @@ export async function toggleUserActive(req, res) {
       oldValues: { is_active: target.is_active },
       newValues: { is_active: nextState },
       req,
+    });
+
+    broadcastSync({
+      business: 'interest',
+      entity: 'users',
+      action: 'TOGGLE_STATUS',
+      data: { user_id: id, is_active: nextState },
     });
 
     res.json({
@@ -574,6 +596,19 @@ export async function assignCustomers(req, res) {
       oldValues: null,
       newValues: { assigned_count: loan_ids.length },
       req,
+    });
+
+    broadcastSync({
+      business: 'interest',
+      entity: 'users',
+      action: 'ASSIGN',
+      data: { agent_id: id, count: loan_ids.length },
+    });
+    broadcastSync({
+      business: 'interest',
+      entity: 'customers',
+      action: 'UPDATE',
+      data: { agent_id: id },
     });
 
     res.json({

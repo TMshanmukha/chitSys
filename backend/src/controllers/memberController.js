@@ -1,6 +1,7 @@
 import { pool } from '../config/db.js';
 import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 const memberSchema = z.object({
   member_code: z.string().optional(),
@@ -94,6 +95,13 @@ export async function createMember(req, res, next) {
       details: { memberId: insertResult.insertId, code: memberCode, name: validated.full_name },
     });
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'members',
+      action: 'CREATE',
+      data: { memberId: insertResult.insertId, memberCode, full_name: validated.full_name },
+    });
+
     res.status(201).json({
       success: true,
       message: 'Member registered successfully.',
@@ -173,6 +181,19 @@ export async function enrollMemberInGroup(req, res, next) {
       action: 'ENROLL_MEMBER_IN_GROUP',
       resource: 'GROUP_MEMBERSHIPS',
       details: { groupId, memberId, ticketNumber: ticket },
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'members',
+      action: 'ENROLL',
+      data: { groupId, memberId, ticketNumber: ticket },
+    });
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'groups',
+      action: 'UPDATE',
+      data: { groupId },
     });
 
     res.status(201).json({
@@ -421,6 +442,18 @@ export async function updateMember(req, res, next) {
           kycNumber: updatedKycNumber,
           isActive: updatedActive,
         },
+      },
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'members',
+      action: 'UPDATE',
+      data: {
+        id: Number(id),
+        full_name: updatedName,
+        phone: newPhone,
+        is_active: updatedActive,
       },
     });
 

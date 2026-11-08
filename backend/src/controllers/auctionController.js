@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getTodayIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 const draw2Schema = z.object({
   winning_member_id: z.number().int().positive('Winning member for Draw #2 is required'),
@@ -742,6 +743,16 @@ export async function conductAuction(req, res, next) {
         } : null,
       },
     });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'auctions',
+      action: 'CONDUCT',
+      data: {
+        groupId: validated.group_id,
+        periodNumber: validated.period_number,
+      },
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
@@ -785,6 +796,13 @@ export async function updateAuctionPayout(req, res, next) {
       action: 'UPDATE_AUCTION_PAYOUT',
       resource: 'AUCTIONS',
       details: { auctionId: id, status: payout_status, reference: payout_reference },
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'auctions',
+      action: 'PAYOUT',
+      data: { auctionId: id, payout_status },
     });
 
     res.status(200).json({

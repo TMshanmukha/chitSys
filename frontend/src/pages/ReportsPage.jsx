@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   FileText,
@@ -191,6 +192,10 @@ export default function ReportsPage() {
   useEffect(() => {
     loadReports(false);
   }, [selectedGroupId, periodFilter]);
+
+  useRealtimeSync(['collections', 'auctions', 'groups'], () => {
+    loadReports(true);
+  });
 
   const handleRefresh = () => {
     loadReports(true);

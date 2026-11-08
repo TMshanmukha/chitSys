@@ -5,6 +5,7 @@ import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
 import { getTodayIST, getCurrentTimeIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 export async function getAuditLogs(req, res, next) {
   try {
@@ -1235,6 +1236,14 @@ export async function recordCommissionWithdrawal(req, res, next) {
       ]
     );
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'commissions',
+      action: 'WITHDRAW',
+      data: { withdrawalNumber, amount: parsedAmount },
+      targetRoles: ['ADMIN'],
+    });
+
     res.status(201).json({
       success: true,
       message: `Commission withdrawal of ₹${parsedAmount.toLocaleString('en-IN')} recorded successfully.`,
@@ -2004,6 +2013,13 @@ export async function recordAdminAdvance(req, res, next) {
       link: '/admin/reports',
     }).catch(() => { });
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collections',
+      action: 'ADMIN_ADVANCE',
+      data: { advanceId: advResult.insertId, groupId: parsedGroupId, memberId: parsedMemberId, amount: parsedAmount },
+    });
+
     res.status(201).json({
       success: true,
       message: `Successfully added ₹${parsedAmount.toLocaleString('en-IN')} on behalf of ${member.full_name}. Recorded as Pending Recovery.`,
@@ -2087,6 +2103,13 @@ export async function settleAdminAdvance(req, res, next) {
         link: '/admin/reports',
       }).catch(() => { });
 
+      broadcastSync({
+        business: 'chitfund',
+        entity: 'collections',
+        action: 'SETTLE_ADVANCE',
+        data: { advanceId, groupId: adv.group_id, memberId: adv.member_id, amount: recAmount },
+      });
+
       return res.status(200).json({
         success: true,
         message: `Amount of ₹${recAmount.toLocaleString('en-IN')} marked as recovered from ${adv.member_name}.`,
@@ -2145,6 +2168,13 @@ export async function settleAdminAdvance(req, res, next) {
         memberName: memberInfo.member_name,
         recoveredAmount: recAmount,
       },
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collections',
+      action: 'SETTLE_ADVANCE',
+      data: { groupId: parsedGroupId, memberId: parsedMemberId, amount: recAmount },
     });
 
     return res.status(200).json({

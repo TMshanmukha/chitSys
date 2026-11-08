@@ -3,6 +3,7 @@ import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
 import { getTodayIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 /**
  * Submit agent's day collections & route work for Admin verification and day closing.
@@ -726,6 +727,19 @@ export async function submitAgentDayWork(req, res, next) {
         status: 'PENDING_APPROVAL',
       },
     });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'day_closing',
+      action: 'SUBMIT',
+      data: {
+        submissionId: result.insertId || existingRows[0]?.id,
+        agentId,
+        workDate,
+        totalCollected,
+        cashCollected,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -1058,6 +1072,24 @@ export async function approveAndCloseDaySubmission(req, res, next) {
       link: '/agent/dashboard',
     }).catch(() => {});
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'day_closing',
+      action: 'APPROVE',
+      data: {
+        id: parseInt(id, 10),
+        agentId: sub.agent_id,
+        workDate: sub.work_date,
+        status,
+      },
+    });
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collections',
+      action: 'RECONCILE',
+      data: { agentId: sub.agent_id, workDate: sub.work_date },
+    });
+
     res.status(200).json({
       success: true,
       message: status === 'APPROVED'
@@ -1183,6 +1215,23 @@ export async function unlockDaySubmissionForAdmin(req, res, next) {
       message: `Admin has unlocked your day shift for ${workDateStr}. You can now review, update collections, and re-submit your day closing.`,
       type: 'COLLECTION',
       link: '/agent/day-closing'
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'day_closing',
+      action: 'UNLOCK',
+      data: {
+        id: parseInt(id, 10),
+        agentId: submission.agent_id,
+        workDate: workDateStr,
+      },
+    });
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collections',
+      action: 'UNLOCK',
+      data: { agentId: submission.agent_id, workDate: workDateStr },
     });
 
     res.json({

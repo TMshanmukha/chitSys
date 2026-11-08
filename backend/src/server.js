@@ -15,6 +15,7 @@ import agentRoutes from './routes/agentRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import interestRoutes from './routes/interestRoutes.js';
 import { getTodayIST } from './utils/dateUtils.js';
+import { initRealtimeService } from './services/realtimeService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -229,6 +230,9 @@ async function startServer() {
     logger.info(`🔒 Allowed Frontend Origin: ${env.FRONTEND_ORIGIN}`);
     logger.info(`🌐 Health check available at: http://0.0.0.0:${env.PORT}/`);
   });
+
+  // Initialize Socket.IO bidirectional real-time communication
+  initRealtimeService(server, corsOptions);
 
   // Also bind to port 80 and 8080 if permitted so any cloud platform port setting works
   const alternatePorts = [80, 8080].filter((p) => p !== env.PORT);

@@ -5,6 +5,7 @@ import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
 import { getTodayIST, getCurrentTimeIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 const collectionSchema = z.object({
   group_id: z.number().int().positive('Chit Group selection is required'),
@@ -237,6 +238,21 @@ export async function recordCollection(req, res, next) {
       type: 'COLLECTION',
       link: '/admin/collections',
     }).catch(() => {});
+
+    // Broadcast Real-time Data Synchronization after successful DB commit
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'collections',
+      action: 'RECORD',
+      data: {
+        id: insertResult.insertId,
+        groupId: validated.group_id,
+        memberId: validated.member_id,
+        amount: validated.amount,
+        agentId: req.user.id,
+        paymentMethod: validated.payment_method,
+      },
+    });
 
     const remainingBalance = Math.max(0, installmentAmt - validated.amount);
 

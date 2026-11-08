@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -99,6 +100,10 @@ export default function AdminDaySubmissionsPage() {
   useEffect(() => {
     loadSubmissions();
   }, [filters]);
+
+  useRealtimeSync(['day_closing', 'collections'], () => {
+    loadSubmissions(true);
+  });
 
   const handleUnlockSubmission = async (id) => {
     try {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   Layers,
@@ -103,6 +104,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchDashboard(false);
   }, []);
+
+  useRealtimeSync(['collections', 'groups', 'members', 'agents', 'day_closing', 'commissions'], () => {
+    fetchDashboard(true);
+  });
 
   const totalGroups = Number(data?.totalGroups) || 0;
   const dailyChitGroups = Number(data?.dailyChitGroups ?? data?.dailyRoutes) || 0;

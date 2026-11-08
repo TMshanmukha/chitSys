@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import { createNotification } from './notificationController.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 export async function listLeaves(req, res, next) {
   try {
@@ -95,6 +96,7 @@ export async function createLeave(req, res, next) {
     const [agentRows] = await pool.query('SELECT full_name FROM users WHERE id=?', [targetAgentId]);
     const requesterName = agentRows[0]?.full_name || req.user.full_name;
     await createNotification({targetRole:'ADMIN',title:'Agent leave approval requested',message:`${requesterName} requested leave for ${uniqueDates.join(', ')}.`,type:'GENERAL',link:'/admin/leaves'});
+    broadcastSync({ business: 'chitfund', entity: 'leaves', action: 'CREATE', data: { targetAgentId } });
     res.status(201).json({success:true,message:`Leave request submitted for ${uniqueDates.length} day(s).`});
   } catch(error) { await conn.rollback(); next(error); } finally { conn.release(); }
 }
@@ -132,6 +134,8 @@ export async function reviewLeave(req, res, next) {
         await createNotification({userId:Number(item.covering_agent_id),title:'Temporary route coverage assigned',message:`You have an absent agent's route coverage on ${String(leave.leave_date).slice(0,10)}. Open your tasks to review the member roster.`,type:'COLLECTION',link:'/agent/dashboard'});
       }
     }
+    broadcastSync({ business: 'chitfund', entity: 'leaves', action: 'REVIEW', data: { id, decision } });
+    broadcastSync({ business: 'chitfund', entity: 'agents', action: 'COVERAGE' });
     res.json({success:true,message:leave.status === 'APPROVED' ? 'Coverage updated.' : `Leave ${decision.toLowerCase()}.`});
   } catch(error) { await conn.rollback(); if(error.status) return res.status(error.status).json({success:false,message:error.message}); next(error); } finally { conn.release(); }
 }

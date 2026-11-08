@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { getMonthlyCycleInfo, formatYMD } from '../utils/cycleHelper.js';
 import { getTodayIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
+import { createNotification } from './notificationController.js';
 
 const agentSchema = z.object({
   full_name: z.string().min(2, 'Agent full name is required'),
@@ -114,6 +116,13 @@ export async function createAgent(req, res, next) {
       details: { targetUserId: insertResult.insertId, username: validated.username, role: targetRole },
     });
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'agents',
+      action: 'CREATE',
+      data: { id: insertResult.insertId, role: targetRole, full_name: validated.full_name },
+    });
+
     res.status(201).json({
       success: true,
       message: `${targetRole === 'ADMIN' ? 'Admin' : 'Collection Agent'} account created successfully.`,
@@ -200,6 +209,13 @@ export async function updateAgent(req, res, next) {
       details: { targetUserId: id, updatedFields: Object.keys(req.body) },
     });
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'agents',
+      action: 'UPDATE',
+      data: { id },
+    });
+
     res.status(200).json({
       success: true,
       message: 'User account updated successfully.',
@@ -228,6 +244,13 @@ export async function toggleAgentStatus(req, res, next) {
       action: 'UPDATE_USER_STATUS',
       resource: 'USERS',
       details: { targetUserId: id, status: is_active ? 'ACTIVE' : 'INACTIVE' },
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'agents',
+      action: 'STATUS_CHANGE',
+      data: { id, is_active: Boolean(is_active) },
     });
 
     res.status(200).json({
@@ -263,6 +286,30 @@ export async function assignAgentToGroup(req, res, next) {
       action: 'ASSIGN_AGENT_TO_GROUP',
       resource: 'AGENT_ASSIGNMENTS',
       details: { agentId, groupId },
+    });
+
+    // Notify assigned agent directly in real time
+    createNotification({
+      userId: agentId,
+      targetRole: 'AGENT',
+      title: '📋 Route Assignment Updated',
+      message: `You have been assigned to collect Route Scheme #${groupId}.`,
+      type: 'ASSIGNMENT',
+      link: '/agent/tasks',
+    }).catch(() => {});
+
+    // Broadcast synchronization across admin and agent views
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'agents',
+      action: 'ASSIGN',
+      data: { agentId, groupId },
+    });
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'groups',
+      action: 'ASSIGN',
+      data: { agentId, groupId },
     });
 
     res.status(200).json({

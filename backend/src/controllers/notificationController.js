@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import { logger } from '../utils/logger.js';
+import { broadcastNotification } from '../services/realtimeService.js';
 
 /**
  * Get notifications for the authenticated user and their role
@@ -108,14 +109,33 @@ export async function clearAll(req, res) {
 /**
  * Send a notification (used internally or by admin)
  */
-export async function createNotification({ userId = null, targetRole = 'ALL', title, message, type = 'SYSTEM', link = null }) {
+export async function createNotification({ userId = null, targetRole = 'ALL', title, message, type = 'SYSTEM', link = null, business = 'chitfund' }) {
   try {
     const [result] = await pool.query(
       `INSERT INTO notifications (user_id, target_role, title, message, type, link, is_read, created_at)
        VALUES (?, ?, ?, ?, ?, ?, 0, NOW())`,
       [userId, targetRole, title, message, type, link]
     );
-    return result.insertId;
+
+    const insertedId = result.insertId;
+
+    // Database-First: Broadcast to connected clients after committed insert
+    broadcastNotification({
+      notification: {
+        id: insertedId,
+        user_id: userId,
+        target_role: targetRole,
+        title,
+        message,
+        type,
+        link,
+        is_read: 0,
+        created_at: new Date().toISOString(),
+      },
+      business,
+    });
+
+    return insertedId;
   } catch (error) {
     logger.error('Failed to insert notification', { error: error.message });
     return null;

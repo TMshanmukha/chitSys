@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   UserCheck,
@@ -1032,6 +1033,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   useEffect(() => {
     loadAgentData();
   }, []);
+
+  useRealtimeSync(['collections', 'groups', 'members', 'agents', 'day_closing', 'leaves', 'collection_edits', 'tracking'], () => {
+    loadAgentData();
+  });
 
   const handleRefresh = () => {
     setRefreshing(true);

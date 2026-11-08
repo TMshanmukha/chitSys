@@ -30,6 +30,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import Toast from '../components/Toast';
 import Pagination from '../components/Pagination';
@@ -125,6 +126,10 @@ export default function LeaveManagementPage() {
         .catch(() => {});
     }
   }, [admin]);
+
+  useRealtimeSync(['leaves', 'agents'], () => {
+    refresh(false);
+  });
 
   const days = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);

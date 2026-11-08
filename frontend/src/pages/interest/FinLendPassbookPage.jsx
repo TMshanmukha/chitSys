@@ -19,6 +19,7 @@ import {
   Plus,
 } from 'lucide-react';
 import api from '../../api/client';
+import { useRealtimeSync } from '../../context/RealtimeContext';
 import { formatCurrency, formatDate, formatTime, getServerYMD } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 import NewLoanModal from '../../components/interest-ui/NewLoanModal';
@@ -58,6 +59,10 @@ export default function FinLendPassbookPage() {
   useEffect(() => {
     if (id) loadPassbook();
   }, [id]);
+
+  useRealtimeSync(['finlend:collections', 'finlend:loans', 'finlend:customers', 'collections', 'loans', 'customers'], () => {
+    if (id) loadPassbook();
+  });
 
   const customer = data?.customer || {};
   const loans = data?.loans || [];

@@ -13,6 +13,7 @@ import {
   Check,
 } from 'lucide-react';
 import api from '../../api/client';
+import { useRealtimeSync } from '../../context/RealtimeContext';
 import { formatCurrency, formatDate, formatTime, getServerYMD } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 
@@ -60,6 +61,10 @@ export default function FinLendCollectPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useRealtimeSync(['finlend:collections', 'finlend:loans', 'collections', 'loans'], () => {
+    loadData(true);
+  });
 
   const todayStr = getServerYMD();
 

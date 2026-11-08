@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   Shield,
@@ -209,6 +210,10 @@ export default function AdminCommissionsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useRealtimeSync(['commissions', 'collections', 'auctions'], () => {
+    loadData(true);
+  });
 
   const handleCopy = (text, key) => {
     if (!text) return;

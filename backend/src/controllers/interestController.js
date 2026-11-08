@@ -2,6 +2,7 @@ import pool from '../config/db.js';
 import { logger } from '../utils/logger.js';
 import { calculateLoanSchedule, allocatePayment, roundMoney } from '../services/interestCalculationEngine.js';
 import { getTodayIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 /**
  * ============================================================================
@@ -150,6 +151,13 @@ export async function createScheme(req, res) {
       late_penalty_flat, allow_part_payment, allow_advance_payment, allow_preclosure,
       preclosure_discount_percent, allocation_priority, status, req.user?.id || null
     ]);
+
+    broadcastSync({
+      business: 'interest',
+      entity: 'schemes',
+      action: 'CREATE',
+      data: { id: result.insertId, scheme_code, scheme_name },
+    });
 
     res.status(201).json({
       success: true,
@@ -390,6 +398,13 @@ export async function createCustomer(req, res) {
       guarantor_name || null, guarantor_phone || null, guarantor_address || null,
       notes || null, req.user?.id || null
     ]);
+
+    broadcastSync({
+      business: 'interest',
+      entity: 'customers',
+      action: 'CREATE',
+      data: { id: result.insertId, customer_code, full_name },
+    });
 
     res.status(201).json({
       success: true,
@@ -652,6 +667,19 @@ export async function createLoan(req, res) {
     }
 
     await connection.commit();
+
+    broadcastSync({
+      business: 'interest',
+      entity: 'loans',
+      action: 'CREATE',
+      data: { id: loanId, loan_account_number, customer_id },
+    });
+    broadcastSync({
+      business: 'interest',
+      entity: 'customers',
+      action: 'UPDATE',
+      data: { id: customer_id },
+    });
 
     res.status(201).json({
       success: true,
@@ -922,6 +950,19 @@ export async function recordCollection(req, res) {
     ]);
 
     await connection.commit();
+
+    broadcastSync({
+      business: 'interest',
+      entity: 'collections',
+      action: 'RECORD',
+      data: { id: collectionId, loan_id, customer_id: loan.customer_id, amount: paymentAmt },
+    });
+    broadcastSync({
+      business: 'interest',
+      entity: 'loans',
+      action: 'UPDATE',
+      data: { id: loan_id },
+    });
 
     res.status(201).json({
       success: true,

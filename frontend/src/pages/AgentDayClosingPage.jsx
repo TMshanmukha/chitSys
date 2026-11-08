@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Toast from '../components/Toast';
 import { formatDate, getServerYMD } from '../utils/dateUtils';
@@ -39,9 +40,9 @@ export default function AgentDayClosingPage() {
   const [toast, setToast] = useState(null);
   const [expandedChitId, setExpandedChitId] = useState(null);
 
-  const fetchDayData = async (date) => {
+  const fetchDayData = async (date, quiet = false) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       setError('');
       setSuccessMsg('');
       const targetDate = date || workDate;
@@ -97,6 +98,10 @@ export default function AgentDayClosingPage() {
   useEffect(() => {
     fetchDayData(workDate);
   }, [workDate]);
+
+  useRealtimeSync(['day_closing', 'collections', 'groups'], () => {
+    fetchDayData(workDate, true);
+  });
 
   const handleSubmitDayWork = (e) => {
     e?.preventDefault();

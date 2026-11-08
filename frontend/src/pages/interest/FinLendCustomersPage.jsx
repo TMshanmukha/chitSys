@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import api from '../../api/client';
+import { useRealtimeSync } from '../../context/RealtimeContext';
 import ModalPortal from '../../components/ModalPortal';
 import { formatCurrency, formatDate } from '../../utils/interestUtils';
 
@@ -81,6 +82,10 @@ export default function FinLendCustomersPage() {
   useEffect(() => {
     loadCustomers();
   }, []);
+
+  useRealtimeSync(['finlend:customers', 'finlend:loans', 'customers', 'loans'], () => {
+    loadCustomers(true);
+  });
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {

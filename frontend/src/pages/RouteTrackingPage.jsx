@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   Navigation,
@@ -282,6 +283,12 @@ export default function RouteTrackingPage() {
     daySubmissionsAgentFilter,
     daySubmissionsDateFilter,
   ]);
+
+  useRealtimeSync(['tracking', 'collections', 'day_closing', 'groups'], () => {
+    loadTracking(true);
+    loadDailyLedger(true);
+    loadDaySubmissionsForAdmin(true);
+  });
 
   const handleRefresh = () => {
     loadTracking(false);

@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/client';
 import { useAuth } from './AuthContext';
+import { useRealtime } from './RealtimeContext';
 
 const NotificationContext = createContext(null);
 
 export function NotificationProvider({ children }) {
   const { isAuthenticated, user } = useAuth();
+  const { socket, isConnected } = useRealtime();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -48,7 +50,7 @@ export function NotificationProvider({ children }) {
   }, []);
 
   const fetchNotifications = useCallback(async (isPolling = false) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('chit_token') || localStorage.getItem('token');
     if (!isAuthenticated || !token) return;
     try {
       if (!isPolling) setLoading(true);
@@ -77,21 +79,44 @@ export function NotificationProvider({ children }) {
     }
   }, [isAuthenticated, playNotificationPing]);
 
-  // Initial fetch on login & real-time polling every 6 seconds
+  // Real-time socket instant notification listener
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    if (!socket) return;
+
+    const handleNewNotification = (notif) => {
+      playNotificationPing();
+      setNotifications((prev) => {
+        // Prevent duplicates
+        if (prev.some((n) => n.id === notif.id)) return prev;
+        return [notif, ...prev];
+      });
+      setUnreadCount((prev) => prev + 1);
+      // Fetch full sync quietly in background
+      fetchNotifications(true);
+    };
+
+    socket.on('notification:new', handleNewNotification);
+    return () => {
+      socket.off('notification:new', handleNewNotification);
+    };
+  }, [socket, playNotificationPing, fetchNotifications]);
+
+  // Initial fetch on login & fallback polling (adaptive: 20s if socket connected, 6s fallback if offline)
+  useEffect(() => {
+    const token = localStorage.getItem('chit_token') || localStorage.getItem('token');
     if (isAuthenticated && token) {
       fetchNotifications(false);
+      const pollDelay = isConnected ? 20000 : 6000;
       const interval = setInterval(() => {
         fetchNotifications(true);
-      }, 6000);
+      }, pollDelay);
       return () => clearInterval(interval);
     } else {
       setNotifications([]);
       setUnreadCount(0);
       prevUnreadRef.current = 0;
     }
-  }, [isAuthenticated, fetchNotifications, user?.id]);
+  }, [isAuthenticated, fetchNotifications, user?.id, isConnected]);
 
   const markAsRead = async (id) => {
     try {

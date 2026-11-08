@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   Layers,
@@ -152,9 +153,9 @@ export function ChitGroupsPage() {
     setGroupsPage(1);
   }, [schemeTab, statusFilter]);
 
-  const loadData = async () => {
+  const loadData = async (quiet = false) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const [groupsRes, agentsRes, membersRes] = await Promise.all([
         api.get('/admin/groups'),
         api.get('/admin/agents'),
@@ -173,13 +174,17 @@ export function ChitGroupsPage() {
     } catch (err) {
       console.error('Error loading data:', err);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useRealtimeSync(['groups', 'agents', 'members'], () => {
+    loadData(true);
+  });
 
   const handleFrequencySelect = (freq) => {
     const isDaily = freq === 'DAILY';
@@ -2485,9 +2490,9 @@ export function AgentsPage() {
     phone: '',
   });
 
-  const loadData = async () => {
+  const loadData = async (quiet = false) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const [agRes, grRes] = await Promise.all([
         api.get('/admin/agents'),
         api.get('/admin/groups'),
@@ -2497,13 +2502,17 @@ export function AgentsPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useRealtimeSync(['agents', 'groups'], () => {
+    loadData(true);
+  });
 
   const handleCreateAgent = async (e) => {
     e.preventDefault();
@@ -2918,9 +2927,9 @@ export function MembersPage() {
     setMembersPage(1);
   }, [search]);
 
-  const loadData = async () => {
+  const loadData = async (quiet = false) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const [mRes, gRes] = await Promise.all([
         api.get(`/admin/members${search ? `?search=${encodeURIComponent(search)}` : ''}`),
         api.get('/admin/groups'),
@@ -2930,13 +2939,17 @@ export function MembersPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, [search]);
+
+  useRealtimeSync(['members', 'groups', 'collections'], () => {
+    loadData(true);
+  });
 
   const openPassbook = async (member) => {
     setSelectedMember(member);
@@ -3884,9 +3897,9 @@ export function CollectionsPage() {
     setChitsPage(1);
   }, [taskFilter, taskSearch]);
 
-  const loadData = async () => {
+  const loadData = async (quiet = false) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const [colRes, grpRes, memRes, taskRes] = await Promise.all([
         api.get('/admin/collections'),
         api.get('/admin/groups'),
@@ -3903,13 +3916,17 @@ export function CollectionsPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useRealtimeSync(['collections', 'groups', 'members'], () => {
+    loadData(true);
+  });
 
   useEffect(() => {
     const groupId = searchParams.get('group_id');

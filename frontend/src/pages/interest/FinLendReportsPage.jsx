@@ -12,6 +12,7 @@ import {
   Printer,
 } from 'lucide-react';
 import api from '../../api/client';
+import { useRealtimeSync } from '../../context/RealtimeContext';
 import { formatCurrency, formatDate } from '../../utils/interestUtils';
 
 export default function FinLendReportsPage() {
@@ -52,6 +53,10 @@ export default function FinLendReportsPage() {
   useEffect(() => {
     loadReportData();
   }, []);
+
+  useRealtimeSync(['finlend:collections', 'finlend:loans', 'collections', 'loans'], () => {
+    loadReportData(true);
+  });
 
   // Filter collections by dateRange & search
   const filteredCollections = useMemo(() => {

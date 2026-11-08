@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { useRealtimeSync } from '../../context/RealtimeContext';
 import { formatCurrency, formatDate, getServerDate, getServerYMD } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 import NewLoanModal from '../../components/interest-ui/NewLoanModal';
@@ -118,6 +119,10 @@ export default function FinLendHomePage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useRealtimeSync(['finlend:loans', 'finlend:collections', 'finlend:customers', 'loans', 'collections', 'customers'], () => {
+    loadData(true);
+  });
 
   // Compute metrics
   const todayColStats = metrics?.todayColStats || {};

@@ -2,6 +2,7 @@ import { pool } from '../config/db.js';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getTodayIST, getCurrentTimeIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 export async function getRouteTrackingOverview(req, res, next) {
   try {
@@ -633,6 +634,13 @@ export async function logAgentStopActivity(req, res, next) {
         link: '/admin/tracking',
       }).catch(() => {});
     }
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'tracking',
+      action: 'STOP_ACTIVITY',
+      data: { agentId, groupId, memberId: targetMemberId, stopId: validStopId, status: targetStatus },
+    });
 
     res.status(201).json({
       success: true,

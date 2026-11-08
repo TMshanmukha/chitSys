@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   Users,
@@ -95,6 +96,10 @@ export default function UsersPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useRealtimeSync(['agents', 'users', 'groups'], () => {
+    loadData();
+  });
 
   const handleRefresh = () => {
     setRefreshing(true);

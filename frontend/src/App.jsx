@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { RealtimeProvider } from './context/RealtimeContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -61,7 +62,8 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <NotificationProvider>
+        <RealtimeProvider>
+          <NotificationProvider>
           <ErrorBoundary>
             <BrowserRouter>
               {/* Automatic smooth window move to top on every page transition */}
@@ -192,7 +194,8 @@ export default function App() {
             </BrowserRouter>
           </ErrorBoundary>
         </NotificationProvider>
-      </AuthProvider>
-    </ThemeProvider>
+      </RealtimeProvider>
+    </AuthProvider>
+  </ThemeProvider>
   );
 }

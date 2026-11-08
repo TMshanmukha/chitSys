@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { createNotification } from './notificationController.js';
 import { getTodayIST } from '../utils/dateUtils.js';
+import { broadcastSync } from '../services/realtimeService.js';
 
 const groupSchema = z.object({
   group_code: z.string().optional(),
@@ -297,6 +298,18 @@ export async function createGroup(req, res, next) {
       link: '/admin/chit-groups',
     }).catch(() => {});
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'groups',
+      action: 'CREATE',
+      data: {
+        groupId: newGroupId,
+        groupCode: finalGroupCode,
+        groupName: validated.group_name,
+        assignedAgentId: validated.assigned_agent_id,
+      },
+    });
+
     res.status(201).json({
       success: true,
       message: `${validated.chit_type.replace('_', ' ')} (${finalGroupCode}) created with ${memberIds.length} members enrolled successfully.`,
@@ -580,6 +593,13 @@ export async function completeGroup(req, res, next) {
       details: `Chit Group ${group.group_code} marked as COMPLETED.`,
     });
 
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'groups',
+      action: 'COMPLETE',
+      data: { groupId: id, groupCode: group.group_code },
+    });
+
     res.status(200).json({
       success: true,
       message: `Chit Scheme '${group.group_name}' (${group.group_code}) successfully completed and moved to inactive schemes.`,
@@ -631,6 +651,17 @@ export async function toggleGroupStatus(req, res, next) {
         groupName: group.group_name,
         previousStatus: group.status,
         newStatus,
+      },
+    });
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'groups',
+      action: 'STATUS_CHANGE',
+      data: {
+        groupId: id,
+        groupCode: group.group_code,
+        status: newStatus,
       },
     });
 

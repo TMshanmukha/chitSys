@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRealtimeSync } from '../context/RealtimeContext';
 import api from '../api/client';
 import {
   FilePenLine,
@@ -68,6 +69,10 @@ export default function CollectionEditRequestsPage() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  useRealtimeSync(['collection_edits', 'collections'], () => {
+    fetchRequests(true);
+  });
 
   // Filtered requests
   const filteredRequests = useMemo(() => {

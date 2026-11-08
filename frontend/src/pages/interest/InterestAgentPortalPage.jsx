@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { useRealtimeSync } from '../../context/RealtimeContext';
 import { useTheme } from '../../context/ThemeContext';
 import { formatCurrency, formatDate, formatTime, getServerDate, getServerYMD, onServerTimeSync } from '../../utils/interestUtils';
 import BigButton from '../../components/interest-ui/BigButton';
@@ -132,6 +133,10 @@ export default function InterestAgentPortalPage() {
       clearInterval(timer);
     };
   }, []);
+
+  useRealtimeSync(['finlend:collections', 'finlend:loans', 'finlend:customers', 'collections', 'loans'], () => {
+    loadData(true);
+  });
 
   // Compute metrics
   const totalDueToday = useMemo(() => {
