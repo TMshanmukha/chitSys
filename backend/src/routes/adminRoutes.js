@@ -13,7 +13,7 @@ import {
   settleAdminAdvance,
 } from '../controllers/adminController.js';
 import { listGroups, createGroup, getGroupDetails, completeGroup } from '../controllers/groupController.js';
-import { listMembers, createMember, enrollMemberInGroup, getMemberPassbook } from '../controllers/memberController.js';
+import { listMembers, createMember, updateMember, enrollMemberInGroup, getMemberPassbook } from '../controllers/memberController.js';
 import { listAgents, createAgent, updateAgent, toggleAgentStatus, assignAgentToGroup } from '../controllers/agentController.js';
 import { listCollections, recordCollection, getCollectionSummary, getAdminCollectionTasks } from '../controllers/collectionController.js';
 import { listAuctions, conductAuction, updateAuctionPayout, getAuctionSummary, getSchemeAuctionBreakdown } from '../controllers/auctionController.js';
@@ -60,6 +60,7 @@ router.post('/chit-groups/:id/complete', completeGroup);
 // Members Management & Passbook / Statement of Account
 router.get('/members', listMembers);
 router.post('/members', createMember);
+router.put('/members/:id', updateMember);
 router.post('/members/enroll', enrollMemberInGroup);
 router.get('/members/:id/passbook', getMemberPassbook);
 

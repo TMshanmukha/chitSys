@@ -42,6 +42,7 @@ import {
   ArrowLeft,
   MessageSquare,
   Phone,
+  Edit3,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime, getServerYMD, getServerDate } from '../utils/dateUtils';
 import ChitHistoryModal from '../components/ChitHistoryModal';
@@ -2626,7 +2627,9 @@ export function MembersPage() {
   const [search, setSearch] = useState('');
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [editMember, setEditMember] = useState(null);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -2648,6 +2651,16 @@ export function MembersPage() {
     address: '',
     kyc_type: 'Aadhaar',
     kyc_number: '',
+  });
+
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    phone: '',
+    alternate_phone: '',
+    address: '',
+    kyc_type: 'Aadhaar',
+    kyc_number: '',
+    is_active: 1,
   });
 
   useEffect(() => {
@@ -2730,6 +2743,44 @@ export function MembersPage() {
       loadData();
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Enrollment failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openEditModal = (member) => {
+    setSelectedMember(member);
+    setEditMember(member);
+    setEditForm({
+      full_name: member.full_name || '',
+      phone: member.phone || '',
+      alternate_phone: member.alternate_phone || '',
+      address: member.address || '',
+      kyc_type: member.kyc_type || 'Aadhaar',
+      kyc_number: member.kyc_number || '',
+      is_active: member.is_active !== undefined ? member.is_active : 1,
+    });
+    setError('');
+    setSuccess('');
+    setShowEditModal(true);
+    scrollToFormOrModal('member-edit-modal');
+  };
+
+  const handleUpdateMember = async (e) => {
+    e.preventDefault();
+    if (!editMember) return;
+    setError('');
+    setSuccess('');
+    setSubmitting(true);
+    try {
+      const res = await api.put(`/admin/members/${editMember.id}`, editForm);
+      if (res.data?.success) {
+        setSuccess(res.data.message || `Member ${editForm.full_name} updated successfully.`);
+        setShowEditModal(false);
+        loadData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to update member');
     } finally {
       setSubmitting(false);
     }
@@ -2825,7 +2876,16 @@ export function MembersPage() {
                       <td className="py-3.5 px-4 font-bold text-emerald-600 dark:text-emerald-400">
                         ₹{parseFloat(m.total_paid).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3.5 px-4 text-right space-x-2">
+                      <td className="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(m)}
+                          className="px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800/60 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold cursor-pointer inline-flex items-center gap-1"
+                          title="Edit Member Details"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => openPassbook(m)}
@@ -3023,6 +3083,189 @@ export function MembersPage() {
             </form>
           </div>
       </ModalPortal>
+
+      {/* Modal: Edit Member Details */}
+      {editMember && (
+        <ModalPortal
+          id="member-edit-modal"
+          isOpen={showEditModal && Boolean(editMember)}
+          onClose={() => setShowEditModal(false)}
+        >
+          <div className="w-full max-w-3xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+                  <Edit3 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-lg sm:text-xl font-heading">
+                    Edit Chit Participant Details
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    {editMember.member_code} • {editMember.full_name}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl cursor-pointer"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {error && (
+              <div className="p-4 rounded-2xl bg-red-50 dark:bg-rose-950/40 text-red-600 dark:text-rose-300 text-sm flex items-center gap-3 border border-red-200 dark:border-rose-900/50">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateMember} className="space-y-5">
+              {/* Section 1: Personal Details */}
+              <div className="space-y-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  1. Subscriber Identity & Contact
+                </span>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                    Subscriber Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Anjaneyulu K."
+                    value={editForm.full_name}
+                    onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                      Primary Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="10-digit mobile number"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                      Alternate Phone (Optional)
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="Secondary or emergency contact"
+                      value={editForm.alternate_phone}
+                      onChange={(e) => setEditForm({ ...editForm, alternate_phone: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Address */}
+              <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  2. Collection Address
+                </span>
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                    Physical / Shop Address
+                  </label>
+                  <textarea
+                    rows="2"
+                    placeholder="Shop number, Street, Landmark, Village or City"
+                    value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Section 3: KYC Details */}
+              <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  3. KYC & Document Proof
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                      KYC Document Type
+                    </label>
+                    <select
+                      value={editForm.kyc_type}
+                      onChange={(e) => setEditForm({ ...editForm, kyc_type: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    >
+                      <option value="Aadhaar">Aadhaar Card</option>
+                      <option value="PAN">PAN Card</option>
+                      <option value="Voter ID">Voter ID</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                      Document Number
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1234 5678 9012"
+                      value={editForm.kyc_number}
+                      onChange={(e) => setEditForm({ ...editForm, kyc_number: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Membership Status */}
+              <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  4. Membership Status
+                </span>
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                    Account Status
+                  </label>
+                  <select
+                    value={editForm.is_active}
+                    onChange={(e) => setEditForm({ ...editForm, is_active: parseInt(e.target.value, 10) })}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  >
+                    <option value={1}>Active Subscriber</option>
+                    <option value={0}>Inactive / Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
 
       {/* Modal: Enroll in Group */}
       {selectedMember && (

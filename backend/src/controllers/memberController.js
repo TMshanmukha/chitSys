@@ -339,3 +339,107 @@ export async function getMemberPassbook(req, res, next) {
     next(error);
   }
 }
+
+export async function updateMember(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { full_name, phone, alternate_phone, address, kyc_type, kyc_number, is_active } = req.body;
+
+    const [existing] = await pool.execute('SELECT * FROM members WHERE id = ? LIMIT 1', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'Member not found.' });
+    }
+
+    const current = existing[0];
+
+    const newPhone = phone ? String(phone).trim() : current.phone;
+    if (newPhone !== current.phone) {
+      const [duplicate] = await pool.execute(
+        'SELECT id FROM members WHERE phone = ? AND id != ? LIMIT 1',
+        [newPhone, id]
+      );
+      if (duplicate.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Another member with phone number '${newPhone}' already exists.`,
+        });
+      }
+    }
+
+    const updatedName = full_name ? String(full_name).trim() : current.full_name;
+    const updatedAltPhone = alternate_phone !== undefined ? (alternate_phone ? String(alternate_phone).trim() : null) : current.alternate_phone;
+    const updatedAddress = address !== undefined ? (address ? String(address).trim() : null) : current.address;
+    const updatedKycType = kyc_type || current.kyc_type || 'Aadhaar';
+    const updatedKycNumber = kyc_number !== undefined ? (kyc_number ? String(kyc_number).trim() : null) : current.kyc_number;
+    const updatedActive = is_active !== undefined ? (is_active ? 1 : 0) : current.is_active;
+
+    await pool.execute(
+      `UPDATE members
+       SET full_name = ?,
+           phone = ?,
+           alternate_phone = ?,
+           address = ?,
+           kyc_type = ?,
+           kyc_number = ?,
+           is_active = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [
+        updatedName,
+        newPhone,
+        updatedAltPhone,
+        updatedAddress,
+        updatedKycType,
+        updatedKycNumber,
+        updatedActive,
+        id,
+      ]
+    );
+
+    // If member name or address changed, update corresponding route_stops name
+    if (updatedName !== current.full_name || updatedAddress !== current.address) {
+      await pool.execute(
+        `UPDATE route_stops
+         SET stop_name = ?
+         WHERE member_id = ?`,
+        [`${updatedName} (${updatedAddress || 'Member Residence'})`, id]
+      ).catch(() => {});
+    }
+
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'UPDATE_MEMBER',
+      resource: 'MEMBERS',
+      details: {
+        memberId: id,
+        changes: {
+          fullName: updatedName,
+          phone: newPhone,
+          alternatePhone: updatedAltPhone,
+          address: updatedAddress,
+          kycType: updatedKycType,
+          kycNumber: updatedKycNumber,
+          isActive: updatedActive,
+        },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Member details updated successfully.',
+      data: {
+        id: Number(id),
+        member_code: current.member_code,
+        full_name: updatedName,
+        phone: newPhone,
+        alternate_phone: updatedAltPhone,
+        address: updatedAddress,
+        kyc_type: updatedKycType,
+        kyc_number: updatedKycNumber,
+        is_active: updatedActive,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
