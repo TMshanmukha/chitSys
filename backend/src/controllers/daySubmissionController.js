@@ -4,6 +4,7 @@ import { createNotification } from './notificationController.js';
 import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
 import { getTodayIST } from '../utils/dateUtils.js';
 import { broadcastSync } from '../services/realtimeService.js';
+import { ensureAdvanceTables } from '../services/advanceEngine.js';
 
 /**
  * Submit agent's day collections & route work for Admin verification and day closing.
@@ -28,9 +29,11 @@ export async function calculateDayWorkData(agentId, workDate) {
 
     const groupIds = groups.map((g) => g.id);
 
+    await ensureAdvanceTables();
+
     // Include every collector in covered routes so admin-recorded work is complete in the roster.
     const [collections] = await pool.query(
-      `SELECT c.id, c.receipt_number, c.group_id, c.member_id, c.amount, c.payment_method, c.payment_reference,
+      `SELECT c.id, c.receipt_number, c.group_id, c.member_id, c.amount, c.normal_amount, c.advance_amount, c.payment_method, c.payment_reference,
               c.collection_date, c.collection_time, c.notes, m.full_name as member_name, gm.ticket_number, m.phone as member_phone,
               g.group_name, g.group_code, handler.full_name AS completed_by_name, handler.role AS collector_role, c.agent_id AS collector_id
        FROM collections c
@@ -103,6 +106,20 @@ export async function calculateDayWorkData(agentId, workDate) {
       enrolledMembers = members;
     }
 
+    // 4b. Fetch all advance adjustments recorded for this date
+    const [allAdjustments] = groupIds.length > 0 ? await pool.query(
+      `SELECT credit_id, group_id, member_id, amount_adjusted
+       FROM member_advance_adjustments
+       WHERE adjustment_date = ? AND group_id IN (?)`,
+      [workDate, groupIds]
+    ) : [[]];
+
+    const adjustmentMap = new Map();
+    for (const adj of allAdjustments) {
+      const key = `${adj.group_id}_${adj.member_id}`;
+      adjustmentMap.set(key, (adjustmentMap.get(key) || 0) + parseFloat(adj.amount_adjusted || 0));
+    }
+
     // 5. Structure "What Chits It Collected" breakdown & subscriber rosters
     let totalStopsVisited = 0;
     let totalStopsPending = 0;
@@ -137,18 +154,25 @@ export async function calculateDayWorkData(agentId, workDate) {
         .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
 
       const gAgentTotal = gAgentCash + gAgentUpi;
+      const gAgentAdvance = gAgentColls.reduce((sum, c) => sum + parseFloat(c.advance_amount || 0), 0);
+      const gAgentNormal = Math.max(0, gAgentTotal - gAgentAdvance);
       const gTotal = gAgentTotal + gAdminAmount;
 
       // Paid vs unpaid members in this group
       const paidMembers = [];
       const unpaidMembers = [];
       let adminSolelyMembersCount = 0;
+      let gAdvanceAdjustedTotal = 0;
 
       for (const m of gMembers) {
         const memberCollections = gCollections.filter((c) => c.member_id === m.member_id);
         const collectedForMember = memberCollections.reduce((sum,c)=>sum+parseFloat(c.amount||0),0);
+        const advanceAdjustedForMember = adjustmentMap.get(`${g.id}_${m.member_id}`) || 0;
+        gAdvanceAdjustedTotal += advanceAdjustedForMember;
+        const effectivePaidTotal = collectedForMember + advanceAdjustedForMember;
         const coll = memberCollections[0] || null;
-        if (collectedForMember >= installmentAmt && installmentAmt > 0) {
+
+        if (effectivePaidTotal >= installmentAmt && installmentAmt > 0) {
           const adminAmt = memberCollections
             .filter((item) => ['ADMIN','SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) || (item.collector_id && Number(item.collector_id) !== Number(agentId)))
             .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
@@ -156,10 +180,11 @@ export async function calculateDayWorkData(agentId, workDate) {
             .filter((item) => !['ADMIN','SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) && (!item.collector_id || Number(item.collector_id) === Number(agentId)))
             .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
           const isPaidByAdmin = adminAmt > 0;
+          const isCoveredByAdvance = Boolean(advanceAdjustedForMember >= installmentAmt && collectedForMember === 0);
           const isSolelyAdmin = isPaidByAdmin && agentAmt === 0;
 
-          if (isSolelyAdmin) {
-            adminSolelyMembersCount++;
+          if (isSolelyAdmin || isCoveredByAdvance) {
+            adminSolelyMembersCount++; // Task deducted from agent's active collection stops
           } else {
             totalStopsVisited++;
           }
@@ -169,19 +194,27 @@ export async function calculateDayWorkData(agentId, workDate) {
             memberName: m.full_name,
             ticketNumber: m.ticket_number,
             phone: m.phone,
-            amount: collectedForMember,
+            amount: collectedForMember > 0 ? collectedForMember : installmentAmt,
             agentAmount: agentAmt,
             adminAmount: adminAmt,
-            paymentMethod: coll.payment_method,
-            receiptNumber: coll.receipt_number,
-            collectionTime: coll.collection_time,
-            completedBy: [...new Set(memberCollections.map((item)=>item.completed_by_name).filter(Boolean))].join(', ') || null,
+            isAdvanceCovered: isCoveredByAdvance,
+            advanceAdjustedAmount: advanceAdjustedForMember,
+            paymentMethod: isCoveredByAdvance ? 'ADVANCE_CREDIT' : (coll ? coll.payment_method : 'CASH'),
+            receiptNumber: coll ? coll.receipt_number : 'ADV-AUTO',
+            collectionTime: coll ? coll.collection_time : null,
+            completedBy: isCoveredByAdvance
+              ? 'Auto-Advance Credit'
+              : ([...new Set(memberCollections.map((item)=>item.completed_by_name).filter(Boolean))].join(', ') || null),
             completedByAdmin: isPaidByAdmin,
-            paidByNotice: isSolelyAdmin
-              ? 'Paid by Admin, not by Agent'
-              : (isPaidByAdmin ? `₹${adminAmt} paid by Admin, ₹${agentAmt} collected by Agent` : 'Collected by Agent'),
-            notes: coll.notes || '',
-            statusLabel: isSolelyAdmin ? 'Paid by Admin, not by Agent' : 'Collected Today',
+            paidByNotice: isCoveredByAdvance
+              ? `Paid in advance from previous excess collection (₹${advanceAdjustedForMember.toLocaleString('en-IN')}) · Task Deducted`
+              : (isSolelyAdmin
+                  ? 'Paid by Admin, not by Agent'
+                  : (isPaidByAdmin ? `₹${adminAmt} paid by Admin, ₹${agentAmt} collected by Agent` : 'Collected by Agent')),
+            notes: coll ? (coll.notes || '') : 'Covered via advance credit',
+            statusLabel: isCoveredByAdvance
+              ? 'Paid via Advance'
+              : (isSolelyAdmin ? 'Paid by Admin, not by Agent' : 'Collected Today'),
           });
         } else {
           totalStopsPending++;
@@ -207,8 +240,9 @@ export async function calculateDayWorkData(agentId, workDate) {
             ticketNumber: m.ticket_number,
             phone: m.phone,
             amountCollected: collectedForMember,
+            advanceAdjusted: advanceAdjustedForMember,
             expectedAmount: installmentAmt,
-            pendingDeficit: Math.max(0, installmentAmt-collectedForMember),
+            pendingDeficit: Math.max(0, installmentAmt - effectivePaidTotal),
             partialCollectors: [...new Set(memberCollections.map((item)=>item.completed_by_name).filter(Boolean))].join(', ') || null,
             isAdminCovered: Boolean(m.advance_id && m.advance_status === 'PENDING_RECOVERY'),
             advanceAmount: m.advance_amount ? parseFloat(m.advance_amount) : 0,
@@ -222,7 +256,7 @@ export async function calculateDayWorkData(agentId, workDate) {
         }
       }
 
-      // Target expected for agent: deduct members collected directly by Admin at office
+      // Target expected for agent: deduct members collected directly by Admin or covered by Advance
       const agentActiveSubscribersCount = Math.max(0, gMembers.length - adminSolelyMembersCount);
       const expectedTarget = isDaily 
         ? agentActiveSubscribersCount * installmentAmt 
@@ -244,6 +278,9 @@ export async function calculateDayWorkData(agentId, workDate) {
         cashCollected: gAgentCash,
         upiCollected: gAgentUpi,
         agentCollected: gAgentTotal,
+        normalCollection: gAgentNormal,
+        advanceCollection: gAgentAdvance,
+        advanceAdjusted: gAdvanceAdjustedTotal,
         adminCollected: gAdminAmount,
         totalCollected: gAgentTotal,
         combinedTotalCollected: gTotal,
@@ -308,10 +345,17 @@ export async function calculateDayWorkData(agentId, workDate) {
       0
     );
 
+    const totalAdvanceCollected = chitBreakdown.reduce((sum, item) => sum + (item.advanceCollection || 0), 0);
+    const totalAdvanceAdjusted = chitBreakdown.reduce((sum, item) => sum + (item.advanceAdjusted || 0), 0);
+    const totalNormalCollected = Math.max(0, totalCollected - totalAdvanceCollected);
+
     const graphsAnalyses = {
       overallCompletionPercent,
       grandExpectedTarget,
       totalCollected,
+      totalAdvanceCollected,
+      totalAdvanceAdjusted,
+      totalNormalCollected,
       adminTotalCollected,
       adminPaidMembersCount,
       grandPendingAmount: Math.max(0, grandExpectedTarget - totalCollected),
@@ -351,6 +395,9 @@ export async function calculateDayWorkData(agentId, workDate) {
         frequency: item.frequency,
         target: item.expectedTarget,
         collected: item.totalCollected,
+        normalCollected: item.normalCollection,
+        advanceCollected: item.advanceCollection,
+        advanceAdjusted: item.advanceAdjusted,
         cash: item.cashCollected,
         upi: item.upiCollected,
         pending: item.pendingAmount,
@@ -370,6 +417,9 @@ export async function calculateDayWorkData(agentId, workDate) {
         upiCollected,
         chequeCollected,
         totalCollected,
+        totalAdvanceCollected,
+        totalAdvanceAdjusted,
+        totalNormalCollected,
         totalReceipts,
         totalStopsVisited,
         totalStopsPending,
@@ -386,6 +436,9 @@ export async function calculateDayWorkData(agentId, workDate) {
       upiCollected,
       chequeCollected,
       totalCollected,
+      totalAdvanceCollected,
+      totalAdvanceAdjusted,
+      totalNormalCollected,
       totalReceipts,
       totalStopsVisited,
       totalStopsPending,

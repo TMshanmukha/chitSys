@@ -661,6 +661,12 @@ export default function AdminDaySubmissionsPage() {
                                   <span>Dues: ₹{Number(chit.pendingAmount || 0).toLocaleString('en-IN')}</span>
                                 </div>
 
+                                {Number(chit.advanceCollection || 0) > 0 && (
+                                  <div className="text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 px-2 py-1 rounded-lg border border-teal-200 dark:border-teal-800">
+                                    ⚡ Advance Collected: ₹{Number(chit.advanceCollection).toLocaleString('en-IN')} (Credited to member; target unchanged)
+                                  </div>
+                                )}
+
                                 {adminAmt > 0 && (
                                   <div className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800">
                                     ⚡ Paid by Admin, not by Agent: ₹{adminAmt.toLocaleString('en-IN')}

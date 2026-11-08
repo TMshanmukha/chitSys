@@ -2,6 +2,7 @@ import { pool } from '../config/db.js';
 import { z } from 'zod';
 import { recordAuditLog } from '../services/authService.js';
 import { broadcastSync } from '../services/realtimeService.js';
+import { ensureAdvanceTables, calculateMemberDaysSchedule } from '../services/advanceEngine.js';
 
 const memberSchema = z.object({
   member_code: z.string().optional(),
@@ -306,14 +307,40 @@ export async function getMemberPassbook(req, res, next) {
       0
     );
 
-    // Enrich enrolledGroups with scheme pending balance & liability
-    const enrichedEnrolledGroups = enrolledGroups.map((eg) => {
+    // 5b. Advance Credits & Adjustments
+    await ensureAdvanceTables();
+    const [advCredits] = await pool.query(
+      `SELECT * FROM member_advance_credits WHERE member_id = ? ORDER BY created_date DESC, id DESC`,
+      [id]
+    );
+    const [advAdjustments] = await pool.query(
+      `SELECT maa.*, g.group_name, g.group_code
+       FROM member_advance_adjustments maa
+       JOIN chit_groups g ON maa.group_id = g.id
+       WHERE maa.member_id = ?
+       ORDER BY maa.adjustment_date DESC, maa.id DESC`,
+      [id]
+    );
+    const totalAdvanceBalance = advCredits.reduce((sum, c) => sum + parseFloat(c.balance_remaining || 0), 0);
+    const totalAdvancePaid = advCredits.reduce((sum, c) => sum + parseFloat(c.advance_amount || 0), 0);
+    const totalAdvanceAdjusted = advAdjustments.reduce((sum, a) => sum + parseFloat(a.amount_adjusted || 0), 0);
+
+    // Enrich enrolledGroups with scheme pending balance, liability, and days left
+    const enrichedEnrolledGroups = await Promise.all(enrolledGroups.map(async (eg) => {
       const groupCols = collections.filter((c) => String(c.group_code) === String(eg.group_code));
       const groupPaid = groupCols.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
       const isPrized = eg.is_prized === 1;
       const totalChitVal = parseFloat(eg.total_pool_amount || (parseFloat(eg.installment_amount) * (eg.duration_periods || 20)));
       const pendingBalance = isPrized ? Math.max(0, totalChitVal - groupPaid) : 0;
       const accumulatedSavings = !isPrized ? groupPaid : 0;
+
+      let sched = { daysCovered: 0, daysRemaining: eg.duration_periods || 50, advanceBalance: 0 };
+      try {
+        sched = await calculateMemberDaysSchedule(id, eg.group_id, {
+          durationPeriods: eg.duration_periods || 50,
+          installmentAmount: parseFloat(eg.installment_amount || 0),
+        }, pool);
+      } catch (_) {}
 
       return {
         ...eg,
@@ -322,8 +349,12 @@ export async function getMemberPassbook(req, res, next) {
         is_prized: isPrized,
         pending_scheme_balance: pendingBalance,
         accumulated_savings: accumulatedSavings,
+        days_covered: sched.daysCovered,
+        days_remaining: sched.daysRemaining,
+        advance_balance: sched.advanceBalance,
+        next_payable_amount: sched.nextPayableAmount,
       };
-    });
+    }));
 
     const totalPendingSchemeLiability = enrichedEnrolledGroups.reduce(
       (sum, eg) => sum + (eg.pending_scheme_balance || 0),
@@ -343,11 +374,16 @@ export async function getMemberPassbook(req, res, next) {
         enrolledGroups: enrichedEnrolledGroups,
         totalPendingSchemeLiability,
         collections,
+        advanceCredits: advCredits,
+        advanceAdjustments: advAdjustments,
         auctionsWon,
         dividendsLedger,
         scopedGroupId: (groupId && groupId !== 'ALL') ? groupId : null,
         summary: {
           totalPaid,
+          totalAdvancePaid,
+          totalAdvanceBalance,
+          totalAdvanceAdjusted,
           totalDividendsEarned,
           totalPrizeMoneyWon,
           totalReceived,

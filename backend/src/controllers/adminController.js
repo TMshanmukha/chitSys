@@ -156,13 +156,15 @@ export async function getDashboardOverview(req, res, next) {
       SELECT 
         COALESCE(SUM(CASE WHEN c.payment_method = 'CASH' THEN c.amount ELSE 0 END), 0) as todayCash,
         COALESCE(SUM(CASE WHEN c.payment_method != 'CASH' THEN c.amount ELSE 0 END), 0) as todayOnline,
+        COALESCE(SUM(c.normal_amount), 0) as todayNormalTotal,
+        COALESCE(SUM(c.advance_amount), 0) as todayAdvanceTotal,
         COALESCE(SUM(c.amount), 0) as todayTotal,
         COUNT(c.id) as todayCount
       FROM collections c
       JOIN chit_groups g ON c.group_id = g.id
       WHERE ${collConds.join(' AND ')}
     `, collParams);
-    const collectionRow = collectionRows[0] || { todayCash: 0, todayOnline: 0, todayTotal: 0, todayCount: 0 };
+    const collectionRow = collectionRows[0] || { todayCash: 0, todayOnline: 0, todayNormalTotal: 0, todayAdvanceTotal: 0, todayTotal: 0, todayCount: 0 };
 
     // 4a. Daily Chit Collections
     const dailyConds = ["c.verification_status != 'CANCELLED'", "g.frequency = 'DAILY'"];
@@ -177,13 +179,15 @@ export async function getDashboardOverview(req, res, next) {
       SELECT 
         COALESCE(SUM(CASE WHEN c.payment_method = 'CASH' THEN c.amount ELSE 0 END), 0) as dailyCash,
         COALESCE(SUM(CASE WHEN c.payment_method != 'CASH' THEN c.amount ELSE 0 END), 0) as dailyOnline,
+        COALESCE(SUM(c.normal_amount), 0) as dailyNormalTotal,
+        COALESCE(SUM(c.advance_amount), 0) as dailyAdvanceTotal,
         COALESCE(SUM(c.amount), 0) as dailyTotal,
         COUNT(c.id) as dailyCount
       FROM collections c
       JOIN chit_groups g ON c.group_id = g.id
       WHERE ${dailyConds.join(' AND ')}
     `, dailyParams);
-    const dailyCollectionRow = dailyCollectionRows[0] || { dailyCash: 0, dailyOnline: 0, dailyTotal: 0, dailyCount: 0 };
+    const dailyCollectionRow = dailyCollectionRows[0] || { dailyCash: 0, dailyOnline: 0, dailyNormalTotal: 0, dailyAdvanceTotal: 0, dailyTotal: 0, dailyCount: 0 };
 
     // 4b. Monthly Chit Collections
     const monthlyConds = ["c.verification_status != 'CANCELLED'", "g.frequency = 'MONTHLY'"];
@@ -422,6 +426,8 @@ export async function getDashboardOverview(req, res, next) {
         // Overall Today's figures
         todayCash: collectionRow.todayCash,
         todayOnline: collectionRow.todayOnline,
+        todayNormalTotal: collectionRow.todayNormalTotal,
+        todayAdvanceTotal: collectionRow.todayAdvanceTotal,
         todayTotal: collectionRow.todayTotal,
         todayCount: collectionRow.todayCount,
         expectedDailyTarget: dailyTargetRow.expectedDailyTarget || 0,
@@ -431,6 +437,8 @@ export async function getDashboardOverview(req, res, next) {
           target: parseFloat(dailyTargetRow.expectedDailyTarget || 0),
           cash: parseFloat(dailyCollectionRow.dailyCash || 0),
           online: parseFloat(dailyCollectionRow.dailyOnline || 0),
+          normalTotal: parseFloat(dailyCollectionRow.dailyNormalTotal || 0),
+          advanceTotal: parseFloat(dailyCollectionRow.dailyAdvanceTotal || 0),
           total: parseFloat(dailyCollectionRow.dailyTotal || 0),
           count: parseInt(dailyCollectionRow.dailyCount || 0),
           progressPercent: dailyTargetRow.expectedDailyTarget > 0

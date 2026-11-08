@@ -344,6 +344,11 @@ export default function CollectionEditRequestsPage() {
                 {/* Top Row: Status badge & Meta */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800/80">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {req.request_type === 'ADVANCE_COLLECTION' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 border border-teal-300 font-heading">
+                        ⚡ Advance Collection
+                      </span>
+                    )}
                     {req.status === 'PENDING' && (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-heading">
                         <Clock className="w-3.5 h-3.5 text-amber-600" />
@@ -408,10 +413,10 @@ export default function CollectionEditRequestsPage() {
                   {/* Current Recorded Amount */}
                   <div className="p-3.5 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 font-heading block">
-                      Recorded Wrong Amount
+                      {req.request_type === 'ADVANCE_COLLECTION' ? "Today's Normal Due" : 'Recorded Wrong Amount'}
                     </span>
                     <p className="font-black text-base text-rose-700 dark:text-rose-300">
-                      ₹{currentAmt.toLocaleString('en-IN')}
+                      ₹{(req.request_type === 'ADVANCE_COLLECTION' ? Number(req.normal_amount || req.installment_amount || currentAmt) : currentAmt).toLocaleString('en-IN')}
                     </p>
                     <p className="text-[11px] text-slate-500 uppercase font-mono">Mode: {req.current_payment_method}</p>
                   </div>
@@ -419,15 +424,21 @@ export default function CollectionEditRequestsPage() {
                   {/* Requested Correct Amount */}
                   <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-heading block">
-                      Requested Correct Amount
+                      {req.request_type === 'ADVANCE_COLLECTION' ? 'Proposed Total (With Advance)' : 'Requested Correct Amount'}
                     </span>
                     <div className="flex items-baseline gap-2">
                       <p className="font-black text-base text-emerald-700 dark:text-emerald-300">
                         ₹{reqAmt.toLocaleString('en-IN')}
                       </p>
-                      <span className={`text-[11px] font-bold ${diff >= 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        ({diff >= 0 ? `+₹${diff}` : `-₹${Math.abs(diff)}`})
-                      </span>
+                      {req.request_type === 'ADVANCE_COLLECTION' ? (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">
+                          +₹{Number(req.advance_amount || 0).toLocaleString('en-IN')} Adv
+                        </span>
+                      ) : (
+                        <span className={`text-[11px] font-bold ${diff >= 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          ({diff >= 0 ? `+₹${diff}` : `-₹${Math.abs(diff)}`})
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-slate-500 uppercase font-mono">Mode: {req.requested_payment_method}</p>
                   </div>

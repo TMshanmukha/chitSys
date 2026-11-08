@@ -667,6 +667,11 @@ export default function AgentDayClosingPage() {
                         <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 font-heading">
                           ₹{Number(chitAgentCollected).toLocaleString('en-IN')}
                         </span>
+                        {Number(chit.advanceCollection || 0) > 0 && (
+                          <span className="text-[10px] text-teal-600 dark:text-teal-400 block font-bold">
+                            Incl. ₹{Number(chit.advanceCollection).toLocaleString('en-IN')} Advance
+                          </span>
+                        )}
                         {chitAdminCollected > 0 && (
                           <span className="text-[10px] text-purple-600 dark:text-purple-400 block font-semibold">
                             + ₹{Number(chitAdminCollected).toLocaleString('en-IN')} by Admin

@@ -251,24 +251,24 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
   const handleRequestEditSubmit = async (e) => {
     e.preventDefault();
-    if (!requestEditModal.collectionId) {
-      setRequestEditModal((prev) => ({ ...prev, error: 'Collection receipt not found. Please refresh.' }));
-      return;
-    }
     const reqAmt = parseFloat(requestEditModal.requestedAmount);
     if (isNaN(reqAmt) || reqAmt <= 0) {
-      setRequestEditModal((prev) => ({ ...prev, error: 'Please enter a valid positive correct amount.' }));
+      setRequestEditModal((prev) => ({ ...prev, error: 'Please enter a valid positive amount.' }));
       return;
     }
     if (!requestEditModal.reason.trim()) {
-      setRequestEditModal((prev) => ({ ...prev, error: 'Please provide a reason explaining why the entered amount was wrong.' }));
+      setRequestEditModal((prev) => ({ ...prev, error: 'Please provide a reason explaining the collection or correction request.' }));
       return;
     }
 
     setRequestEditModal((prev) => ({ ...prev, submitting: true, error: '', success: '' }));
 
     try {
-      const res = await api.post(`/agent/collections/${requestEditModal.collectionId}/request-edit`, {
+      const collId = requestEditModal.collectionId || 0;
+      const res = await api.post(`/agent/collections/${collId}/request-edit`, {
+        collection_id: requestEditModal.collectionId,
+        group_id: requestEditModal.group?.id,
+        member_id: requestEditModal.member?.member_id || requestEditModal.member?.id,
         requested_amount: reqAmt,
         requested_payment_method: requestEditModal.requestedMethod,
         reason: requestEditModal.reason,
@@ -278,7 +278,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
         setRequestEditModal((prev) => ({
           ...prev,
           submitting: false,
-          success: 'Edit request submitted to Admin! Admin will review and approve in their panel.',
+          success: res.data.message || 'Request submitted to Admin! Admin will review and approve in their panel.',
         }));
         setTimeout(() => {
           setRequestEditModal((prev) => ({ ...prev, isOpen: false }));
@@ -289,7 +289,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       setRequestEditModal((prev) => ({
         ...prev,
         submitting: false,
-        error: getFriendlyErrorMessage(err, 'Failed to submit edit request.'),
+        error: getFriendlyErrorMessage(err, 'Failed to submit request.'),
       }));
     }
   };
@@ -1171,7 +1171,26 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       }
     } catch (err) {
       setShowCollectConfirm(false);
-      setCollectError(getFriendlyErrorMessage(err, 'Failed to record collection. Please check details and try again.'));
+      const isApprovalNeeded = err.response?.data?.requiresApproval;
+      if (isApprovalNeeded) {
+        const respData = err.response.data;
+        const selectedGroup = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
+        const selectedMember = routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id));
+        setCollectError(
+          `Amount (₹${Number(collectForm.amount).toLocaleString('en-IN')}) exceeds regular installment (₹${Number(respData.normalDue || 0).toLocaleString('en-IN')}). Excess ₹${Number(respData.advanceAmount || 0).toLocaleString('en-IN')} requires Admin approval.`
+        );
+        setTimeout(() => {
+          openRequestEditModal(selectedGroup, selectedMember);
+          setRequestEditModal((prev) => ({
+            ...prev,
+            requestedAmount: String(collectForm.amount),
+            requestedMethod: collectForm.payment_method || 'CASH',
+            reason: `Subscriber wishes to pay ₹${Number(collectForm.amount).toLocaleString('en-IN')} (₹${Number(respData.advanceAmount || 0).toLocaleString('en-IN')} Advance for future days).`,
+          }));
+        }, 500);
+      } else {
+        setCollectError(getFriendlyErrorMessage(err, 'Failed to record collection. Please check details and try again.'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1366,6 +1385,11 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             >
               ₹{agentDailyTarget.toLocaleString('en-IN')}
             </div>
+            {Number(routesData.summary?.todayAdvanceAdjusted || 0) > 0 && (
+              <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 truncate mt-0.5 block">
+                ✨ ₹{Number(routesData.summary.todayAdvanceAdjusted).toLocaleString('en-IN')} advance adjusted
+              </span>
+            )}
             <div className="mt-1 space-y-1">
               <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate gap-1">
                 <span className="truncate">
@@ -1399,6 +1423,11 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             >
               ₹{Number(routesData.summary?.todayTotal || 0).toLocaleString('en-IN')}
             </div>
+            {Number(routesData.summary?.todayAdvanceTotal || 0) > 0 && (
+              <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 truncate mt-0.5 block">
+                ⚡ Incl. ₹{Number(routesData.summary.todayAdvanceTotal).toLocaleString('en-IN')} Advance
+              </span>
+            )}
             <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
               <Receipt className="w-3 h-3 text-slate-400 shrink-0" />
               <span className="truncate">{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
@@ -2425,7 +2454,11 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                         </button>
 
                                         {/* Prominent Synchronous Status Badge with Cycle Label */}
-                                        {member.is_paid_to_admin ? (
+                                        {member.is_covered_by_advance ? (
+                                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 border border-teal-400 dark:border-teal-700 flex items-center gap-1">
+                                            <span>✨ PAID VIA ADVANCE (₹{Number(member.advance_adjusted_today || member.installment_amount).toLocaleString('en-IN')})</span>
+                                          </span>
+                                        ) : member.is_paid_to_admin ? (
                                           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-400 dark:border-purple-700 flex items-center gap-1">
                                             <span>🏛️ PAID TO ADMIN</span>
                                           </span>
@@ -2458,8 +2491,24 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                         )}
                                         <span>·</span>
                                         <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                          {isDaily ? 'Due Today' : 'Due This Month'}: ₹{Number(group.installment_amount).toLocaleString('en-IN')}
+                                          {isDaily ? 'Due Today' : 'Due This Month'}: ₹{Number(member.remaining_balance != null && member.remaining_balance > 0 ? member.remaining_balance : group.installment_amount).toLocaleString('en-IN')}
                                         </span>
+                                        {member.days_remaining !== undefined && (
+                                          <>
+                                            <span>·</span>
+                                            <span className="text-[11px] font-mono text-slate-500">
+                                              ⏳ {member.days_remaining}d left ({member.days_covered}d covered)
+                                            </span>
+                                          </>
+                                        )}
+                                        {Number(member.advance_balance || 0) > 0 && (
+                                          <>
+                                            <span>·</span>
+                                            <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400">
+                                              Adv Bal: ₹{Number(member.advance_balance).toLocaleString('en-IN')}
+                                            </span>
+                                          </>
+                                        )}
                                       </div>
 
                                       {/* Synchronous Note / Receipt details */}
@@ -5775,19 +5824,62 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 {/* Requested Correct Amount Input */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1 font-heading">
-                    Correct Amount Actually Received (₹) *
+                    Proposed Collection Amount (₹) *
                   </label>
                   <input
                     type="number"
                     min="1"
                     step="any"
                     required
-                    placeholder="Enter correct amount..."
+                    placeholder="Enter total amount to collect..."
                     value={requestEditModal.requestedAmount}
                     onChange={(e) => setRequestEditModal({ ...requestEditModal, requestedAmount: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
+
+                {/* Live Advance / Correction Breakdown Box */}
+                {(() => {
+                  const instAmt = Number(requestEditModal.group?.installment_amount || requestEditModal.currentAmount || 0);
+                  const requested = Number(requestEditModal.requestedAmount || 0);
+                  const normalDue = instAmt > 0 ? instAmt : Number(requestEditModal.currentAmount || 0);
+                  const advanceAmount = requested > normalDue ? requested - normalDue : 0;
+                  const isAdvance = advanceAmount > 0;
+
+                  if (requested <= 0) return null;
+
+                  return (
+                    <div className={`p-3 rounded-2xl border text-xs space-y-1.5 ${
+                      isAdvance 
+                        ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200' 
+                        : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                    }`}>
+                      <div className="flex justify-between font-bold">
+                        <span>Classification:</span>
+                        <span className="font-extrabold">{isAdvance ? '⚡ ADVANCE / EXCESS COLLECTION' : '✏️ AMOUNT CORRECTION'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Normal Installment (Today Due):</span>
+                        <span className="font-mono font-semibold">₹{normalDue.toLocaleString('en-IN')}</span>
+                      </div>
+                      {isAdvance && (
+                        <div className="flex justify-between text-teal-700 dark:text-teal-300 font-bold">
+                          <span>Advance Credit (Future Days):</span>
+                          <span className="font-mono font-black">+₹{advanceAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700 font-black">
+                        <span>Total Money to Collect:</span>
+                        <span className="font-mono text-sm">₹{requested.toLocaleString('en-IN')}</span>
+                      </div>
+                      {isAdvance && (
+                        <p className="text-[10px] text-teal-600 dark:text-teal-400 italic mt-1 leading-relaxed">
+                          ✓ Target remains ₹{instAmt.toLocaleString('en-IN')}. The extra ₹{advanceAmount.toLocaleString('en-IN')} is credited to subscriber and automatically adjusts future collection days.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Payment Method */}
                 <div>

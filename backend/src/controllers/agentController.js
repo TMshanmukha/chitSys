@@ -6,6 +6,7 @@ import { getMonthlyCycleInfo, formatYMD } from '../utils/cycleHelper.js';
 import { getTodayIST } from '../utils/dateUtils.js';
 import { broadcastSync } from '../services/realtimeService.js';
 import { createNotification } from './notificationController.js';
+import { ensureAdvanceTables, autoAdjustAdvanceForDate, calculateMemberDaysSchedule, getMemberAdvanceBalance } from '../services/advanceEngine.js';
 
 const agentSchema = z.object({
   full_name: z.string().min(2, 'Agent full name is required'),
@@ -424,10 +425,52 @@ export async function getMyAssignedRoutes(req, res, next) {
         editRequests = cerRows;
       } catch (_) {}
 
+      // 5. Pre-calculate advance adjustments and member days schedule
+      await ensureAdvanceTables();
+      const memberAdvanceMap = new Map();
+      const memberScheduleMap = new Map();
+
+      for (const m of memberRows) {
+        const g = groupMap.get(m.group_id);
+        const installmentAmt = Number(m.group_installment_amount || g?.installment_amount || 0);
+
+        try {
+          const advanceAdj = await autoAdjustAdvanceForDate(pool, {
+            groupId: m.group_id,
+            memberId: m.member_id,
+            dateStr: todayStr,
+            installmentAmount: installmentAmt,
+            alreadyCollectedToday: 0,
+          });
+          memberAdvanceMap.set(`${m.group_id}_${m.member_id}`, advanceAdj);
+        } catch (_) {}
+
+        try {
+          const sched = await calculateMemberDaysSchedule(m.member_id, m.group_id, {
+            durationPeriods: g?.duration_periods || 50,
+            installmentAmount: installmentAmt,
+          }, pool);
+          memberScheduleMap.set(`${m.group_id}_${m.member_id}`, sched);
+        } catch (_) {}
+      }
+
       members = memberRows.map((m) => {
         const g = groupMap.get(m.group_id);
         const isDaily = g ? g.frequency === 'DAILY' : m.group_frequency === 'DAILY';
         const installmentAmt = Number(m.group_installment_amount || g?.installment_amount || 0);
+
+        const advAdj = memberAdvanceMap.get(`${m.group_id}_${m.member_id}`) || {
+          adjustedToday: 0,
+          remainingDueToday: installmentAmt,
+          remainingAdvanceBalance: 0,
+          isFullyCovered: false,
+        };
+        const sched = memberScheduleMap.get(`${m.group_id}_${m.member_id}`) || {
+          daysCovered: 0,
+          daysRemaining: 50,
+          advanceBalance: 0,
+          fullyCoveredFutureDays: 0,
+        };
 
         // Filter collections that belong to the member's current active cycle
         const inCycleColls = colls.filter((c) => {
@@ -448,11 +491,17 @@ export async function getMyAssignedRoutes(req, res, next) {
         });
 
         const collectedAmt = inCycleColls.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-        const remainingBalance = installmentAmt > 0 ? Math.max(0, installmentAmt - collectedAmt) : 0;
-        // STRICT PAID CHECK: must have actual collections AND meet installment amount
-        // Guard: installmentAmt must be > 0, and collectedAmt must be > 0
-        const isFullyPaid = collectedAmt > 0 && installmentAmt > 0 && collectedAmt >= installmentAmt;
-        const isPartiallyPaid = collectedAmt > 0 && collectedAmt < installmentAmt;
+        const advancePortionToday = inCycleColls.reduce((sum, c) => sum + Number(c.advance_amount || 0), 0);
+        const normalPortionToday = collectedAmt - advancePortionToday;
+
+        // Is member covered by advance credit?
+        const isCoveredByAdvance = Boolean(advAdj.isFullyCovered || (installmentAmt > 0 && advAdj.adjustedToday >= installmentAmt));
+        const effectiveTotalSettled = collectedAmt + advAdj.adjustedToday;
+        const remainingBalance = installmentAmt > 0 ? Math.max(0, installmentAmt - effectiveTotalSettled) : 0;
+
+        // STRICT PAID CHECK: must have actual collections OR covered by advance
+        const isFullyPaid = isCoveredByAdvance || (installmentAmt > 0 && effectiveTotalSettled >= installmentAmt);
+        const isPartiallyPaid = !isFullyPaid && (effectiveTotalSettled > 0);
 
         // Match latest tracking log for this cycle
         const atl = trackingLogs.find((l) => {
@@ -469,13 +518,14 @@ export async function getMyAssignedRoutes(req, res, next) {
           return true;
         });
 
-        // isPaid is STRICTLY based on actual collections, NOT tracking log status alone
         const isPaid = isFullyPaid;
         const status = isFullyPaid ? 'PAID' : (isPartiallyPaid ? 'PARTIAL' : (atl?.status === 'PAID' ? 'NOT_PAID' : (atl?.status || 'NOT_PAID')));
         const nodeColor = isFullyPaid ? 'GREEN' : (isPartiallyPaid ? 'YELLOW' : 'RED');
         const latestColl = inCycleColls[0] || null;
         const myCollection = inCycleColls.find((c) => Number(c.agent_id) === Number(agentId));
-        const matchedEditReq = myCollection ? editRequests.find((er) => er.collection_id === myCollection.id) : null;
+        const matchedEditReq = myCollection
+          ? editRequests.find((er) => er.collection_id === myCollection.id)
+          : editRequests.find((er) => er.member_id === m.member_id && er.group_id === m.group_id);
 
         // Check if member paid directly to admin/office or another collector
         const hasAdminColl = inCycleColls.some((c) => {
@@ -483,7 +533,7 @@ export async function getMyAssignedRoutes(req, res, next) {
           const collAgentId = c.agent_id != null ? Number(c.agent_id) : null;
           return role === 'ADMIN' || role === 'SUPER_ADMIN' || (collAgentId !== null && collAgentId !== Number(agentId));
         });
-        const isPaidToAdmin = Boolean(isFullyPaid && hasAdminColl);
+        const isPaidToAdmin = Boolean(isFullyPaid && hasAdminColl && !isCoveredByAdvance);
         const adminCollectedAmt = inCycleColls
           .filter((c) => {
             const role = (c.collector_role || '').toUpperCase();
@@ -493,7 +543,11 @@ export async function getMyAssignedRoutes(req, res, next) {
           .reduce((sum, c) => sum + Number(c.amount || 0), 0);
 
         let defaultNote = '';
-        if (isPaidToAdmin) {
+        if (isCoveredByAdvance) {
+          defaultNote = `Paid in advance from previous excess payment (₹${advAdj.adjustedToday.toLocaleString('en-IN')}) · Auto-settled`;
+        } else if (advAdj.adjustedToday > 0 && remainingBalance > 0) {
+          defaultNote = `₹${advAdj.adjustedToday.toLocaleString('en-IN')} covered by advance · Remaining due: ₹${remainingBalance.toLocaleString('en-IN')}`;
+        } else if (isPaidToAdmin) {
           defaultNote = `Paid directly to Office / Admin (${latestColl?.collector_name || 'Admin'}) · Task Deducted`;
         } else if (isFullyPaid) {
           defaultNote = isDaily ? 'Paid for today' : `Paid for monthly cycle (Due: ${g?.cycle_due})`;
@@ -513,17 +567,26 @@ export async function getMyAssignedRoutes(req, res, next) {
         }
 
         const notes = latestColl?.notes || atl?.notes || defaultNote;
-        const statusLabel = isPaidToAdmin
-          ? 'Paid to Admin'
-          : isFullyPaid 
-            ? (isDaily ? 'Paid for Today' : 'Paid for Month')
-            : (isPartiallyPaid 
-                ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')})` 
-                : (isDaily 
-                    ? 'Not Paid Today' 
-                    : (g?.has_time_remaining 
-                        ? `In Progress (${g.cycle_days_remaining}d left)` 
-                        : (g?.is_deadline_today ? 'Due Today!' : 'Overdue'))));
+        const statusLabel = isCoveredByAdvance
+          ? `Paid via Advance (₹${advAdj.adjustedToday.toLocaleString('en-IN')})`
+          : (advAdj.adjustedToday > 0 && remainingBalance > 0)
+            ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')} · ₹${advAdj.adjustedToday.toLocaleString('en-IN')} advance)`
+            : isPaidToAdmin
+              ? 'Paid to Admin'
+              : isFullyPaid 
+                ? (isDaily ? 'Paid for Today' : 'Paid for Month')
+                : (isPartiallyPaid 
+                    ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')})` 
+                    : (isDaily 
+                        ? 'Not Paid Today' 
+                        : (g?.has_time_remaining 
+                            ? `In Progress (${g.cycle_days_remaining}d left)` 
+                            : (g?.is_deadline_today ? 'Due Today!' : 'Overdue'))));
+
+        const isTaskDeducted = Boolean(isPaidToAdmin || isCoveredByAdvance);
+        const taskDeductedReason = isCoveredByAdvance 
+          ? 'Paid in advance by subscriber on previous day'
+          : (isPaidToAdmin ? 'Paid directly to Office / Admin' : null);
 
         return {
           group_id: m.group_id,
@@ -539,10 +602,17 @@ export async function getMyAssignedRoutes(req, res, next) {
           kyc_number: m.kyc_number || 'Verified',
           is_paid: isPaid,
           is_paid_to_admin: isPaidToAdmin,
+          is_covered_by_advance: isCoveredByAdvance,
+          advance_adjusted_today: advAdj.adjustedToday,
+          advance_balance: advAdj.remainingAdvanceBalance || sched.advanceBalance || 0,
+          days_covered: sched.daysCovered,
+          days_remaining: sched.daysRemaining,
+          advance_collected_today: advancePortionToday,
+          normal_collected_today: normalPortionToday,
           collected_by_admin: hasAdminColl,
           admin_collected_amount: adminCollectedAmt,
-          task_deducted: isPaidToAdmin,
-          task_deducted_reason: isPaidToAdmin ? 'Paid directly to Office / Admin' : null,
+          task_deducted: isTaskDeducted,
+          task_deducted_reason: taskDeductedReason,
           is_partial: isPartiallyPaid,
           pending_amount: remainingBalance,
           remaining_balance: remainingBalance,
@@ -556,7 +626,7 @@ export async function getMyAssignedRoutes(req, res, next) {
           cycle_type: m.group_frequency,
           cycle_mode: isDaily ? 'DAY_BY_DAY' : 'MONTH_BY_MONTH',
           cycle_period_label: isDaily ? 'Daily Installment' : `Monthly Installment (Due: ${g?.cycle_due})`,
-          node_color: isPaidToAdmin ? 'GREEN' : nodeColor,
+          node_color: (isPaidToAdmin || isCoveredByAdvance) ? 'GREEN' : nodeColor,
           today_notes: notes,
           cycle_notes: notes,
           collection_id: myCollection?.id || latestColl?.id || null,
@@ -570,10 +640,10 @@ export async function getMyAssignedRoutes(req, res, next) {
             admin_notes: matchedEditReq.admin_notes,
           } : null,
           receipt_number: latestColl?.receipt_number || null,
-          payment_method: latestColl?.payment_method || null,
+          payment_method: latestColl?.payment_method || (isCoveredByAdvance ? 'ADVANCE_CREDIT' : null),
           collection_date: latestColl?.collection_date || null,
           collection_time: latestColl?.collection_time || null,
-          completed_by_name: latestColl?.collector_name || null,
+          completed_by_name: latestColl?.collector_name || (isCoveredByAdvance ? 'Auto-Advance Credit' : null),
           completed_by_role: latestColl?.collector_role || null,
           absent_agent_name: g?.absent_agent_name || null,
           is_temporary_coverage: Boolean(g?.temporary_coverage),
@@ -594,13 +664,17 @@ export async function getMyAssignedRoutes(req, res, next) {
       const gMembers = members.filter((m) => m.group_id === g.id);
       const totalEnrolled = gMembers.length;
       const adminPaid = gMembers.filter((m) => m.is_paid_to_admin).length;
-      const effectiveTasks = Math.max(0, totalEnrolled - adminPaid);
-      const agentCompleted = gMembers.filter((m) => !m.is_paid_to_admin && m.is_paid).length;
-      const agentPending = gMembers.filter((m) => !m.is_paid_to_admin && !m.is_paid).length;
+      const advancePaid = gMembers.filter((m) => m.is_covered_by_advance).length;
+      const deductedCount = adminPaid + advancePaid;
+      const effectiveTasks = Math.max(0, totalEnrolled - deductedCount);
+      const agentCompleted = gMembers.filter((m) => !m.task_deducted && m.is_paid).length;
+      const agentPending = gMembers.filter((m) => !m.task_deducted && !m.is_paid).length;
       return {
         ...g,
         total_subscribers: totalEnrolled,
         admin_paid_count: adminPaid,
+        advance_paid_count: advancePaid,
+        task_deducted_count: deductedCount,
         effective_tasks_count: effectiveTasks,
         agent_completed_count: agentCompleted,
         agent_pending_count: agentPending,
@@ -614,6 +688,8 @@ export async function getMyAssignedRoutes(req, res, next) {
               COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) != 'CASH' THEN amount ELSE 0 END), 0) as todayOnline,
               COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'BANK_TRANSFER' THEN amount ELSE 0 END), 0) as todayBank,
               COALESCE(SUM(CASE WHEN UPPER(TRIM(payment_method)) = 'CHEQUE' THEN amount ELSE 0 END), 0) as todayCheque,
+              COALESCE(SUM(normal_amount), 0) as todayNormalTotal,
+              COALESCE(SUM(advance_amount), 0) as todayAdvanceTotal,
               COALESCE(SUM(amount), 0) as todayTotal,
               COUNT(id) as totalCollectionsCount
        FROM collections
@@ -623,12 +699,11 @@ export async function getMyAssignedRoutes(req, res, next) {
       [agentId, todayStr]
     );
 
+    const totalAdvanceAdjustedToday = members.reduce((sum, m) => sum + Number(m.advance_adjusted_today || 0), 0);
     const dailyGroups = finalGroups.filter((g) => g.frequency === 'DAILY');
     const monthlyGroups = finalGroups.filter((g) => g.frequency === 'MONTHLY');
     const dailyMembers = members.filter((m) => m.cycle_type === 'DAILY');
     const monthlyMembers = members.filter((m) => m.cycle_type === 'MONTHLY');
-    const activeDailyMembers = dailyMembers.filter((m) => !m.is_paid_to_admin);
-    const activeMonthlyMembers = monthlyMembers.filter((m) => !m.is_paid_to_admin);
 
     res.status(200).json({
       success: true,
@@ -637,12 +712,14 @@ export async function getMyAssignedRoutes(req, res, next) {
         members,
         summary: {
           ...todayCollections[0],
+          todayAdvanceAdjusted: totalAdvanceAdjustedToday,
           dailyGroupsCount: dailyGroups.length,
           monthlyGroupsCount: monthlyGroups.length,
           dailyMembersCount: dailyMembers.length,
           monthlyMembersCount: monthlyMembers.length,
           totalAssignedSubscribers: members.length,
           adminPaidMembersCount: members.filter((m) => m.is_paid_to_admin).length,
+          advancePaidMembersCount: members.filter((m) => m.is_covered_by_advance).length,
           dailyPaidMembersCount: dailyMembers.filter((m) => m.is_paid).length,
           monthlyPaidMembersCount: monthlyMembers.filter((m) => m.is_paid).length,
           dailyPendingMembersCount: dailyMembers.filter((m) => !m.is_paid).length,

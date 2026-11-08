@@ -117,6 +117,7 @@ export default function AdminDashboard() {
   const totalAgents = Number(data?.totalAgents) || 0;
   const todayCash = parseFloat(data?.todayCash || 0) || 0;
   const todayOnline = parseFloat(data?.todayOnline || 0) || 0;
+  const todayAdvanceTotal = parseFloat(data?.todayAdvanceTotal || 0) || 0;
   const todayTotal = parseFloat(data?.todayTotal || 0) || 0;
   const expectedTarget = parseFloat(data?.expectedDailyTarget || 0) || 0;
   const progressPercent = expectedTarget > 0 ? Math.min(Math.round((todayTotal / expectedTarget) * 100), 100) : 0;
@@ -244,6 +245,11 @@ export default function AdminDashboard() {
             <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
               {loading ? '...' : `₹${todayTotal.toLocaleString('en-IN')}`}
             </div>
+            {todayAdvanceTotal > 0 && (
+              <div className="text-[10px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-wider mt-0.5">
+                ⚡ Incl. ₹{todayAdvanceTotal.toLocaleString('en-IN')} Advance
+              </div>
+            )}
             <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold">
               <span className="text-emerald-700 dark:text-emerald-300">
                 Cash: ₹{todayCash.toLocaleString('en-IN')}

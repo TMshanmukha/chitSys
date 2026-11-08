@@ -6,6 +6,7 @@ import { createNotification } from './notificationController.js';
 import { getMonthlyCycleInfo } from '../utils/cycleHelper.js';
 import { getTodayIST, getCurrentTimeIST } from '../utils/dateUtils.js';
 import { broadcastSync } from '../services/realtimeService.js';
+import { ensureAdvanceTables, createAdvanceCredit } from '../services/advanceEngine.js';
 
 const collectionSchema = z.object({
   group_id: z.number().int().positive('Chit Group selection is required'),
@@ -115,12 +116,38 @@ export async function recordCollection(req, res, next) {
       if (!access.length) return res.status(403).json({success:false,message:'This route is not assigned to you for the selected date.'});
     }
 
-    // 2. Prevent Duplicate Payment: Oppose duplicate collections when subscriber has already cleared their required installment
-    let isAdvance = false;
-    let isOffCycle = false;
-    let autoNotePrefix = '';
+    await ensureAdvanceTables();
 
+    // 2. Prevent Duplicate Payment & Check Advance Permissions
+    let autoNotePrefix = '';
     const installmentAmt = parseFloat(chitGroup.installment_amount || 0);
+
+    // Check if there is an approved Advance Collection or Edit Request for this agent & member
+    let approvedEditRequest = null;
+    if (req.user.role === 'COLLECTION_AGENT') {
+      const [approvedRows] = await pool.query(
+        `SELECT id, requested_amount, normal_amount, advance_amount, request_type
+         FROM collection_edit_requests
+         WHERE agent_id = ? AND group_id = ? AND member_id = ? AND status = 'APPROVED'
+         ORDER BY id DESC LIMIT 1`,
+        [req.user.id, validated.group_id, validated.member_id]
+      );
+      if (approvedRows.length > 0 && parseFloat(approvedRows[0].requested_amount) >= validated.amount - 0.01) {
+        approvedEditRequest = approvedRows[0];
+      }
+    }
+
+    // Agent must get Admin approval to collect more than installment amount
+    if (req.user.role === 'COLLECTION_AGENT' && installmentAmt > 0 && validated.amount > installmentAmt && !approvedEditRequest) {
+      return res.status(400).json({
+        success: false,
+        requiresApproval: true,
+        message: `Collection amount (₹${validated.amount.toLocaleString('en-IN')}) exceeds regular installment (₹${installmentAmt.toLocaleString('en-IN')}). Please submit an Advance Collection request for Admin approval first.`,
+        normalDue: installmentAmt,
+        advanceAmount: validated.amount - installmentAmt,
+        totalProposed: validated.amount,
+      });
+    }
 
     if (chitGroup.frequency === 'DAILY') {
       const [existingDaily] = await pool.execute(
@@ -130,10 +157,10 @@ export async function recordCollection(req, res, next) {
         [validated.group_id, validated.member_id, finalCollectionDate]
       );
       const paidToday = parseFloat(existingDaily[0]?.total_paid_today || 0);
-      if (installmentAmt > 0 && paidToday >= installmentAmt) {
+      if (installmentAmt > 0 && paidToday >= installmentAmt && !approvedEditRequest) {
         return res.status(400).json({
           success: false,
-          message: `Subscriber has already paid their full installment (₹${paidToday.toLocaleString('en-IN')}) for today (${finalCollectionDate}). Duplicate collection is restricted.`,
+          message: `Subscriber has already paid their full installment (₹${paidToday.toLocaleString('en-IN')}) for today (${finalCollectionDate}). To collect extra or advance, please request Admin approval.`,
         });
       }
     } else if (chitGroup.frequency === 'MONTHLY') {
@@ -147,15 +174,19 @@ export async function recordCollection(req, res, next) {
       );
 
       const currentPaid = parseFloat(existingInCycle[0]?.total_paid_in_cycle || 0);
-      if (installmentAmt > 0 && currentPaid >= installmentAmt) {
+      if (installmentAmt > 0 && currentPaid >= installmentAmt && !approvedEditRequest) {
         return res.status(400).json({
           success: false,
-          message: `Subscriber has already cleared their full installment (₹${currentPaid.toLocaleString('en-IN')}) for this monthly cycle (${cycleInfo.cycleDue}). Duplicate collection is restricted.`,
+          message: `Subscriber has already cleared their full installment (₹${currentPaid.toLocaleString('en-IN')}) for this monthly cycle (${cycleInfo.cycleDue}). To collect extra or advance, please request Admin approval.`,
         });
       }
     }
 
-    const finalNotes = ((autoNotePrefix + (validated.notes || '')).trim() || null)?.slice(0, 255) || null;
+    // Calculate normal vs advance portions
+    const normalPortion = installmentAmt > 0 ? Math.min(validated.amount, installmentAmt) : validated.amount;
+    const advancePortion = Math.max(0, validated.amount - normalPortion);
+
+    const finalNotes = ((autoNotePrefix + (validated.notes || (advancePortion > 0 ? `Advance collected: ₹${advancePortion}` : ''))).trim() || null)?.slice(0, 255) || null;
 
     // Generate unique receipt number: REC-YYYYMMDD-XXXX
     const dateStr = finalCollectionDate.replace(/-/g, '');
@@ -168,14 +199,16 @@ export async function recordCollection(req, res, next) {
 
     const [insertResult] = await pool.execute(
       `INSERT INTO collections 
-        (receipt_number, group_id, member_id, agent_id, amount, payment_method, payment_reference, collection_date, collection_time, verification_status, reconciled_by, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (receipt_number, group_id, member_id, agent_id, amount, normal_amount, advance_amount, payment_method, payment_reference, collection_date, collection_time, verification_status, reconciled_by, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         receiptNumber,
         validated.group_id,
         validated.member_id,
         recordingAgentId,
         validated.amount,
+        normalPortion,
+        advancePortion,
         validated.payment_method,
         validated.payment_reference || null,
         finalCollectionDate,
@@ -185,6 +218,25 @@ export async function recordCollection(req, res, next) {
         finalNotes,
       ]
     );
+
+    // If advance collected, record advance credit
+    if (advancePortion > 0) {
+      await createAdvanceCredit(pool, {
+        groupId: validated.group_id,
+        memberId: validated.member_id,
+        collectionId: insertResult.insertId,
+        advanceAmount: advancePortion,
+        createdDate: finalCollectionDate,
+      });
+    }
+
+    // If applied under an approved request, mark request APPLIED
+    if (approvedEditRequest) {
+      await pool.query(
+        'UPDATE collection_edit_requests SET status = "APPLIED", collection_id = ?, applied_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [insertResult.insertId, approvedEditRequest.id]
+      );
+    }
 
     // Also synchronize agent tracking log: set this member node to PAID immediately
     try {
