@@ -102,6 +102,12 @@ export function errorHandler(err, req, res, next) {
     method: req.method,
   });
 
+  const origin = req.headers?.origin;
+  if (origin && !res.getHeader('Access-Control-Allow-Origin')) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
   const statusCode = err.statusCode || (err.status >= 400 && err.status < 600 ? err.status : 500);
   const friendlyMessage = toFriendlyMessage(err);
 

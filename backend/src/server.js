@@ -42,6 +42,7 @@ const configuredOrigins = env.FRONTEND_ORIGIN
 
 const allowedOrigins = [
   ...configuredOrigins,
+  'https://chitsys-frontend.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -85,13 +86,45 @@ const corsOptions = {
     return callback(null, false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
   exposedHeaders: ['set-cookie', 'x-server-time', 'Date'],
 };
 
+// Fail-safe CORS preflight & header middleware before all routes
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    let allowed = false;
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      allowed = true;
+    } else if (allowedOrigins.includes(origin)) {
+      allowed = true;
+    } else {
+      try {
+        const parsed = new URL(origin);
+        if (parsed.hostname.endsWith('.vercel.app')) {
+          allowed = true;
+        }
+      } catch (_) {}
+    }
+
+    if (allowed || configuredOrigins.includes('*') || env.FRONTEND_ORIGIN === '*') {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+      res.setHeader('Access-Control-Expose-Headers', 'set-cookie, x-server-time, Date');
+    }
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
 
 
 
