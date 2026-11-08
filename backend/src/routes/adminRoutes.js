@@ -12,7 +12,7 @@ import {
   recordAdminAdvance,
   settleAdminAdvance,
 } from '../controllers/adminController.js';
-import { listGroups, createGroup, getGroupDetails, completeGroup, toggleGroupStatus } from '../controllers/groupController.js';
+import { listGroups, createGroup, updateGroup, getGroupDetails, completeGroup, toggleGroupStatus } from '../controllers/groupController.js';
 import { listMembers, createMember, updateMember, enrollMemberInGroup, getMemberPassbook } from '../controllers/memberController.js';
 import { listAgents, createAgent, updateAgent, toggleAgentStatus, assignAgentToGroup } from '../controllers/agentController.js';
 import { listCollections, recordCollection, getCollectionSummary, getAdminCollectionTasks } from '../controllers/collectionController.js';
@@ -51,11 +51,13 @@ router.put('/security/password', updateAdminPassword);
 router.get('/groups', listGroups);
 router.post('/groups', createGroup);
 router.get('/groups/:id', getGroupDetails);
+router.put('/groups/:id', updateGroup);
 router.put('/groups/:id/status', toggleGroupStatus);
 router.post('/groups/:id/complete', completeGroup);
 router.get('/chit-groups', listGroups);
 router.post('/chit-groups', createGroup);
 router.get('/chit-groups/:id', getGroupDetails);
+router.put('/chit-groups/:id', updateGroup);
 router.put('/chit-groups/:id/status', toggleGroupStatus);
 router.post('/chit-groups/:id/complete', completeGroup);
 

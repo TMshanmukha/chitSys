@@ -365,6 +365,249 @@ export async function createGroup(req, res, next) {
   }
 }
 
+export async function updateGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+    const [existingRows] = await pool.execute(
+      'SELECT * FROM chit_groups WHERE id = ? LIMIT 1',
+      [id]
+    );
+
+    if (existingRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chit Scheme not found.' });
+    }
+
+    const group = existingRows[0];
+
+    // Validate required agent assignment
+    if (!req.body.assigned_agent_id) {
+      return res.status(400).json({
+        success: false,
+        message: '⚠️ Collection Agent Required: Please assign this chit scheme to an agent.',
+      });
+    }
+
+    let derivedFrequency = req.body.frequency || group.frequency;
+    let derivedRouteCategory = req.body.route_category || group.route_category;
+
+    if (!derivedFrequency) {
+      derivedFrequency = derivedRouteCategory === 'MONTHLY_ROUTE' ? 'MONTHLY' : 'DAILY';
+    }
+    if (!derivedRouteCategory) {
+      derivedRouteCategory = derivedFrequency === 'MONTHLY' ? 'MONTHLY_ROUTE' : 'DAILY_ROUTE';
+    }
+
+    const normalizedChitType = derivedFrequency === 'MONTHLY'
+      ? 'AUCTION_CHIT'
+      : (req.body.chit_type === 'DOUBLE_CHIT' ? 'DOUBLE_CHIT' : 'AUCTION_CHIT');
+
+    const validated = groupSchema.parse({
+      ...req.body,
+      group_code: req.body.group_code || group.group_code,
+      chit_type: normalizedChitType,
+      route_category: derivedRouteCategory,
+      frequency: derivedFrequency,
+      installment_amount: parseFloat(req.body.installment_amount),
+      total_pool_amount: parseFloat(req.body.total_pool_amount),
+      duration_periods: parseInt(req.body.duration_periods, 10),
+      total_members_limit: parseInt(req.body.total_members_limit || 20, 10),
+      foreman_commission_percent: req.body.foreman_commission_percent ? parseFloat(req.body.foreman_commission_percent) : 5.0,
+      max_bid_percent: req.body.max_bid_percent ? parseFloat(req.body.max_bid_percent) : 35.0,
+      assigned_agent_id: parseInt(req.body.assigned_agent_id, 10),
+    });
+
+    const finalGroupCode = (validated.group_code || group.group_code).trim().toUpperCase();
+
+    // Check collision if group_code changed
+    if (finalGroupCode !== group.group_code) {
+      const [colliding] = await pool.execute(
+        'SELECT id FROM chit_groups WHERE group_code = ? AND id != ? LIMIT 1',
+        [finalGroupCode, id]
+      );
+      if (colliding.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Chit Scheme code '${finalGroupCode}' is already used by another scheme.`,
+        });
+      }
+    }
+
+    // Update chit_groups table
+    await pool.execute(
+      `UPDATE chit_groups SET
+        group_code = ?,
+        group_name = ?,
+        chit_type = ?,
+        frequency = ?,
+        route_category = ?,
+        location_name = ?,
+        installment_amount = ?,
+        total_pool_amount = ?,
+        duration_periods = ?,
+        total_members_limit = ?,
+        foreman_commission_percent = ?,
+        max_bid_percent = ?,
+        start_date = ?,
+        end_date = ?
+       WHERE id = ?`,
+      [
+        finalGroupCode,
+        validated.group_name,
+        validated.chit_type,
+        validated.frequency,
+        validated.route_category,
+        validated.location_name,
+        validated.installment_amount,
+        validated.total_pool_amount,
+        validated.duration_periods,
+        validated.total_members_limit,
+        validated.foreman_commission_percent,
+        validated.max_bid_percent,
+        validated.start_date,
+        validated.end_date || null,
+        id,
+      ]
+    );
+
+    // Update agent assignment
+    if (validated.assigned_agent_id) {
+      await pool.execute('UPDATE agent_group_assignments SET is_active = 0 WHERE group_id = ?', [id]);
+      await pool.execute(
+        `INSERT INTO agent_group_assignments (agent_id, group_id, assigned_date, is_active, assigned_by)
+         VALUES (?, ?, CURDATE(), 1, ?)
+         ON DUPLICATE KEY UPDATE is_active = 1, agent_id = VALUES(agent_id), assigned_by = VALUES(assigned_by)`,
+        [validated.assigned_agent_id, id, req.user.id]
+      );
+    }
+
+    // Update enrolled members if member_ids provided
+    const memberIds = Array.isArray(req.body.member_ids) ? req.body.member_ids : [];
+    if (memberIds.length > 0) {
+      // Check if any removed members have active collections
+      const [membersWithColls] = await pool.execute(
+        'SELECT DISTINCT member_id FROM collections WHERE group_id = ? AND verification_status != "CANCELLED"',
+        [id]
+      );
+      const collMemberIds = new Set(membersWithColls.map((c) => c.member_id));
+
+      const [currentMemberships] = await pool.execute(
+        'SELECT member_id FROM group_memberships WHERE group_id = ?',
+        [id]
+      );
+
+      for (const cm of currentMemberships) {
+        if (!memberIds.includes(cm.member_id)) {
+          if (collMemberIds.has(cm.member_id)) {
+            return res.status(400).json({
+              success: false,
+              message: `Cannot remove member #${cm.member_id} from scheme because payment collections have already been recorded for them.`,
+            });
+          }
+          await pool.execute('DELETE FROM group_memberships WHERE group_id = ? AND member_id = ?', [id, cm.member_id]);
+          await pool.execute('DELETE FROM route_stops WHERE group_id = ? AND member_id = ?', [id, cm.member_id]);
+        }
+      }
+
+      // Upsert selected members with updated sequential ticket numbers
+      for (let i = 0; i < memberIds.length; i++) {
+        const memberId = memberIds[i];
+        const ticketNumber = i + 1;
+        await pool.execute(
+          `INSERT INTO group_memberships (group_id, member_id, ticket_number, joined_date, status)
+           VALUES (?, ?, ?, ?, 'ACTIVE')
+           ON DUPLICATE KEY UPDATE ticket_number = VALUES(ticket_number), status = 'ACTIVE'`,
+          [id, memberId, ticketNumber, validated.start_date]
+        );
+      }
+
+      // Refresh route stops
+      await pool.execute('UPDATE agent_tracking_logs SET stop_id = NULL WHERE group_id = ?', [id]);
+      await pool.execute('DELETE FROM route_stops WHERE group_id = ?', [id]);
+
+      const [enrolledMembers] = await pool.query(
+        `SELECT m.id, m.full_name, m.address, m.phone 
+         FROM members m 
+         WHERE m.id IN (?) 
+         ORDER BY FIELD(m.id, ?)`,
+        [memberIds, memberIds]
+      );
+
+      for (let i = 0; i < enrolledMembers.length; i++) {
+        const m = enrolledMembers[i];
+        const progress = enrolledMembers.length === 1 ? 0.5 : i / (enrolledMembers.length - 1);
+        const coordX = Math.round(80 + progress * 640);
+        const coordY = Math.round(180 + Math.sin(progress * Math.PI * 2) * 90);
+
+        await pool.execute(
+          `INSERT INTO route_stops (group_id, member_id, stop_order, stop_name, landmark, expected_amount, coord_x, coord_y)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            m.id,
+            i + 1,
+            `${m.full_name} (Ticket #${i + 1})`,
+            m.address || `${finalGroupCode} Route Stop #${i + 1}`,
+            validated.installment_amount,
+            coordX,
+            coordY,
+          ]
+        );
+      }
+    }
+
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'UPDATE_CHIT_GROUP',
+      resource: 'CHIT_GROUPS',
+      details: {
+        groupId: id,
+        code: finalGroupCode,
+        name: validated.group_name,
+        type: validated.chit_type,
+        enrolledCount: memberIds.length,
+      },
+    });
+
+    createNotification({
+      targetRole: 'ALL',
+      title: `✏️ Chit Scheme Updated: ${validated.group_name}`,
+      message: `${validated.group_name} (${finalGroupCode}) details have been updated by Admin.`,
+      type: 'SYSTEM',
+      link: '/admin/chit-groups',
+    }).catch(() => {});
+
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'groups',
+      action: 'UPDATE',
+      data: {
+        groupId: Number(id),
+        groupCode: finalGroupCode,
+        groupName: validated.group_name,
+        assignedAgentId: validated.assigned_agent_id,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Chit Scheme '${validated.group_name}' (${finalGroupCode}) updated successfully.`,
+      data: {
+        id: Number(id),
+        group_code: finalGroupCode,
+        group_name: validated.group_name,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: error.errors[0]?.message || 'Invalid group data',
+      });
+    }
+    next(error);
+  }
+}
+
 export async function getGroupDetails(req, res, next) {
   try {
     const { id } = req.params;

@@ -105,6 +105,10 @@ export function ChitGroupsPage() {
   const [showStatusConfirmModal, setShowStatusConfirmModal] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
 
+  // Chit Scheme Edit Mode State
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState(null);
+
   // Quick Add Agent Modal state
   const [showQuickAgentModal, setShowQuickAgentModal] = useState(false);
   const [quickAgentForm, setQuickAgentForm] = useState({
@@ -368,23 +372,64 @@ export function ChitGroupsPage() {
     }
   };
 
+  const handleOpenEditGroup = async (group) => {
+    try {
+      setError('');
+      setSuccess('');
+      setIsEditMode(true);
+      setEditingGroupId(group.id);
+
+      // Fetch group details to get enrolled members and assigned agent
+      const res = await api.get(`/admin/groups/${group.id}`);
+      const detail = res.data?.data || group;
+      const enrolledMembers = detail.members || [];
+      const assignedAgents = detail.agents || [];
+      const firstAgentId = assignedAgents[0]?.agent_id || (group.assigned_agent_ids ? String(group.assigned_agent_ids).split(',')[0]?.trim() : '');
+
+      setForm({
+        group_code: detail.group_code || group.group_code || '',
+        group_name: detail.group_name || group.group_name || '',
+        chit_type: detail.chit_type || group.chit_type || 'DOUBLE_CHIT',
+        route_category: detail.route_category || group.route_category || 'DAILY_ROUTE',
+        frequency: detail.frequency || group.frequency || 'DAILY',
+        location_name: detail.location_name || group.location_name || '',
+        installment_amount: String(detail.installment_amount || group.installment_amount || '500'),
+        total_pool_amount: String(detail.total_pool_amount || group.total_pool_amount || '10000'),
+        duration_periods: String(detail.duration_periods || group.duration_periods || '50'),
+        total_members_limit: String(detail.total_members_limit || group.total_members_limit || '20'),
+        foreman_commission_percent: String(detail.foreman_commission_percent || group.foreman_commission_percent || '5.0'),
+        max_bid_percent: String(detail.max_bid_percent || group.max_bid_percent || '35.0'),
+        start_date: detail.start_date ? String(detail.start_date).slice(0, 10) : getServerYMD(),
+        assigned_agent_id: String(firstAgentId || ''),
+      });
+
+      setSelectedMemberIds(enrolledMembers.map((m) => m.member_id));
+      setWizardStep(1);
+      setShowModal(true);
+      scrollToFormOrModal('chit-scheme-modal');
+    } catch (err) {
+      console.error('Failed to open group for edit:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load chit scheme details for editing.');
+    }
+  };
+
   const handleCreateGroup = async () => {
     setError('');
     setSuccess('');
     if (!form.assigned_agent_id) {
-      setError('⚠️ Collection Agent Required: You must assign this chit scheme to a collection agent before launching.');
+      setError('⚠️ Collection Agent Required: You must assign this chit scheme to a collection agent before saving.');
       setWizardStep(1);
       return;
     }
     const targetMembers = parseInt(form.total_members_limit || '20', 10);
     if (selectedMemberIds.length !== targetMembers) {
-      setError(`Cannot create chit group: Scheme requires exactly ${targetMembers} subscribers, but you have selected ${selectedMemberIds.length} members.`);
+      setError(`Cannot save chit scheme: Scheme requires exactly ${targetMembers} subscribers, but you have selected ${selectedMemberIds.length} members.`);
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await api.post('/admin/groups', {
+      const payload = {
         ...form,
         installment_amount: parseFloat(form.installment_amount),
         total_pool_amount: parseFloat(form.total_pool_amount),
@@ -394,10 +439,20 @@ export function ChitGroupsPage() {
         max_bid_percent: parseFloat(form.max_bid_percent || 35),
         assigned_agent_id: parseInt(form.assigned_agent_id, 10),
         member_ids: selectedMemberIds,
-      });
+      };
 
-      setSuccess(res.data?.message || 'Chit group and route stops created successfully with all enrolled subscribers.');
+      let res;
+      if (isEditMode && editingGroupId) {
+        res = await api.put(`/admin/groups/${editingGroupId}`, payload);
+        setSuccess(res.data?.message || 'Chit scheme updated successfully.');
+      } else {
+        res = await api.post('/admin/groups', payload);
+        setSuccess(res.data?.message || 'Chit group and route stops created successfully with all enrolled subscribers.');
+      }
+
       setShowModal(false);
+      setIsEditMode(false);
+      setEditingGroupId(null);
       setWizardStep(1);
       setSelectedMemberIds([]);
       setForm({
@@ -418,7 +473,7 @@ export function ChitGroupsPage() {
       });
       loadData();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to create chit group');
+      setError(err.response?.data?.message || err.message || (isEditMode ? 'Failed to update chit group' : 'Failed to create chit group'));
     } finally {
       setSubmitting(false);
     }
@@ -522,11 +577,26 @@ export function ChitGroupsPage() {
         <button
           type="button"
           onClick={() => {
+            setIsEditMode(false);
+            setEditingGroupId(null);
+            setSelectedMemberIds([]);
             const nextCode = generateNextGroupCode(form.frequency, form.chit_type, groups);
-            setForm((prev) => ({
-              ...prev,
+            setForm({
               group_code: nextCode,
-            }));
+              group_name: '',
+              chit_type: 'DOUBLE_CHIT',
+              route_category: 'DAILY_ROUTE',
+              frequency: 'DAILY',
+              location_name: '',
+              installment_amount: '500',
+              total_pool_amount: '10000',
+              duration_periods: '50',
+              total_members_limit: '20',
+              foreman_commission_percent: '5.0',
+              max_bid_percent: '35.0',
+              start_date: getServerYMD(),
+              assigned_agent_id: '',
+            });
             setShowModal(true);
             setWizardStep(1);
             setError('');
@@ -824,6 +894,16 @@ export function ChitGroupsPage() {
                               <span>Collect</span>
                             </button>
 
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditGroup(g)}
+                              className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-200 dark:border-indigo-800 transition-colors text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                              title="Edit chit scheme details"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>Edit</span>
+                            </button>
+
                             {g.status === 'COMPLETED' ? (
                               <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700">
                                 🏁 Closed
@@ -961,9 +1041,6 @@ export function ChitGroupsPage() {
                       <span className="font-bold text-slate-900 dark:text-white">
                         ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')}
                       </span>
-                      <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
-                        Total Pending: ₹{Number(g.total_pending_amount || 0).toLocaleString('en-IN')}
-                      </div>
                     </div>
                     <div>
                       <span className="text-slate-400 text-[11px] block">Total Pool</span>
@@ -973,22 +1050,28 @@ export function ChitGroupsPage() {
                     </div>
                   </div>
 
-                  {/* Reserved Amount for Daily Chit (Sum of Bid Amounts) */}
-                  {isDaily && (
-                    <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-purple-50/90 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 flex items-center justify-between text-xs">
+                  {/* Unified Stats Box: Total Pending & Reserved Amount */}
+                  <div className="mt-3 px-3 py-2 rounded-xl bg-purple-50/90 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-bold">
-                        <span>⚡</span>
-                        <span>Reserved Amount:</span>
+                        <span>⏳</span>
+                        <span>Total Pending:</span>
                       </div>
                       <span className="font-extrabold text-purple-900 dark:text-purple-200 font-mono text-xs">
-                        ₹{parseFloat(g.reserved_amount || g.total_bid_discount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{Number(g.total_pending_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
-                  )}
-
-                  <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                    <span>Foreman Commission: <strong>{g.foreman_commission_percent}%</strong></span>
-                    <span>Max Bid Discount: <strong>{g.max_bid_percent}%</strong></span>
+                    {isDaily && (
+                      <div className="flex items-center justify-between pt-1.5 border-t border-purple-200/60 dark:border-purple-800/40">
+                        <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-bold">
+                          <span>⚡</span>
+                          <span>Reserved Amount:</span>
+                        </div>
+                        <span className="font-extrabold text-purple-900 dark:text-purple-200 font-mono text-xs">
+                          ₹{parseFloat(g.reserved_amount || g.total_bid_discount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1011,6 +1094,16 @@ export function ChitGroupsPage() {
                     >
                       <span>💰</span>
                       <span>Collect</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditGroup(g)}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-200 dark:border-indigo-800 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                      title="Edit chit scheme details"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
                     </button>
 
                     {g.status === 'COMPLETED' ? (
@@ -1099,7 +1192,11 @@ export function ChitGroupsPage() {
       <ModalPortal
         id="chit-scheme-modal"
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false);
+          setIsEditMode(false);
+          setEditingGroupId(null);
+        }}
       >
         <div className="modal-card w-full max-w-4xl rounded-2xl sm:rounded-3xl !bg-white dark:!bg-[#0c1427] border-2 border-slate-200/90 dark:border-slate-800 shadow-[0_30px_90px_rgba(0,0,0,0.35)] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 my-auto sm:my-8 max-h-[95vh] sm:max-h-[94vh] overflow-y-auto transition-all animate-confirmScale ring-1 ring-black/5">
             
@@ -1107,20 +1204,24 @@ export function ChitGroupsPage() {
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 sm:pb-4">
               <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-500/25 shrink-0 ring-2 ring-white/20">
-                  <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                  {isEditMode ? <Edit3 className="w-5 h-5 sm:w-6 sm:h-6" /> : <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6" />}
                 </div>
                 <div className="min-w-0">
                   <h3 className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-700 dark:from-blue-300 dark:via-indigo-200 dark:to-purple-200 text-base sm:text-xl font-heading leading-tight truncate">
-                    Chit Scheme Creation & Direct Enrolment Wizard
+                    {isEditMode ? 'Edit Chit Scheme & Subscriber Allocation' : 'Chit Scheme Creation & Direct Enrolment Wizard'}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                    Step {wizardStep} of 3: {wizardStep === 1 ? 'Configure Scheme Rules' : wizardStep === 2 ? 'Select Required Subscribers' : 'Pre-Flight Verification & Launch'}
+                    Step {wizardStep} of 3: {wizardStep === 1 ? (isEditMode ? 'Update Scheme Rules' : 'Configure Scheme Rules') : wizardStep === 2 ? 'Select Required Subscribers' : (isEditMode ? 'Pre-Flight Verification & Update' : 'Pre-Flight Verification & Launch')}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  setIsEditMode(false);
+                  setEditingGroupId(null);
+                }}
                 className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
@@ -1564,7 +1665,11 @@ export function ChitGroupsPage() {
                 <div className="pt-3 sm:pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4">
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={() => {
+                      setShowModal(false);
+                      setIsEditMode(false);
+                      setEditingGroupId(null);
+                    }}
                     className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold transition-colors cursor-pointer text-center justify-center"
                   >
                     Cancel
@@ -2052,22 +2157,22 @@ export function ChitGroupsPage() {
                     {submitting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Launching Scheme & Generating Stops...</span>
+                        <span>{isEditMode ? 'Updating Scheme & Route Stops...' : 'Launching Scheme & Generating Stops...'}</span>
                       </>
                     ) : !form.assigned_agent_id ? (
                       <>
                         <AlertTriangle className="w-4 h-4" />
-                        <span>Assign Agent in Step 1 to Launch</span>
+                        <span>Assign Agent in Step 1 to {isEditMode ? 'Update' : 'Launch'}</span>
                       </>
                     ) : isMismatch ? (
                       <>
                         <AlertTriangle className="w-4 h-4" />
-                        <span>Fix Member Mismatch to Launch ({selectedCount}/{targetMembersCount})</span>
+                        <span>Fix Member Mismatch to {isEditMode ? 'Update' : 'Launch'} ({selectedCount}/{targetMembersCount})</span>
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>Confirm & Launch Chit Group</span>
+                        {isEditMode ? <Save className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                        <span>{isEditMode ? 'Update Chit Scheme' : 'Confirm & Launch Chit Group'}</span>
                       </>
                     )}
                   </button>
