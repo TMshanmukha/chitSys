@@ -32,6 +32,15 @@ import {
   getUserActivity,
   changeOwnPassword,
 } from '../controllers/interestUserController.js';
+import {
+  previewInterestDayWork,
+  submitInterestDayWork,
+  getMyInterestDaySubmissions,
+  listInterestDaySubmissionsForAdmin,
+  approveInterestDaySubmission,
+  rejectInterestDaySubmission,
+  unlockInterestDaySubmission,
+} from '../controllers/interestDaySubmissionController.js';
 
 const router = express.Router();
 
@@ -75,5 +84,14 @@ router.post('/users/:id/reset-password', requireInterestRole('OWNER'), resetPass
 router.put('/users/:id/assign-customers', requireInterestRole('OWNER', 'MANAGER'), assignCustomers);
 router.get('/users/:id/activity', requireInterestRole('OWNER', 'MANAGER'), getUserActivity);
 router.post('/users/change-password', changeOwnPassword);
+
+// 9. Day Closings & Shift Submissions (Field Agents & Admin Approval)
+router.get('/day-preview', previewInterestDayWork);
+router.post('/day-submit', submitInterestDayWork);
+router.get('/day-submissions/my', getMyInterestDaySubmissions);
+router.get('/day-submissions', requireInterestRole('OWNER', 'MANAGER'), listInterestDaySubmissionsForAdmin);
+router.post('/day-submissions/:id/approve', requireInterestRole('OWNER', 'MANAGER'), approveInterestDaySubmission);
+router.post('/day-submissions/:id/reject', requireInterestRole('OWNER', 'MANAGER'), rejectInterestDaySubmission);
+router.post('/day-submissions/:id/unlock', requireInterestRole('OWNER', 'MANAGER'), unlockInterestDaySubmission);
 
 export default router;

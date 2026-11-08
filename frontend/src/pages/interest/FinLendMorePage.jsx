@@ -12,6 +12,8 @@ import {
   Landmark,
   UserCheck,
   KeyRound,
+  Banknote,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -125,6 +127,50 @@ export default function FinLendMorePage() {
               <ChevronRight className="w-5 h-5 text-slate-400" />
             </div>
           )}
+
+          {/* Admin Day Closings & Review */}
+          {canManageUsers && (
+            <div
+              onClick={() => navigate('/interest/day-closings')}
+              className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-slate-900 dark:text-white font-heading">
+                    Day Closings & Agent Handovers
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Verify field agent collections, count physical cash, and approve day shifts
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
+            </div>
+          )}
+
+          {/* Agent Day Closing & Cash Handover Submit */}
+          <div
+            onClick={() => navigate('/interest/day-closing')}
+            className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] cursor-pointer transition-colors"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Banknote className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-bold text-sm text-slate-900 dark:text-white font-heading">
+                  Submit Daily Work & Handover
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Submit today's collected money and hand over cash to Admin
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400" />
+          </div>
         </div>
       </div>
 

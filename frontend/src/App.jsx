@@ -43,6 +43,8 @@ import FinLendMorePage from './pages/interest/FinLendMorePage';
 import FinLendLoanTypesPage from './pages/interest/FinLendLoanTypesPage';
 import FinLendAgentsPage from './pages/interest/FinLendAgentsPage';
 import FinLendUsersPage from './pages/interest/FinLendUsersPage';
+import FinLendAgentDayClosingPage from './pages/interest/FinLendAgentDayClosingPage';
+import FinLendAdminDaySubmissionsPage from './pages/interest/FinLendAdminDaySubmissionsPage';
 import InterestAgentPortalPage from './pages/interest/InterestAgentPortalPage';
 
 import ScrollToTop from './components/ScrollToTop';
@@ -152,11 +154,15 @@ export default function App() {
                   <Route path="agents" element={<Navigate to="/interest/more/users" replace />} />
                   <Route path="reports" element={<FinLendReportsPage />} />
                   <Route path="notifications" element={<NotificationsPage />} />
+                  <Route path="day-closing" element={<FinLendAgentDayClosingPage />} />
+                  <Route path="day-closings" element={<FinLendAdminDaySubmissionsPage />} />
                   <Route path="more" element={<FinLendMorePage />} />
                   <Route path="more/loan-types" element={<FinLendLoanTypesPage />} />
                   <Route path="more/users" element={<FinLendUsersPage />} />
                   <Route path="more/users/:id" element={<FinLendUsersPage />} />
                   <Route path="more/agents" element={<FinLendUsersPage />} />
+                  <Route path="more/day-closings" element={<FinLendAdminDaySubmissionsPage />} />
+                  <Route path="more/day-reviews" element={<FinLendAdminDaySubmissionsPage />} />
 
                   {/* Backward-compatibility redirects for any bookmarked / saved URLs */}
                   <Route path="admin" element={<Navigate to="/interest/home" replace />} />

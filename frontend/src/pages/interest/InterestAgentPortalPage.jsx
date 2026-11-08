@@ -30,6 +30,7 @@ import {
   Check,
   MessageSquare,
   Copy,
+  Banknote,
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -775,11 +776,20 @@ export default function InterestAgentPortalPage() {
               <div className="pt-2 space-y-2.5">
                 <button
                   type="button"
+                  onClick={() => navigate('/interest/day-closing')}
+                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-extrabold text-sm shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-2 font-heading cursor-pointer"
+                >
+                  <Banknote className="w-4 h-4" />
+                  <span>Submit Day Work & Await Approval</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setIsHandoverModalOpen(true)}
-                  className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 font-heading cursor-pointer"
+                  className="w-full h-11 rounded-2xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all flex items-center justify-center gap-2 font-heading cursor-pointer"
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Prepare Handover Statement</span>
+                  <span>Share WhatsApp Statement</span>
                 </button>
               </div>
             </div>
