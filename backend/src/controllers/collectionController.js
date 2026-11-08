@@ -158,10 +158,12 @@ export async function recordCollection(req, res, next) {
       );
       const paidToday = parseFloat(existingDaily[0]?.total_paid_today || 0);
       if (installmentAmt > 0 && paidToday >= installmentAmt && !approvedEditRequest) {
-        return res.status(400).json({
-          success: false,
-          message: `Subscriber has already paid their full installment (₹${paidToday.toLocaleString('en-IN')}) for today (${finalCollectionDate}). To collect extra or advance, please request Admin approval.`,
-        });
+        if (req.user.role === 'COLLECTION_AGENT') {
+          return res.status(400).json({
+            success: false,
+            message: `Subscriber has already paid their full installment (₹${paidToday.toLocaleString('en-IN')}) for today (${finalCollectionDate}). To collect extra or advance, please request Admin approval.`,
+          });
+        }
       }
     } else if (chitGroup.frequency === 'MONTHLY') {
       const cycleInfo = getMonthlyCycleInfo(chitGroup.start_date || chitGroup.created_at, finalCollectionDate);
@@ -175,10 +177,12 @@ export async function recordCollection(req, res, next) {
 
       const currentPaid = parseFloat(existingInCycle[0]?.total_paid_in_cycle || 0);
       if (installmentAmt > 0 && currentPaid >= installmentAmt && !approvedEditRequest) {
-        return res.status(400).json({
-          success: false,
-          message: `Subscriber has already cleared their full installment (₹${currentPaid.toLocaleString('en-IN')}) for this monthly cycle (${cycleInfo.cycleDue}). To collect extra or advance, please request Admin approval.`,
-        });
+        if (req.user.role === 'COLLECTION_AGENT') {
+          return res.status(400).json({
+            success: false,
+            message: `Subscriber has already cleared their full installment (₹${currentPaid.toLocaleString('en-IN')}) for this monthly cycle (${cycleInfo.cycleDue}). To collect extra or advance, please request Admin approval.`,
+          });
+        }
       }
     }
 
@@ -449,7 +453,8 @@ export async function getAdminCollectionTasks(req, res, next) {
 
     const groupMap = new Map(relevantGroups.map((g) => [g.id, g]));
     let totalTarget = 0;
-    let totalCollected = 0;
+    let totalTargetCollected = 0;
+    let totalAdvanceCollected = 0;
     let pendingCount = 0;
     let completedCount = 0;
 
@@ -462,11 +467,14 @@ export async function getAdminCollectionTasks(req, res, next) {
         const isDueToday = isDaily || (cycleInfo ? cycleInfo.isDeadlineToday : false);
         const paidAmount = colMap.get(`${m.group_id}:${m.member_id}`) || 0;
         const installment = Number(g.installment_amount || 0);
+        const normalPaid = Math.min(paidAmount, installment);
+        const advancePaid = Math.max(0, paidAmount - installment);
         const isPaid = paidAmount >= installment;
         const isPartial = paidAmount > 0 && paidAmount < installment;
 
         totalTarget += installment;
-        totalCollected += paidAmount;
+        totalTargetCollected += normalPaid;
+        totalAdvanceCollected += advancePaid;
         if (isPaid) completedCount++;
         else pendingCount++;
 
@@ -490,7 +498,9 @@ export async function getAdminCollectionTasks(req, res, next) {
           ticket_number: m.ticket_number,
           address: m.address,
           paid_amount: paidAmount,
-          remaining_due: Math.max(0, installment - paidAmount),
+          normal_paid_amount: normalPaid,
+          advance_paid_amount: advancePaid,
+          remaining_due: Math.max(0, installment - normalPaid),
           is_paid: isPaid,
           is_partial: isPartial,
           is_covered_today: isCovered,
@@ -507,10 +517,12 @@ export async function getAdminCollectionTasks(req, res, next) {
       tasks,
       summary: {
         totalTarget,
-        totalCollected,
+        totalCollected: totalTargetCollected,
+        totalAdvanceCollected,
+        totalGrossCollected: totalTargetCollected + totalAdvanceCollected,
         pendingCount,
         completedCount,
-        progressPct: totalTarget > 0 ? Math.round((totalCollected / totalTarget) * 100) : 0,
+        progressPct: totalTarget > 0 ? Math.round((totalTargetCollected / totalTarget) * 100) : 0,
       },
     });
   } catch (error) {

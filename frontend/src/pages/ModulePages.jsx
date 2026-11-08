@@ -4004,7 +4004,15 @@ export function CollectionsPage() {
       const paidTasks = tasksForGroup.filter((t) => t.is_paid);
       const pendingTasks = tasksForGroup.filter((t) => !t.is_paid);
       const chitTarget = Number(g.installment_amount || 0) * totalMembers;
-      const chitCollected = tasksForGroup.reduce((sum, t) => sum + (Number(t.paid_amount) || 0), 0);
+      // Daily target collection considers payments towards today's installment. Advances belong to future dues.
+      const chitCollected = tasksForGroup.reduce(
+        (sum, t) => sum + (t.normal_paid_amount != null ? Number(t.normal_paid_amount) : Math.min(Number(t.paid_amount || 0), Number(g.installment_amount || 0))),
+        0
+      );
+      const chitAdvance = tasksForGroup.reduce(
+        (sum, t) => sum + (t.advance_paid_amount != null ? Number(t.advance_paid_amount) : Math.max(0, Number(t.paid_amount || 0) - Number(g.installment_amount || 0))),
+        0
+      );
       const progressPct = chitTarget > 0 ? Math.min(100, Math.round((chitCollected / chitTarget) * 100)) : 0;
       const isCovered = tasksForGroup.some((t) => t.is_covered_today);
       const handlerName = tasksForGroup[0]?.current_handler_name || (g.agent_name || 'Admin / Office');
@@ -4016,6 +4024,7 @@ export function CollectionsPage() {
         pendingCount: pendingTasks.length,
         chitTarget,
         chitCollected,
+        chitAdvance,
         progressPct,
         isCovered,
         handlerName,
@@ -4177,13 +4186,18 @@ export function CollectionsPage() {
           <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Collections Target</span>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading">
                   ₹{Number(tasksSummary.totalCollected || 0).toLocaleString('en-IN')}
                 </span>
                 <span className="text-xs text-slate-400 font-medium">
                   collected of ₹{Number(tasksSummary.totalTarget || 0).toLocaleString('en-IN')} target
                 </span>
+                {Number(tasksSummary.totalAdvanceCollected || 0) > 0 && (
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900/40 px-2 py-0.5 rounded-full">
+                    +₹{Number(tasksSummary.totalAdvanceCollected).toLocaleString('en-IN')} Advance
+                  </span>
+                )}
               </div>
             </div>
 
@@ -4322,6 +4336,11 @@ export function CollectionsPage() {
                           <td className="py-3 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">
                             ₹{chit.chitCollected.toLocaleString('en-IN')}{' '}
                             <span className="text-slate-400 font-normal">/ ₹{chit.chitTarget.toLocaleString('en-IN')}</span>
+                            {chit.chitAdvance > 0 && (
+                              <span className="ml-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900/40 px-1.5 py-0.5 rounded-full inline-block">
+                                +₹{chit.chitAdvance.toLocaleString('en-IN')} Adv
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <button
@@ -4400,6 +4419,11 @@ export function CollectionsPage() {
                           <span className="text-slate-500 font-medium">Collections:</span>
                           <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                             ₹{chit.chitCollected.toLocaleString('en-IN')} / ₹{chit.chitTarget.toLocaleString('en-IN')}
+                            {chit.chitAdvance > 0 && (
+                              <span className="ml-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900/40 px-1.5 py-0.5 rounded-full inline-block">
+                                +₹{chit.chitAdvance.toLocaleString('en-IN')} Adv
+                              </span>
+                            )}
                           </span>
                         </div>
                         {/* Progress bar */}
@@ -4461,7 +4485,11 @@ export function CollectionsPage() {
                                       : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                                   }`}
                                 >
-                                  {task.is_paid ? 'Paid' : `Due: ₹${task.remaining_due.toLocaleString('en-IN')}`}
+                                  {task.is_paid
+                                    ? (Number(task.advance_paid_amount || 0) > 0
+                                        ? `Paid (+₹${Number(task.advance_paid_amount).toLocaleString('en-IN')} Adv)`
+                                        : 'Paid')
+                                    : `Due: ₹${task.remaining_due.toLocaleString('en-IN')}`}
                                 </span>
                                 {(() => {
                                   const phone = task.member_phone || members.find((m) => String(m.id) === String(task.member_id))?.phone;

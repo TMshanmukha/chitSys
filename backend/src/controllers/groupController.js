@@ -40,11 +40,7 @@ export async function listGroups(req, res, next) {
         CAST(GROUP_CONCAT(DISTINCT u.id SEPARATOR ', ') AS CHAR) as assigned_agent_ids,
         COALESCE((SELECT SUM(GREATEST(COALESCE(a.double_chit_reserve, 0), COALESCE(a.bid_discount, 0))) FROM auctions a WHERE a.group_id = g.id), 0) AS reserved_amount,
         COALESCE((SELECT SUM(a.bid_discount) FROM auctions a WHERE a.group_id = g.id), 0) AS total_bid_discount,
-        (
-          COALESCE((SELECT SUM(ama.advance_amount - ama.recovered_amount) FROM admin_member_advances ama WHERE ama.group_id = g.id AND ama.status = 'PENDING_RECOVERY'), 0)
-          +
-          GREATEST(0, (COUNT(DISTINCT gm.id) * g.installment_amount) - COALESCE((SELECT SUM(c.amount) FROM collections c WHERE c.group_id = g.id AND (g.frequency = 'DAILY' AND c.collection_date = '${todayIST}' OR g.frequency = 'MONTHLY' AND c.collection_date >= DATE_SUB('${todayIST}', INTERVAL 30 DAY))), 0))
-        ) AS total_pending_amount
+        COALESCE((SELECT SUM(ama.advance_amount - ama.recovered_amount) FROM admin_member_advances ama WHERE ama.group_id = g.id AND ama.status = 'PENDING_RECOVERY'), 0) AS total_pending_amount
       FROM chit_groups g
       LEFT JOIN group_memberships gm ON g.id = gm.group_id
       LEFT JOIN route_stops rs ON g.id = rs.group_id
@@ -78,6 +74,49 @@ export async function listGroups(req, res, next) {
     query += ' GROUP BY g.id ORDER BY g.created_at DESC';
 
     const [rows] = await pool.query(query, params);
+
+    // Calculate exact pending dues on a per-member basis so that advance payments
+    // made by one member never offset or hide the unpaid pending dues of another member
+    if (rows.length > 0) {
+      const groupIds = rows.map((r) => r.id);
+      const [memberColls] = await pool.query(
+        `SELECT 
+           gm.group_id, 
+           gm.member_id, 
+           COALESCE(SUM(c.amount), 0) as paid_today
+         FROM group_memberships gm
+         JOIN chit_groups g ON g.id = gm.group_id
+         LEFT JOIN collections c ON c.group_id = gm.group_id 
+           AND c.member_id = gm.member_id 
+           AND c.verification_status != 'CANCELLED'
+           AND (
+             (g.frequency = 'DAILY' AND c.collection_date = ?)
+             OR (g.frequency = 'MONTHLY' AND c.collection_date >= DATE_SUB(?, INTERVAL 30 DAY))
+           )
+         WHERE gm.group_id IN (?) AND gm.status = 'ACTIVE'
+         GROUP BY gm.group_id, gm.member_id`,
+        [todayIST, todayIST, groupIds]
+      );
+
+      const groupMap = new Map(rows.map((r) => [r.id, r]));
+      const groupPendingMap = new Map();
+
+      for (const m of memberColls) {
+        const g = groupMap.get(m.group_id);
+        if (!g) continue;
+        const inst = parseFloat(g.installment_amount || 0);
+        const paid = parseFloat(m.paid_today || 0);
+        // Advance payments belong strictly to future installments; cap today's credit at installment amount
+        const memberPending = Math.max(0, inst - paid);
+        groupPendingMap.set(m.group_id, (groupPendingMap.get(m.group_id) || 0) + memberPending);
+      }
+
+      for (const row of rows) {
+        const memberPending = groupPendingMap.get(row.id) || 0;
+        const currentPendingAdminAdvance = parseFloat(row.total_pending_amount || 0);
+        row.total_pending_amount = memberPending + currentPendingAdminAdvance;
+      }
+    }
 
     res.status(200).json({
       success: true,
