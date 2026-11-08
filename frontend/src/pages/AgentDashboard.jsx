@@ -2898,42 +2898,13 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             </div>
 
             {/* Agent Today's Collection & Target Performance Dossier */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-              {/* Today's Collections Card */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
-                    <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>Today's Collection</span>
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
-                    Live Total
-                  </span>
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
-                    ₹{todayCollectedTotal.toLocaleString('en-IN')}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
-                    <span>{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
-                    <span>·</span>
-                    <span>Cash: ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-                  <span>Digital / UPI:</span>
-                  <span className="font-bold text-purple-600 dark:text-purple-400">
-                    ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Target Card - BESIDE Today's Collection */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+              {/* 1. Total Target Card */}
               <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-indigo-50/70 via-white to-blue-50/40 dark:from-indigo-950/40 dark:via-slate-900 dark:to-blue-950/20 border border-indigo-200 dark:border-indigo-800/70 shadow-xs flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
                     <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span>Target Card</span>
+                    <span>Total Target</span>
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white shadow-xs">
                     {targetProgressPercent}% Done
@@ -2963,8 +2934,35 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 </div>
               </div>
 
-              {/* Cash On Hand */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-3">
+              {/* 2. Total Collection Card */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-900/60 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                    <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Total Collection</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                    Live Total
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                    ₹{todayCollectedTotal.toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span>{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                  <span>Status:</span>
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    Collected Today
+                  </span>
+                </div>
+              </div>
+
+              {/* 3. Cash on Hand Card */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-900/60 shadow-xs flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
                     <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -2990,14 +2988,41 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 </div>
               </div>
 
-              {/* Assigned Routes Overview */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-3">
+              {/* 4. Cash on UPI Card */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-purple-200/80 dark:border-purple-900/60 shadow-xs flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
-                    <Layers className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    <span>Assigned Schemes</span>
+                  <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                    <CreditCard className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span>Cash on UPI</span>
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                    Digital Inflow
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 font-mono tracking-tight">
+                    ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Direct bank & UPI collections
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                  <span>Mode:</span>
+                  <span className="font-semibold text-purple-600 dark:text-purple-400">
+                    Credited to Bank
+                  </span>
+                </div>
+              </div>
+
+              {/* 5. Assigned Routes Overview Card */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                    <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>Assigned Routes</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
                     Active
                   </span>
                 </div>
