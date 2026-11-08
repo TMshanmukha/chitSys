@@ -3891,7 +3891,6 @@ export function CollectionsPage() {
     allow_advance: true,
     allow_off_cycle: true,
   });
-  const [autoSendWhatsApp, setAutoSendWhatsApp] = useState(true);
 
   useEffect(() => {
     setChitsPage(1);
@@ -3958,20 +3957,12 @@ export function CollectionsPage() {
     try {
       const res = await api.post('/admin/collections', form);
       if (res.data?.success) {
-        setSuccess('Payment collected and recorded in MySQL!');
+        const memberObj = members.find((m) => String(m.id) === String(form.member_id));
+        const groupObj = groups.find((g) => String(g.id) === String(form.group_id));
+        const receiptNum = res.data?.receipt?.receiptNumber ? ` (Receipt: ${res.data.receipt.receiptNumber})` : '';
+        setSuccess(`Payment of ₹${Number(form.amount || 0).toLocaleString('en-IN')} for ${memberObj?.full_name || 'subscriber'} in ${groupObj?.group_name || 'chit'} recorded successfully!${receiptNum}`);
         setGeneratedReceipt(res.data.receipt);
-        if (autoSendWhatsApp && res.data.receipt) {
-          try {
-            const text = getReceiptWhatsAppText(res.data.receipt);
-            const mem = members.find((m) => String(m.id) === String(res.data.receipt.memberId));
-            const phone = res.data.receipt.memberPhone || mem?.phone;
-            if (phone) {
-              sendWhatsAppMessage(phone, text);
-            }
-          } catch (e) {
-            console.error('Auto WhatsApp send error:', e);
-          }
-        }
+        // Automatically close modal and reset form
         setShowModal(false);
         setSearchParams({}, { replace: true });
         setForm({
@@ -4343,14 +4334,21 @@ export function CollectionsPage() {
                             )}
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenChitCollection(chit)}
-                              className="py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs inline-flex items-center gap-1 shadow-2xs transition-all cursor-pointer font-heading"
-                            >
-                              <PlusCircle className="w-3.5 h-3.5" />
-                              <span>Collect</span>
-                            </button>
+                            {chit.pendingCount === 0 && chit.totalMembers > 0 ? (
+                              <span className="py-1 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold inline-flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                <span>All Paid</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenChitCollection(chit)}
+                                className="py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs inline-flex items-center gap-1 shadow-2xs transition-all cursor-pointer font-heading"
+                              >
+                                <PlusCircle className="w-3.5 h-3.5" />
+                                <span>Collect</span>
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -4439,14 +4437,21 @@ export function CollectionsPage() {
                     {/* Action Bar: Collect Payment & Toggle Subscribers List */}
                     <div className="p-4 pt-0 space-y-2">
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenChitCollection(chit)}
-                          className="flex-1 py-2.5 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer font-heading"
-                        >
-                          <PlusCircle className="w-4 h-4" />
-                          <span>Collect Payment</span>
-                        </button>
+                        {isFullyCollected ? (
+                          <div className="flex-1 py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold text-xs flex items-center justify-center gap-1.5 font-heading">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>All Subscribers Paid ✓</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenChitCollection(chit)}
+                            className="flex-1 py-2.5 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer font-heading"
+                          >
+                            <PlusCircle className="w-4 h-4" />
+                            <span>Collect Payment</span>
+                          </button>
+                        )}
 
                         {chit.tasks.length > 0 && (
                           <button
@@ -4960,20 +4965,7 @@ export function CollectionsPage() {
                 const isDisabled = submitting || allPaidForGroup || isPaid || !form.group_id || !form.member_id || !form.amount;
 
                 return (
-                  <div className="pt-4 space-y-3 border-t border-slate-100 dark:border-slate-800">
-                    <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={autoSendWhatsApp}
-                        onChange={(e) => setAutoSendWhatsApp(e.target.checked)}
-                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-                      />
-                      <span className="flex items-center gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Automatically send official receipt to subscriber via WhatsApp upon recording</span>
-                      </span>
-                    </label>
-
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center justify-end gap-3 pt-1">
                       <button
                         type="button"

@@ -44,6 +44,7 @@ export default function InterestCollectionsPage() {
 
   // Receipt Modal
   const [receiptData, setReceiptData] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const fetchCollections = async () => {
     try {
@@ -120,8 +121,11 @@ export default function InterestCollectionsPage() {
 
       if (res.data?.success) {
         setShowCollectModal(false);
-        setReceiptData(res.data.receipt);
+        const rNum = res.data.receipt?.receipt_number ? ` (Receipt: ${res.data.receipt.receipt_number})` : '';
+        setSuccessMessage(`Payment of ₹${parseFloat(collectAmount).toLocaleString('en-IN')} for ${selectedLoan.customer_name} recorded successfully!${rNum}`);
+        setReceiptData(null);
         fetchCollections();
+        setTimeout(() => setSuccessMessage(''), 6000);
       }
     } catch (err) {
       setCollectError(err.response?.data?.message || 'Failed to record collection');
@@ -158,6 +162,23 @@ export default function InterestCollectionsPage() {
           <span>Record Collection (Paid)</span>
         </button>
       </div>
+
+      {/* Success Notification Banner */}
+      {successMessage && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs font-bold flex items-center justify-between gap-3 shadow-xs animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage('')}
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 px-2 py-1 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Summary KPI Strip */}
       {summary && (

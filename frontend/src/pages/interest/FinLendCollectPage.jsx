@@ -31,6 +31,7 @@ export default function FinLendCollectPage() {
   // Quick Collect Sheet
   const [isCollectOpen, setIsCollectOpen] = useState(false);
   const [selectedBorrower, setSelectedBorrower] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const loadData = async (isManual = false) => {
     try {
@@ -159,6 +160,23 @@ Thank you for your payment!`;
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-indigo-500' : ''}`} />
         </button>
       </div>
+
+      {/* Success Notification Banner */}
+      {successMessage && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs font-bold flex items-center justify-between gap-3 shadow-xs animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage('')}
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 px-2 py-1 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Main Tabs: Collect Money | Today's Receipts */}
       <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/10">
@@ -417,7 +435,14 @@ Thank you for your payment!`;
       <QuickCollectSheet
         isOpen={isCollectOpen}
         onClose={() => setIsCollectOpen(false)}
-        onSuccess={() => loadData(true)}
+        onSuccess={(rec) => {
+          const amt = rec?.amount_paid || rec?.amount_collected || 0;
+          const name = rec?.customer_name || selectedBorrower?.customer_name || 'Borrower';
+          const rNum = rec?.receipt_number ? ` (Receipt: ${rec.receipt_number})` : '';
+          setSuccessMessage(`Payment of ₹${Number(amt).toLocaleString('en-IN')} for ${name} recorded successfully!${rNum}`);
+          loadData(true);
+          setTimeout(() => setSuccessMessage(''), 6000);
+        }}
         initialBorrower={selectedBorrower}
       />
     </div>

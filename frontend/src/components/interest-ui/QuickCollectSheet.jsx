@@ -16,7 +16,7 @@ import {
 import ModalPortal from '../ModalPortal';
 import { getServerYMD } from '../../utils/interestUtils';
 
-export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, onCollected }) {
+export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, initialBorrower, onCollected, onSuccess }) {
 
   const [search, setSearch] = useState('');
   const [loans, setLoans] = useState([]);
@@ -33,9 +33,10 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
   const [receipt, setReceipt] = useState(null);
 
   useEffect(() => {
-    if (preselectedLoan) {
-      setSelectedLoan(preselectedLoan);
-      const due = Number(preselectedLoan.current_due_amount || preselectedLoan.installment_amount || 0);
+    const loanToUse = preselectedLoan || initialBorrower;
+    if (loanToUse) {
+      setSelectedLoan(loanToUse);
+      const due = Number(loanToUse.current_due_amount || loanToUse.installment_amount || 0);
       setAmount(due > 0 ? String(due) : '');
     } else {
       setSelectedLoan(null);
@@ -43,7 +44,7 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
     }
     setReceipt(null);
     setError('');
-  }, [preselectedLoan, isOpen]);
+  }, [preselectedLoan, initialBorrower, isOpen]);
 
   // Search typeahead for loans
   useEffect(() => {
@@ -91,15 +92,19 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, on
       });
 
       if (res.data?.success) {
-        setReceipt(res.data.receipt || {
+        const receiptObj = res.data.receipt || {
           receipt_number: `REC-${Date.now()}`,
           customer_name: selectedLoan.customer_name,
           customer_phone: selectedLoan.customer_phone,
           amount_paid: numAmt,
+          amount_collected: numAmt,
           payment_method: paymentMode,
           new_principal_outstanding: Math.max(0, Number(selectedLoan.principal_outstanding || 0) - numAmt),
-        });
-        if (onCollected) onCollected();
+        };
+        if (onSuccess) onSuccess(receiptObj);
+        if (onCollected) onCollected(receiptObj);
+        // Automatically close the modal form upon completion
+        onClose();
       } else {
         setError(res.data?.message || 'Collection failed');
       }

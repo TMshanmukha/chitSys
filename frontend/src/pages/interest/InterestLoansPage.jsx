@@ -50,6 +50,7 @@ export default function InterestLoansPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [disburseError, setDisburseError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Loan Detail Modal State
   const [selectedLoanId, setSelectedLoanId] = useState(null);
@@ -161,7 +162,10 @@ export default function InterestLoansPage() {
       const res = await api.post('/interest/loans', disburseForm);
       if (res.data?.success) {
         setShowDisburseModal(false);
+        setDisburseForm(initialForm);
+        setSuccessMessage(`Loan disbursed successfully! Account: ${res.data.data?.loan_account_number || res.data.loan?.loan_account_number || ''}`);
         fetchLoans();
+        setTimeout(() => setSuccessMessage(''), 6000);
       }
     } catch (err) {
       setDisburseError(err.response?.data?.message || 'Failed to disburse loan');
@@ -213,6 +217,23 @@ export default function InterestLoansPage() {
           <span>Disburse New Loan</span>
         </button>
       </div>
+
+      {/* Success Notification Banner */}
+      {successMessage && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs font-bold flex items-center justify-between gap-3 shadow-xs animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage('')}
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 px-2 py-1 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
