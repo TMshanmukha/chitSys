@@ -23,6 +23,7 @@ const AGENT_PAGE_TITLES = {
   '/agent/day-closing': 'Day Closing',
   '/agent/leaves': 'Leave Calendar',
   '/agent/history': 'Collection History',
+  '/agent/notifications': 'Notification Center',
   '/agent/profile': 'My Profile',
   '/agent/dashboard': 'Agent Portal',
 };

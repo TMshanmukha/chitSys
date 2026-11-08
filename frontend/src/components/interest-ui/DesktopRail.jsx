@@ -12,15 +12,18 @@ import {
   Moon,
   LogOut,
   Shield,
+  Bell,
 } from 'lucide-react';
 import FinLendLogo from '../FinLendLogo';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useNotifications } from '../../context/NotificationContext';
 import RoleChip from './RoleChip';
 
 export default function DesktopRail() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -39,6 +42,7 @@ export default function DesktopRail() {
       ? [{ label: 'Staff & Agents', path: '/interest/more/users', icon: UserCheck }]
       : []),
     { label: 'Reports', path: '/interest/reports', icon: FileText },
+    { label: 'Notifications', path: '/interest/notifications', icon: Bell, badgeKey: 'notifications' },
     { label: 'More', path: '/interest/more', icon: MoreHorizontal },
   ];
 
@@ -87,7 +91,12 @@ export default function DesktopRail() {
                     }`}
                   />
                   <span className="truncate flex-1 font-heading">{item.label}</span>
-                  {isActive && (
+                  {item.badgeKey === 'notifications' && unreadCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-[0_2px_8px_rgba(244,63,94,0.6)] animate-pulse">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                  {isActive && !item.badgeKey && (
                     <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
                   )}
                 </>

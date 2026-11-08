@@ -13,9 +13,11 @@ import {
   LogOut,
   Sun,
   Moon,
+  Bell,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useNotifications } from '../context/NotificationContext';
 
 const AGENT_NAV_ITEMS = [
   {
@@ -73,6 +75,16 @@ const AGENT_NAV_ITEMS = [
     hoverText: 'hover:text-purple-600 dark:hover:text-purple-400',
   },
   {
+    name: 'Notifications',
+    path: '/agent/notifications',
+    icon: Bell,
+    badgeKey: 'notifications',
+    activeGradient: 'from-amber-500 to-rose-500',
+    glowColor: 'rgba(244, 63, 94, 0.4)',
+    hoverBg: 'hover:bg-rose-50/70 dark:hover:bg-rose-950/40',
+    hoverText: 'hover:text-rose-600 dark:hover:text-rose-400',
+  },
+  {
     name: 'My Profile',
     path: '/agent/profile',
     icon: UserCheck,
@@ -86,6 +98,7 @@ const AGENT_NAV_ITEMS = [
 export default function AgentSidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
   const { toggleTheme, isDark } = useTheme();
+  const { unreadCount } = useNotifications();
 
   return (
     <>
@@ -188,6 +201,11 @@ export default function AgentSidebar({ isOpen, onClose }) {
                       }`}
                     />
                     <span className="truncate">{item.name}</span>
+                    {item.badgeKey === 'notifications' && unreadCount > 0 && (
+                      <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-[0_2px_8px_rgba(244,63,94,0.6)] animate-pulse">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </>
                 )}
               </NavLink>

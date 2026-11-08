@@ -127,6 +127,7 @@ export default function App() {
                   <Route path="pending-dues" element={<AgentDashboard key="pending-dues" defaultTab="pending-dues" />} />
                   <Route path="leaves" element={<LeaveManagementPage />} />
                   <Route path="day-closing" element={<AgentDayClosingPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="history" element={<AgentDashboard key="history" defaultTab="history" />} />
                   <Route path="profile" element={<AgentDashboard key="profile" defaultTab="profile" />} />
                 </Route>
@@ -150,6 +151,7 @@ export default function App() {
                   <Route path="users" element={<Navigate to="/interest/more/users" replace />} />
                   <Route path="agents" element={<Navigate to="/interest/more/users" replace />} />
                   <Route path="reports" element={<FinLendReportsPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="more" element={<FinLendMorePage />} />
                   <Route path="more/loan-types" element={<FinLendLoanTypesPage />} />
                   <Route path="more/users" element={<FinLendUsersPage />} />

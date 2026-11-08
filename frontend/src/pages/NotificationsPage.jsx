@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 import { formatDate, formatDateTime as formatAppDateTime } from '../utils/dateUtils';
 import {
   Bell,
@@ -31,6 +32,12 @@ import {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+
+  const isAgent = user?.role === 'COLLECTION_AGENT' || location.pathname.startsWith('/agent');
+  const isInterest = location.pathname.startsWith('/interest');
+
   const {
     notifications,
     unreadCount,
@@ -79,8 +86,8 @@ export default function NotificationsPage() {
         accentBorder: 'border-amber-400/40 dark:border-amber-500/30',
         accentText: 'text-amber-600 dark:text-amber-400',
         badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-300',
-        navigationLabel: 'View Auction Breakdown',
-        navigationPath: link || '/admin/auctions',
+        navigationLabel: isAgent ? "View Today's Tasks" : 'View Auction Breakdown',
+        navigationPath: isAgent ? '/agent/tasks' : (link || '/admin/auctions'),
         explanation:
           'A reverse auction was successfully conducted for this Chit Scheme. The subscriber won the prize pool with the highest bid discount. Foreman commission has been credited, and surplus dividends are automatically calculated and distributed across all active member passbooks.',
       };
@@ -96,8 +103,8 @@ export default function NotificationsPage() {
         accentBorder: 'border-emerald-400/40 dark:border-emerald-500/30',
         accentText: 'text-emerald-600 dark:text-emerald-400',
         badgeColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-300',
-        navigationLabel: 'View Collections Ledger',
-        navigationPath: link || '/admin/collections',
+        navigationLabel: isAgent ? 'View Collection History' : (isInterest ? 'View Loan Collections' : 'View Collections Ledger'),
+        navigationPath: isAgent ? '/agent/history' : (isInterest ? '/interest/collect' : (link || '/admin/collections')),
         explanation:
           'An installment collection payment was recorded and verified. The member passbook has been updated with the official receipt number, reconciling cash or digital balances with daily and monthly ledger statements.',
       };
@@ -113,8 +120,8 @@ export default function NotificationsPage() {
         accentBorder: 'border-cyan-400/40 dark:border-cyan-500/30',
         accentText: 'text-cyan-600 dark:text-cyan-400',
         badgeColor: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950/80 dark:text-cyan-300 border-cyan-300',
-        navigationLabel: 'Open Route Tracking',
-        navigationPath: link || '/admin/tracking',
+        navigationLabel: isAgent ? 'Open Assigned Routes' : 'Open Route Tracking',
+        navigationPath: isAgent ? '/agent/routes' : (link || '/admin/tracking'),
         explanation:
           'Live field tracking activity logged by collection agent during customer visits. Route sequence nodes, GPS collection logs, and customer status remarks were recorded in real-time.',
       };
@@ -130,8 +137,8 @@ export default function NotificationsPage() {
         accentBorder: 'border-indigo-400/40 dark:border-indigo-500/30',
         accentText: 'text-indigo-600 dark:text-indigo-400',
         badgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-300',
-        navigationLabel: 'View Chit Schemes',
-        navigationPath: link || '/admin/chit-groups',
+        navigationLabel: isAgent ? 'View Assigned Routes' : 'View Chit Schemes',
+        navigationPath: isAgent ? '/agent/routes' : (link || '/admin/chit-groups'),
         explanation:
           'A chit scheme was created or updated with designated installment amounts, membership allocations, and route categories. Member enrollments and ticket rosters have been provisioned.',
       };
@@ -147,8 +154,8 @@ export default function NotificationsPage() {
         accentBorder: 'border-teal-400/40 dark:border-teal-500/30',
         accentText: 'text-teal-600 dark:text-teal-400',
         badgeColor: 'bg-teal-100 text-teal-800 dark:bg-teal-950/80 dark:text-teal-300 border-teal-300',
-        navigationLabel: 'View Enrolled Members',
-        navigationPath: link || '/admin/members',
+        navigationLabel: isAgent ? 'View Pending Dues' : (isInterest ? 'View Borrowers' : 'View Enrolled Members'),
+        navigationPath: isAgent ? '/agent/pending-dues' : (isInterest ? '/interest/customers' : (link || '/admin/members')),
         explanation:
           'Member profile and KYC documentation activity. Enrolled subscribers have been linked with respective group tickets and digital passbooks.',
       };
@@ -163,8 +170,8 @@ export default function NotificationsPage() {
       accentBorder: 'border-blue-400/40 dark:border-blue-500/30',
       accentText: 'text-blue-600 dark:text-blue-400',
       badgeColor: 'bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border-blue-300',
-      navigationLabel: link ? 'Open Target Module' : 'Go to Operations Dashboard',
-      navigationPath: link || '/admin/dashboard',
+      navigationLabel: isAgent ? "Go to Today's Tasks" : (isInterest ? 'Go to FinLend Home' : (link ? 'Open Target Module' : 'Go to Operations Dashboard')),
+      navigationPath: isAgent ? '/agent/tasks' : (isInterest ? '/interest/home' : (link || '/admin/dashboard')),
       explanation:
         'System-wide operational alert or administrative audit trigger recorded by the platform engine.',
     };
@@ -228,7 +235,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
+    <div className="space-y-6 animate-fadeIn pb-12 w-full max-w-full overflow-x-hidden">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md">
         <div className="flex items-center gap-3.5">

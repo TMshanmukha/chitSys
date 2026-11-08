@@ -8,6 +8,7 @@ import DesktopRail from './DesktopRail';
 import BottomNav from './BottomNav';
 import FinLendChangePasswordModal from './FinLendChangePasswordModal';
 import FinLendLogo from '../FinLendLogo';
+import NotificationBell from '../NotificationBell';
 import { Layers, Sun, Moon, LogOut } from 'lucide-react';
 
 export default function InterestAppLayout() {
@@ -52,6 +53,9 @@ export default function InterestAppLayout() {
           </Link>
 
           <div className="flex items-center gap-2">
+            {/* Live Notification Bell */}
+            <NotificationBell />
+
             {/* Theme Toggle */}
             <button
               type="button"

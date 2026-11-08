@@ -40,6 +40,7 @@ import BigButton from '../../components/interest-ui/BigButton';
 import FinLendChangePasswordModal from '../../components/interest-ui/FinLendChangePasswordModal';
 import AnimatedFinLendBackground from '../../components/AnimatedFinLendBackground';
 import FinLendLogo from '../../components/FinLendLogo';
+import NotificationBell from '../../components/NotificationBell';
 
 export default function InterestAgentPortalPage() {
   const { user, logout } = useAuth();
@@ -291,6 +292,9 @@ export default function InterestAgentPortalPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Notification Bell */}
+          <NotificationBell />
+
           {/* Switch to ChitFund Pro if granted */}
           {(user?.assigned_business === 'ALL' || user?.role === 'SUPER_ADMIN') && (
             <Link
