@@ -43,6 +43,9 @@ import {
   MessageSquare,
   Phone,
   Edit3,
+  PowerOff,
+  Power,
+  PauseCircle,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime, getServerYMD, getServerDate } from '../utils/dateUtils';
 import ChitHistoryModal from '../components/ChitHistoryModal';
@@ -95,6 +98,11 @@ export function ChitGroupsPage() {
   // Chit Completion Modal State
   const [closingGroup, setClosingGroup] = useState(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+
+  // Chit Status Inactive / Active Confirmation Modal State
+  const [statusTargetGroup, setStatusTargetGroup] = useState(null);
+  const [showStatusConfirmModal, setShowStatusConfirmModal] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   // Quick Add Agent Modal state
   const [showQuickAgentModal, setShowQuickAgentModal] = useState(false);
@@ -408,6 +416,35 @@ export function ChitGroupsPage() {
       setError(err.response?.data?.message || err.message || 'Failed to create chit group');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openStatusConfirmModal = (group) => {
+    setStatusTargetGroup(group);
+    setShowStatusConfirmModal(true);
+    scrollToFormOrModal('chit-status-confirm-modal');
+  };
+
+  const handleConfirmToggleStatus = async () => {
+    if (!statusTargetGroup) return;
+    setStatusUpdating(true);
+    setError('');
+    setSuccess('');
+    try {
+      const targetStatus = statusTargetGroup.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
+      const res = await api.put(`/admin/chit-groups/${statusTargetGroup.id}/status`, {
+        status: targetStatus,
+      });
+      if (res.data?.success) {
+        setSuccess(res.data.message || `Chit scheme marked as ${targetStatus}.`);
+        setShowStatusConfirmModal(false);
+        setStatusTargetGroup(null);
+        loadData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to update chit scheme status.');
+    } finally {
+      setStatusUpdating(false);
     }
   };
 
@@ -725,7 +762,14 @@ export function ChitGroupsPage() {
                         className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
                       >
                         <td className="py-3 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">
-                          {g.group_code}
+                          <div className="flex items-center gap-1.5">
+                            <span>{g.group_code}</span>
+                            {g.status === 'INACTIVE' && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
                           <div>{g.group_name}</div>
@@ -775,23 +819,47 @@ export function ChitGroupsPage() {
                               <span>Collect</span>
                             </button>
 
-                            {g.status === 'COMPLETED' || g.status === 'INACTIVE' ? (
+                            {g.status === 'COMPLETED' ? (
                               <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700">
                                 🏁 Closed
                               </span>
+                            ) : g.status === 'INACTIVE' ? (
+                              <div className="flex items-center gap-1">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60">
+                                  ⏸️ Inactive
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => openStatusConfirmModal(g)}
+                                  className="p-1 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 transition-colors cursor-pointer"
+                                  title="Reactivate chit scheme"
+                                >
+                                  <Power className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setClosingGroup(g);
-                                  setShowCompletionModal(true);
-                                }}
-                                className="px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-600 hover:text-white border border-amber-300 dark:border-amber-700 transition-colors text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-                                title="Check prerequisites and complete chit"
-                              >
-                                <span>🏁</span>
-                                <span>Complete</span>
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setClosingGroup(g);
+                                    setShowCompletionModal(true);
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-600 hover:text-white border border-amber-300 dark:border-amber-700 transition-colors text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                  title="Check prerequisites and complete chit"
+                                >
+                                  <span>🏁</span>
+                                  <span>Complete</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openStatusConfirmModal(g)}
+                                  className="p-1 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer"
+                                  title="Mark chit as Inactive (pause collections)"
+                                >
+                                  <PowerOff className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             )}
 
                             <span
@@ -854,9 +922,16 @@ export function ChitGroupsPage() {
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 font-mono">
-                        {g.group_code}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 font-mono">
+                          {g.group_code}
+                        </span>
+                        {g.status === 'INACTIVE' && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
                       <h3 className="font-bold text-base text-slate-900 dark:text-white mt-0.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {g.group_name}
                       </h3>
@@ -933,23 +1008,48 @@ export function ChitGroupsPage() {
                       <span>Collect</span>
                     </button>
 
-                    {g.status === 'COMPLETED' || g.status === 'INACTIVE' ? (
+                    {g.status === 'COMPLETED' ? (
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 flex items-center gap-1">
                         <span>🏁</span> Closed
                       </span>
+                    ) : g.status === 'INACTIVE' ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 flex items-center gap-1">
+                          <span>⏸️</span> Inactive
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => openStatusConfirmModal(g)}
+                          className="px-2 py-1 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                          title="Reactivate this chit scheme"
+                        >
+                          <Power className="w-3.5 h-3.5" />
+                          <span>Activate</span>
+                        </button>
+                      </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setClosingGroup(g);
-                          setShowCompletionModal(true);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-600 hover:text-white border border-amber-300 dark:border-amber-700 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
-                        title="Check completion prerequisites and close chit"
-                      >
-                        <span>🏁</span>
-                        <span>Complete</span>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClosingGroup(g);
+                            setShowCompletionModal(true);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-600 hover:text-white border border-amber-300 dark:border-amber-700 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                          title="Check completion prerequisites and close chit"
+                        >
+                          <span>🏁</span>
+                          <span>Complete</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openStatusConfirmModal(g)}
+                          className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer shadow-2xs"
+                          title="Inactivate chit scheme (pause collections)"
+                        >
+                          <PowerOff className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     )}
 
                     <span
@@ -2203,6 +2303,157 @@ export function ChitGroupsPage() {
             loadData();
           }}
         />
+      )}
+
+      {/* Modal: Inactivate / Activate Chit Scheme Confirmation Dialog */}
+      {statusTargetGroup && (
+        <ModalPortal
+          id="chit-status-confirm-modal"
+          isOpen={showStatusConfirmModal && Boolean(statusTargetGroup)}
+          onClose={() => {
+            if (!statusUpdating) {
+              setShowStatusConfirmModal(false);
+              setStatusTargetGroup(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2.5 rounded-2xl ${
+                    statusTargetGroup.status === 'INACTIVE'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {statusTargetGroup.status === 'INACTIVE' ? (
+                    <Power className="w-6 h-6" />
+                  ) : (
+                    <PowerOff className="w-6 h-6" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base sm:text-lg font-heading">
+                    {statusTargetGroup.status === 'INACTIVE'
+                      ? 'Reactivate Chit Scheme?'
+                      : 'Inactivate Chit Scheme?'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {statusTargetGroup.status === 'INACTIVE'
+                      ? 'Resume active route operations and member collections'
+                      : 'Pause this chit scheme in the middle of operation'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={statusUpdating}
+                onClick={() => {
+                  setShowStatusConfirmModal(false);
+                  setStatusTargetGroup(null);
+                }}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl cursor-pointer disabled:opacity-50"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Scheme Details Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Scheme Name:</span>
+                <span className="font-bold text-slate-900 dark:text-white text-sm">
+                  {statusTargetGroup.group_name}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Group Code:</span>
+                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                  {statusTargetGroup.group_code}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Installment:</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  ₹{parseFloat(statusTargetGroup.installment_amount || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Total Pool:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  ₹{parseFloat(statusTargetGroup.total_pool_amount || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Enrolled Members:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {statusTargetGroup.enrolled_members || 0} / {statusTargetGroup.total_members_limit || 20}
+                </span>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            <div
+              className={`p-3.5 rounded-2xl text-xs flex items-start gap-2.5 border ${
+                statusTargetGroup.status === 'INACTIVE'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                  : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                {statusTargetGroup.status === 'INACTIVE' ? (
+                  <span>
+                    When reactivated, this chit scheme will immediately resume appearing in field agent tasks, route waypoints, and active collections.
+                  </span>
+                ) : (
+                  <span>
+                    When marked as <strong>Inactive</strong>, this chit scheme will be temporarily paused. It will stop appearing in field agent daily collection tasks until you reactivate it.
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={statusUpdating}
+                onClick={() => {
+                  setShowStatusConfirmModal(false);
+                  setStatusTargetGroup(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={statusUpdating}
+                onClick={handleConfirmToggleStatus}
+                className={`px-5 py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+                  statusTargetGroup.status === 'INACTIVE'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                {statusUpdating ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : statusTargetGroup.status === 'INACTIVE' ? (
+                  <Power className="w-3.5 h-3.5" />
+                ) : (
+                  <PowerOff className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {statusTargetGroup.status === 'INACTIVE'
+                    ? 'Confirm Activate'
+                    : 'Confirm Inactive'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

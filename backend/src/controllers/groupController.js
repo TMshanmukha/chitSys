@@ -588,3 +588,61 @@ export async function completeGroup(req, res, next) {
     next(error);
   }
 }
+
+export async function toggleGroupStatus(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body || {};
+
+    const [groupRows] = await pool.execute('SELECT * FROM chit_groups WHERE id = ? LIMIT 1', [id]);
+    if (groupRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chit scheme not found.' });
+    }
+    const group = groupRows[0];
+
+    if (group.status === 'COMPLETED') {
+      return res.status(400).json({
+        success: false,
+        message: 'This chit scheme has been completed and its status cannot be modified.',
+      });
+    }
+
+    const newStatus = status ? status.toUpperCase() : (group.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE');
+
+    if (!['ACTIVE', 'INACTIVE'].includes(newStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be either 'ACTIVE' or 'INACTIVE'.",
+      });
+    }
+
+    await pool.execute(
+      'UPDATE chit_groups SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [newStatus, id]
+    );
+
+    await recordAuditLog({
+      userId: req.user?.id || 1,
+      action: 'TOGGLE_CHIT_GROUP_STATUS',
+      resource: 'CHIT_GROUPS',
+      details: {
+        groupId: id,
+        groupCode: group.group_code,
+        groupName: group.group_name,
+        previousStatus: group.status,
+        newStatus,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Chit Scheme '${group.group_name}' (${group.group_code}) marked as ${newStatus === 'INACTIVE' ? 'Inactive' : 'Active'} successfully.`,
+      data: {
+        id: Number(id),
+        status: newStatus,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
