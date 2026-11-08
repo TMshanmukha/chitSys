@@ -69,16 +69,36 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
     const fetchPrerequisites = async () => {
       try {
         setLoadingInitial(true);
-        const [custRes, schemeRes, userRes] = await Promise.all([
+        const [custRes, schemeRes, userRes, agentRes] = await Promise.all([
           api.get('/interest/customers?limit=150'),
           api.get('/interest/schemes?status=ACTIVE'),
           api.get('/interest/users').catch(() => ({ data: { data: [] } })),
+          api.get('/admin/agents').catch(() => ({ data: { data: [] } })),
         ]);
         if (custRes.data?.success) setCustomers(custRes.data.data || []);
         if (schemeRes.data?.success) setSchemes(schemeRes.data.data || []);
-        if (userRes.data?.data) {
-          const agents = userRes.data.data.filter((u) => u.role === 'COLLECTION_AGENT' || u.role === 'ADMIN');
-          setAgentsList(agents);
+
+        const rawStaff = [...(userRes.data?.data || []), ...(agentRes.data?.data || [])];
+        const uniqueStaff = [];
+        const seenStaff = new Set();
+        for (const u of rawStaff) {
+          const id = u.id || u.user_id;
+          if (id && !seenStaff.has(String(id))) {
+            seenStaff.add(String(id));
+            const role = (u.role || '').toUpperCase();
+            if (role === 'COLLECTION_AGENT' || role === 'ADMIN' || role === 'OWNER' || role === 'SUPER_ADMIN') {
+              uniqueStaff.push({
+                id: String(id),
+                full_name: u.full_name || u.name || u.username,
+                phone: u.phone || '',
+                role: u.role,
+              });
+            }
+          }
+        }
+        setAgentsList(uniqueStaff);
+        if (uniqueStaff.length === 1 && !assignedAgentId) {
+          setAssignedAgentId(uniqueStaff[0].id);
         }
       } catch (_) {
       } finally {
@@ -227,6 +247,10 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
     const P = parseFloat(amountGiven);
     if (isNaN(P) || P <= 0) {
       setError('Please enter a valid loan amount.');
+      return;
+    }
+    if (!assignedAgentId) {
+      setError('⚠️ Collection Agent Required: Please select an agent to assign this loan to.');
       return;
     }
 
@@ -698,6 +722,29 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                 </div>
               </div>
 
+              {/* Field 5: Assigned Collection Agent */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading block mb-1">
+                  5. Assign Field Collection Agent *
+                </label>
+                <select
+                  required
+                  value={assignedAgentId}
+                  onChange={(e) => setAssignedAgentId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-heading"
+                >
+                  <option value="">-- Choose Field Collection Agent --</option>
+                  {agentsList.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.full_name} {a.phone ? `(${a.phone})` : ''} - {a.role === 'COLLECTION_AGENT' ? 'Agent' : 'Staff'}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Assigned agent will see this borrower on their daily route and collection sheet.
+                </p>
+              </div>
+
               {/* LIVE SUMMARY CARD (Compact) */}
               <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-50/80 to-purple-50/80 dark:from-indigo-950/40 dark:to-purple-950/40 border border-indigo-200/70 dark:border-indigo-800/60 flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
@@ -749,21 +796,6 @@ export default function NewLoanModal({ isOpen, onClose, onCreated }) {
                         placeholder="e.g. Shop renovation, personal"
                         className="w-full px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
                       />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Assigned Collection Agent (Optional)</label>
-                      <select
-                        value={assignedAgentId}
-                        onChange={(e) => setAssignedAgentId(e.target.value)}
-                        className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold"
-                      >
-                        <option value="">-- All Agents & Admin Can Collect --</option>
-                        {agentsList.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.full_name} ({a.username})
-                          </option>
-                        ))}
-                      </select>
                     </div>
                   </div>
                 )}

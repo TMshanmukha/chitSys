@@ -33,10 +33,22 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, in
   const [receipt, setReceipt] = useState(null);
 
   useEffect(() => {
-    const loanToUse = preselectedLoan || initialBorrower;
-    if (loanToUse) {
-      setSelectedLoan(loanToUse);
-      const due = Number(loanToUse.current_due_amount || loanToUse.installment_amount || 0);
+    const raw = preselectedLoan || initialBorrower;
+    if (raw && (raw.id || raw.loan_id)) {
+      const normalized = {
+        ...raw,
+        id: raw.loan_id || raw.id,
+        loan_id: raw.loan_id || raw.id,
+        customer_id: raw.customer_id || raw.id,
+        customer_name: raw.customer_name || raw.name || '',
+        customer_phone: raw.customer_phone || raw.phone || '',
+        loan_account_number: raw.loan_account_number || '',
+        current_due_amount: raw.current_due_amount !== undefined ? raw.current_due_amount : (raw.due_today !== undefined ? raw.due_today : raw.installment_amount),
+        installment_amount: raw.installment_amount || raw.due_today || 0,
+        principal_outstanding: raw.principal_outstanding !== undefined ? raw.principal_outstanding : (raw.balance_left !== undefined ? raw.balance_left : 0),
+      };
+      setSelectedLoan(normalized);
+      const due = Number(normalized.current_due_amount || normalized.installment_amount || 0);
       setAmount(due > 0 ? String(due) : '');
     } else {
       setSelectedLoan(null);
@@ -84,7 +96,7 @@ export default function QuickCollectSheet({ isOpen, onClose, preselectedLoan, in
       setSubmitting(true);
       setError('');
       const res = await api.post('/interest/collections', {
-        loan_id: selectedLoan.id,
+        loan_id: selectedLoan.loan_id || selectedLoan.id,
         amount: numAmt,
         payment_method: paymentMode,
         transaction_reference: reference || null,

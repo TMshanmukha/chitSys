@@ -186,15 +186,7 @@ export default function FinLendHomePage() {
   }, [activeTab, categorizedLoans, searchQuery]);
 
   const handleOpenCollectForLoan = (loan) => {
-    setSelectedBorrower({
-      id: loan.customer_id,
-      name: loan.customer_name,
-      phone: loan.customer_phone,
-      loan_id: loan.id,
-      loan_account_number: loan.loan_account_number,
-      due_today: Number(loan.current_due_amount || loan.installment_amount || 0),
-      balance_left: Number(loan.principal_outstanding || 0),
-    });
+    setSelectedBorrower(loan);
     setIsCollectOpen(true);
   };
 
@@ -703,8 +695,12 @@ export default function FinLendHomePage() {
       {/* Quick Collect Bottom Sheet */}
       <QuickCollectSheet
         isOpen={isCollectOpen}
-        onClose={() => setIsCollectOpen(false)}
+        onClose={() => {
+          setIsCollectOpen(false);
+          setSelectedBorrower(null);
+        }}
         onSuccess={handleCollectionSuccess}
+        preselectedLoan={selectedBorrower}
         initialBorrower={selectedBorrower}
       />
 

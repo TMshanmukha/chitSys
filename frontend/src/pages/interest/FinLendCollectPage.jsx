@@ -110,15 +110,7 @@ export default function FinLendCollectPage() {
   }, [todayReceipts]);
 
   const handleOpenCollect = (loan) => {
-    setSelectedBorrower({
-      id: loan.customer_id,
-      name: loan.customer_name,
-      phone: loan.customer_phone,
-      loan_id: loan.id,
-      loan_account_number: loan.loan_account_number,
-      due_today: Number(loan.current_due_amount || loan.installment_amount || 0),
-      balance_left: Number(loan.principal_outstanding || 0),
-    });
+    setSelectedBorrower(loan);
     setIsCollectOpen(true);
   };
 
@@ -434,7 +426,12 @@ Thank you for your payment!`;
       {/* Quick Collect Bottom Sheet */}
       <QuickCollectSheet
         isOpen={isCollectOpen}
-        onClose={() => setIsCollectOpen(false)}
+        onClose={() => {
+          setIsCollectOpen(false);
+          setSelectedBorrower(null);
+        }}
+        preselectedLoan={selectedBorrower}
+        initialBorrower={selectedBorrower}
         onSuccess={(rec) => {
           const amt = rec?.amount_paid || rec?.amount_collected || 0;
           const name = rec?.customer_name || selectedBorrower?.customer_name || 'Borrower';
@@ -443,7 +440,6 @@ Thank you for your payment!`;
           loadData(true);
           setTimeout(() => setSuccessMessage(''), 6000);
         }}
-        initialBorrower={selectedBorrower}
       />
     </div>
   );

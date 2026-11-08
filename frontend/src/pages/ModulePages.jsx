@@ -4044,14 +4044,32 @@ export function CollectionsPage() {
     const memberId = searchParams.get('member_id');
     const date = searchParams.get('collection_date');
     const amount = searchParams.get('amount');
-    if (!groupId || !memberId || !groups.length || !members.length) return;
+    if (!groupId || !groups.length) return;
     const group = groups.find((item) => String(item.id) === String(groupId));
-    const member = members.find((item) => String(item.id) === String(memberId));
-    if (!group || !member) return;
-    setForm((current) => ({ ...current, group_id: String(groupId), member_id: String(memberId), amount: amount || String(group.installment_amount || ''), collection_date: date || current.collection_date, notes: `Admin collection for absent agent ${searchParams.get('absent_agent') || ''}`.trim() }));
+    if (!group) return;
+
+    let targetMemberId = memberId;
+    let targetAmount = amount;
+    if (!targetMemberId && adminTasks.length > 0) {
+      const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(groupId));
+      const unpaid = tasksForGroup.find((t) => !t.is_paid && Number(t.remaining_due || t.installment_amount) > 0);
+      if (unpaid) {
+        targetMemberId = String(unpaid.member_id);
+        targetAmount = String(unpaid.remaining_due > 0 ? unpaid.remaining_due : (unpaid.installment_amount || group.installment_amount));
+      }
+    }
+
+    setForm((current) => ({
+      ...current,
+      group_id: String(groupId),
+      member_id: targetMemberId ? String(targetMemberId) : current.member_id,
+      amount: targetAmount || String(group.installment_amount || ''),
+      collection_date: date || current.collection_date,
+      notes: searchParams.get('absent_agent') ? `Admin collection for absent agent ${searchParams.get('absent_agent')}` : current.notes,
+    }));
     setShowModal(true);
     setSearchParams({}, { replace: true });
-  }, [groups, members, searchParams, setSearchParams]);
+  }, [groups, members, adminTasks, searchParams, setSearchParams]);
 
   const handleGroupSelect = (groupId) => {
     setForm((prev) => ({ ...prev, group_id: groupId }));
@@ -4160,17 +4178,26 @@ export function CollectionsPage() {
   }, [filteredChits, chitsPage, chitsPageSize]);
 
   const handleOpenChitCollection = (chit, member = null) => {
-    const defaultAmount = member
-      ? String(member.remaining_due > 0 ? member.remaining_due : member.installment_amount)
+    let targetMember = member;
+    if (!targetMember) {
+      const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(chit.id));
+      const unpaidTask = tasksForGroup.find((t) => !t.is_paid && Number(t.remaining_due || t.installment_amount) > 0);
+      if (unpaidTask) {
+        targetMember = unpaidTask;
+      }
+    }
+
+    const defaultAmount = targetMember
+      ? String(targetMember.remaining_due > 0 ? targetMember.remaining_due : (targetMember.installment_amount || chit.installment_amount))
       : String(chit.installment_amount || '');
 
     setForm({
       group_id: String(chit.id),
-      member_id: member ? String(member.member_id) : '',
+      member_id: targetMember ? String(targetMember.member_id) : '',
       amount: defaultAmount,
       payment_method: 'CASH',
       payment_reference: '',
-      notes: member?.is_covered_today ? `Office collection covering for ${member.absent_agent_name || 'agent on leave'}` : '',
+      notes: targetMember?.is_covered_today ? `Office collection covering for ${targetMember.absent_agent_name || 'agent on leave'}` : '',
       collection_date: getServerYMD(),
       allow_advance: true,
       allow_off_cycle: true,
@@ -4825,61 +4852,98 @@ export function CollectionsPage() {
                       {selectedGroup.frequency === 'DAILY' ? 'Daily Route Scheme' : 'Monthly Auction Scheme'} · Code: {selectedGroup.group_code}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Installment Due</span>
-                    <span className="text-base sm:text-lg font-black text-blue-600 dark:text-blue-400 font-mono">
-                      ₹{parseFloat(selectedGroup.installment_amount || 0).toLocaleString('en-IN')}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Installment Due</span>
+                      <span className="text-base sm:text-lg font-black text-blue-600 dark:text-blue-400 font-mono">
+                        ₹{parseFloat(selectedGroup.installment_amount || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, group_id: '', member_id: '' }))}
+                      className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                      title="Choose a different chit scheme"
+                    >
+                      Change
+                    </button>
                   </div>
                 </div>
               );
             })()}
 
             <form onSubmit={handleRecordCollection} className="space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Chit Scheme *
-                </label>
-                <select
-                  required
-                  value={form.group_id}
-                  onChange={(e) => {
-                    handleGroupSelect(e.target.value);
-                    setForm((prev) => ({ ...prev, member_id: '' }));
-                  }}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                >
-                  <option value="">-- Choose Chit Scheme Group --</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.group_name} · ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* If group is NOT selected, show scheme dropdown */}
+              {!form.group_id && (
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                    Chit Scheme *
+                  </label>
+                  <select
+                    required
+                    value={form.group_id}
+                    onChange={(e) => {
+                      handleGroupSelect(e.target.value);
+                      setForm((prev) => ({ ...prev, member_id: '' }));
+                    }}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  >
+                    <option value="">-- Choose Chit Scheme Group --</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.group_name} · ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              {/* Subscriber Dropdown with Paid Restrictions */}
-              <div>
-                <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Subscriber Participant (Enrolled in Selected Chit) *
-                </label>
-                {(() => {
-                  if (!form.group_id) {
-                    return (
-                      <select
-                        disabled
-                        className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 text-sm font-semibold opacity-60 cursor-not-allowed"
-                      >
-                        <option value="">-- First Select a Chit Scheme above --</option>
-                      </select>
-                    );
-                  }
+              {/* Subscriber Selection: If already selected, show verified card with Change option; otherwise show dropdown */}
+              {(() => {
+                if (!form.group_id) return null;
+                const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(form.group_id));
+                const chosenTask = tasksForGroup.find((t) => String(t.member_id) === String(form.member_id));
+                const chosenMember = members.find((m) => String(m.id) === String(form.member_id));
 
-                  const tasksForGroup = adminTasks.filter((t) => String(t.group_id) === String(form.group_id));
-                  const unpaidTasksForGroup = tasksForGroup.filter((t) => !t.is_paid && Number(t.remaining_due || t.installment_amount) > 0);
-                  const allPaidForGroup = tasksForGroup.length > 0 && unpaidTasksForGroup.length === 0;
+                if (form.member_id && (chosenTask || chosenMember)) {
+                  const mName = chosenTask?.member_name || chosenMember?.full_name || 'Subscriber';
+                  const mPhone = chosenTask?.member_phone || chosenMember?.phone;
+                  const mTicket = chosenTask?.ticket_number;
+                  const mDue = chosenTask?.remaining_due > 0 ? chosenTask.remaining_due : (chosenTask?.installment_amount || '');
 
                   return (
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                          Selected Subscriber
+                        </span>
+                        <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                          {mName} {mTicket ? <span className="font-mono text-xs text-slate-500">· Ticket #{mTicket}</span> : null}
+                        </h4>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                          {mPhone && <span>📞 {mPhone}</span>}
+                          {mDue ? <span className="font-bold text-emerald-600 dark:text-emerald-400">· Remaining Due: ₹{Number(mDue).toLocaleString('en-IN')}</span> : null}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, member_id: '' }))}
+                        className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer shrink-0"
+                      >
+                        Change Member
+                      </button>
+                    </div>
+                  );
+                }
+
+                const unpaidTasksForGroup = tasksForGroup.filter((t) => !t.is_paid && Number(t.remaining_due || t.installment_amount) > 0);
+                const allPaidForGroup = tasksForGroup.length > 0 && unpaidTasksForGroup.length === 0;
+
+                return (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                      Subscriber Participant (Enrolled in Selected Chit) *
+                    </label>
                     <div className="space-y-3">
                       {allPaidForGroup && (
                         <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs font-bold flex items-center gap-2.5 shadow-xs">
@@ -4926,9 +4990,9 @@ export function CollectionsPage() {
                             ))}
                       </select>
                     </div>
-                  );
-                })()}
-              </div>
+                  </div>
+                );
+              })()}
 
               {/* Selected Subscriber Details & WhatsApp Message Island */}
               {(() => {

@@ -1069,10 +1069,13 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
   // Pre-fill collection modal specifically for a single chit scheme
   const openCollectForChitScheme = (group) => {
+    const groupMembers = routesData.members.filter((m) => String(m.group_id) === String(group.id));
+    const firstPending = groupMembers.find((m) => !m.is_paid && Number(m.remaining_balance || group.installment_amount) > 0) || groupMembers[0];
+
     setCollectForm({
       group_id: String(group.id),
-      member_id: '',
-      amount: String(group.installment_amount || ''),
+      member_id: firstPending ? String(firstPending.member_id) : '',
+      amount: firstPending ? String(firstPending.remaining_balance !== undefined && Number(firstPending.remaining_balance) > 0 ? firstPending.remaining_balance : (group.installment_amount || '')) : String(group.installment_amount || ''),
       collection_date: getServerYMD(),
       payment_method: 'CASH',
       payment_reference: '',
@@ -3797,61 +3800,93 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
               <div className="space-y-3.5">
 
-              {/* Group Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Chit Group Route *
-                </label>
-                <select
-                  required
-                  value={collectForm.group_id}
-                  onChange={(e) => handleGroupSelectChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                >
-                  <option value="">Select Chit Group Route</option>
-                  {routesData.groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.group_name} · ₹{g.installment_amount} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Member Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Enrolled Member *
-                </label>
-                <select
-                  required
-                  value={collectForm.member_id}
-                  onChange={(e) => handleMemberSelectChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                >
-                  <option value="">Select Member</option>
-                  {eligibleMembers.map((m) => {
-                    const selectedGrp = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
-                    const isMonthly = selectedGrp?.frequency === 'MONTHLY';
-                    const isFullyPaidThisMonth = isMonthly && m.is_paid;
-                    const isPartialThisMonth = isMonthly && (m.is_partial || (!m.is_paid && Number(m.total_cycle_collected || 0) > 0));
-
-                    return (
-                      <option
-                        key={m.member_id}
-                        value={m.member_id}
+              {/* Group & Member Display: If already selected, display cleanly without redundant dropdowns */}
+              {collectForm.group_id && collectForm.member_id ? (
+                (() => {
+                  const selectedGrp = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
+                  const selectedMem = routesData.members.find((m) => String(m.member_id) === String(collectForm.member_id) && String(m.group_id) === String(collectForm.group_id));
+                  return (
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                          Collecting For
+                        </span>
+                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                          {selectedMem?.full_name || 'Member'} <span className="font-mono text-xs text-slate-500">#{selectedMem?.ticket_number}</span>
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                          {selectedGrp?.group_name} ({selectedGrp?.group_code}) · ₹{selectedGrp?.installment_amount}/{selectedGrp?.frequency === 'DAILY' ? 'day' : 'month'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCollectForm((prev) => ({ ...prev, member_id: '' }))}
+                        className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer shrink-0"
                       >
-                        #{m.ticket_number} - {m.full_name} ({m.phone}) {
-                          isFullyPaidThisMonth
-                            ? `✓ [CURRENT CYCLE CLEARED - ₹${Number(m.total_cycle_collected || selectedGrp?.installment_amount).toLocaleString('en-IN')}] · Advance Payment Eligible`
-                            : isPartialThisMonth
-                            ? `🟡 [PARTIAL - Paid ₹${Number(m.total_cycle_collected || 0).toLocaleString('en-IN')} · Balance Due ₹${Number(m.remaining_balance || 0).toLocaleString('en-IN')}]`
-                            : (m.is_paid ? '✓ Already Paid' : '')
-                        }
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+                        Change Member
+                      </button>
+                    </div>
+                  );
+                })()
+              ) : (
+                <>
+                  {/* Group Selector */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Chit Group Route *
+                    </label>
+                    <select
+                      required
+                      value={collectForm.group_id}
+                      onChange={(e) => handleGroupSelectChange(e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    >
+                      <option value="">Select Chit Group Route</option>
+                      {routesData.groups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.group_name} · ₹{g.installment_amount} / {g.frequency === 'DAILY' ? 'Day' : 'Month'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Member Selector */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Enrolled Member *
+                    </label>
+                    <select
+                      required
+                      value={collectForm.member_id}
+                      onChange={(e) => handleMemberSelectChange(e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    >
+                      <option value="">Select Member</option>
+                      {eligibleMembers.map((m) => {
+                        const selectedGrp = routesData.groups.find((g) => String(g.id) === String(collectForm.group_id));
+                        const isMonthly = selectedGrp?.frequency === 'MONTHLY';
+                        const isFullyPaidThisMonth = isMonthly && m.is_paid;
+                        const isPartialThisMonth = isMonthly && (m.is_partial || (!m.is_paid && Number(m.total_cycle_collected || 0) > 0));
+
+                        return (
+                          <option
+                            key={m.member_id}
+                            value={m.member_id}
+                          >
+                            #{m.ticket_number} - {m.full_name} ({m.phone}) {
+                              isFullyPaidThisMonth
+                                ? `✓ [CURRENT CYCLE CLEARED - ₹${Number(m.total_cycle_collected || selectedGrp?.installment_amount).toLocaleString('en-IN')}] · Advance Payment Eligible`
+                                : isPartialThisMonth
+                                ? `🟡 [PARTIAL - Paid ₹${Number(m.total_cycle_collected || 0).toLocaleString('en-IN')} · Balance Due ₹${Number(m.remaining_balance || 0).toLocaleString('en-IN')}]`
+                                : (m.is_paid ? '✓ Already Paid' : '')
+                            }
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </>
+              )}
 
               {/* Collection Date Selector (Real-Life Flexibility for Backdated / Exact Date Collections) */}
               <div>
