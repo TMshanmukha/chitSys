@@ -60,6 +60,14 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
       'INSERT INTO group_memberships (group_id, member_id, ticket_number, joined_date, status) VALUES (?, ?, 3, CURDATE(), "ACTIVE")',
       [testGroupId, testMember3Id]
     );
+
+    // 5. Seed full pool collection so the group is fully collected before auction
+    const recNumber = `REC-TEST-${Date.now()}`;
+    await pool.execute(
+      `INSERT INTO collections (receipt_number, group_id, member_id, agent_id, amount, payment_method, collection_date, collection_time, verification_status)
+       VALUES (?, ?, ?, ?, 100000.00, 'CASH', CURDATE(), CURTIME(), 'RECONCILED')`,
+      [recNumber, testGroupId, testMember1Id, adminUserId]
+    );
   });
 
   t.after(async () => {
@@ -68,6 +76,7 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
       await pool.execute('DELETE FROM notifications WHERE link LIKE ?', [`%${testGroupId}%`]);
       await pool.execute('DELETE FROM member_dividends WHERE group_id = ?', [testGroupId]);
       await pool.execute('DELETE FROM payouts WHERE group_id = ?', [testGroupId]);
+      await pool.execute('DELETE FROM collections WHERE group_id = ?', [testGroupId]);
       await pool.execute('DELETE FROM auctions WHERE group_id = ?', [testGroupId]);
       await pool.execute('DELETE FROM route_stops WHERE group_id = ?', [testGroupId]);
       await pool.execute('DELETE FROM group_memberships WHERE group_id = ?', [testGroupId]);
@@ -184,6 +193,10 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
       if (err) throw err;
     });
 
+    if (capturedStatus !== 201) {
+      console.log('DEBUG TEST 1 FAILED STATUS:', capturedStatus, capturedJson);
+    }
+
     assert.equal(capturedStatus, 400);
     assert.equal(capturedJson.success, false);
     assert.match(capturedJson.message, /already won a prize in this chit scheme.*disqualified/i);
@@ -203,6 +216,13 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     await pool.execute(
       'INSERT INTO group_memberships (group_id, member_id, ticket_number, joined_date, status) VALUES (?, ?, 1, CURDATE(), "ACTIVE")',
       [dblGroupId, testMember2Id]
+    );
+
+    // Seed collection for Double Chit test group
+    await pool.execute(
+      `INSERT INTO collections (receipt_number, group_id, member_id, agent_id, amount, payment_method, collection_date, collection_time, verification_status)
+       VALUES (?, ?, ?, ?, 200000.00, 'CASH', CURDATE(), CURTIME(), 'RECONCILED')`,
+      [`REC-DBL-${Date.now()}`, dblGroupId, testMember2Id, adminUserId]
     );
 
     let capturedStatus;
@@ -255,6 +275,7 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     // Clean up double chit
     await pool.execute('DELETE FROM member_dividends WHERE group_id = ?', [dblGroupId]);
     await pool.execute('DELETE FROM payouts WHERE group_id = ?', [dblGroupId]);
+    await pool.execute('DELETE FROM collections WHERE group_id = ?', [dblGroupId]);
     await pool.execute('DELETE FROM auctions WHERE group_id = ?', [dblGroupId]);
     await pool.execute('DELETE FROM group_memberships WHERE group_id = ?', [dblGroupId]);
     await pool.execute('DELETE FROM chit_groups WHERE id = ?', [dblGroupId]);
@@ -293,7 +314,7 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     assert.equal(typeof capturedJson.data.totals.totalCollected, 'number');
 
     const winnerSub = capturedJson.data.subscribers.find((s) => s.member_id === testMember1Id);
-    assert.equal(winnerSub.is_prized, 1);
+    assert.equal(Boolean(winnerSub.is_prized), true);
     assert.equal(parseFloat(winnerSub.total_dividend_credited), 1250.00);
   });
 
@@ -311,6 +332,13 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     await pool.execute(
       'INSERT INTO group_memberships (group_id, member_id, ticket_number, joined_date, status) VALUES (?, ?, 1, CURDATE(), "ACTIVE")',
       [d2GroupId, testMember3Id]
+    );
+
+    // Seed Draw #1 which saved ₹20,000 into double_chit_reserve so Draw #2 has a reserve to auction
+    await pool.execute(
+      `INSERT INTO auctions (group_id, period_number, draw_number, auction_type, winning_member_id, winning_ticket_number, bid_discount, foreman_commission, net_payable_amount, dividend_per_member, total_dividend, double_chit_reserve, next_installment_payable, auction_date, conducted_by)
+       VALUES (?, 1, 1, 'DOUBLE_CHIT_DRAW', ?, 1, 20000.00, 1000.00, 79000.00, 0.00, 0.00, 20000.00, 5000.00, CURDATE(), ?)`,
+      [d2GroupId, testMember2Id, adminUserId]
     );
 
     let capturedStatus;
@@ -367,6 +395,13 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
   });
 
   await t.test('6. Admin Custom Overrides: allows modifying commission, net payable, dividends and dues directly', async () => {
+    // Seed Period 2 collections for testGroupId
+    await pool.execute(
+      `INSERT INTO collections (receipt_number, group_id, member_id, agent_id, amount, payment_method, collection_date, collection_time, verification_status)
+       VALUES (?, ?, ?, ?, 100000.00, 'CASH', CURDATE(), CURTIME(), 'RECONCILED')`,
+      [`REC-T6-${Date.now()}`, testGroupId, testMember2Id, adminUserId]
+    );
+
     // Test custom financial overrides provided by Admin
     let capturedStatus;
     let capturedJson;
@@ -436,6 +471,13 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
     await pool.execute(
       'INSERT INTO group_memberships (group_id, member_id, ticket_number, joined_date, status) VALUES (?, ?, 2, CURDATE(), "ACTIVE")',
       [dualGroupId, testMember3Id]
+    );
+
+    // Seed collection for dual auction test group
+    await pool.execute(
+      `INSERT INTO collections (receipt_number, group_id, member_id, agent_id, amount, payment_method, collection_date, collection_time, verification_status)
+       VALUES (?, ?, ?, ?, 100000.00, 'CASH', CURDATE(), CURTIME(), 'RECONCILED')`,
+      [`REC-DUAL-${Date.now()}`, dualGroupId, testMember2Id, adminUserId]
     );
 
     let capturedStatus;
@@ -515,6 +557,7 @@ test('ChitBase Reverse Auction & Double Chit Core Mechanics Test Suite', async (
 
     // Clean up
     await pool.execute('DELETE FROM payouts WHERE group_id = ?', [dualGroupId]);
+    await pool.execute('DELETE FROM collections WHERE group_id = ?', [dualGroupId]);
     await pool.execute('DELETE FROM auctions WHERE group_id = ?', [dualGroupId]);
     await pool.execute('DELETE FROM group_memberships WHERE group_id = ?', [dualGroupId]);
     await pool.execute('DELETE FROM chit_groups WHERE id = ?', [dualGroupId]);

@@ -474,7 +474,7 @@ export async function conductAuction(req, res, next) {
       // The auction proceeds up to the full chit max pool amount.
       // Any subscriber who has not fully paid their installment for this auction round
       // automatically has their shortfall added to Pending Amount owed to Admin.
-      const expectedInstallment = parseFloat(chitGroup.installment_amount);
+      const expectedInstallment = parseFloat(group.installment_amount);
       const [allEnrolledMembers] = await connection.execute(
         `SELECT gm.member_id, gm.ticket_number,
                 (
@@ -495,9 +495,9 @@ export async function conductAuction(req, res, next) {
          FROM group_memberships gm
          WHERE gm.group_id = ? AND gm.status = 'ACTIVE'`,
         [
-          chitGroup.frequency,
+          group.frequency,
           validated.auction_date,
-          chitGroup.frequency,
+          group.frequency,
           validated.auction_date,
           validated.auction_date,
           validated.auction_date,

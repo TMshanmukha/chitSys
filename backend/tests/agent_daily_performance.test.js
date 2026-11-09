@@ -2,20 +2,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from '../src/config/db.js';
 import { getAgentsDailyPerformance } from '../src/controllers/adminController.js';
+import { getTodayIST } from '../src/utils/dateUtils.js';
 
 test('Admin Agent Daily Performance & Cash Ledger Test Suite', async (t) => {
   let agentId;
   let groupId;
   let memberId;
 
-  // Setup: Ensure an active agent exists who is not on leave today
-  const [agents] = await pool.query("SELECT id, full_name FROM users WHERE role = 'COLLECTION_AGENT' AND id NOT IN (SELECT agent_id FROM agent_leaves WHERE leave_date = CURDATE() AND status = 'APPROVED') LIMIT 1");
+  const todayStr = getTodayIST();
+
+  // Setup: Ensure an active ChitFund agent exists who is not on leave today
+  const [agents] = await pool.query(`
+    SELECT id, full_name FROM users 
+    WHERE role = 'COLLECTION_AGENT' 
+      AND (assigned_business = 'CHITFUND' OR assigned_business IS NULL)
+      AND id NOT IN (SELECT user_id FROM interest_user_profiles)
+      AND id NOT IN (SELECT agent_id FROM agent_leaves WHERE leave_date = ? AND status = 'APPROVED')
+    LIMIT 1
+  `, [todayStr]);
+
   if (agents.length > 0) {
     agentId = agents[0].id;
   } else {
     const [agentRes] = await pool.query(
-      `INSERT INTO users (username, password_hash, full_name, phone, role, is_active)
-       VALUES ('perf_agent_${Date.now()}', '$2b$12$DUMMY', 'Performance Agent', '9988776655', 'COLLECTION_AGENT', 1)`
+      `INSERT INTO users (username, password_hash, full_name, phone, role, is_active, assigned_business)
+       VALUES ('perf_agent_${Date.now()}', '$2b$12$DUMMY', 'Performance Agent', '9988776655', 'COLLECTION_AGENT', 1, 'CHITFUND')`
     );
     agentId = agentRes.insertId;
   }
@@ -61,7 +72,6 @@ test('Admin Agent Daily Performance & Cash Ledger Test Suite', async (t) => {
   );
 
   // Record a CASH collection today for this agent
-  const todayStr = new Date().toISOString().slice(0, 10);
   const receiptNum = `RCP-PERF-${Date.now()}`;
   await pool.query(
     `INSERT INTO collections (receipt_number, group_id, member_id, agent_id, amount, payment_method, collection_date, collection_time, verification_status, notes)
