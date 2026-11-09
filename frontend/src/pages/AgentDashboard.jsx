@@ -41,6 +41,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
   Coins,
   Users,
   Filter,
@@ -91,6 +92,20 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
   const handleTabSwitch = (tab) => {
     navigate(`/agent/${tab}`);
   };
+
+  // Simple Assigned Routes Drill-down State
+  const [selectedRouteGroupId, setSelectedRouteGroupId] = useState(null);
+
+  useEffect(() => {
+    if (activeTab !== 'routes') {
+      setSelectedRouteGroupId(null);
+    }
+  }, [activeTab]);
+
+  const selectedRouteGroup = useMemo(() => {
+    if (!selectedRouteGroupId) return null;
+    return (routesData.groups || []).find((g) => g.id === selectedRouteGroupId) || null;
+  }, [selectedRouteGroupId, routesData.groups]);
 
   // Day Submit & Shift Closing Handover State
   const [showDaySubmitModal, setShowDaySubmitModal] = useState(false);
@@ -1340,7 +1355,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
         </div>
 
         {/* Metrics Grid - 6 Cards in Standard Financial Order: Today's Target, Today's Collections, Cash on Hand, UPI / Digital, Pending Amount, Today's Tasks */}
-        {(activeTab === 'tasks' || activeTab === 'routes') && (
+        {activeTab === 'tasks' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-bold px-1">
             <span className="flex items-center gap-1.5 font-heading text-blue-600 dark:text-blue-400 uppercase tracking-wider text-[11px]">
@@ -2244,398 +2259,326 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Daily vs Monthly Category Filter Pill Buttons with Automatic Window Move */}
-              <div id="agent-routes-list" className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-2 flex-wrap scroll-mt-6">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">Chit Type:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRouteCategoryFilter('ALL');
-                    smoothScrollTo('agent-routes-list', { offset: 32, behavior: 'smooth' });
-                  }}
-                  className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                    routeCategoryFilter === 'ALL'
-                      ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                  }`}
-                >
-                  All Assigned ({routesData.groups.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRouteCategoryFilter('DAILY_CHIT');
-                    smoothScrollTo('agent-routes-list', { offset: 32, behavior: 'smooth' });
-                  }}
-                  className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                    routeCategoryFilter === 'DAILY_CHIT'
-                      ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                  }`}
-                >
-                  🚚 Daily Chits ({dailyGroups.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRouteCategoryFilter('MONTHLY_CHIT');
-                    smoothScrollTo('agent-routes-list', { offset: 32, behavior: 'smooth' });
-                  }}
-                  className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                    routeCategoryFilter === 'MONTHLY_CHIT'
-                      ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                  }`}
-                >
-                  🏛️ Monthly Chits ({monthlyGroups.length})
-                </button>
-              </div>
-
-              {/* Toolbar for Assigned Routes (100+ Chits) */}
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={toggleAllRoutes}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  {collapsedRoutes.size > 0 ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-                  <span>{collapsedRoutes.size > 0 ? 'Expand All Routes' : 'Collapse All Routes'}</span>
-                </button>
-                <span className="text-xs text-slate-400 font-medium">
-                  Showing <strong className="text-slate-800 dark:text-slate-200">{paginatedRoutes.length}</strong> of{' '}
-                  <strong className="text-slate-800 dark:text-slate-200">{displayedGroups.length}</strong> Assigned Routes
-                </span>
-              </div>
-
-              {/* Displayed Chit Group Routes */}
-              {displayedGroups.length === 0 ? (
-                <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                  <p className="text-xs text-slate-400">No chit groups found in this category.</p>
-                </div>
-              ) : (
-                paginatedRoutes.map((group) => {
-                  const isRouteCollapsed = collapsedRoutes.has(group.id);
-                  const groupMembers = routesData.members.filter((m) => m.group_id === group.id);
-                  const installmentAmt = Number(group.installment_amount || 0);
-                  const paidCount = groupMembers.filter((m) => Boolean(m.is_paid) && installmentAmt > 0).length;
-                  const progressPct = groupMembers.length > 0 ? Math.round((paidCount / groupMembers.length) * 100) : 0;
-                  const isDaily = group.chit_type === 'DAILY_CHIT' || group.route_category === 'DAILY_ROUTE';
-
-                  return (
-                    <div
-                      key={group.id}
-                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4"
-                    >
-                      {/* Chit Route Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-extrabold uppercase border flex items-center gap-1.5 ${
-                              isDaily
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-300 dark:border-amber-800'
-                                : 'bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border-blue-300 dark:border-blue-800'
-                            }`}>
-                              {isDaily ? '📅 Day-by-Day Daily Chit' : '🗓️ Month-by-Month Monthly Chit'}
-                            </span>
-                            <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                              {group.group_name}
-                            </h3>
-                            <span className="font-mono text-xs text-slate-400">({group.group_code})</span>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5 text-blue-500" />
-                              {group.location_name}
-                            </span>
-                            <span>·</span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              {isDaily ? `📅 Today's Collection Round (${formatDate(getServerDate())})` : '🗓️ Current Monthly Cycle Collection'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Progress and Due Amount */}
-                        <div className="flex items-center sm:items-end justify-between sm:flex-col gap-2">
-                          <div className="text-left sm:text-right">
-                            <span className="text-[11px] text-slate-400 block">
-                              {isDaily ? 'Daily Installment Due' : 'Monthly Installment Due'}
-                            </span>
-                            <span className="text-base font-extrabold text-blue-600 dark:text-blue-400">
-                              ₹{Number(group.installment_amount).toLocaleString('en-IN')}
-                            </span>
-                          </div>
-                          <div className="text-xs flex items-center gap-2">
-                            <span className="text-slate-400 font-mono text-[11px]">
-                              {paidCount}/{groupMembers.length} Paid ({progressPct}%)
-                            </span>
-                            <div className="w-20 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
-                                style={{ width: `${progressPct}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Route Nodes Roster (Each member represents a node) */}
+              {selectedRouteGroup ? (
+                /* Drill-Down View: Subscribers list for the selected Chit */
+                <div className="space-y-4 animate-fadeIn">
+                  {/* Top Bar with Back button and Chit Info */}
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRouteGroupId(null)}
+                        className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>All Chits</span>
+                      </button>
                       <div>
-                        <div className="flex items-center justify-between mb-2.5">
-                          <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                            <span>Route Member Nodes</span>
-                            <span className="text-[11px] text-slate-400 font-normal">
-                              ({groupMembers.length} Waypoints)
-                            </span>
-                          </h4>
-                          <span className="text-[11px] text-slate-400 italic">
-                            {isDaily ? 'Day-by-Day Tracking · Synchronous with Admin Map' : 'Month-by-Month Tracking · Synchronous with Admin Map'}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+                            {selectedRouteGroup.group_code}
+                          </span>
+                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
+                            {selectedRouteGroup.group_type || selectedRouteGroup.chit_type || 'CHIT'}
+                          </span>
+                        </div>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                          {selectedRouteGroup.group_name}
+                        </h2>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs">
+                      <div className="text-left sm:text-right">
+                        <span className="text-slate-400 block text-[11px]">Installment Due</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+                          ₹{Number(selectedRouteGroup.installment_amount || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <span className="text-slate-400 block text-[11px]">Total Pool</span>
+                        <span className="font-extrabold text-blue-600 dark:text-blue-400 text-sm">
+                          ₹{Number(selectedRouteGroup.total_pool || (Number(selectedRouteGroup.installment_amount || 0) * (selectedRouteGroup.total_members || 1))).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subscribers List for this Chit */}
+                  {(() => {
+                    const groupMembers = routesData.members.filter((m) => m.group_id === selectedRouteGroup.id);
+                    const paidMembers = groupMembers.filter((m) => Boolean(m.is_paid));
+                    const pendingMembers = groupMembers.filter((m) => !m.is_paid);
+
+                    if (groupMembers.length === 0) {
+                      return (
+                        <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                          <p className="text-xs text-slate-400">No members enrolled in this chit yet.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-xs font-semibold text-slate-500">
+                            {groupMembers.length} Total Members · <span className="text-emerald-600 font-bold">{paidMembers.length} Paid</span> · <span className="text-amber-600 font-bold">{pendingMembers.length} Pending</span>
                           </span>
                         </div>
 
-                        {groupMembers.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic py-2">No members enrolled in this group yet.</p>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-1">
-                            {groupMembers.map((member) => {
-                              const installmentAmt = Number(group.installment_amount || 0);
-                              const collectedAmt = Number(member.total_cycle_collected || member.collected_amount || 0);
-                              // STRICT: isPaid only when backend confirmed AND actual collections meet installment
-                              const isPaid = Boolean(member.is_paid) && installmentAmt > 0;
-                              const isPartialMember = !isPaid && collectedAmt > 0;
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {groupMembers.map((member) => {
+                            const isPaid = Boolean(member.is_paid);
+                            const isSoleAdmin = member.paid_to === 'ADMIN';
 
-                              return (
-                                <div
-                                  key={member.member_id}
-                                  className={`p-4 rounded-xl border transition-all ${
-                                    isPaid
-                                      ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
-                                      : 'bg-rose-50/20 dark:bg-rose-950/10 border-rose-200 dark:border-rose-900/40 hover:border-rose-300'
-                                  }`}
-                                >
-                                  {/* Member Node Header */}
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <button
-                                          type="button"
-                                          onClick={() => openMemberInfo(group, member)}
-                                          className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity cursor-pointer ${
-                                            isPaid
-                                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-200'
-                                              : 'bg-rose-100 text-rose-800 dark:bg-rose-900/80 dark:text-rose-200'
-                                          }`}
-                                          title="View Member Information Form"
-                                        >
-                                          #{member.ticket_number}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => openMemberInfo(group, member)}
-                                          className="font-bold text-sm text-slate-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 text-left cursor-pointer"
-                                          title="View Member Information Form"
-                                        >
-                                          {member.full_name}
-                                        </button>
-
-                                        {/* Prominent Synchronous Status Badge with Cycle Label */}
-                                        {member.is_covered_by_advance ? (
-                                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 border border-teal-400 dark:border-teal-700 flex items-center gap-1">
-                                            <span>✨ PAID VIA ADVANCE (₹{Number(member.advance_adjusted_today || member.installment_amount).toLocaleString('en-IN')})</span>
-                                          </span>
-                                        ) : member.is_paid_to_admin ? (
-                                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-400 dark:border-purple-700 flex items-center gap-1">
-                                            <span>🏛️ PAID TO ADMIN</span>
-                                          </span>
-                                        ) : isPaid ? (
-                                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 flex items-center gap-1">
-                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                            <span>{isDaily ? 'PAID TODAY' : 'PAID FOR MONTH'}</span>
-                                          </span>
-                                        ) : (
-                                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                                            <span>{isDaily ? 'NOT PAID TODAY' : 'NOT PAID FOR MONTH'}</span>
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      {/* Sub-info */}
-                                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
-                                        <span className="font-mono font-medium text-blue-600 dark:text-blue-400">
-                                          Ticket #{member.ticket_number}
-                                        </span>
+                            return (
+                              <div
+                                key={member.member_id}
+                                className={`p-4 rounded-2xl border transition-all ${
+                                  isPaid
+                                    ? 'bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-200/60 dark:border-emerald-800/40'
+                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xs'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2.5">
+                                    <div
+                                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
+                                        isPaid
+                                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                                          : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                      }`}
+                                    >
+                                      #{member.ticket_number}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                                        {member.customer_name || member.name}
+                                      </h4>
+                                      <div className="flex items-center gap-2 mt-0.5">
                                         {member.phone && (
                                           <a
                                             href={`tel:${member.phone}`}
-                                            className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                                            className="text-xs text-slate-500 hover:text-blue-600 flex items-center gap-1"
                                           >
-                                            <Smartphone className="w-3 h-3 text-slate-400" />
+                                            <Phone className="w-3 h-3 text-slate-400" />
                                             <span>{member.phone}</span>
                                           </a>
                                         )}
-                                        <span>·</span>
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                          {isDaily ? 'Due Today' : 'Due This Month'}: ₹{Number(member.remaining_balance != null && member.remaining_balance > 0 ? member.remaining_balance : group.installment_amount).toLocaleString('en-IN')}
-                                        </span>
-                                        {member.days_remaining !== undefined && (
-                                          <>
-                                            <span>·</span>
-                                            <span className="text-[11px] font-mono text-slate-500">
-                                              ⏳ {member.days_remaining}d left ({member.days_covered}d covered)
-                                            </span>
-                                          </>
-                                        )}
-                                        {Number(member.advance_balance || 0) > 0 && (
-                                          <>
-                                            <span>·</span>
-                                            <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400">
-                                              Adv Bal: ₹{Number(member.advance_balance).toLocaleString('en-IN')}
-                                            </span>
-                                          </>
-                                        )}
-                                      </div>
-
-                                      {/* Synchronous Note / Receipt details */}
-                                      <div className="mt-2 text-xs">
-                                        {isPaid ? (
-                                          <div className="p-2 rounded-lg bg-emerald-100/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-900 dark:text-emerald-300 font-mono text-[11px] flex items-center justify-between gap-2 flex-wrap">
-                                            <span>
-                                              Receipt: <strong>{member.receipt_number || 'REC-VERIFIED'}</strong> · ₹
-                                              {Number(member.collected_amount || group.installment_amount).toLocaleString('en-IN')} (
-                                              {member.payment_method || 'CASH'})
-                                            </span>
-                                            {member.collection_time && (
-                                              <span>{formatTime(member.collection_time)}</span>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <div className="p-2 rounded-lg bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-300 text-[11px] flex items-center gap-1.5">
-                                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
-                                            <span className="font-medium flex-1">
-                                              Note:{' '}
-                                              <ShowMoreText
-                                                text={member.cycle_notes || member.today_notes || (isDaily ? 'Pending today' : 'Pending this month')}
-                                                maxChars={45}
-                                              />
-                                            </span>
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                   </div>
 
-                                  {/* Action Buttons for this Member Node */}
-                                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 flex-wrap">
-                                    <button
-                                      type="button"
-                                      onClick={() => openMemberInfo(group, member)}
-                                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                                    >
-                                      <UserCheck className="w-3.5 h-3.5 text-blue-500" />
-                                      <span>Member Form</span>
-                                    </button>
-
-                                    <div className="flex items-center gap-2 ml-auto">
-                                      {member.is_paid_to_admin ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => openReceiptForPaidMember(group, member)}
-                                          className="px-3 py-1.5 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-200 dark:border-purple-800 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                        >
-                                          <Printer className="w-3.5 h-3.5" />
-                                          <span>Paid to Admin</span>
-                                        </button>
-                                      ) : isPaid ? (
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                          <button
-                                            type="button"
-                                            onClick={() => openReceiptForPaidMember(group, member)}
-                                            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                                          >
-                                            <Printer className="w-3.5 h-3.5" />
-                                            <span>Receipt</span>
-                                          </button>
-
-                                          {member.edit_request?.status === 'APPROVED' ? (
-                                            <button
-                                              type="button"
-                                              onClick={() => openApplyEditModal(group, member)}
-                                              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer animate-pulse"
-                                              title="Admin approved your edit request! Click to correct this payment."
-                                            >
-                                              <Edit3 className="w-3.5 h-3.5" />
-                                              <span>Edit (Approved)</span>
-                                            </button>
-                                          ) : member.edit_request?.status === 'PENDING' ? (
-                                            <span
-                                              className="px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800 text-[10px] font-extrabold flex items-center gap-1"
-                                              title="Correction request is pending Admin approval."
-                                            >
-                                              <Clock className="w-3 h-3 text-amber-600 animate-spin" />
-                                              <span>Edit Pending</span>
-                                            </span>
-                                          ) : (
-                                            <button
-                                              type="button"
-                                              onClick={() => openRequestEditModal(group, member)}
-                                              className="px-2 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800/80 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-100/80 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                                              title="Entered wrong amount? Request admin approval to edit this payment."
-                                            >
-                                              <FilePenLine className="w-3 h-3 text-amber-600" />
-                                              <span>Request Edit</span>
-                                            </button>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <button
-                                            type="button"
-                                            onClick={() => openNoteForMember(group, member)}
-                                            className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                                          >
-                                            <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
-                                            <span>Add Note</span>
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              openCollectForMember(group.id, member.member_id, group.installment_amount)
-                                            }
-                                            className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                                          >
-                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                            <span>Collect / Paid</span>
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
+                                  <div className="text-right">
+                                    <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                                      ₹{Number(member.expected_amount || selectedRouteGroup.installment_amount || 0).toLocaleString('en-IN')}
+                                    </span>
+                                    {isPaid ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        <span>{isSoleAdmin ? 'Paid at Office' : 'Paid'}</span>
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+                                        <Clock className="w-3 h-3" />
+                                        <span>Pending</span>
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
 
-              {displayedGroups.length > 0 && (
-                <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-                  <Pagination
-                    currentPage={routesPage}
-                    totalItems={displayedGroups.length}
-                    pageSize={routesPageSize}
-                    onPageChange={setRoutesPage}
-                    onPageSizeChange={setRoutesPageSize}
-                    pageSizeOptions={[4, 8, 16]}
-                  />
+                                {/* Actions row */}
+                                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-2">
+                                  {isPaid ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => openReceiptForPaidMember(selectedRouteGroup, member)}
+                                        className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                      >
+                                        <Printer className="w-3.5 h-3.5" />
+                                        <span>Receipt</span>
+                                      </button>
+                                      {!isSoleAdmin && (
+                                        member.edit_request?.status === 'APPROVED' ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => openApplyEditModal(selectedRouteGroup, member)}
+                                            className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                          >
+                                            <Edit3 className="w-3 h-3" />
+                                            <span>Edit (Approved)</span>
+                                          </button>
+                                        ) : member.edit_request?.status === 'PENDING' ? (
+                                          <span className="px-2 py-1 rounded-lg bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            <span>Edit Pending</span>
+                                          </span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => openRequestEditModal(selectedRouteGroup, member)}
+                                            className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-amber-50/60 hover:bg-amber-100 text-amber-800 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                          >
+                                            <FilePenLine className="w-3 h-3 text-amber-600" />
+                                            <span>Request Edit</span>
+                                          </button>
+                                        )
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => openNoteForMember(selectedRouteGroup, member)}
+                                        className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                      >
+                                        <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                                        <span>Note</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openCollectForMember(selectedRouteGroup.id, member.member_id, selectedRouteGroup.installment_amount)}
+                                        className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <span>Collect</span>
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                /* Primary View: List only the chits assigned to this agent */
+                <div className="space-y-4">
+                  {/* Chit Type Filter */}
+                  <div id="agent-routes-list" className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-2 flex-wrap scroll-mt-6">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">Chit Type:</span>
+                    <button
+                      type="button"
+                      onClick={() => setRouteCategoryFilter('ALL')}
+                      className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                        routeCategoryFilter === 'ALL'
+                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      All Assigned ({routesData.groups.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRouteCategoryFilter('DAILY_CHIT')}
+                      className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                        routeCategoryFilter === 'DAILY_CHIT'
+                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      🚚 Daily Chits ({dailyGroups.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRouteCategoryFilter('MONTHLY_CHIT')}
+                      className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                        routeCategoryFilter === 'MONTHLY_CHIT'
+                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      🏛️ Monthly Chits ({monthlyGroups.length})
+                    </button>
+                  </div>
+
+                  {displayedGroups.length === 0 ? (
+                    <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      <p className="text-xs text-slate-400">No chit groups found in this category.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {paginatedRoutes.map((group) => {
+                        const groupMembers = routesData.members.filter((m) => m.group_id === group.id);
+                        const paidCount = groupMembers.filter((m) => Boolean(m.is_paid)).length;
+                        const isDaily = group.chit_type === 'DAILY_CHIT' || group.route_category === 'DAILY_ROUTE';
+
+                        return (
+                          <div
+                            key={group.id}
+                            onClick={() => setSelectedRouteGroupId(group.id)}
+                            className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500/60 dark:hover:border-blue-500/60 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                          >
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+                                  {group.group_code}
+                                </span>
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
+                                  {group.group_type || group.chit_type || (isDaily ? 'DAILY CHIT' : 'MONTHLY CHIT')}
+                                </span>
+                              </div>
+
+                              <div>
+                                <h3 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                  {group.group_name}
+                                </h3>
+                                <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1">
+                                  <MapPin className="w-3.5 h-3.5" />
+                                  <span>{group.route_name || group.location_name || 'Assigned Route'}</span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">Installment</span>
+                                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                                    ₹{Number(group.installment_amount || 0).toLocaleString('en-IN')}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">Total Pool</span>
+                                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                                    ₹{Number(group.total_pool || (Number(group.installment_amount || 0) * (group.total_members || 1))).toLocaleString('en-IN')}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                              <span className="font-medium text-slate-500">
+                                <strong className="text-slate-900 dark:text-white">{groupMembers.length}</strong> Members ({paidCount} Paid)
+                              </span>
+                              <span className="font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                                View List <ChevronRight className="w-3.5 h-3.5" />
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {displayedGroups.length > 0 && (
+                    <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                      <Pagination
+                        currentPage={routesPage}
+                        totalItems={displayedGroups.length}
+                        pageSize={routesPageSize}
+                        onPageChange={setRoutesPage}
+                        onPageSizeChange={setRoutesPageSize}
+                        pageSizeOptions={[6, 12, 24]}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )
-        ) : activeTab === 'pending-dues' ? (
+          ) ) : activeTab === 'pending-dues' ? (
           <div className="space-y-6 animate-fadeIn">
             {/* Header & Quick Summary */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

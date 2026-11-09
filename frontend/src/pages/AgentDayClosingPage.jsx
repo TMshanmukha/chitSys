@@ -232,14 +232,7 @@ export default function AgentDayClosingPage() {
     return agentCollected;
   }, [summary, data, adminTotalCollected]);
 
-  const effectiveStopsVisited = useMemo(() => {
-    const rawVisited = Number(data?.totalStopsVisited || 0);
-    if (adminPaidCount > 0 && rawVisited >= adminPaidCount) {
-      return Math.max(0, rawVisited - adminPaidCount);
-    }
-    return rawVisited;
-  }, [data, adminPaidCount]);
-
+  const effectiveStopsVisited = Number(data?.totalStopsVisited || 0);
   const effectiveStopsPending = Number(data?.totalStopsPending || 0);
   const effectiveTotalStops = effectiveStopsVisited + effectiveStopsPending;
   const targetCompletionPercent = effectiveAgentTarget > 0

@@ -267,9 +267,16 @@ export async function calculateDayWorkData(agentId, workDate) {
       const expectedTarget = isDaily 
         ? agentActiveSubscribersCount * installmentAmt 
         : (cycleInfo?.isDeadlineToday ? agentActiveSubscribersCount * installmentAmt : 0);
+
+      // Remaining due across active unpaid subscribers in this chit
+      const actualPendingDue = unpaidMembers.reduce(
+        (sum, m) => sum + (m.pendingDeficit !== undefined ? Number(m.pendingDeficit) : Number(m.expectedAmount || 0)),
+        0
+      );
+
       const pendingAmount = isDaily
-        ? Math.max(0, expectedTarget - gAgentTotal)
-        : (cycleInfo?.isDeadlineToday ? Math.max(0, (agentActiveSubscribersCount * installmentAmt) - gAgentTotal) : 0);
+        ? actualPendingDue
+        : (cycleInfo?.isDeadlineToday ? actualPendingDue : (hasTimeRemaining ? actualPendingDue : 0));
       const progressPercent = expectedTarget > 0 ? Math.min(100, Math.round((gAgentTotal / expectedTarget) * 100)) : (gAgentTotal > 0 ? 100 : 0);
 
       return {
@@ -333,7 +340,7 @@ export async function calculateDayWorkData(agentId, workDate) {
 
     const dailyTarget = dailyChits.reduce((sum, item) => sum + item.expectedTarget, 0);
     const dailyCollected = dailyChits.reduce((sum, item) => sum + item.totalCollected, 0);
-    const dailyPending = Math.max(0, dailyTarget - dailyCollected);
+    const dailyPending = dailyChits.reduce((sum, item) => sum + Number(item.pendingAmount || 0), 0);
 
     const monthlyCollectedToday = monthlyChits.reduce((sum, item) => sum + item.totalCollected, 0);
     const monthlySubscribersCollectedToday = monthlyChits.reduce((sum, item) => sum + item.paidSubscribersCount, 0);
@@ -359,7 +366,7 @@ export async function calculateDayWorkData(agentId, workDate) {
       totalNormalCollected,
       adminTotalCollected,
       adminPaidMembersCount,
-      grandPendingAmount: Math.max(0, grandExpectedTarget - totalCollected),
+      grandPendingAmount: chitBreakdown.reduce((sum, item) => sum + Number(item.pendingAmount || 0), 0),
       dailyOverview: {
         target: dailyTarget,
         collected: dailyCollected,
