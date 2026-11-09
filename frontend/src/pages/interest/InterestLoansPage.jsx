@@ -100,12 +100,16 @@ export default function InterestLoansPage() {
 
   useEffect(() => {
     if (searchParams.get('action') === 'new') {
-      openDisburseModal();
+      const custId = searchParams.get('customer_id') || searchParams.get('customerId') || '';
+      openDisburseModal(custId);
     }
   }, [searchParams]);
 
-  const openDisburseModal = () => {
-    setDisburseForm(initialForm);
+  const openDisburseModal = (preselectedCustId = '') => {
+    setDisburseForm({
+      ...initialForm,
+      customer_id: preselectedCustId ? String(preselectedCustId) : '',
+    });
     setPreviewSchedule(null);
     setDisburseError('');
     setShowDisburseModal(true);

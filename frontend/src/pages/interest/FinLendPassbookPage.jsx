@@ -964,7 +964,11 @@ For repayments or balance settlement, contact your loan manager.`;
         isOpen={isNewLoanOpen}
         onClose={() => setIsNewLoanOpen(false)}
         onSuccess={loadPassbook}
-        initialCustomerId={customer.id}
+        initialCustomerId={customer?.id}
+        initialCustomer={{
+          ...customer,
+          assigned_agent_id: customer?.assigned_agent_id || loans.find((l) => l.assigned_agent_id)?.assigned_agent_id,
+        }}
       />
 
       {/* Edit Customer Modal */}

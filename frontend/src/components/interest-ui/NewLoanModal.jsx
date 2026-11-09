@@ -22,7 +22,7 @@ import {
 import ModalPortal from '../ModalPortal';
 import { formatDate } from '../../utils/dateUtils';
 
-export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, initialCustomerId }) {
+export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, initialCustomerId, initialCustomer }) {
 
   const [customers, setCustomers] = useState([]);
   const [schemes, setSchemes] = useState([]);
@@ -65,7 +65,34 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
   const [createdLoan, setCreatedLoan] = useState(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setShowAddCustomer(false);
+      return;
+    }
+
+    const targetCustId = initialCustomerId || initialCustomer?.id;
+    if (targetCustId) {
+      setSelectedCustomerId(String(targetCustId));
+    } else {
+      setSelectedCustomerId('');
+    }
+
+    if (initialCustomer && initialCustomer.id) {
+      setCustomers((prev) => {
+        const strId = String(initialCustomer.id);
+        if (prev.some((c) => String(c.id) === strId)) return prev;
+        return [initialCustomer, ...prev];
+      });
+      const agentId = initialCustomer.assigned_agent_id || initialCustomer.agent_id;
+      if (agentId) {
+        setAssignedAgentId(String(agentId));
+      }
+    }
+
+    setShowAddCustomer(false);
+    setCreatedLoan(null);
+    setError('');
+
     const fetchPrerequisites = async () => {
       try {
         setLoadingInitial(true);
@@ -75,7 +102,31 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
           api.get('/interest/users').catch(() => ({ data: { data: [] } })),
           api.get('/admin/agents').catch(() => ({ data: { data: [] } })),
         ]);
-        if (custRes.data?.success) setCustomers(custRes.data.data || []);
+
+        let custList = custRes.data?.data || [];
+        if (initialCustomer && initialCustomer.id) {
+          if (!custList.some((c) => String(c.id) === String(initialCustomer.id))) {
+            custList = [initialCustomer, ...custList];
+          }
+        } else if (targetCustId && !custList.some((c) => String(c.id) === String(targetCustId))) {
+          try {
+            const singleRes = await api.get(`/interest/customers/${targetCustId}`);
+            if (singleRes.data?.data?.customer) {
+              custList = [singleRes.data.data.customer, ...custList];
+            }
+          } catch (_) {}
+        }
+        setCustomers(custList);
+
+        if (targetCustId) {
+          setSelectedCustomerId(String(targetCustId));
+          const targetCust = custList.find((c) => String(c.id) === String(targetCustId));
+          const defaultAgent = targetCust?.assigned_agent_id || targetCust?.agent_id;
+          if (defaultAgent) {
+            setAssignedAgentId(String(defaultAgent));
+          }
+        }
+
         if (schemeRes.data?.success) setSchemes(schemeRes.data.data || []);
 
         const rawStaff = [...(userRes.data?.data || []), ...(agentRes.data?.data || [])];
@@ -113,10 +164,9 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
         setLoadingInitial(false);
       }
     };
+
     fetchPrerequisites();
-    setCreatedLoan(null);
-    setError('');
-  }, [isOpen]);
+  }, [isOpen, initialCustomerId, initialCustomer]);
 
   // Handle Date & Duration Changes
   const handleStartDateChange = (val) => {
@@ -588,13 +638,21 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
                 ) : (
                   <select
                     required
-                    value={selectedCustomerId}
-                    onChange={(e) => setSelectedCustomerId(e.target.value)}
+                    value={selectedCustomerId ? String(selectedCustomerId) : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedCustomerId(val);
+                      const matched = customers.find((c) => String(c.id) === String(val));
+                      const agId = matched?.assigned_agent_id || matched?.agent_id;
+                      if (agId) {
+                        setAssignedAgentId(String(agId));
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">-- Choose Borrower --</option>
                     {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
+                      <option key={c.id} value={String(c.id)}>
                         {c.full_name}{c.phone ? ` · ${c.phone}` : ''}
                       </option>
                     ))}
