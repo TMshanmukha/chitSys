@@ -25,6 +25,38 @@ import { formatCurrency, formatDate, formatTime, getServerYMD } from '../../util
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 import NewLoanModal from '../../components/interest-ui/NewLoanModal';
 
+// Helper to compute schedule date in format "dd <monthName>" (e.g., "07 Nov") starting from loan creation/disbursement
+const getLoanScheduleDate = (loan, idx) => {
+  const raw = loan?.disbursement_date || loan?.first_due_date || loan?.created_at;
+  if (!raw) return '';
+  try {
+    let d;
+    if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw)) {
+      const [year, month, day] = raw.slice(0, 10).split('-').map(Number);
+      d = new Date(year, month - 1, day);
+    } else {
+      d = new Date(raw);
+    }
+    if (isNaN(d.getTime())) return '';
+
+    const freq = (loan?.repayment_frequency || 'DAILY').toUpperCase();
+    if (freq === 'WEEKLY') {
+      d.setDate(d.getDate() + (idx * 7));
+    } else if (freq === 'MONTHLY') {
+      d.setMonth(d.getMonth() + idx);
+    } else {
+      // Default DAILY
+      d.setDate(d.getDate() + idx);
+    }
+
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = d.toLocaleString('en-IN', { month: 'short' });
+    return `${day} ${month}`;
+  } catch {
+    return '';
+  }
+};
+
 export default function FinLendPassbookPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -620,21 +652,31 @@ For repayments or balance settlement, contact your loan manager.`;
                       const dayNumber = idx + 1;
                       const isCompleted = dayNumber <= completedDays;
                       const isCurrentNext = dayNumber === completedDays + 1;
+                      const dateLabel = getLoanScheduleDate(loan, idx);
 
                       return (
                         <div
                           key={dayNumber}
-                          className={`p-2 rounded-xl text-center border transition-all ${isCompleted
+                          className={`p-1.5 sm:p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-between min-h-[64px] ${isCompleted
                             ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
                             : isCurrentNext
                               ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20 font-black'
                               : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/60 dark:border-white/5 text-slate-400'
                             }`}
-                          title={`Day ${dayNumber}: ${isCompleted ? 'PAID' : isCurrentNext ? 'NEXT DUE' : 'UPCOMING'}`}
+                          title={`Day ${dayNumber}${dateLabel ? ` (${dateLabel})` : ''}: ${isCompleted ? 'PAID' : isCurrentNext ? 'NEXT DUE' : 'UPCOMING'}`}
                         >
-                          <div className="text-[10px] font-mono leading-none">Day</div>
-                          <div className="text-xs font-extrabold font-heading mt-0.5">{dayNumber}</div>
-                          <div className="text-[9px] mt-0.5">
+                          <div>
+                            <div className="text-[9px] font-mono leading-none opacity-75">Day</div>
+                            <div className="text-xs font-extrabold font-heading leading-tight">{dayNumber}</div>
+                          </div>
+
+                          {dateLabel && (
+                            <div className="text-[9px] font-bold text-slate-900 dark:text-slate-100 font-mono leading-tight whitespace-nowrap px-0.5">
+                              {dateLabel}
+                            </div>
+                          )}
+
+                          <div className="text-[9px] font-bold leading-none">
                             {isCompleted ? '✓' : isCurrentNext ? 'Next' : '•'}
                           </div>
                         </div>
