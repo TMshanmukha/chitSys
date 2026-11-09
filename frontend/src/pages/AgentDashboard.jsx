@@ -2465,22 +2465,27 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                             >
                                               #{member.ticket_number}
                                             </div>
-                                            <div className="min-w-0">
-                                              <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
-                                                {member.full_name || member.customer_name || member.name || member.member_code || `Member #${member.ticket_number}`}
-                                              </h4>
-                                              <div className="flex items-center gap-2 mt-0.5">
-                                                {member.phone && (
+                                            <div className="min-w-0 flex-1">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <h4 className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm truncate capitalize">
+                                                  {member.full_name || member.customer_name || member.name || member.member_name || member.memberName || (member.member_code ? `Member ${member.member_code}` : `Subscriber #${member.ticket_number}`)}
+                                                </h4>
+                                                {member.member_code && (
+                                                  <span className="text-[10px] text-slate-400 font-mono">({member.member_code})</span>
+                                                )}
+                                              </div>
+                                              {member.phone && (
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                  <Phone className="w-2.5 h-2.5 text-slate-400 shrink-0" />
                                                   <a
                                                     href={`tel:${member.phone}`}
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="text-[11px] text-slate-500 hover:text-blue-600 flex items-center gap-1"
+                                                    className="text-[11px] text-slate-500 hover:text-blue-600 font-medium transition-colors"
                                                   >
-                                                    <Phone className="w-2.5 h-2.5 text-slate-400" />
-                                                    <span>{member.phone}</span>
+                                                    {member.phone}
                                                   </a>
-                                                )}
-                                              </div>
+                                                </div>
+                                              )}
                                             </div>
                                           </div>
 
