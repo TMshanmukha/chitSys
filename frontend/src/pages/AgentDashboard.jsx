@@ -2466,8 +2466,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                               #{member.ticket_number}
                                             </div>
                                             <div className="min-w-0">
-                                              <h4 className="font-bold text-slate-900 dark:text-white text-xs truncate">
-                                                {member.customer_name || member.name}
+                                              <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
+                                                {member.full_name || member.customer_name || member.name || member.member_code || `Member #${member.ticket_number}`}
                                               </h4>
                                               <div className="flex items-center gap-2 mt-0.5">
                                                 {member.phone && (

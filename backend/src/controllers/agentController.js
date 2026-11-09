@@ -595,6 +595,8 @@ export async function getMyAssignedRoutes(req, res, next) {
           member_id: m.member_id,
           member_code: m.member_code,
           full_name: m.full_name,
+          customer_name: m.full_name,
+          name: m.full_name,
           phone: m.phone,
           alternate_phone: m.alternate_phone || '',
           address: m.address || '',
