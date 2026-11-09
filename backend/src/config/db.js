@@ -48,6 +48,33 @@ pool.on('connection', (connection) => {
   });
 });
 
+export async function ensureDefaultSchemes() {
+  try {
+    const [tables] = await pool.query("SHOW TABLES LIKE 'interest_schemes'");
+    if (!tables || tables.length === 0) return;
+
+    const [rows] = await pool.query('SELECT COUNT(*) as cnt FROM interest_schemes');
+    if (rows[0]?.cnt === 0) {
+      await pool.query(`
+        INSERT IGNORE INTO interest_businesses (id, business_name, business_code, tagline, phone, email, address, currency_symbol)
+        VALUES (1, 'FinLend Pro', 'FLPRO-01', 'Smart Interest & Micro-Finance Lending', '+91 98765 43210', 'support@finlendpro.local', 'Main Financial District, Hyderabad, India', '₹')
+      `);
+      await pool.query(`
+        INSERT INTO interest_schemes 
+        (id, scheme_name, scheme_code, description, calculation_method, interest_rate, rate_period, repayment_frequency, min_principal, max_principal, default_principal, min_tenure_periods, max_tenure_periods, default_tenure_periods, status)
+        VALUES 
+        (1, 'Daily Micro-Finance (100 Days)', 'DMF-100D', 'Daily principal and interest recovery for small merchants & shops over 100 days.', 'FLAT', 10.0000, 'MONTHLY', 'DAILY', 1000.00, 1000000.00, 50000.00, 1, 365, 100, 'ACTIVE'),
+        (2, 'Standard Monthly EMI (Reducing Balance)', 'EMI-REDUCE-12M', 'Standard reducing balance amortization where interest is charged strictly on remaining unpaid balance.', 'REDUCING_BALANCE', 18.0000, 'ANNUAL', 'MONTHLY', 1000.00, 10000000.00, 50000.00, 1, 360, 12, 'ACTIVE'),
+        (3, 'Periodic Interest-Only (Bullet Repayment)', 'VADDI-BULLET-MO', 'Monthly interest payment only (Vaddi Vyaparam), with full principal repaid at maturity.', 'INTEREST_ONLY', 2.0000, 'MONTHLY', 'MONTHLY', 1000.00, 5000000.00, 100000.00, 1, 120, 6, 'ACTIVE'),
+        (4, 'Daily Outstanding Balance Interest', 'DOB-FLEX-DAILY', 'Daily interest computed on the actual end-of-day outstanding principal with flexible repayments.', 'DAILY_BALANCE', 0.1000, 'DAILY', 'DAILY', 1000.00, 1000000.00, 25000.00, 1, 365, 60, 'ACTIVE')
+      `);
+      logger.info('✅ Auto-seeded default FinLend schemes and business');
+    }
+  } catch (err) {
+    logger.warn('Non-fatal: ensureDefaultSchemes check skipped', { message: err.message });
+  }
+}
+
 export async function testConnection() {
   try {
     const connection = await pool.getConnection();
@@ -57,6 +84,10 @@ export async function testConnection() {
       database: env.DB_NAME,
     });
     connection.release();
+
+    // Auto-seed required default entities if database was wiped
+    await ensureDefaultSchemes();
+
     return true;
   } catch (error) {
     logger.error('❌ Failed to connect to MySQL database:', {

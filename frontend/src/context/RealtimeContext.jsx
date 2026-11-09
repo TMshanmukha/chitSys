@@ -145,7 +145,7 @@ export function RealtimeProvider({ children }) {
     const socket = io(socketUrl, {
       withCredentials: true,
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,

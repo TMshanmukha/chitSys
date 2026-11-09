@@ -278,7 +278,9 @@ export async function getCustomerById(req, res) {
     }
 
     const [loans] = await pool.query(`
-      SELECT l.*, s.scheme_name, s.scheme_code,
+      SELECT l.*, 
+             COALESCE(s.scheme_name, 'Daily Micro-Finance (100 Days)') as scheme_name, 
+             COALESCE(s.scheme_code, 'DMF-100D') as scheme_code,
              (SELECT COUNT(*) FROM interest_loan_schedules WHERE loan_id = l.id AND status = 'PAID') as completed_installments,
              (SELECT COUNT(*) FROM interest_loan_schedules WHERE loan_id = l.id) as total_installments,
              (SELECT MAX(due_date) FROM interest_loan_schedules WHERE loan_id = l.id AND status = 'PAID') as paid_until_date,
@@ -286,7 +288,7 @@ export async function getCustomerById(req, res) {
              (SELECT COALESCE(SUM(total_due - total_paid), 0) FROM interest_loan_schedules WHERE loan_id = l.id AND due_date <= ? AND status IN ('PENDING', 'PARTIAL', 'OVERDUE')) as current_due_amount,
              (SELECT COALESCE(SUM(total_due - total_paid), 0) FROM interest_loan_schedules WHERE loan_id = l.id AND due_date < ? AND status IN ('PENDING', 'PARTIAL', 'OVERDUE')) as overdue_amount
       FROM interest_loans l
-      JOIN interest_schemes s ON l.scheme_id = s.id
+      LEFT JOIN interest_schemes s ON l.scheme_id = s.id
       WHERE l.customer_id = ?
       ORDER BY l.id DESC
     `, [todayStr, todayStr, id]);
@@ -537,10 +539,12 @@ export async function getLoans(req, res) {
 
     let query = `
       SELECT l.*, c.full_name as customer_name, c.phone as customer_phone, c.customer_code,
-             s.scheme_name, s.scheme_code, u.full_name as agent_name
+             COALESCE(s.scheme_name, 'Daily Micro-Finance (100 Days)') as scheme_name,
+             COALESCE(s.scheme_code, 'DMF-100D') as scheme_code,
+             u.full_name as agent_name
       FROM interest_loans l
       JOIN interest_customers c ON l.customer_id = c.id
-      JOIN interest_schemes s ON l.scheme_id = s.id
+      LEFT JOIN interest_schemes s ON l.scheme_id = s.id
       LEFT JOIN users u ON l.assigned_agent_id = u.id
     `;
     const whereConditions = [];
@@ -606,10 +610,13 @@ export async function getLoanById(req, res) {
     const { id } = req.params;
     const [[loan]] = await pool.query(`
       SELECT l.*, c.full_name as customer_name, c.phone as customer_phone, c.customer_code,
-             c.address as customer_address, s.scheme_name, s.scheme_code, u.full_name as agent_name
+             c.address as customer_address, 
+             COALESCE(s.scheme_name, 'Daily Micro-Finance (100 Days)') as scheme_name, 
+             COALESCE(s.scheme_code, 'DMF-100D') as scheme_code, 
+             u.full_name as agent_name
       FROM interest_loans l
       JOIN interest_customers c ON l.customer_id = c.id
-      JOIN interest_schemes s ON l.scheme_id = s.id
+      LEFT JOIN interest_schemes s ON l.scheme_id = s.id
       LEFT JOIN users u ON l.assigned_agent_id = u.id
       WHERE l.id = ?
     `, [id]);
@@ -667,23 +674,49 @@ export async function createLoan(req, res) {
       notes,
     } = req.body;
 
-    if (!customer_id || !scheme_id || !principal_amount || !tenure_periods) {
+    if (!customer_id || !principal_amount || !tenure_periods) {
       await connection.rollback();
-      return res.status(400).json({ success: false, message: 'Customer, Scheme, Principal, and Tenure are required' });
+      return res.status(400).json({ success: false, message: 'Customer, Principal, and Tenure are required' });
     }
 
-    // Verify Scheme
-    const [[scheme]] = await connection.query('SELECT * FROM interest_schemes WHERE id = ?', [scheme_id]);
-    if (!scheme) {
-      await connection.rollback();
-      return res.status(400).json({ success: false, message: 'Selected scheme does not exist' });
+    // Verify Scheme or Auto-Provision Default Scheme (Transparent to user)
+    let scheme = null;
+    if (scheme_id) {
+      const [[foundScheme]] = await connection.query('SELECT * FROM interest_schemes WHERE id = ?', [scheme_id]);
+      scheme = foundScheme;
     }
+
+    if (!scheme) {
+      const [[anyActiveScheme]] = await connection.query('SELECT * FROM interest_schemes WHERE status = "ACTIVE" LIMIT 1');
+      scheme = anyActiveScheme;
+    }
+
+    if (!scheme) {
+      const [[anyScheme]] = await connection.query('SELECT * FROM interest_schemes LIMIT 1');
+      scheme = anyScheme;
+    }
+
+    if (!scheme) {
+      // Auto-insert default schemes so that loans can always be created without manual scheme setup
+      await connection.query(`
+        INSERT INTO interest_schemes 
+        (id, scheme_name, scheme_code, description, calculation_method, interest_rate, rate_period, repayment_frequency, min_principal, max_principal, default_principal, min_tenure_periods, max_tenure_periods, default_tenure_periods, status)
+        VALUES 
+        (1, 'Daily Micro-Finance (100 Days)', 'DMF-100D', 'Daily principal and interest recovery over 100 days.', 'FLAT', 10.0000, 'MONTHLY', 'DAILY', 1000.00, 1000000.00, 50000.00, 1, 365, 100, 'ACTIVE'),
+        (2, 'Standard Monthly EMI (Reducing Balance)', 'EMI-REDUCE-12M', 'Standard reducing balance amortization.', 'REDUCING_BALANCE', 18.0000, 'ANNUAL', 'MONTHLY', 1000.00, 10000000.00, 50000.00, 1, 360, 12, 'ACTIVE'),
+        (3, 'Periodic Interest-Only (Bullet Repayment)', 'VADDI-BULLET-MO', 'Monthly interest payment only (Vaddi Vyaparam).', 'INTEREST_ONLY', 2.0000, 'MONTHLY', 'MONTHLY', 1000.00, 5000000.00, 100000.00, 1, 120, 6, 'ACTIVE')
+      `);
+      const [[newScheme]] = await connection.query('SELECT * FROM interest_schemes WHERE id = 1');
+      scheme = newScheme;
+    }
+
+    const effSchemeId = scheme ? scheme.id : 1;
 
     // Use scheme defaults if overrides not passed
-    const effCalcMethod = calculation_method || scheme.calculation_method;
-    const effRate = interest_rate !== undefined ? parseFloat(interest_rate) : parseFloat(scheme.interest_rate);
-    const effRatePeriod = rate_period || scheme.rate_period;
-    const effFrequency = repayment_frequency || scheme.repayment_frequency;
+    const effCalcMethod = calculation_method || (scheme ? scheme.calculation_method : 'FLAT');
+    const effRate = interest_rate !== undefined ? parseFloat(interest_rate) : (scheme ? parseFloat(scheme.interest_rate) : 2.0);
+    const effRatePeriod = rate_period || (scheme ? scheme.rate_period : 'MONTHLY');
+    const effFrequency = repayment_frequency || (scheme ? scheme.repayment_frequency : 'DAILY');
     const effTenure = parseInt(tenure_periods, 10);
     const effPrincipal = roundMoney(principal_amount);
 
@@ -714,7 +747,7 @@ export async function createLoan(req, res) {
         created_by, approved_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      loan_account_number, customer_id, scheme_id, effPrincipal, effCalcMethod,
+      loan_account_number, customer_id, effSchemeId, effPrincipal, effCalcMethod,
       effRate, effRatePeriod, effFrequency, effTenure, calcResult.installment_amount,
       calcResult.total_interest_expected, calcResult.total_payable, disbursement_date,
       calcResult.schedules[0]?.due_date || disbursement_date, calcResult.maturity_date,
@@ -876,7 +909,7 @@ export async function getAgentAssignedCustomers(req, res) {
              ) as customer_total_loans_count
       FROM interest_loans l
       JOIN interest_customers c ON l.customer_id = c.id
-      JOIN interest_schemes s ON l.scheme_id = s.id
+      LEFT JOIN interest_schemes s ON l.scheme_id = s.id
       WHERE (l.assigned_agent_id = ? OR l.assigned_agent_id IS NULL OR ? IN (
         SELECT id FROM users WHERE role IN ('SUPER_ADMIN', 'ADMIN') AND id = ?
       )) AND l.loan_status = 'ACTIVE'
@@ -914,9 +947,9 @@ export async function recordCollection(req, res) {
     // Fetch Loan & Scheme
     const [[loan]] = await connection.query(`
       SELECT l.*, s.allocation_priority, c.full_name as customer_name, c.phone as customer_phone,
-             c.customer_code, s.scheme_name
+             c.customer_code, COALESCE(s.scheme_name, 'Daily Micro-Finance (100 Days)') as scheme_name
       FROM interest_loans l
-      JOIN interest_schemes s ON l.scheme_id = s.id
+      LEFT JOIN interest_schemes s ON l.scheme_id = s.id
       JOIN interest_customers c ON l.customer_id = c.id
       WHERE l.id = ?
     `, [loan_id]);
@@ -1120,11 +1153,11 @@ export async function getCollectionReport(req, res) {
     const { from_date, to_date, payment_method, agent_id } = req.query;
     let query = `
       SELECT c.*, cust.full_name as customer_name, cust.phone as customer_phone,
-             l.loan_account_number, s.scheme_name, u.full_name as agent_name
+             l.loan_account_number, COALESCE(s.scheme_name, 'Daily Micro-Finance (100 Days)') as scheme_name, u.full_name as agent_name
       FROM interest_collections c
       JOIN interest_customers cust ON c.customer_id = cust.id
       JOIN interest_loans l ON c.loan_id = l.id
-      JOIN interest_schemes s ON l.scheme_id = s.id
+      LEFT JOIN interest_schemes s ON l.scheme_id = s.id
       LEFT JOIN users u ON c.collected_by_user_id = u.id
       WHERE c.status = 'CONFIRMED'
     `;
@@ -1197,11 +1230,11 @@ export async function getAgentSummary(req, res) {
     // Recent 50 collections by this agent
     const [recentCollections] = await pool.query(`
       SELECT c.*, cust.full_name as customer_name, cust.phone as customer_phone,
-             l.loan_account_number, s.scheme_name
+             l.loan_account_number, COALESCE(s.scheme_name, 'Daily Micro-Finance (100 Days)') as scheme_name
       FROM interest_collections c
       JOIN interest_customers cust ON c.customer_id = cust.id
       JOIN interest_loans l ON c.loan_id = l.id
-      JOIN interest_schemes s ON l.scheme_id = s.id
+      LEFT JOIN interest_schemes s ON l.scheme_id = s.id
       WHERE c.collected_by_user_id = ? AND c.status = 'CONFIRMED'
       ORDER BY c.collection_date DESC, c.id DESC
       LIMIT 50
