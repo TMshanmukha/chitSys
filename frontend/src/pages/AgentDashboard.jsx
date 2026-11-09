@@ -832,10 +832,25 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       .reduce((sum, m) => sum + Number(m.total_cycle_collected || m.collected_amount || 0), 0);
 
     const totalCollected = cashCollected + onlineCollected;
+    // Today's normal installment collection towards target (capped at installment per member)
+    const normalCollected = activeMembers.reduce((sum, m) => {
+      const coll = Number(m.total_cycle_collected || m.collected_amount || 0);
+      const adv = Number(m.advance_collected_today || 0);
+      const norm = Math.max(0, coll - adv);
+      if (norm > 0) return sum + Math.min(installmentAmt, norm);
+      return sum + (m.is_paid ? installmentAmt : 0);
+    }, 0);
+
+    const advanceCollected = activeMembers.reduce((sum, m) => {
+      const coll = Number(m.total_cycle_collected || m.collected_amount || 0);
+      const adv = Number(m.advance_collected_today || 0);
+      return sum + (adv > 0 ? adv : Math.max(0, coll - installmentAmt));
+    }, 0);
+
     const pendingAmount = isDue
-      ? unpaidMembers.reduce((sum, m) => sum + Number(m.remaining_balance || installmentAmt), 0)
+      ? Math.max(0, targetExpected - normalCollected)
       : 0;
-    const progressPercent = targetExpected > 0 ? Math.min(100, Math.round((totalCollected / targetExpected) * 100)) : (totalCollected > 0 ? 100 : 0);
+    const progressPercent = targetExpected > 0 ? Math.min(100, Math.round((normalCollected / targetExpected) * 100)) : (normalCollected > 0 ? 100 : 0);
 
     const isAuction = !isDaily || group.chit_type === 'AUCTION_CHIT';
     const isDouble = isDaily && group.chit_type === 'DOUBLE_CHIT';
@@ -861,6 +876,8 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
       cashCollected,
       upiCollected,
       onlineCollected,
+      normalCollected,
+      advanceCollected,
       totalCollected,
       pendingAmount,
       progressPercent,
@@ -902,11 +919,17 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
     }, 0);
   }, [totalRouteTargetExpected, totalTargetExpected, user, routesData.groups, routesData.members]);
 
-  const todayCollectedTotal = Number(routesData.summary?.todayTotal || 0);
+  const todayTotalCollected = Number(routesData.summary?.todayTotal || 0);
+  const todayAdvanceTotal = Number(routesData.summary?.todayAdvanceTotal || 0);
+  const todayNormalCollectedTotal = Number(
+    routesData.summary?.todayNormalTotal !== undefined
+      ? routesData.summary.todayNormalTotal
+      : Math.max(0, todayTotalCollected - todayAdvanceTotal)
+  );
   const targetProgressPercent = agentDailyTarget > 0 
-    ? Math.min(100, Math.round((todayCollectedTotal / agentDailyTarget) * 100))
-    : (todayCollectedTotal > 0 ? 100 : 0);
-  const targetRemainingAmount = Math.max(0, agentDailyTarget - todayCollectedTotal);
+    ? Math.min(100, Math.round((todayNormalCollectedTotal / agentDailyTarget) * 100))
+    : (todayNormalCollectedTotal > 0 ? 100 : 0);
+  const targetRemainingAmount = Math.max(0, agentDailyTarget - todayNormalCollectedTotal);
 
   // Differentiated Chit filter for Agent Profile (Never mix different chits together)
   const displayedProfileRoutes = useMemo(() => {
@@ -1384,6 +1407,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             >
               ₹{agentDailyTarget.toLocaleString('en-IN')}
             </div>
+            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate mt-0.5 flex items-center justify-between">
+              <span>Today's Collection:</span>
+              <strong className="text-emerald-600 dark:text-emerald-400 font-mono">₹{todayNormalCollectedTotal.toLocaleString('en-IN')}</strong>
+            </div>
             {Number(routesData.summary?.todayAdvanceAdjusted || 0) > 0 && (
               <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 truncate mt-0.5 block">
                 ✨ ₹{Number(routesData.summary.todayAdvanceAdjusted).toLocaleString('en-IN')} advance adjusted
@@ -1411,20 +1438,24 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             </div>
           </div>
 
-          {/* 2. Today's Collections */}
+          {/* 2. Total Collected */}
           <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
-              Today's Collections
+              Total Collected
             </span>
             <div
               className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${Number(routesData.summary?.todayTotal || 0).toLocaleString('en-IN')}`}
+              title={`₹${todayTotalCollected.toLocaleString('en-IN')}`}
             >
-              ₹{Number(routesData.summary?.todayTotal || 0).toLocaleString('en-IN')}
+              ₹{todayTotalCollected.toLocaleString('en-IN')}
             </div>
-            {Number(routesData.summary?.todayAdvanceTotal || 0) > 0 && (
+            {todayAdvanceTotal > 0 ? (
               <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 truncate mt-0.5 block">
-                ⚡ Incl. ₹{Number(routesData.summary.todayAdvanceTotal).toLocaleString('en-IN')} Advance
+                ⚡ Incl. ₹{todayAdvanceTotal.toLocaleString('en-IN')} Advance
+              </span>
+            ) : (
+              <span className="text-[10px] text-slate-400 truncate mt-0.5 block">
+                Regular Installments
               </span>
             )}
             <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
@@ -1874,12 +1905,27 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   const groupActiveTasks = groupTasks.filter((t) => !t.isPaidToAdmin);
                   const groupPaidCount = groupActiveTasks.filter((t) => t.isPaid).length;
                   const groupTotalCount = groupActiveTasks.length;
-                  const groupPercent =
-                    groupTotalCount > 0 ? Math.round((groupPaidCount / groupTotalCount) * 100) : (groupAdminPaidCount > 0 ? 100 : 0);
-                  const groupCollectedAmt = groupActiveTasks
-                    .filter((t) => t.isPaid)
-                    .reduce((sum, t) => sum + (t.rawMember?.collected_amount || t.expectedAmount), 0);
+                  const groupNormalCollectedAmt = groupActiveTasks.reduce((sum, t) => {
+                    const coll = Number(t.rawMember?.collected_amount || 0);
+                    const adv = Number(t.rawMember?.advance_collected_today || 0);
+                    const norm = Math.max(0, coll - adv);
+                    if (norm > 0) return sum + Math.min(t.expectedAmount, norm);
+                    return sum + (t.isPaid ? t.expectedAmount : 0);
+                  }, 0);
+
+                  const groupAdvanceCollectedAmt = groupActiveTasks.reduce((sum, t) => {
+                    const coll = Number(t.rawMember?.collected_amount || 0);
+                    const adv = Number(t.rawMember?.advance_collected_today || 0);
+                    return sum + (adv > 0 ? adv : Math.max(0, coll - t.expectedAmount));
+                  }, 0);
+
+                  const groupTotalCollectedAmt = groupActiveTasks.reduce((sum, t) => {
+                    return sum + Number(t.rawMember?.collected_amount || (t.isPaid ? t.expectedAmount : 0));
+                  }, 0);
+
                   const groupTargetAmt = groupActiveTasks.reduce((sum, t) => sum + t.expectedAmount, 0);
+                  const groupPercent =
+                    groupTargetAmt > 0 ? Math.min(100, Math.round((groupNormalCollectedAmt / groupTargetAmt) * 100)) : (groupNormalCollectedAmt > 0 ? 100 : 0);
 
                   return (
                     <div
@@ -1950,12 +1996,17 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                         <div className="flex items-center gap-4 self-end sm:self-center">
                           <div className="text-right">
                             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
-                              Collected:{' '}
+                              Today's Collection:{' '}
                               <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                                ₹{groupCollectedAmt.toLocaleString('en-IN')}
+                                ₹{groupNormalCollectedAmt.toLocaleString('en-IN')}
                               </span>{' '}
                               / ₹{groupTargetAmt.toLocaleString('en-IN')}
                             </span>
+                            {groupAdvanceCollectedAmt > 0 && (
+                              <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold block">
+                                ⚡ +₹{groupAdvanceCollectedAmt.toLocaleString('en-IN')} Advance (Total: ₹{groupTotalCollectedAmt.toLocaleString('en-IN')})
+                              </span>
+                            )}
                             <span className="text-[10px] text-slate-400 font-medium">
                               {groupPaidCount} of {groupTotalCount} stops ({groupPercent}%)
                               {groupAdminPaidCount > 0 && (
@@ -3346,7 +3397,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                               <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
                                 <span>Cycle Collection Progress</span>
                                 <span>
-                                  <strong>{stats.paidMembers.length}</strong> of {stats.agentMembers.length} Subscribers Paid ({stats.progressPercent}%) · Total Collected: <strong>₹{stats.totalCollected.toLocaleString('en-IN')}</strong>
+                                  <strong>{stats.paidMembers.length}</strong> of {stats.agentMembers.length} Subscribers Paid ({stats.progressPercent}%) · Today's Collection: <strong>₹{stats.normalCollected.toLocaleString('en-IN')}</strong>{stats.advanceCollected > 0 ? ` (+₹${stats.advanceCollected.toLocaleString('en-IN')} Adv)` : ''}
                                 </span>
                               </div>
                               <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">

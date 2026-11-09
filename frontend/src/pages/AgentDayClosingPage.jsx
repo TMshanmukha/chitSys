@@ -221,23 +221,25 @@ export default function AgentDayClosingPage() {
   }, [summary, data, chitBreakdown]);
 
   const effectiveAgentTarget = useMemo(() => {
-    const rawTarget = Number(summary.grandExpectedTarget || data?.expectedTarget || 0);
-    const agentCollected = Number(data?.totalCollected || 0);
-    if (rawTarget > 0) {
-      if (adminTotalCollected > 0 && rawTarget > adminTotalCollected) {
-        return rawTarget - adminTotalCollected;
-      }
-      return rawTarget;
-    }
-    return agentCollected;
-  }, [summary, data, adminTotalCollected]);
+    return Number(summary.grandExpectedTarget || data?.expectedTarget || 0);
+  }, [summary, data]);
+
+  const effectiveAdvanceCollected = Number(summary.totalAdvanceCollected || data?.totalAdvanceCollected || 0);
+  const effectiveTotalCollected = Number(data?.totalCollected || summary.totalCollected || 0);
+  const effectiveNormalCollected = Number(
+    summary.totalNormalCollected !== undefined
+      ? summary.totalNormalCollected
+      : (data?.totalNormalCollected !== undefined
+          ? data.totalNormalCollected
+          : Math.max(0, effectiveTotalCollected - effectiveAdvanceCollected))
+  );
 
   const effectiveStopsVisited = Number(data?.totalStopsVisited || 0);
   const effectiveStopsPending = Number(data?.totalStopsPending || 0);
   const effectiveTotalStops = effectiveStopsVisited + effectiveStopsPending;
   const targetCompletionPercent = effectiveAgentTarget > 0
-    ? Math.min(100, Math.round((Number(data?.totalCollected || 0) / effectiveAgentTarget) * 100))
-    : (Number(data?.totalCollected || 0) > 0 ? 100 : 0);
+    ? Math.min(100, Math.round((effectiveNormalCollected / effectiveAgentTarget) * 100))
+    : (effectiveNormalCollected > 0 ? 100 : 0);
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fadeIn pb-16 font-sans px-1 sm:px-0">
@@ -488,9 +490,15 @@ export default function AgentDayClosingPage() {
               />
             </div>
             <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-1">
-              <span>Collected: ₹{Number(data?.totalCollected || 0).toLocaleString('en-IN')}</span>
+              <span>Today's Collection: <strong className="text-emerald-600 dark:text-emerald-400 font-bold">₹{effectiveNormalCollected.toLocaleString('en-IN')}</strong></span>
               <span>Target: ₹{effectiveAgentTarget.toLocaleString('en-IN')}</span>
             </div>
+            {effectiveAdvanceCollected > 0 && (
+              <div className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold flex items-center justify-between pt-0.5 border-t border-slate-100 dark:border-slate-800">
+                <span>Advance Collected (Separate):</span>
+                <span>+ ₹{effectiveAdvanceCollected.toLocaleString('en-IN')} (Total Inflow: ₹{effectiveTotalCollected.toLocaleString('en-IN')})</span>
+              </div>
+            )}
           </div>
         </div>
 

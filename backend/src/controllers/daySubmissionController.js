@@ -277,7 +277,7 @@ export async function calculateDayWorkData(agentId, workDate) {
       const pendingAmount = isDaily
         ? actualPendingDue
         : (cycleInfo?.isDeadlineToday ? actualPendingDue : (hasTimeRemaining ? actualPendingDue : 0));
-      const progressPercent = expectedTarget > 0 ? Math.min(100, Math.round((gAgentTotal / expectedTarget) * 100)) : (gAgentTotal > 0 ? 100 : 0);
+      const progressPercent = expectedTarget > 0 ? Math.min(100, Math.round((gAgentNormal / expectedTarget) * 100)) : (gAgentNormal > 0 ? 100 : 0);
 
       return {
         groupId: g.id,
@@ -327,10 +327,14 @@ export async function calculateDayWorkData(agentId, workDate) {
     const adminTotalCollected = chitBreakdown.reduce((sum, item) => sum + (item.adminCollected || 0), 0);
     const adminPaidMembersCount = chitBreakdown.reduce((sum, item) => sum + (item.adminPaidSubscribersCount || 0), 0);
 
+    const totalAdvanceCollected = chitBreakdown.reduce((sum, item) => sum + (item.advanceCollection || 0), 0);
+    const totalAdvanceAdjusted = chitBreakdown.reduce((sum, item) => sum + (item.advanceAdjusted || 0), 0);
+    const totalNormalCollected = Math.max(0, totalCollected - totalAdvanceCollected);
+
     const grandExpectedTarget = chitBreakdown.reduce((sum, item) => sum + item.expectedTarget, 0);
     const overallCompletionPercent = grandExpectedTarget > 0
-      ? Math.min(100, Math.round((totalCollected / grandExpectedTarget) * 100))
-      : (totalCollected > 0 ? 100 : 0);
+      ? Math.min(100, Math.round((totalNormalCollected / grandExpectedTarget) * 100))
+      : (totalNormalCollected > 0 ? 100 : 0);
 
     const cashSharePercent = totalCollected > 0 ? Math.round((cashCollected / totalCollected) * 100) : 0;
     const upiSharePercent = totalCollected > 0 ? Math.round((upiCollected / totalCollected) * 100) : 0;
@@ -340,9 +344,12 @@ export async function calculateDayWorkData(agentId, workDate) {
 
     const dailyTarget = dailyChits.reduce((sum, item) => sum + item.expectedTarget, 0);
     const dailyCollected = dailyChits.reduce((sum, item) => sum + item.totalCollected, 0);
+    const dailyNormalCollected = dailyChits.reduce((sum, item) => sum + (item.normalCollection || 0), 0);
+    const dailyAdvanceCollected = dailyChits.reduce((sum, item) => sum + (item.advanceCollection || 0), 0);
     const dailyPending = dailyChits.reduce((sum, item) => sum + Number(item.pendingAmount || 0), 0);
 
     const monthlyCollectedToday = monthlyChits.reduce((sum, item) => sum + item.totalCollected, 0);
+    const monthlyNormalCollectedToday = monthlyChits.reduce((sum, item) => sum + (item.normalCollection || 0), 0);
     const monthlySubscribersCollectedToday = monthlyChits.reduce((sum, item) => sum + item.paidSubscribersCount, 0);
     const monthlySubscribersTimeRemaining = monthlyChits.reduce(
       (sum, item) => sum + (item.hasTimeRemaining ? item.unpaidSubscribersCount : 0),
@@ -352,10 +359,6 @@ export async function calculateDayWorkData(agentId, workDate) {
       (sum, item) => sum + (!item.hasTimeRemaining ? item.unpaidSubscribersCount : 0),
       0
     );
-
-    const totalAdvanceCollected = chitBreakdown.reduce((sum, item) => sum + (item.advanceCollection || 0), 0);
-    const totalAdvanceAdjusted = chitBreakdown.reduce((sum, item) => sum + (item.advanceAdjusted || 0), 0);
-    const totalNormalCollected = Math.max(0, totalCollected - totalAdvanceCollected);
 
     const graphsAnalyses = {
       overallCompletionPercent,
@@ -369,9 +372,11 @@ export async function calculateDayWorkData(agentId, workDate) {
       grandPendingAmount: chitBreakdown.reduce((sum, item) => sum + Number(item.pendingAmount || 0), 0),
       dailyOverview: {
         target: dailyTarget,
-        collected: dailyCollected,
+        collected: dailyNormalCollected,
+        totalCollected: dailyCollected,
+        advanceCollected: dailyAdvanceCollected,
         pending: dailyPending,
-        completionPercent: dailyTarget > 0 ? Math.round((dailyCollected / dailyTarget) * 100) : (dailyCollected > 0 ? 100 : 0),
+        completionPercent: dailyTarget > 0 ? Math.round((dailyNormalCollected / dailyTarget) * 100) : (dailyNormalCollected > 0 ? 100 : 0),
       },
       monthlyOverview: {
         collectedToday: monthlyCollectedToday,

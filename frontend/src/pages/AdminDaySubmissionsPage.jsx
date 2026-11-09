@@ -562,9 +562,15 @@ export default function AdminDaySubmissionsPage() {
                           />
                         </div>
                         <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-                          <span>₹{Number(sub.total_collected).toLocaleString('en-IN')}</span>
+                          <span>Today's Collection: <strong className="text-emerald-600 dark:text-emerald-400 font-bold">₹{Number(graphs.totalNormalCollected !== undefined ? graphs.totalNormalCollected : (Number(sub.total_collected || 0) - Number(graphs.totalAdvanceCollected || 0))).toLocaleString('en-IN')}</strong></span>
                           <span>Target: ₹{Number(graphs.grandExpectedTarget || 0).toLocaleString('en-IN')}</span>
                         </div>
+                        {Number(graphs.totalAdvanceCollected || 0) > 0 && (
+                          <div className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold flex items-center justify-between pt-0.5 border-t border-slate-200/50 dark:border-slate-700/50">
+                            <span>Advance Collected:</span>
+                            <span>+ ₹{Number(graphs.totalAdvanceCollected).toLocaleString('en-IN')} (Total Handover: ₹{Number(sub.total_collected).toLocaleString('en-IN')})</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-2">
