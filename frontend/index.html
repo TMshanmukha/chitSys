@@ -1,69 +1,76 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=finlend_pro_20261106" />
-    <link rel="shortcut icon" href="/favicon.svg?v=finlend_pro_20261106" />
-    <link rel="alternate icon" href="/favicon.svg?v=finlend_pro_20261106" />
-    <link rel="apple-touch-icon" href="/favicon.svg?v=finlend_pro_20261106" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="ChitFund Pro & FinLend Pro - Secure Chit Fund & Daily/Monthly Collection Management System" />
-    <meta name="theme-color" content="#2563eb" />
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="ard" href="/.well-known/ard.json" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
-    <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
-    </noscript>
-    <title>FinLend Pro & ChitFund Pro</title>
 
-    <script>
-      (function() {
-        try {
-          var saved = localStorage.getItem('chitfund_theme');
-          if (saved === 'dark') {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
-        } catch (e) {}
-      })();
-    </script>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=finlend_pro_20261106" />
+  <link rel="shortcut icon" href="/favicon.svg?v=finlend_pro_20261106" />
+  <link rel="alternate icon" href="/favicon.svg?v=finlend_pro_20261106" />
+  <link rel="apple-touch-icon" href="/favicon.svg?v=finlend_pro_20261106" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="ChitFund Pro & FinLend Pro - Secure Chit Fund & Daily/Monthly Collection Management System" />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="ard" href="/.well-known/ard.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    media="print" onload="this.media='all'" />
+  <noscript>
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+  </noscript>
+  <title>FinLend Pro & ChitFund Pro</title>
 
-    <style>
-      /* UNCONDITIONAL REMOVAL OF NUMBER INPUT STEPPER ARROWS & SPINNERS ACROSS ALL BROWSERS (CHROME, EDGE, SAFARI, FIREFOX, OPERA) */
-      input::-webkit-outer-spin-button,
-      input::-webkit-inner-spin-button,
-      input[type="number"]::-webkit-outer-spin-button,
-      input[type="number"]::-webkit-inner-spin-button,
-      input:hover::-webkit-inner-spin-button,
-      input:focus::-webkit-inner-spin-button,
-      input:active::-webkit-inner-spin-button,
-      input[type="number"]:hover::-webkit-inner-spin-button,
-      input[type="number"]:focus::-webkit-inner-spin-button,
-      input[type="number"]:active::-webkit-inner-spin-button {
-        -webkit-appearance: none !important;
-        appearance: none !important;
-        margin: 0 !important;
-        display: none !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        width: 0 !important;
-        height: 0 !important;
-      }
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('chitfund_theme');
+        if (saved === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) { }
+    })();
+  </script>
 
-      input[type="number"] {
-        -moz-appearance: textfield !important;
-        appearance: textfield !important;
-      }
-    </style>
-  </head>
+  <style>
+    /* UNCONDITIONAL REMOVAL OF NUMBER INPUT STEPPER ARROWS & SPINNERS ACROSS ALL BROWSERS (CHROME, EDGE, SAFARI, FIREFOX, OPERA) */
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button,
+    input:hover::-webkit-inner-spin-button,
+    input:focus::-webkit-inner-spin-button,
+    input:active::-webkit-inner-spin-button,
+    input[type="number"]:hover::-webkit-inner-spin-button,
+    input[type="number"]:focus::-webkit-inner-spin-button,
+    input[type="number"]:active::-webkit-inner-spin-button {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      margin: 0 !important;
+      display: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
 
-  <body class="antialiased selection:bg-blue-600 selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+    input[type="number"] {
+      -moz-appearance: textfield !important;
+      appearance: textfield !important;
+    }
+  </style>
+</head>
+
+<body class="antialiased selection:bg-blue-600 selection:text-white">
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

@@ -11,3 +11,4 @@ ChitFund Pro and FinLend Pro provide secure financial management for registered 
 
 ## Security & Compliance
 All transactions are authenticated with role-based access control, parameterized database integrity, and encrypted session verification.
+
