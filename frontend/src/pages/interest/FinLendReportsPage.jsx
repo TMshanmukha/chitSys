@@ -14,12 +14,14 @@ import {
 import api from '../../api/client';
 import { useRealtimeSync } from '../../context/RealtimeContext';
 import { formatCurrency, formatDate } from '../../utils/interestUtils';
+import ExportCsvModal from '../../components/ExportCsvModal';
 
 export default function FinLendReportsPage() {
 
   const [activeReport, setActiveReport] = useState('COLLECTIONS'); // 'COLLECTIONS' | 'PENDING' | 'SUMMARY'
   const [dateRange, setDateRange] = useState('THIS_MONTH'); // 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'ALL'
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const [collectionsData, setCollectionsData] = useState([]);
   const [loansData, setLoansData] = useState([]);
@@ -106,7 +108,7 @@ export default function FinLendReportsPage() {
   }, [loansData]);
 
   // Export CSV
-  const handleExportCSV = () => {
+  const handleExportCSV = (customFileName) => {
     if (filteredCollections.length === 0) return;
 
     const headers = ['Receipt #', 'Date', 'Customer', 'Phone', 'Loan Account', 'Amount Collected', 'Payment Method', 'Collected By'];
@@ -125,7 +127,8 @@ export default function FinLendReportsPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `FinLend_Collections_${dateRange}.csv`);
+    const filename = customFileName || `FinLend_Collections_${dateRange}.csv`;
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -156,7 +159,7 @@ export default function FinLendReportsPage() {
 
           <button
             type="button"
-            onClick={handleExportCSV}
+            onClick={() => setIsExportModalOpen(true)}
             className="py-2.5 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 shadow-xs transition-colors font-heading"
           >
             <Download className="w-4 h-4" />
@@ -313,6 +316,16 @@ export default function FinLendReportsPage() {
           </div>
         )}
       </div>
+
+      {/* Custom File Name Export Modal */}
+      <ExportCsvModal
+        isOpen={isExportModalOpen}
+        defaultFileName={`FinLend_Collections_${dateRange}.csv`}
+        title="Export Collections Report"
+        description="Enter a custom file name before downloading your CSV report."
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={(fileName) => handleExportCSV(fileName)}
+      />
     </div>
   );
 }

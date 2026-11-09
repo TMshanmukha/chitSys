@@ -14,11 +14,13 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
+import ExportCsvModal from '../../components/ExportCsvModal';
 
 export default function InterestReportsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Filters
   const [fromDate, setFromDate] = useState('');
@@ -52,6 +54,43 @@ export default function InterestReportsPage() {
   const summary = data?.summary || {};
   const rows = data?.collections || [];
 
+  const handleExportCSV = (customFileName) => {
+    if (!rows || rows.length === 0) return;
+    const headers = [
+      'Receipt #',
+      'Date',
+      'Borrower',
+      'Loan Account',
+      'Scheme',
+      'Principal Component (Rs)',
+      'Interest Component (Rs)',
+      'Total Collected (Rs)',
+      'Payment Method',
+      'Collected By',
+    ];
+    const exportRows = rows.map((r) => [
+      r.receipt_number,
+      formatDate(r.collection_date),
+      `"${r.customer_name || ''}"`,
+      r.loan_account_number,
+      `"${r.scheme_name || ''}"`,
+      r.principal_component,
+      r.interest_component,
+      r.amount_collected,
+      r.payment_method,
+      `"${r.agent_name || 'Admin'}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...exportRows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const filename = customFileName || `FinLend_Financial_Ledger_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6 sm:space-y-7 animate-fadeIn font-sans pb-10">
       {/* Header */}
@@ -72,6 +111,14 @@ export default function InterestReportsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsExportModalOpen(true)}
+            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 transition-all hover:-translate-y-0.5 cursor-pointer shadow-xs font-heading"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export CSV</span>
+          </button>
           <button
             type="button"
             onClick={() => window.print()}
@@ -213,6 +260,16 @@ export default function InterestReportsPage() {
           </div>
         )}
       </div>
+
+      {/* Custom File Name Export Modal */}
+      <ExportCsvModal
+        isOpen={isExportModalOpen}
+        defaultFileName={`FinLend_Financial_Ledger_${new Date().toISOString().slice(0, 10)}.csv`}
+        title="Export Financial Ledger Report"
+        description="Enter a custom file name before downloading your CSV report."
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={(fileName) => handleExportCSV(fileName)}
+      />
     </div>
   );
 }

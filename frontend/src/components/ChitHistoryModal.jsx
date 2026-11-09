@@ -31,6 +31,7 @@ import {
 import { formatDate, formatDateTime, formatTime, getServerDate } from '../utils/dateUtils';
 import ModalPortal from './ModalPortal';
 import ChitCompletionModal from './ChitCompletionModal';
+import ExportCsvModal from './ExportCsvModal';
 import { sendWhatsAppMessage, getChartReminderWhatsAppText, getPassbookWhatsAppText } from '../utils/whatsappUtils';
 
 export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
@@ -38,6 +39,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('charts'); // 'charts' (Member Charts default) | 'overview' | 'members' | 'collections' | 'auctions' | 'nodes'
 
   // Per-chit subscriber filters & sorting
@@ -229,7 +231,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
     sumPendingAmount: filteredChartMembers.reduce((acc, m) => acc + (m.amountRemaining || 0), 0),
   };
 
-  const handleExportSheetCSV = () => {
+  const handleExportSheetCSV = (customFileName) => {
     const headers = [
       'Sl No',
       'Ticket No',
@@ -272,7 +274,8 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `${group?.group_code || 'Chit'}_Member_Charts_Sheet.csv`);
+    const filename = customFileName || `${group?.group_code || 'Chit'}_Member_Charts_Sheet.csv`;
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1027,7 +1030,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={handleExportSheetCSV}
+                        onClick={() => setIsExportModalOpen(true)}
                         className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer font-heading"
                         title="Download as Excel CSV"
                       >
@@ -1455,6 +1458,16 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
             }}
           />
         )}
+
+        {/* Custom File Name Export Modal */}
+        <ExportCsvModal
+          isOpen={isExportModalOpen}
+          defaultFileName={`${group?.group_code || 'Chit'}_Member_Charts_Sheet.csv`}
+          title="Export Member Charts Sheet"
+          description={`Enter a custom file name before downloading the sheet for ${group?.group_name || group?.group_code || 'Chit'}.`}
+          onClose={() => setIsExportModalOpen(false)}
+          onExport={(fileName) => handleExportSheetCSV(fileName)}
+        />
       </div>
     </ModalPortal>
   );

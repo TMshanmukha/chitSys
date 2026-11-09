@@ -37,18 +37,21 @@ import {
   X,
   ChevronUp,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { getFriendlyErrorMessage } from '../utils/friendlyError';
 import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
 import { smoothScrollTo } from '../utils/scrollHelper';
+import ExportCsvModal from '../components/ExportCsvModal';
 
 export default function AdminCommissionsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [copiedKey, setCopiedKey] = useState('');
+  const [exportModalConfig, setExportModalConfig] = useState(null);
 
   // Main Data from Database
   const [data, setData] = useState({
@@ -109,7 +112,7 @@ export default function AdminCommissionsPage() {
       else setLoading(true);
       setError('');
 
-      const params = Object.fromEntries(Object.entries(filters).filter(([,value])=>Boolean(value)));
+      const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => Boolean(value)));
       const [res, duesRes] = await Promise.allSettled([
         api.get('/admin/commissions', { params }),
         api.get('/admin/pending-dues', { params: { groupId: filters.groupId || undefined } })
@@ -243,6 +246,55 @@ export default function AdminCommissionsPage() {
     } finally {
       setRecoveringId(null);
     }
+  };
+
+  const handleExportAuctionsCSV = (customFileName) => {
+    const headers = ['Date', 'Chit Scheme', 'Scheme Code', 'Chit Type', 'Draw #', 'Pool Amount (Rs)', 'Winning Bid (Rs)', 'Foreman Commission (Rs)', 'Winner Name', 'Winning Ticket', 'Status'];
+    const rows = filteredAuctions.map((auc) => [
+      formatDate(auc.auction_date),
+      `"${auc.group_name || ''}"`,
+      auc.group_code || '',
+      auc.chit_type || '',
+      auc.period_number || auc.draw_number || '',
+      auc.total_pool_amount || 0,
+      auc.bid_discount || 0,
+      auc.foreman_commission || 0,
+      `"${auc.winner_name || ''}"`,
+      auc.winning_ticket_number || '',
+      auc.payout_status || '',
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const filename = customFileName || `Foreman_Commission_Ledger_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportPaymentsCSV = (customFileName) => {
+    const headers = ['Receipt #', 'Date', 'Member Name', 'Chit Scheme', 'Ticket #', 'Amount (Rs)', 'Payment Method', 'Collected By'];
+    const rows = filteredPayments.map((p) => [
+      p.receipt_number || '',
+      formatDate(p.collection_date),
+      `"${p.member_name || ''}"`,
+      `"${p.group_name || ''} (${p.group_code || ''})"`,
+      p.ticket_number || '',
+      p.amount || 0,
+      p.payment_method || '',
+      `"${p.agent_name || 'Admin'}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const filename = customFileName || `Member_Payment_Inflows_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const overview = data.financialOverview || {};
@@ -549,22 +601,20 @@ export default function AdminCommissionsPage() {
           <button
             type="button"
             onClick={() => setQuickFrequency('')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              !analyticsFilters.frequency
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${!analyticsFilters.frequency
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
+              }`}
           >
             All Schemes
           </button>
           <button
             type="button"
             onClick={() => setQuickFrequency('DAILY')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              analyticsFilters.frequency === 'DAILY'
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${analyticsFilters.frequency === 'DAILY'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 hover:bg-blue-100 border border-blue-200 dark:border-blue-900/40'
-            }`}
+              }`}
           >
             <span className="w-2 h-2 rounded-full bg-blue-500"></span>
             Daily Chits
@@ -572,11 +622,10 @@ export default function AdminCommissionsPage() {
           <button
             type="button"
             onClick={() => setQuickFrequency('MONTHLY')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              analyticsFilters.frequency === 'MONTHLY'
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${analyticsFilters.frequency === 'MONTHLY'
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-900/40'
-            }`}
+              }`}
           >
             <Gavel className="w-3.5 h-3.5 text-purple-500" />
             Monthly Chits
@@ -988,11 +1037,10 @@ export default function AdminCommissionsPage() {
             setActiveSection('overview');
             smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
           }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-            activeSection === 'overview'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${activeSection === 'overview'
               ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <Shield className="w-4 h-4" />
           <span>Full Admin Profile</span>
@@ -1004,11 +1052,10 @@ export default function AdminCommissionsPage() {
             setActiveSection('auctions');
             smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
           }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-            activeSection === 'auctions'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${activeSection === 'auctions'
               ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <Coins className="w-4 h-4" />
           <span>Foreman Commission Ledger ({auctionLedger.length})</span>
@@ -1020,11 +1067,10 @@ export default function AdminCommissionsPage() {
             setActiveSection('collections');
             smoothScrollTo('admin-profile-details', { offset: 32, behavior: 'smooth' });
           }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-            activeSection === 'collections'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${activeSection === 'collections'
               ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/30'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <Receipt className="w-4 h-4" />
           <span>Collections Inflows ({paymentsLedger.length})</span>
@@ -1034,196 +1080,196 @@ export default function AdminCommissionsPage() {
       {/* SECTION 1: Full Admin Profile (Personal + System Overview) */}
       {activeSection === 'overview' && (
         <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Personal Account Information */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
-                  Administrator Personal Details
-                </h2>
-              </div>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 font-semibold">
-                Database Verified
-              </span>
-            </div>
-
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Full Legal Name</span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  {user.full_name || 'Business Administrator'}
-                </span>
-              </div>
-
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">System Username</span>
-                <span className="font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900/60">
-                  {user.username || 'admin'}
-                </span>
-              </div>
-
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">System User ID</span>
-                <span className="font-mono text-slate-700 dark:text-slate-300">
-                  #{user.id || 1}
-                </span>
-              </div>
-
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Authority Level</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  {user.role === 'SUPER_ADMIN' ? 'Super Administrator (Full Rights)' : 'Administrator'}
-                </span>
-              </div>
-
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Registered Phone</span>
-                <span className="font-mono font-medium text-slate-900 dark:text-white">
-                  {user.phone || '9876543210'}
-                </span>
-              </div>
-
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Official Email</span>
-                <span className="font-medium text-slate-900 dark:text-white">
-                  {profile.official_email || 'admin@chitfundpro.com'}
-                </span>
-              </div>
-
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Account Status</span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Active & Operational
-                </span>
-              </div>
-
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Account Created</span>
-                <span className="text-slate-700 dark:text-slate-300">
-                  {user.created_at ? formatDateTime(user.created_at) : 'System Initialized'}
-                </span>
-              </div>
-
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Last Active Session</span>
-                <span className="text-slate-700 dark:text-slate-300">
-                  {user.last_login_at ? formatDateTime(user.last_login_at) : 'Current Live Session'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Firm & Security Protocol Summary */}
-          <div className="space-y-6">
-            {/* Quick Firm Card */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Personal Account Information */}
             <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    Registered Firm Information
+                    Administrator Personal Details
                   </h2>
                 </div>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 font-semibold">
-                  Licensed
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 font-semibold">
+                  Database Verified
                 </span>
               </div>
 
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Firm Legal Name
-                  </span>
-                  <span className="text-base font-bold text-slate-900 dark:text-white">
-                    {profile.firm_name || 'ChitFund Pro Enterprise Services'}
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Full Legal Name</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {user.full_name || 'Business Administrator'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                      Registration No.
-                    </span>
-                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                      {profile.registration_number || 'CF/TS/2026/8849'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                      Jurisdiction
-                    </span>
-                    <span className="font-medium text-slate-800 dark:text-slate-200 text-xs">
-                      {profile.registrar_office || 'Office of the Registrar of Chits, Telangana'}
-                    </span>
-                  </div>
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">System Username</span>
+                  <span className="font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900/60">
+                    {user.username || 'admin'}
+                  </span>
                 </div>
 
-                <div className="pt-2">
-                  <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Statutory Compliance
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">System User ID</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">
+                    #{user.id || 1}
                   </span>
-                  <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 p-2 rounded-xl block mt-1 border border-blue-200 dark:border-blue-900/60">
-                    {profile.act_compliance || 'Chit Funds Act, 1982 (Act No. 40 of 1982)'}
+                </div>
+
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Authority Level</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    {user.role === 'SUPER_ADMIN' ? 'Super Administrator (Full Rights)' : 'Administrator'}
+                  </span>
+                </div>
+
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Registered Phone</span>
+                  <span className="font-mono font-medium text-slate-900 dark:text-white">
+                    {user.phone || '9876543210'}
+                  </span>
+                </div>
+
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Official Email</span>
+                  <span className="font-medium text-slate-900 dark:text-white">
+                    {profile.official_email || 'admin@chitfundpro.com'}
+                  </span>
+                </div>
+
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Account Status</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Active & Operational
+                  </span>
+                </div>
+
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Account Created</span>
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {user.created_at ? formatDateTime(user.created_at) : 'System Initialized'}
+                  </span>
+                </div>
+
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Last Active Session</span>
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {user.last_login_at ? formatDateTime(user.last_login_at) : 'Current Live Session'}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* System Operational Oversight & Security Protocol (Replaced bank details with essential admin intelligence) */}
-            <div className="p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 card-interactive-elevate">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    Operational Oversight & Security Protocol
-                  </h2>
+            {/* Firm & Security Protocol Summary */}
+            <div className="space-y-6">
+              {/* Quick Firm Card */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      Registered Firm Information
+                    </h2>
+                  </div>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 font-semibold">
+                    Licensed
+                  </span>
                 </div>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
-                  256-Bit SSL Active
-                </span>
+
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      Firm Legal Name
+                    </span>
+                    <span className="text-base font-bold text-slate-900 dark:text-white">
+                      {profile.firm_name || 'ChitFund Pro Enterprise Services'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        Registration No.
+                      </span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {profile.registration_number || 'CF/TS/2026/8849'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        Jurisdiction
+                      </span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200 text-xs">
+                        {profile.registrar_office || 'Office of the Registrar of Chits, Telangana'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      Statutory Compliance
+                    </span>
+                    <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 p-2 rounded-xl block mt-1 border border-blue-200 dark:border-blue-900/60">
+                      {profile.act_compliance || 'Chit Funds Act, 1982 (Act No. 40 of 1982)'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                  <span className="block text-xs font-semibold text-slate-400">Authority Role</span>
-                  <span className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">
-                    Super Administrator
+              {/* System Operational Oversight & Security Protocol (Replaced bank details with essential admin intelligence) */}
+              <div className="p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 card-interactive-elevate">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      Operational Oversight & Security Protocol
+                    </h2>
+                  </div>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
+                    256-Bit SSL Active
                   </span>
                 </div>
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                  <span className="block text-xs font-semibold text-slate-400">System Database</span>
-                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
-                    chitfund_db (Active)
-                  </span>
-                </div>
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                  <span className="block text-xs font-semibold text-slate-400">Audit Trail</span>
-                  <span className="font-bold text-slate-900 dark:text-white text-xs">
-                    Immutable MySQL Logs
-                  </span>
-                </div>
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                  <span className="block text-xs font-semibold text-slate-400">Statutory Law</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400 text-xs">
-                    Chit Funds Act, 1982
-                  </span>
-                </div>
-              </div>
 
-              {/* Quick Summary Pill Bar */}
-              <div className="p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-xs text-blue-900 dark:text-blue-300">
-                <span className="font-medium">Total Lifetime Foreman Commission:</span>
-                <span className="font-mono font-extrabold text-sm text-blue-700 dark:text-blue-300">
-                  ₹{Number(overview.totalForemanCommission || 0).toLocaleString('en-IN')}
-                </span>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                    <span className="block text-xs font-semibold text-slate-400">Authority Role</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">
+                      Super Administrator
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                    <span className="block text-xs font-semibold text-slate-400">System Database</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                      chitfund_db (Active)
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                    <span className="block text-xs font-semibold text-slate-400">Audit Trail</span>
+                    <span className="font-bold text-slate-900 dark:text-white text-xs">
+                      Immutable MySQL Logs
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                    <span className="block text-xs font-semibold text-slate-400">Statutory Law</span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400 text-xs">
+                      Chit Funds Act, 1982
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Summary Pill Bar */}
+                <div className="p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-xs text-blue-900 dark:text-blue-300">
+                  <span className="font-medium">Total Lifetime Foreman Commission:</span>
+                  <span className="font-mono font-extrabold text-sm text-blue-700 dark:text-blue-300">
+                    ₹{Number(overview.totalForemanCommission || 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         </div>
       )}
 
@@ -1234,22 +1280,37 @@ export default function AdminCommissionsPage() {
             <div>
               <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Statutory Foreman Commission Ledger</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold">
-                  5% Section 21
-                </span>
               </h2>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search scheme, winner..."
-                value={ledgerSearch}
-                onChange={(e) => setLedgerSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              />
+            {/* Actions: Search Input & Export */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search scheme, winner..."
+                  value={ledgerSearch}
+                  onChange={(e) => setLedgerSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setExportModalConfig({
+                    defaultFileName: `Foreman_Commission_Ledger_${new Date().toISOString().slice(0, 10)}.csv`,
+                    title: 'Export Commission Ledger',
+                    description: 'Enter a custom file name before downloading your Foreman Commission ledger.',
+                    onExport: handleExportAuctionsCSV,
+                  })
+                }
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 font-heading"
+                title="Export as CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </button>
             </div>
           </div>
 
@@ -1315,11 +1376,10 @@ export default function AdminCommissionsPage() {
                         </td>
                         <td className="py-3 px-3">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              auc.payout_status === 'COMPLETED'
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${auc.payout_status === 'COMPLETED'
                                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                                 : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                            }`}
+                              }`}
                           >
                             {auc.payout_status || 'PENDING'}
                           </span>
@@ -1354,19 +1414,37 @@ export default function AdminCommissionsPage() {
               </p>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search receipt, member..."
-                value={ledgerSearch}
-                onChange={(e) => {
-                  setLedgerSearch(e.target.value);
-                  setPaymentPage(1);
-                }}
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              />
+            {/* Actions: Search Input & Export */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search receipt, member..."
+                  value={ledgerSearch}
+                  onChange={(e) => {
+                    setLedgerSearch(e.target.value);
+                    setPaymentPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setExportModalConfig({
+                    defaultFileName: `Member_Payment_Inflows_${new Date().toISOString().slice(0, 10)}.csv`,
+                    title: 'Export Payment Inflows',
+                    description: 'Enter a custom file name before downloading your member collection records.',
+                    onExport: handleExportPaymentsCSV,
+                  })
+                }
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 font-heading"
+                title="Export as CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </button>
             </div>
           </div>
 
@@ -1463,6 +1541,20 @@ export default function AdminCommissionsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Reusable Custom Name Export CSV Modal */}
+      {exportModalConfig && (
+        <ExportCsvModal
+          isOpen={Boolean(exportModalConfig)}
+          defaultFileName={exportModalConfig.defaultFileName}
+          title={exportModalConfig.title}
+          description={exportModalConfig.description}
+          onClose={() => setExportModalConfig(null)}
+          onExport={(fileName) => {
+            exportModalConfig.onExport?.(fileName);
+          }}
+        />
       )}
 
     </div>

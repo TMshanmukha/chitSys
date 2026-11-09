@@ -40,9 +40,11 @@ import Pagination from '../components/Pagination';
 import ShowMoreText from '../components/ShowMoreText';
 import { smoothScrollTo, scrollToFormOrModal } from '../utils/scrollHelper';
 import ModalPortal from '../components/ModalPortal';
+import ExportCsvModal from '../components/ExportCsvModal';
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reportsData, setReportsData] = useState({
     summary: {},
@@ -334,11 +336,11 @@ export default function ReportsPage() {
   };
 
   // Export current tab to CSV
-  const handleExportCSV = () => {
+  const handleExportCSV = (customFileName) => {
     const today = new Date().toISOString().slice(0, 10);
     let headers = [];
     let rows = [];
-    let filename = `ChitFund_Report_${activeTab}_${today}.csv`;
+    let filename = customFileName || `ChitFund_Report_${activeTab}_${today}.csv`;
 
     if (activeTab === 'collections') {
       headers = ['Receipt Number', 'Date', 'Member Name', 'Phone', 'Chit Scheme', 'Ticket #', 'Amount (INR)', 'Payment Mode', 'Collected By', 'Reference / Notes'];
@@ -518,7 +520,7 @@ export default function ReportsPage() {
 
           <button
             type="button"
-            onClick={handleExportCSV}
+            onClick={() => setIsExportModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
@@ -1885,6 +1887,16 @@ export default function ReportsPage() {
           </div>
         </ModalPortal>
       )}
+
+      {/* Custom File Name Export Modal */}
+      <ExportCsvModal
+        isOpen={isExportModalOpen}
+        defaultFileName={`ChitFund_Report_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`}
+        title={`Export ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Report`}
+        description="Enter a custom file name before downloading your CSV report."
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={(fileName) => handleExportCSV(fileName)}
+      />
     </div>
   );
 }
