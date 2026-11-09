@@ -13,6 +13,15 @@ export function NotificationProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const prevUnreadRef = useRef(0);
 
+  const getCurrentBusiness = () => {
+    if (typeof window === 'undefined') return 'chitfund';
+    const path = window.location.pathname.toLowerCase();
+    if (path.startsWith('/interest')) return 'interest';
+    if (path.startsWith('/admin') || path.startsWith('/agent')) return 'chitfund';
+    const stored = localStorage.getItem('active_business');
+    return stored === 'interest' ? 'interest' : 'chitfund';
+  };
+
   // Gentle modern harmonic audio chime for new live notifications
   const playNotificationPing = useCallback(() => {
     try {
@@ -54,7 +63,8 @@ export function NotificationProvider({ children }) {
     if (!isAuthenticated || !token) return;
     try {
       if (!isPolling) setLoading(true);
-      const res = await api.get('/notifications');
+      const currentBusiness = getCurrentBusiness();
+      const res = await api.get('/notifications', { params: { business: currentBusiness } });
       if (res.data?.success) {
         const list = res.data.notifications || [];
         const unread = res.data.unreadCount || 0;
@@ -84,6 +94,11 @@ export function NotificationProvider({ children }) {
     if (!socket) return;
 
     const handleNewNotification = (notif) => {
+      const currentBusiness = getCurrentBusiness();
+      if (notif?.business && notif.business !== 'all' && notif.business !== currentBusiness) {
+        // Strict segregation: do not show notifications from other business
+        return;
+      }
       playNotificationPing();
       setNotifications((prev) => {
         // Prevent duplicates
@@ -135,7 +150,8 @@ export function NotificationProvider({ children }) {
     try {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
       setUnreadCount(0);
-      await api.patch('/notifications/mark-all-read');
+      const currentBusiness = getCurrentBusiness();
+      await api.patch('/notifications/mark-all-read', { business: currentBusiness });
     } catch {
       fetchNotifications(false);
     }
@@ -171,7 +187,8 @@ export function NotificationProvider({ children }) {
     try {
       setNotifications([]);
       setUnreadCount(0);
-      await api.delete('/notifications/clear-all');
+      const currentBusiness = getCurrentBusiness();
+      await api.delete('/notifications/clear-all', { params: { business: currentBusiness } });
     } catch {
       fetchNotifications(false);
     }

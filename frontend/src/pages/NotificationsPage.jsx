@@ -177,9 +177,19 @@ export default function NotificationsPage() {
     };
   };
 
+  // Strictly filter notifications by the current business domain
+  const businessNotifications = useMemo(() => {
+    return notifications.filter((item) => {
+      if (isInterest) {
+        return item.business === 'interest' || item.business === 'all' || (item.link && item.link.startsWith('/interest'));
+      }
+      return item.business === 'chitfund' || item.business === 'all' || !item.business || (item.link && !item.link.startsWith('/interest'));
+    });
+  }, [notifications, isInterest]);
+
   // Filter and search logic
   const filteredNotifications = useMemo(() => {
-    return notifications.filter((item) => {
+    return businessNotifications.filter((item) => {
       const details = getNotificationDetails(item);
 
       // Category filter
@@ -200,7 +210,7 @@ export default function NotificationsPage() {
 
       return true;
     });
-  }, [notifications, activeCategory, searchQuery]);
+  }, [businessNotifications, activeCategory, searchQuery]);
 
   // Statistics calculation
   const stats = useMemo(() => {
@@ -208,8 +218,10 @@ export default function NotificationsPage() {
     let collectionCount = 0;
     let routeCount = 0;
     let schemeCount = 0;
+    let unread = 0;
 
-    notifications.forEach((item) => {
+    businessNotifications.forEach((item) => {
+      if (!item.is_read) unread++;
       const det = getNotificationDetails(item);
       if (det.category === 'AUCTION') auctionCount++;
       else if (det.category === 'COLLECTION') collectionCount++;
@@ -218,14 +230,14 @@ export default function NotificationsPage() {
     });
 
     return {
-      total: notifications.length,
-      unread: unreadCount,
+      total: businessNotifications.length,
+      unread,
       auctionCount,
       collectionCount,
       routeCount,
       schemeCount,
     };
-  }, [notifications, unreadCount]);
+  }, [businessNotifications]);
 
   const handleNavigate = (notification, path) => {
     if (!notification.is_read) {

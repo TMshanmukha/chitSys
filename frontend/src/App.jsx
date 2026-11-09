@@ -193,6 +193,8 @@ export default function App() {
                   <Route path="dashboard" element={<InterestAgentPortalPage />} />
                   <Route path="borrowers" element={<InterestAgentPortalPage />} />
                   <Route path="history" element={<InterestAgentPortalPage />} />
+                  <Route path="day-closing" element={<FinLendAgentDayClosingPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="profile" element={<InterestAgentPortalPage />} />
                 </Route>
 

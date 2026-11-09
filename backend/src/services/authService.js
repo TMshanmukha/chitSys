@@ -107,41 +107,60 @@ export async function authenticateUser({
     throw new Error('Invalid credentials. Please try with correct credentials.');
   }
 
-  // Strict Business Segregation for Collection Agents
-  // Only Admin accounts (SUPER_ADMIN / ADMIN) have shared authority across both systems.
-  // Collection agents are bound strictly to their designated business portal.
+  // Business Segregation for Collection Agents
+  // Admin accounts (SUPER_ADMIN / ADMIN) have shared authority across both systems.
+  // Collection agents with assigned_business = 'ALL' or active role profiles are permitted in their designated portals.
   if (user.role === 'COLLECTION_AGENT') {
     const requestedBusiness = (business || 'chitfund').toLowerCase();
-    const assignedBusiness = (user.assigned_business || 'CHITFUND').toUpperCase();
+    let assignedBusiness = (user.assigned_business || 'CHITFUND').toUpperCase();
 
-    if (requestedBusiness === 'interest' && assignedBusiness === 'CHITFUND') {
-      await recordAuditLog({
-        userId: user.id,
-        action: 'CROSS_BUSINESS_ACCESS_BLOCKED',
-        resource: 'AUTH',
-        details: { attemptedPortal: 'FinLend Pro', assignedBusiness },
-        ipAddress,
-        userAgent,
-        status: 'WARNING',
-      });
-      throw new Error(
-        'Invalid credentials. Please try with correct credentials.'
+    // Check if user has an active interest_user_profile
+    let hasActiveInterestProfile = false;
+    try {
+      const [[iProfile]] = await pool.query(
+        'SELECT id, is_active FROM interest_user_profiles WHERE user_id = ? LIMIT 1',
+        [user.id]
       );
-    }
+      if (iProfile && iProfile.is_active) {
+        hasActiveInterestProfile = true;
+        if (assignedBusiness === 'CHITFUND') {
+          // Auto-promote to ALL so user has valid dual access
+          await pool.query("UPDATE users SET assigned_business = 'ALL' WHERE id = ?", [user.id]);
+          assignedBusiness = 'ALL';
+        }
+      }
+    } catch (_) {}
 
-    if (requestedBusiness === 'chitfund' && assignedBusiness === 'INTEREST') {
-      await recordAuditLog({
-        userId: user.id,
-        action: 'CROSS_BUSINESS_ACCESS_BLOCKED',
-        resource: 'AUTH',
-        details: { attemptedPortal: 'ChitFund Pro', assignedBusiness },
-        ipAddress,
-        userAgent,
-        status: 'WARNING',
-      });
-      throw new Error(
-        'Invalid credentials. Please try with correct credentials.'
-      );
+    if (assignedBusiness !== 'ALL') {
+      if (requestedBusiness === 'interest' && assignedBusiness === 'CHITFUND' && !hasActiveInterestProfile) {
+        await recordAuditLog({
+          userId: user.id,
+          action: 'CROSS_BUSINESS_ACCESS_BLOCKED',
+          resource: 'AUTH',
+          details: { attemptedPortal: 'FinLend Pro', assignedBusiness },
+          ipAddress,
+          userAgent,
+          status: 'WARNING',
+        });
+        throw new Error(
+          'Access restricted: This agent account is only registered for ChitFund Pro. Please ask your administrator to grant FinLend access.'
+        );
+      }
+
+      if (requestedBusiness === 'chitfund' && assignedBusiness === 'INTEREST') {
+        await recordAuditLog({
+          userId: user.id,
+          action: 'CROSS_BUSINESS_ACCESS_BLOCKED',
+          resource: 'AUTH',
+          details: { attemptedPortal: 'ChitFund Pro', assignedBusiness },
+          ipAddress,
+          userAgent,
+          status: 'WARNING',
+        });
+        throw new Error(
+          'Access restricted: This agent account is only registered for FinLend Pro.'
+        );
+      }
     }
   }
 

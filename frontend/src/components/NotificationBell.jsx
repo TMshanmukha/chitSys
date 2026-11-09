@@ -21,7 +21,7 @@ import {
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState('ALL'); // 'ALL' | 'UNREAD'
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const { user } = useAuth();
   const menuRef = useRef(null);
   const navigate = useNavigate();
@@ -68,17 +68,32 @@ export default function NotificationBell() {
   }, [isOpen, isMobile]);
 
   // Role and context-aware Notification Center routing
+  const isInterest = location.pathname.startsWith('/interest');
+
   const getNotificationCenterPath = () => {
+    if (location.pathname.startsWith('/interest/agent')) {
+      return '/interest/agent/notifications';
+    }
+    if (isInterest) {
+      return '/interest/notifications';
+    }
     if (user?.role === 'COLLECTION_AGENT' || location.pathname.startsWith('/agent')) {
       return '/agent/notifications';
-    }
-    if (location.pathname.startsWith('/interest')) {
-      return '/interest/notifications';
     }
     return '/admin/notifications';
   };
 
-  const filteredList = notifications.filter((n) => {
+  // Strictly isolate notifications by current business
+  const businessNotifications = notifications.filter((n) => {
+    if (isInterest) {
+      return n.business === 'interest' || n.business === 'all' || (n.link && n.link.startsWith('/interest'));
+    }
+    return n.business === 'chitfund' || n.business === 'all' || !n.business || (n.link && !n.link.startsWith('/interest'));
+  });
+
+  const unreadCount = businessNotifications.filter((n) => !n.is_read).length;
+
+  const filteredList = businessNotifications.filter((n) => {
     if (filter === 'UNREAD') return !n.is_read;
     return true;
   });
@@ -282,7 +297,7 @@ export default function NotificationBell() {
                     <span className="text-[11px]">Mark read</span>
                   </button>
                 )}
-                {notifications.length > 0 && (
+                {businessNotifications.length > 0 && (
                   <button
                     type="button"
                     onClick={clearAll}
@@ -389,7 +404,7 @@ export default function NotificationBell() {
                   <span className="text-[11px]">Mark read</span>
                 </button>
               )}
-              {notifications.length > 0 && (
+              {businessNotifications.length > 0 && (
                 <button
                   type="button"
                   onClick={clearAll}
@@ -413,7 +428,7 @@ export default function NotificationBell() {
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
               }`}
             >
-              All ({notifications.length})
+              All ({businessNotifications.length})
             </button>
             <button
               type="button"

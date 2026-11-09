@@ -3,22 +3,29 @@ import { logger } from '../utils/logger.js';
 import { broadcastNotification } from '../services/realtimeService.js';
 
 /**
- * Get notifications for the authenticated user and their role
+ * Get notifications for the authenticated user and their role, filtered strictly by business
  */
 export async function getNotifications(req, res) {
   try {
     const userRole = req.user.role === 'SUPER_ADMIN' ? 'ADMIN' : req.user.role;
     const userId = req.user.id;
+    const requestedBusiness = req.query.business || req.headers['x-business-scope'] || null;
 
-    // Fetch notifications targeting ALL, user's role, or specifically this user
-    const [rows] = await pool.query(
-      `SELECT id, user_id, target_role, title, message, type, link, is_read, created_at
-       FROM notifications
-       WHERE (target_role = 'ALL' OR target_role = ? OR user_id = ?)
-       ORDER BY created_at DESC
-       LIMIT 200`,
-      [userRole, userId]
-    );
+    let query = `
+      SELECT id, user_id, target_role, title, message, type, link, business, is_read, created_at
+      FROM notifications
+      WHERE (target_role = 'ALL' OR target_role = ? OR user_id = ?)
+    `;
+    const params = [userRole, userId];
+
+    if (requestedBusiness && requestedBusiness !== 'all') {
+      query += ` AND (business = ? OR business = 'all')`;
+      params.push(requestedBusiness.toLowerCase());
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT 200`;
+
+    const [rows] = await pool.query(query, params);
 
     // Calculate unread count
     const unreadCount = rows.filter((n) => !n.is_read).length;
@@ -70,13 +77,20 @@ export async function markAllAsRead(req, res) {
   try {
     const userRole = req.user.role === 'SUPER_ADMIN' ? 'ADMIN' : req.user.role;
     const userId = req.user.id;
+    const requestedBusiness = req.query.business || req.body?.business || null;
 
-    await pool.query(
-      `UPDATE notifications 
-       SET is_read = 1 
-       WHERE (target_role = 'ALL' OR target_role = ? OR user_id = ?) AND is_read = 0`,
-      [userRole, userId]
-    );
+    let query = `
+      UPDATE notifications 
+      SET is_read = 1 
+      WHERE (target_role = 'ALL' OR target_role = ? OR user_id = ?) AND is_read = 0
+    `;
+    const params = [userRole, userId];
+    if (requestedBusiness && requestedBusiness !== 'all') {
+      query += ` AND (business = ? OR business = 'all')`;
+      params.push(requestedBusiness.toLowerCase());
+    }
+
+    await pool.query(query, params);
 
     res.status(200).json({ success: true, message: 'All notifications marked as read' });
   } catch (error) {
@@ -92,12 +106,19 @@ export async function clearAll(req, res) {
   try {
     const userRole = req.user.role === 'SUPER_ADMIN' ? 'ADMIN' : req.user.role;
     const userId = req.user.id;
+    const requestedBusiness = req.query.business || req.body?.business || null;
 
-    await pool.query(
-      `DELETE FROM notifications 
-       WHERE (target_role = 'ALL' OR target_role = ? OR user_id = ?)`,
-      [userRole, userId]
-    );
+    let query = `
+      DELETE FROM notifications 
+      WHERE (target_role = 'ALL' OR target_role = ? OR user_id = ?)
+    `;
+    const params = [userRole, userId];
+    if (requestedBusiness && requestedBusiness !== 'all') {
+      query += ` AND (business = ? OR business = 'all')`;
+      params.push(requestedBusiness.toLowerCase());
+    }
+
+    await pool.query(query, params);
 
     res.status(200).json({ success: true, message: 'All notifications cleared' });
   } catch (error) {
@@ -111,10 +132,11 @@ export async function clearAll(req, res) {
  */
 export async function createNotification({ userId = null, targetRole = 'ALL', title, message, type = 'SYSTEM', link = null, business = 'chitfund' }) {
   try {
+    const cleanBusiness = (business || 'chitfund').toLowerCase();
     const [result] = await pool.query(
-      `INSERT INTO notifications (user_id, target_role, title, message, type, link, is_read, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 0, NOW())`,
-      [userId, targetRole, title, message, type, link]
+      `INSERT INTO notifications (user_id, target_role, title, message, type, link, business, is_read, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())`,
+      [userId, targetRole, title, message, type, link, cleanBusiness]
     );
 
     const insertedId = result.insertId;
@@ -129,10 +151,11 @@ export async function createNotification({ userId = null, targetRole = 'ALL', ti
         message,
         type,
         link,
+        business: cleanBusiness,
         is_read: 0,
         created_at: new Date().toISOString(),
       },
-      business,
+      business: cleanBusiness,
     });
 
     return insertedId;

@@ -399,13 +399,15 @@ export async function updateUser(req, res) {
     // Update password if provided
     if (password && password.trim().length >= 4) {
       const passwordHash = await bcrypt.hash(password.trim(), 12);
-      await pool.query(`UPDATE users SET password_hash = ? WHERE id = ?`, [passwordHash, id]);
+      await pool.query(`UPDATE users SET password_hash = ?, assigned_business = 'ALL' WHERE id = ?`, [passwordHash, id]);
+    } else {
+      await pool.query(`UPDATE users SET assigned_business = 'ALL' WHERE id = ?`, [id]);
     }
 
     // Update full_name and phone in users table if provided
     if (full_name || phone) {
       await pool.query(
-        `UPDATE users SET full_name = COALESCE(?, full_name), phone = COALESCE(?, phone) WHERE id = ?`,
+        `UPDATE users SET full_name = COALESCE(?, full_name), phone = COALESCE(?, phone), assigned_business = 'ALL' WHERE id = ?`,
         [full_name ? full_name.trim() : null, phone ? phone.trim() : null, id]
       );
     }
@@ -541,7 +543,7 @@ export async function resetPassword(req, res) {
 
     const hash = await bcrypt.hash(new_password.trim(), 12);
 
-    await pool.query(`UPDATE users SET password_hash = ? WHERE id = ?`, [hash, id]);
+    await pool.query(`UPDATE users SET password_hash = ?, assigned_business = 'ALL' WHERE id = ?`, [hash, id]);
     await pool.query(`UPDATE interest_user_profiles SET must_change_password = 1 WHERE user_id = ?`, [id]);
 
     await recordInterestAudit({
