@@ -142,9 +142,7 @@ export async function authenticateUser({
           userAgent,
           status: 'WARNING',
         });
-        throw new Error(
-          'Access restricted: This agent account is only registered for ChitFund Pro. Please ask your administrator to grant FinLend access.'
-        );
+        throw new Error('Invalid credentials. Please try with correct credentials.');
       }
 
       if (requestedBusiness === 'chitfund' && assignedBusiness === 'INTEREST') {
@@ -157,9 +155,7 @@ export async function authenticateUser({
           userAgent,
           status: 'WARNING',
         });
-        throw new Error(
-          'Access restricted: This agent account is only registered for FinLend Pro.'
-        );
+        throw new Error('Invalid credentials. Please try with correct credentials.');
       }
     }
   }
