@@ -333,12 +333,13 @@ export default function LoginPage() {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 font-heading">
+                <label htmlFor="login-username" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 font-heading">
                   {selectedRole === 'ADMIN' ? 'Admin Username' : 'Agent Username / ID'}
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
+                    id="login-username"
                     type="text"
                     required
                     value={username}
@@ -350,12 +351,13 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 font-heading">
+                <label htmlFor="login-password" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 font-heading">
                   Password / PIN
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
+                    id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}

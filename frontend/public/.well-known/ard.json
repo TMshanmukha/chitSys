@@ -1,0 +1,26 @@
+{
+  "$schema": "https://ardregistry.net/schema/v1/ard.json",
+  "version": "1.0.0",
+  "name": "ChitFund Pro & FinLend Pro",
+  "description": "Financial management platform for chit funds, reverse auctions, and micro-lending operations.",
+  "entries": [
+    {
+      "id": "urn:air:chitsys:platform:auth",
+      "name": "Authentication & Session",
+      "type": "api",
+      "description": "Role-based authentication and session verification for administrators and collection agents."
+    },
+    {
+      "id": "urn:air:chitsys:platform:chitfund",
+      "name": "ChitFund Management",
+      "type": "service",
+      "description": "Chit scheme administration, auction bidding, dividend calculations, and agent tracking."
+    },
+    {
+      "id": "urn:air:chitsys:platform:finlend",
+      "name": "FinLend Pro",
+      "type": "service",
+      "description": "Loan schemes, EMI schedules, borrower ledgers, and collection reconciliations."
+    }
+  ]
+}

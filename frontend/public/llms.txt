@@ -1,0 +1,13 @@
+# ChitFund Pro & FinLend Pro
+
+> Enterprise chit fund administration, reverse auction calculations, micro-finance lending ledgers, and field collection management.
+
+## Overview
+ChitFund Pro and FinLend Pro provide secure financial management for registered chit fund schemes and daily/monthly micro-loan ledgers.
+
+## Applications
+- [ChitFund Pro](/login?business=chitfund): Chit schemes, reverse auctions, dividend distributions, agent route tracking, and day closing reconciliations.
+- [FinLend Pro](/login?business=interest): Micro-finance loan disbursements, EMI passbooks, interest calculation, and agent collection management.
+
+## Security & Compliance
+All transactions are authenticated with role-based access control, parameterized database integrity, and encrypted session verification.

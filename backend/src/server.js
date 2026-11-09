@@ -29,7 +29,35 @@ app.set('trust proxy', 1);
 // Security Headers
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Allows flexible API usage
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        connectSrc: [
+          "'self'",
+          "https://chitsys-frontend.vercel.app",
+          "https://chitfund-backend-vb2t.onrender.com",
+          "wss://chitfund-backend-vb2t.onrender.com",
+          "http://localhost:*",
+          "ws://localhost:*",
+          "http://127.0.0.1:*",
+          "ws://127.0.0.1:*"
+        ],
+        frameAncestors: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    frameguard: { action: 'sameorigin' },
+    xContentTypeOptions: true,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     crossOriginEmbedderPolicy: false,
   })
 );

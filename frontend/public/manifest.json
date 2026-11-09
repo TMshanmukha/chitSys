@@ -1,0 +1,17 @@
+{
+  "name": "FinLend Pro & ChitFund Pro",
+  "short_name": "ChitSys",
+  "description": "Secure Chit Fund & Daily/Monthly Collection Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b111f",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

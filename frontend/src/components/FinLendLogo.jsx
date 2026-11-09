@@ -23,6 +23,7 @@ export default function FinLendLogo({
 
   return (
     <div
+      role="img"
       className={`inline-flex items-center justify-center select-none shrink-0 ${className}`}
       style={{ width: size, height: size }}
       title={alt}
