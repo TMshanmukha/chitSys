@@ -86,11 +86,19 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
           if (id && !seenStaff.has(String(id))) {
             seenStaff.add(String(id));
             const role = (u.role || '').toUpperCase();
-            if (role === 'COLLECTION_AGENT' || role === 'ADMIN' || role === 'OWNER' || role === 'SUPER_ADMIN') {
+            if (
+              role === 'COLLECTION_AGENT' ||
+              role === 'AGENT' ||
+              role === 'ADMIN' ||
+              role === 'OWNER' ||
+              role === 'SUPER_ADMIN' ||
+              role === 'STAFF' ||
+              role === 'MANAGER'
+            ) {
               uniqueStaff.push({
                 id: String(id),
                 full_name: u.full_name || u.name || u.username,
-                phone: u.phone || '',
+                phone: u.phone || u.profile_phone || u.user_phone || '',
                 role: u.role,
               });
             }
@@ -731,11 +739,15 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-heading"
                 >
                   <option value="">-- Choose Field Collection Agent --</option>
-                  {agentsList.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.full_name} {a.phone ? `(${a.phone})` : ''} - {a.role === 'COLLECTION_AGENT' ? 'Agent' : 'Staff'}
-                    </option>
-                  ))}
+                  {agentsList.map((a) => {
+                    const r = (a.role || '').toUpperCase();
+                    const isAgent = r === 'COLLECTION_AGENT' || r === 'AGENT';
+                    return (
+                      <option key={a.id} value={a.id}>
+                        {a.full_name} {a.phone ? `(${a.phone})` : ''} - {isAgent ? 'Agent' : 'Staff'}
+                      </option>
+                    );
+                  })}
                 </select>
                 <p className="text-[11px] text-slate-400 mt-1">
                   Assigned agent will see this borrower on their daily route and collection sheet.

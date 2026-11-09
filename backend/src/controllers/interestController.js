@@ -417,6 +417,114 @@ export async function createCustomer(req, res) {
   }
 }
 
+export async function updateCustomer(req, res) {
+  try {
+    const { id } = req.params;
+    const {
+      full_name,
+      phone,
+      alternate_phone,
+      email,
+      address,
+      city,
+      pincode,
+      aadhaar_number,
+      pan_number,
+      nominee_name,
+      nominee_phone,
+      nominee_relation,
+      guarantor_name,
+      guarantor_phone,
+      guarantor_address,
+      notes,
+      photo_url,
+      status,
+    } = req.body;
+
+    const [[existing]] = await pool.query('SELECT * FROM interest_customers WHERE id = ? LIMIT 1', [id]);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+
+    if (phone && String(phone).trim() !== existing.phone) {
+      const cleanPhone = String(phone).trim();
+      const [duplicate] = await pool.query(
+        'SELECT id, full_name, customer_code FROM interest_customers WHERE phone = ? AND id != ? LIMIT 1',
+        [cleanPhone, id]
+      );
+      if (duplicate && duplicate.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Another customer already exists with phone number ${cleanPhone} (${duplicate[0].full_name} · ${duplicate[0].customer_code})`,
+        });
+      }
+    }
+
+    await pool.query(
+      `UPDATE interest_customers SET
+        full_name = COALESCE(?, full_name),
+        phone = COALESCE(?, phone),
+        alternate_phone = ?,
+        email = ?,
+        address = ?,
+        city = ?,
+        pincode = ?,
+        aadhaar_number = ?,
+        pan_number = ?,
+        photo_url = COALESCE(?, photo_url),
+        nominee_name = ?,
+        nominee_phone = ?,
+        nominee_relation = ?,
+        guarantor_name = ?,
+        guarantor_phone = ?,
+        guarantor_address = ?,
+        notes = ?,
+        status = COALESCE(?, status),
+        updated_at = NOW()
+      WHERE id = ?`,
+      [
+        full_name?.trim() || existing.full_name,
+        phone?.trim() || existing.phone,
+        alternate_phone !== undefined ? (alternate_phone?.trim() || null) : existing.alternate_phone,
+        email !== undefined ? (email?.trim() || null) : existing.email,
+        address !== undefined ? (address?.trim() || null) : existing.address,
+        city !== undefined ? (city?.trim() || null) : existing.city,
+        pincode !== undefined ? (pincode?.trim() || null) : existing.pincode,
+        aadhaar_number !== undefined ? (aadhaar_number?.trim() || null) : existing.aadhaar_number,
+        pan_number !== undefined ? (pan_number?.trim() || null) : existing.pan_number,
+        photo_url !== undefined ? (photo_url || null) : existing.photo_url,
+        nominee_name !== undefined ? (nominee_name?.trim() || null) : existing.nominee_name,
+        nominee_phone !== undefined ? (nominee_phone?.trim() || null) : existing.nominee_phone,
+        nominee_relation !== undefined ? (nominee_relation?.trim() || null) : existing.nominee_relation,
+        guarantor_name !== undefined ? (guarantor_name?.trim() || null) : existing.guarantor_name,
+        guarantor_phone !== undefined ? (guarantor_phone?.trim() || null) : existing.guarantor_phone,
+        guarantor_address !== undefined ? (guarantor_address?.trim() || null) : existing.guarantor_address,
+        notes !== undefined ? (notes?.trim() || null) : existing.notes,
+        status || existing.status,
+        id,
+      ]
+    );
+
+    const [[updated]] = await pool.query('SELECT * FROM interest_customers WHERE id = ? LIMIT 1', [id]);
+
+    broadcastSync({
+      business: 'interest',
+      entity: 'customers',
+      action: 'UPDATE',
+      data: updated,
+    });
+
+    res.json({
+      success: true,
+      message: 'Customer updated successfully',
+      data: updated,
+    });
+  } catch (error) {
+    logger.error('Failed to update customer', error);
+    res.status(500).json({ success: false, message: 'Failed to update customer details' });
+  }
+}
+
 /**
  * ============================================================================
  * 4. LOAN ORIGINATION & ACCOUNTS MANAGEMENT

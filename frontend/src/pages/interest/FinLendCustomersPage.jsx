@@ -15,6 +15,7 @@ import {
   Camera,
   Image as ImageIcon,
   Trash2,
+  Edit3,
 } from 'lucide-react';
 import api from '../../api/client';
 import { useRealtimeSync } from '../../context/RealtimeContext';
@@ -45,6 +46,92 @@ export default function FinLendCustomersPage() {
     pan_number: '',
     photo_url: '',
   });
+
+  // Edit Customer Modal State
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [updatingCustomer, setUpdatingCustomer] = useState(false);
+  const [editFormError, setEditFormError] = useState('');
+  const [editShowKycFields, setEditShowKycFields] = useState(false);
+  const [editPhotoPreview, setEditPhotoPreview] = useState('');
+  const [editFormData, setEditFormData] = useState({
+    full_name: '',
+    phone: '',
+    alternate_phone: '',
+    city: '',
+    address: '',
+    aadhaar_number: '',
+    pan_number: '',
+    photo_url: '',
+    status: 'ACTIVE',
+  });
+
+  const openEditModal = (c, e) => {
+    e?.stopPropagation();
+    setEditingCustomer(c);
+    setEditFormData({
+      full_name: c.full_name || '',
+      phone: c.phone || '',
+      alternate_phone: c.alternate_phone || '',
+      city: c.city || '',
+      address: c.address || '',
+      aadhaar_number: c.aadhaar_number || '',
+      pan_number: c.pan_number || '',
+      photo_url: c.photo_url || '',
+      status: c.status || 'ACTIVE',
+    });
+    setEditPhotoPreview(c.photo_url || '');
+    setEditFormError('');
+    setEditShowKycFields(Boolean(c.aadhaar_number || c.pan_number || c.alternate_phone));
+    setIsEditOpen(true);
+  };
+
+  const handleEditPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setEditFormError('Image size should be less than 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditPhotoPreview(reader.result);
+        setEditFormData((prev) => ({ ...prev, photo_url: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUpdateCustomer = async (e) => {
+    e.preventDefault();
+    if (!editingCustomer?.id) return;
+    setEditFormError('');
+
+    if (!editFormData.full_name.trim()) {
+      setEditFormError('Please enter the customer full name.');
+      return;
+    }
+    if (!editFormData.phone.trim() || editFormData.phone.trim().length < 10) {
+      setEditFormError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    try {
+      setUpdatingCustomer(true);
+      const res = await api.put(`/interest/customers/${editingCustomer.id}`, editFormData);
+      if (res.data?.success) {
+        setIsEditOpen(false);
+        setEditingCustomer(null);
+        await loadCustomers(true);
+      } else {
+        setEditFormError(res.data?.message || 'Failed to update customer.');
+      }
+    } catch (err) {
+      setEditFormError(err.response?.data?.message || 'Failed to update customer details.');
+    } finally {
+      setUpdatingCustomer(false);
+    }
+  };
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
@@ -269,12 +356,24 @@ export default function FinLendCustomersPage() {
                     </span>
                   ) : null}
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hidden sm:inline">
-                      Passbook
-                    </span>
-                    <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      <ChevronRight className="w-4 h-4" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => openEditModal(c, e)}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800/80 dark:hover:bg-indigo-950/60 text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 border border-slate-200/80 dark:border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                      title="Edit customer details"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Edit</span>
+                    </button>
+
+                    <div className="flex items-center gap-1.5 pl-1">
+                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hidden sm:inline">
+                        Passbook
+                      </span>
+                      <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        <ChevronRight className="w-4 h-4" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -462,6 +561,245 @@ export default function FinLendCustomersPage() {
                   className="w-full py-3 px-4 rounded-xl text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all font-heading cursor-pointer disabled:opacity-50"
                 >
                   {savingCustomer ? 'Registering...' : 'Save & Open Passbook'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Edit Customer Modal */}
+      {isEditOpen && editingCustomer && (
+        <ModalPortal id="finlend-edit-customer-modal" isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} preventBackdropClose={true}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 my-auto animate-scaleUp max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white font-heading">
+                    Edit Customer
+                  </h2>
+                  <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                    {editingCustomer.customer_code}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Update borrower details and contact info
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editFormError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{editFormError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateCustomer} className="space-y-3.5">
+              {/* Photo Input */}
+              <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-white/10">
+                <div className="relative w-14 h-14 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-slate-300 dark:border-slate-700">
+                  {editPhotoPreview ? (
+                    <img src={editPhotoPreview} alt="Customer" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-6 h-6 text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                    Customer Photo
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[11px] font-bold cursor-pointer hover:bg-indigo-100 transition-colors">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEditPhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <label className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold cursor-pointer hover:bg-emerald-100 transition-colors">
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Camera</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleEditPhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {editPhotoPreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditPhotoPreview('');
+                          setEditFormData((prev) => ({ ...prev, photo_url: '' }));
+                        }}
+                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[11px] font-bold cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ramesh Kumar"
+                  value={editFormData.full_name}
+                  onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Primary Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="10-digit number"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value.replace(/\D/g, '') })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Alternate Phone
+                  </label>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    placeholder="Optional 10-digit"
+                    value={editFormData.alternate_phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, alternate_phone: e.target.value.replace(/\D/g, '') })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Village / City
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Tenali, Ward 4"
+                  value={editFormData.city}
+                  onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Full Address / Landmark
+                </label>
+                <input
+                  type="text"
+                  placeholder="Door No, Street name, Landmark"
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Status
+                </label>
+                <select
+                  value={editFormData.status}
+                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                </select>
+              </div>
+
+              {/* Collapsed KYC Details */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditShowKycFields(!editShowKycFields)}
+                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>{editShowKycFields ? '- Hide ID Details' : '+ Edit ID Details (Aadhaar / PAN)'}</span>
+                </button>
+
+                {editShowKycFields && (
+                  <div className="mt-2.5 space-y-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-white/5">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                        Aadhaar Number
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={12}
+                        placeholder="12-digit Aadhaar"
+                        value={editFormData.aadhaar_number}
+                        onChange={(e) => setEditFormData({ ...editFormData, aadhaar_number: e.target.value.replace(/\D/g, '') })}
+                        className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                        PAN Card Number
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={10}
+                        placeholder="10-digit PAN"
+                        value={editFormData.pan_number}
+                        onChange={(e) => setEditFormData({ ...editFormData, pan_number: e.target.value.toUpperCase() })}
+                        className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono uppercase"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
+                  className="w-1/3 py-2.5 px-4 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingCustomer}
+                  className="flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all font-heading cursor-pointer disabled:opacity-50"
+                >
+                  {updatingCustomer ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

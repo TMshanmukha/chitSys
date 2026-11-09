@@ -18,12 +18,18 @@ import {
   Check,
   Plus,
   Layers,
+  Edit3,
+  X,
+  Camera,
+  Image as ImageIcon,
+  Trash2,
 } from 'lucide-react';
 import api from '../../api/client';
 import { useRealtimeSync } from '../../context/RealtimeContext';
 import { formatCurrency, formatDate, formatTime, getServerYMD } from '../../utils/interestUtils';
 import QuickCollectSheet from '../../components/interest-ui/QuickCollectSheet';
 import NewLoanModal from '../../components/interest-ui/NewLoanModal';
+import ModalPortal from '../../components/ModalPortal';
 
 // Helper to compute schedule date in format "dd <monthName>" (e.g., "07 Nov") starting from loan creation/disbursement
 const getLoanScheduleDate = (loan, idx) => {
@@ -71,6 +77,88 @@ export default function FinLendPassbookPage() {
   // Modals
   const [isCollectOpen, setIsCollectOpen] = useState(false);
   const [isNewLoanOpen, setIsNewLoanOpen] = useState(false);
+  const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false);
+  const [updatingCust, setUpdatingCust] = useState(false);
+  const [editCustError, setEditCustError] = useState('');
+  const [editCustPhotoPreview, setEditCustPhotoPreview] = useState('');
+  const [editShowKyc, setEditShowKyc] = useState(false);
+  const [editCustForm, setEditCustForm] = useState({
+    full_name: '',
+    phone: '',
+    alternate_phone: '',
+    city: '',
+    address: '',
+    aadhaar_number: '',
+    pan_number: '',
+    photo_url: '',
+    status: 'ACTIVE',
+  });
+
+  const openCustomerEditModal = () => {
+    if (!data?.customer) return;
+    const c = data.customer;
+    setEditCustForm({
+      full_name: c.full_name || '',
+      phone: c.phone || '',
+      alternate_phone: c.alternate_phone || '',
+      city: c.city || '',
+      address: c.address || '',
+      aadhaar_number: c.aadhaar_number || '',
+      pan_number: c.pan_number || '',
+      photo_url: c.photo_url || '',
+      status: c.status || 'ACTIVE',
+    });
+    setEditCustPhotoPreview(c.photo_url || '');
+    setEditCustError('');
+    setEditShowKyc(Boolean(c.aadhaar_number || c.pan_number || c.alternate_phone));
+    setIsEditCustomerOpen(true);
+  };
+
+  const handleEditCustPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setEditCustError('Image size should be less than 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditCustPhotoPreview(reader.result);
+        setEditCustForm((prev) => ({ ...prev, photo_url: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveCustomerEdit = async (e) => {
+    e.preventDefault();
+    if (!id) return;
+    setEditCustError('');
+
+    if (!editCustForm.full_name.trim()) {
+      setEditCustError('Customer full name is required');
+      return;
+    }
+    if (!editCustForm.phone.trim() || editCustForm.phone.trim().length < 10) {
+      setEditCustError('Valid 10-digit mobile number is required');
+      return;
+    }
+
+    try {
+      setUpdatingCust(true);
+      const res = await api.put(`/interest/customers/${id}`, editCustForm);
+      if (res.data?.success) {
+        setIsEditCustomerOpen(false);
+        await loadPassbook();
+      } else {
+        setEditCustError(res.data?.message || 'Failed to update customer');
+      }
+    } catch (err) {
+      setEditCustError(err.response?.data?.message || 'Failed to update customer details');
+    } finally {
+      setUpdatingCust(false);
+    }
+  };
 
   const loadPassbook = async () => {
     try {
@@ -259,6 +347,16 @@ For repayments or balance settlement, contact your loan manager.`;
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-center">
+          <button
+            type="button"
+            onClick={openCustomerEditModal}
+            className="py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/10 flex items-center gap-1.5 shadow-xs transition-colors font-heading cursor-pointer active:scale-95"
+            title="Edit customer details"
+          >
+            <Edit3 className="w-4 h-4 text-indigo-500" />
+            <span>Edit</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsCollectOpen(true)}
@@ -868,6 +966,245 @@ For repayments or balance settlement, contact your loan manager.`;
         onSuccess={loadPassbook}
         initialCustomerId={customer.id}
       />
+
+      {/* Edit Customer Modal */}
+      {isEditCustomerOpen && (
+        <ModalPortal id="finlend-passbook-edit-customer-modal" isOpen={isEditCustomerOpen} onClose={() => setIsEditCustomerOpen(false)} preventBackdropClose={true}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0c1220] border border-slate-200/80 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 my-auto animate-scaleUp max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white font-heading">
+                    Edit Customer
+                  </h2>
+                  <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                    {customer.customer_code}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Update borrower details and contact info
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditCustomerOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editCustError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{editCustError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveCustomerEdit} className="space-y-3.5">
+              {/* Photo Input */}
+              <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-white/10">
+                <div className="relative w-14 h-14 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-slate-300 dark:border-slate-700">
+                  {editCustPhotoPreview ? (
+                    <img src={editCustPhotoPreview} alt="Customer" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-6 h-6 text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                    Customer Photo
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[11px] font-bold cursor-pointer hover:bg-indigo-100 transition-colors">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEditCustPhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <label className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold cursor-pointer hover:bg-emerald-100 transition-colors">
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Camera</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleEditCustPhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {editCustPhotoPreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditCustPhotoPreview('');
+                          setEditCustForm((prev) => ({ ...prev, photo_url: '' }));
+                        }}
+                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[11px] font-bold cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ramesh Kumar"
+                  value={editCustForm.full_name}
+                  onChange={(e) => setEditCustForm({ ...editCustForm, full_name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Primary Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="10-digit number"
+                    value={editCustForm.phone}
+                    onChange={(e) => setEditCustForm({ ...editCustForm, phone: e.target.value.replace(/\D/g, '') })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Alternate Phone
+                  </label>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    placeholder="Optional 10-digit"
+                    value={editCustForm.alternate_phone}
+                    onChange={(e) => setEditCustForm({ ...editCustForm, alternate_phone: e.target.value.replace(/\D/g, '') })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Village / City
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Tenali, Ward 4"
+                  value={editCustForm.city}
+                  onChange={(e) => setEditCustForm({ ...editCustForm, city: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Full Address / Landmark
+                </label>
+                <input
+                  type="text"
+                  placeholder="Door No, Street name, Landmark"
+                  value={editCustForm.address}
+                  onChange={(e) => setEditCustForm({ ...editCustForm, address: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Status
+                </label>
+                <select
+                  value={editCustForm.status}
+                  onChange={(e) => setEditCustForm({ ...editCustForm, status: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                </select>
+              </div>
+
+              {/* Collapsed KYC Details */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditShowKyc(!editShowKyc)}
+                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>{editShowKyc ? '- Hide ID Details' : '+ Edit ID Details (Aadhaar / PAN)'}</span>
+                </button>
+
+                {editShowKyc && (
+                  <div className="mt-2.5 space-y-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-white/5">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                        Aadhaar Number
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={12}
+                        placeholder="12-digit Aadhaar"
+                        value={editCustForm.aadhaar_number}
+                        onChange={(e) => setEditCustForm({ ...editCustForm, aadhaar_number: e.target.value.replace(/\D/g, '') })}
+                        className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                        PAN Card Number
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={10}
+                        placeholder="10-digit PAN"
+                        value={editCustForm.pan_number}
+                        onChange={(e) => setEditCustForm({ ...editCustForm, pan_number: e.target.value.toUpperCase() })}
+                        className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono uppercase"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditCustomerOpen(false)}
+                  className="w-1/3 py-2.5 px-4 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingCust}
+                  className="flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all font-heading cursor-pointer disabled:opacity-50"
+                >
+                  {updatingCust ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 }

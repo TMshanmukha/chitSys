@@ -13,6 +13,7 @@ import {
   getCustomers,
   getCustomerById,
   createCustomer,
+  updateCustomer,
   getLoans,
   getLoanById,
   createLoan,
@@ -62,6 +63,7 @@ router.post('/schemes', requireInterestRole('OWNER', 'MANAGER'), createScheme);
 router.get('/customers', getCustomers);
 router.get('/customers/:id', getCustomerById);
 router.post('/customers', requireInterestPermission('can_edit_customers'), createCustomer);
+router.put('/customers/:id', requireInterestPermission('can_edit_customers'), updateCustomer);
 
 // 6. Loan Accounts Management
 router.get('/loans', getLoans);
