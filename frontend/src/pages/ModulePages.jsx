@@ -1021,9 +1021,20 @@ export function ChitGroupsPage() {
                         {g.group_name}
                       </h3>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase shrink-0 ${badgeColor}`}>
-                      {schemeLabel}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${badgeColor}`}>
+                        {schemeLabel}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditGroup(g)}
+                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                        title="Edit chit scheme details"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
@@ -1094,16 +1105,6 @@ export function ChitGroupsPage() {
                     >
                       <span>💰</span>
                       <span>Collect</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditGroup(g)}
-                      className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-200 dark:border-indigo-800 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
-                      title="Edit chit scheme details"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>Edit</span>
                     </button>
 
                     {g.status === 'COMPLETED' ? (

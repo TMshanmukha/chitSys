@@ -567,3 +567,4 @@ export async function unlockInterestDaySubmission(req, res) {
     res.status(500).json({ success: false, message: error.message || 'Failed to unlock day submission' });
   }
 }
+
