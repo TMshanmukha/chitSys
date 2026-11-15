@@ -200,3 +200,4 @@ export async function deleteHoliday(req, res, next) {
     next(error);
   }
 }
+

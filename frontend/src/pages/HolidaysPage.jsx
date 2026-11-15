@@ -680,3 +680,4 @@ export default function HolidaysPage() {
     </div>
   );
 }
+
