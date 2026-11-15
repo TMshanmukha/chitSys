@@ -12,6 +12,7 @@ import {
   applyCollectionEdit,
   getMyCollectionEditRequests,
 } from '../controllers/collectionEditController.js';
+import { listHolidays } from '../controllers/holidayController.js';
 
 const router = Router();
 
@@ -47,5 +48,8 @@ router.get('/day-unsubmitted', getMyUnsubmittedDays);
 router.get('/leaves', listLeaves);
 router.post('/leaves', createLeave);
 router.get('/leaves/coverage-history', listCoverageHistory);
+
+// Holidays (Tuesday & Declared Calendar)
+router.get('/holidays', listHolidays);
 
 export default router;

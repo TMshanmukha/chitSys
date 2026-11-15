@@ -22,6 +22,7 @@ import {
   Percent,
   ArrowRight,
   FilePenLine,
+  Palmtree,
 } from 'lucide-react';
 import FinLendLogo from './FinLendLogo';
 import { useNotifications } from '../context/NotificationContext';
@@ -73,6 +74,15 @@ const NAV_ITEMS = [
     hoverText: 'hover:text-purple-600 dark:hover:text-purple-400',
   },
   { name: 'Leaves', path: '/admin/leaves', icon: CalendarDays, activeGradient: 'from-emerald-600 to-teal-600', glowColor: 'rgba(16,185,129,.4)', hoverBg: 'hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40', hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400' },
+  {
+    name: 'Holidays',
+    path: '/admin/holidays',
+    icon: Palmtree,
+    activeGradient: 'from-sky-600 to-indigo-600',
+    glowColor: 'rgba(14, 165, 233, 0.4)',
+    hoverBg: 'hover:bg-sky-50/70 dark:hover:bg-sky-950/40',
+    hoverText: 'hover:text-sky-600 dark:hover:text-sky-400',
+  },
   {
     name: 'Day Closings',
     path: '/admin/day-reviews',

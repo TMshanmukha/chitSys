@@ -129,14 +129,6 @@ export async function listGroups(req, res, next) {
 
 export async function createGroup(req, res, next) {
   try {
-    // Validate required agent assignment
-    if (!req.body.assigned_agent_id) {
-      return res.status(400).json({
-        success: false,
-        message: '⚠️ Collection Agent Required: Please assign this chit scheme to an agent before creating.',
-      });
-    }
-
     let derivedFrequency = req.body.frequency;
     let derivedRouteCategory = req.body.route_category;
 
@@ -168,7 +160,7 @@ export async function createGroup(req, res, next) {
       total_members_limit: parseInt(req.body.total_members_limit || 20, 10),
       foreman_commission_percent: req.body.foreman_commission_percent ? parseFloat(req.body.foreman_commission_percent) : 5.0,
       max_bid_percent: req.body.max_bid_percent ? parseFloat(req.body.max_bid_percent) : 35.0,
-      assigned_agent_id: parseInt(req.body.assigned_agent_id, 10),
+      assigned_agent_id: req.body.assigned_agent_id ? parseInt(req.body.assigned_agent_id, 10) : null,
     });
 
     const isDaily = validated.frequency === 'DAILY' || validated.route_category === 'DAILY_ROUTE';

@@ -75,6 +75,24 @@ export async function ensureDefaultSchemes() {
   }
 }
 
+export async function ensureHolidaysTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS company_holidays (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        holiday_date DATE NOT NULL UNIQUE,
+        title VARCHAR(255) NOT NULL,
+        holiday_type VARCHAR(50) DEFAULT 'DECLARED',
+        description TEXT,
+        created_by INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+  } catch (err) {
+    logger.warn('Non-fatal: ensureHolidaysTable check skipped', { message: err.message });
+  }
+}
+
 export async function testConnection() {
   try {
     const connection = await pool.getConnection();
@@ -87,6 +105,7 @@ export async function testConnection() {
 
     // Auto-seed required default entities if database was wiped
     await ensureDefaultSchemes();
+    await ensureHolidaysTable();
 
     return true;
   } catch (error) {

@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import { getTodayIST } from '../utils/dateUtils.js';
+import { isDateHoliday } from '../controllers/holidayController.js';
 
 let tablesEnsured = false;
 
@@ -171,6 +172,23 @@ export async function autoAdjustAdvanceForDate(connection, {
   alreadyCollectedToday = 0,
 }) {
   await ensureAdvanceTables();
+
+  // If today or target date is a weekly Tuesday off or declared holiday, do not deduct advance
+  try {
+    const holidayCheck = await isDateHoliday(dateStr, connection);
+    if (holidayCheck?.isHoliday) {
+      const curBal = await getMemberAdvanceBalance(memberId, groupId, connection);
+      return {
+        adjustedToday: 0,
+        remainingDueToday: 0,
+        remainingAdvanceBalance: curBal,
+        isFullyCovered: false,
+        isHoliday: true,
+        holidayTitle: holidayCheck.title,
+      };
+    }
+  } catch (_) {}
+
   const instAmt = parseFloat(installmentAmount || 0);
   const collToday = parseFloat(alreadyCollectedToday || 0);
   const needed = Math.max(0, instAmt - collToday);

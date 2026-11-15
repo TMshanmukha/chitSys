@@ -30,6 +30,7 @@ import LeaveManagementPage from './pages/LeaveManagementPage';
 import AgentDayClosingPage from './pages/AgentDayClosingPage';
 import AdminDaySubmissionsPage from './pages/AdminDaySubmissionsPage';
 import CollectionEditRequestsPage from './pages/CollectionEditRequestsPage';
+import HolidaysPage from './pages/HolidaysPage';
 import AgentLayout from './components/AgentLayout';
 
 // FinLend Pro Components & Pages (VeeCredit-style Simplified UI)
@@ -96,6 +97,7 @@ export default function App() {
                   <Route path="users" element={<UsersPage />} />
                   <Route path="agents" element={<UsersPage />} />
                   <Route path="leaves" element={<LeaveManagementPage />} />
+                  <Route path="holidays" element={<HolidaysPage />} />
                   <Route path="day-reviews" element={<AdminDaySubmissionsPage />} />
                   <Route path="collection-edits" element={<CollectionEditRequestsPage />} />
                   <Route path="edit-requests" element={<CollectionEditRequestsPage />} />
@@ -128,6 +130,7 @@ export default function App() {
                   <Route path="routes" element={<AgentDashboard key="routes" defaultTab="routes" />} />
                   <Route path="pending-dues" element={<AgentDashboard key="pending-dues" defaultTab="pending-dues" />} />
                   <Route path="leaves" element={<LeaveManagementPage />} />
+                  <Route path="holidays" element={<HolidaysPage />} />
                   <Route path="day-closing" element={<AgentDayClosingPage />} />
                   <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="history" element={<AgentDashboard key="history" defaultTab="history" />} />

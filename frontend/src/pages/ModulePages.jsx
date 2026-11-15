@@ -268,10 +268,6 @@ export function ChitGroupsPage() {
       setError('Please specify the Route Location / Geographic Track before proceeding.');
       return;
     }
-    if (!form.assigned_agent_id) {
-      setError('⚠️ Collection Agent Required: You must assign this chit scheme to a collection agent before proceeding.');
-      return;
-    }
     if (parseFloat(form.installment_amount || '0') <= 0) {
       setError('Installment amount must be greater than ₹0.');
       return;
@@ -416,11 +412,6 @@ export function ChitGroupsPage() {
   const handleCreateGroup = async () => {
     setError('');
     setSuccess('');
-    if (!form.assigned_agent_id) {
-      setError('⚠️ Collection Agent Required: You must assign this chit scheme to a collection agent before saving.');
-      setWizardStep(1);
-      return;
-    }
     const targetMembers = parseInt(form.total_members_limit || '20', 10);
     if (selectedMemberIds.length !== targetMembers) {
       setError(`Cannot save chit scheme: Scheme requires exactly ${targetMembers} subscribers, but you have selected ${selectedMemberIds.length} members.`);
@@ -437,7 +428,7 @@ export function ChitGroupsPage() {
         total_members_limit: targetMembers,
         foreman_commission_percent: parseFloat(form.foreman_commission_percent || 5),
         max_bid_percent: parseFloat(form.max_bid_percent || 35),
-        assigned_agent_id: parseInt(form.assigned_agent_id, 10),
+        assigned_agent_id: form.assigned_agent_id ? parseInt(form.assigned_agent_id, 10) : null,
         member_ids: selectedMemberIds,
       };
 
@@ -1515,30 +1506,23 @@ export function ChitGroupsPage() {
                       </button>
                     </div>
                     <select
-                      required
                       value={form.assigned_agent_id}
                       onChange={(e) => {
                         setForm({ ...form, assigned_agent_id: e.target.value });
                         if (error && error.includes('Collection Agent Required')) setError('');
                       }}
-                      className={`w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs font-medium transition-all ${
-                        !form.assigned_agent_id
-                          ? 'border-amber-400 dark:border-amber-500/60 ring-2 ring-amber-400/20'
-                          : 'border-slate-300 dark:border-slate-700'
-                      }`}
+                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs font-medium transition-all"
                     >
-                      <option value="">-- Select Collection Agent (Required) --</option>
+                      <option value="">-- All Agents (Universal Open Pool - Default) --</option>
                       {agents.map((ag) => (
                         <option key={ag.id} value={ag.id}>
                           {ag.full_name} ({ag.phone})
                         </option>
                       ))}
                     </select>
-                    {!form.assigned_agent_id && (
-                      <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-1 flex items-center gap-1">
-                        <span>⚠️</span> You must assign this chit to an agent before proceeding.
-                      </p>
-                    )}
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
+                      💡 Universal Collection: Any active field agent can collect from this scheme.
+                    </p>
                     {agents.length === 0 && (
                       <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">
                         No agents registered yet. Click "+ Add New Agent" above to create one right now.
@@ -1990,23 +1974,6 @@ export function ChitGroupsPage() {
                       </ul>
                     </div>
                   </div>
-                ) : !form.assigned_agent_id ? (
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100 flex items-center justify-between gap-2.5 sm:gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 shrink-0" />
-                      <div className="text-xs sm:text-sm">
-                        <span className="font-bold block">⚠️ Collection Agent Assignment Required</span>
-                        <span>Please assign this chit scheme to an agent before launching.</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setWizardStep(1)}
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 cursor-pointer transition-all shadow-xs"
-                    >
-                      Assign in Step 1
-                    </button>
-                  </div>
                 ) : (
                   <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100 flex items-center gap-2.5 sm:gap-3">
                     <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 shrink-0" />
@@ -2086,9 +2053,9 @@ export function ChitGroupsPage() {
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                      <span className="text-blue-200/80 block text-[11px] font-medium">Field Agent</span>
-                      <strong className={`truncate block text-xs sm:text-sm font-semibold ${!form.assigned_agent_id ? 'text-amber-300 font-bold' : 'text-white'}`}>
-                        {agents.find((a) => String(a.id) === String(form.assigned_agent_id))?.full_name || '⚠️ Unassigned (Required)'}
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Field Collection</span>
+                      <strong className="text-white truncate block text-xs sm:text-sm font-semibold">
+                        {agents.find((a) => String(a.id) === String(form.assigned_agent_id))?.full_name || 'Universal Open Pool (All Agents)'}
                       </strong>
                     </div>
                   </div>
@@ -2147,10 +2114,10 @@ export function ChitGroupsPage() {
 
                   <button
                     type="button"
-                    disabled={isMismatch || !form.assigned_agent_id || submitting}
+                    disabled={isMismatch || submitting}
                     onClick={handleCreateGroup}
                     className={`w-full sm:w-auto px-6 sm:px-7 py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all flex items-center justify-center gap-2 ${
-                      isMismatch || !form.assigned_agent_id || submitting
+                      isMismatch || submitting
                         ? 'bg-slate-400 cursor-not-allowed opacity-60'
                         : 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 cursor-pointer ring-2 ring-emerald-500/30'
                     }`}
@@ -2159,11 +2126,6 @@ export function ChitGroupsPage() {
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span>{isEditMode ? 'Updating Scheme & Route Stops...' : 'Launching Scheme & Generating Stops...'}</span>
-                      </>
-                    ) : !form.assigned_agent_id ? (
-                      <>
-                        <AlertTriangle className="w-4 h-4" />
-                        <span>Assign Agent in Step 1 to {isEditMode ? 'Update' : 'Launch'}</span>
                       </>
                     ) : isMismatch ? (
                       <>

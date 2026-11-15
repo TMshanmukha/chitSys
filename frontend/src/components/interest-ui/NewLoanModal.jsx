@@ -24,12 +24,16 @@ import { formatDate } from '../../utils/dateUtils';
 
 export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, initialCustomerId, initialCustomer }) {
 
-  const [customers, setCustomers] = useState([]);
+  const targetIdFromProps = initialCustomerId || initialCustomer?.id;
+  const [customers, setCustomers] = useState(() => (initialCustomer?.id ? [initialCustomer] : []));
   const [schemes, setSchemes] = useState([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
 
   // Core Form Fields
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState(() => (
+    targetIdFromProps ? String(targetIdFromProps) : ''
+  ));
+  const [isChangingBorrower, setIsChangingBorrower] = useState(false);
   const [amountGiven, setAmountGiven] = useState('50000');
   const [payEvery, setPayEvery] = useState('DAILY'); // 'DAILY' | 'INTEREST_ONLY'
   const [interestValue, setInterestValue] = useState('2'); // e.g. 2%
@@ -64,17 +68,28 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
   const [error, setError] = useState('');
   const [createdLoan, setCreatedLoan] = useState(null);
 
+  const selectedCustomerObj = useMemo(() => {
+    if (!selectedCustomerId) return null;
+    const found = customers.find((c) => String(c.id) === String(selectedCustomerId));
+    if (found) return found;
+    if (initialCustomer && String(initialCustomer.id) === String(selectedCustomerId)) return initialCustomer;
+    return null;
+  }, [customers, selectedCustomerId, initialCustomer]);
+
   useEffect(() => {
     if (!isOpen) {
       setShowAddCustomer(false);
+      setIsChangingBorrower(false);
       return;
     }
 
     const targetCustId = initialCustomerId || initialCustomer?.id;
     if (targetCustId) {
       setSelectedCustomerId(String(targetCustId));
+      setIsChangingBorrower(false);
     } else {
       setSelectedCustomerId('');
+      setIsChangingBorrower(false);
     }
 
     if (initialCustomer && initialCustomer.id) {
@@ -120,7 +135,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
 
         if (targetCustId) {
           setSelectedCustomerId(String(targetCustId));
-          const targetCust = custList.find((c) => String(c.id) === String(targetCustId));
+          const targetCust = custList.find((c) => String(c.id) === String(targetCustId)) || initialCustomer;
           const defaultAgent = targetCust?.assigned_agent_id || targetCust?.agent_id;
           if (defaultAgent) {
             setAssignedAgentId(String(defaultAgent));
@@ -156,8 +171,12 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
           }
         }
         setAgentsList(uniqueStaff);
-        if (uniqueStaff.length === 1 && !assignedAgentId) {
-          setAssignedAgentId(uniqueStaff[0].id);
+        if (uniqueStaff.length > 0) {
+          setAssignedAgentId((prev) => {
+            if (prev) return prev;
+            const targetCust = custList.find((c) => String(c.id) === String(targetCustId)) || initialCustomer;
+            return targetCust?.assigned_agent_id || targetCust?.agent_id || uniqueStaff[0].id;
+          });
         }
       } catch (_) {
       } finally {
@@ -307,7 +326,11 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
       setError('Please enter a valid loan amount.');
       return;
     }
-    if (!assignedAgentId) {
+    let effAgentId = assignedAgentId;
+    if (!effAgentId && agentsList.length > 0) {
+      effAgentId = agentsList[0].id;
+    }
+    if (!effAgentId) {
       setError('⚠️ Collection Agent Required: Please select an agent to assign this loan to.');
       return;
     }
@@ -334,7 +357,7 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
         tenure_periods: effTenure,
         disbursement_date: startDate || getServerYMD(),
         first_due_date: startDate || getServerYMD(),
-        assigned_agent_id: assignedAgentId || null,
+        assigned_agent_id: effAgentId || null,
         processing_fee: parseFloat(processingFee) || 0,
         purpose: loanPurpose || 'General Business / Personal',
         notes: `Disbursed via FinLend Pro (${payEvery})`,
@@ -538,14 +561,28 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-heading">
                     1. Borrower Customer *
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCustomer(!showAddCustomer)}
-                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-heading cursor-pointer"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>{showAddCustomer ? 'Select Existing' : 'Add New Customer'}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {selectedCustomerObj && isChangingBorrower && !showAddCustomer && (
+                      <button
+                        type="button"
+                        onClick={() => setIsChangingBorrower(false)}
+                        className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:underline font-heading cursor-pointer"
+                      >
+                        Keep Selected
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddCustomer(!showAddCustomer);
+                        if (!showAddCustomer) setIsChangingBorrower(true);
+                      }}
+                      className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-heading cursor-pointer"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>{showAddCustomer ? 'Select Existing' : 'Add New Customer'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 {showAddCustomer ? (
@@ -635,6 +672,40 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
                       {savingCust ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save & Select Customer'}
                     </button>
                   </div>
+                ) : selectedCustomerObj && !isChangingBorrower ? (
+                  <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                        {selectedCustomerObj.photo_url ? (
+                          <img src={selectedCustomerObj.photo_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          (selectedCustomerObj.full_name || 'C').charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                            {selectedCustomerObj.full_name}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold">
+                            Auto-Filled ✓
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                          {selectedCustomerObj.phone ? `📞 ${selectedCustomerObj.phone}` : ''}
+                          {selectedCustomerObj.customer_code ? ` · ${selectedCustomerObj.customer_code}` : ''}
+                          {selectedCustomerObj.city ? ` · ${selectedCustomerObj.city}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsChangingBorrower(true)}
+                      className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline shrink-0 px-2 py-1 cursor-pointer"
+                    >
+                      Change
+                    </button>
+                  </div>
                 ) : (
                   <select
                     required
@@ -646,6 +717,9 @@ export default function NewLoanModal({ isOpen, onClose, onCreated, onSuccess, in
                       const agId = matched?.assigned_agent_id || matched?.agent_id;
                       if (agId) {
                         setAssignedAgentId(String(agId));
+                      }
+                      if (val) {
+                        setIsChangingBorrower(false);
                       }
                     }}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"

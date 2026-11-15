@@ -45,6 +45,7 @@ export default function LeaveManagementPage() {
   const [leaves, setLeaves] = useState([]);
   const [coverage, setCoverage] = useState([]);
   const [history, setHistory] = useState([]);
+  const [holidaysList, setHolidaysList] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [groups, setGroups] = useState([]);
   const [month, setMonth] = useState(getServerDate());
@@ -90,13 +91,15 @@ export default function LeaveManagementPage() {
   const refresh = async (showSpinner = false) => {
     try {
       if (showSpinner) setRefreshing(true);
-      const [res, hist] = await Promise.all([
+      const [res, hist, holRes] = await Promise.all([
         api.get(admin ? '/admin/leaves' : '/agent/leaves'),
         api.get(admin ? '/admin/leaves/coverage-history' : '/agent/leaves/coverage-history'),
+        api.get(admin ? '/admin/holidays' : '/agent/holidays').catch(() => ({ data: { data: { holidays: [] } } })),
       ]);
       setLeaves(res.data.leaves || []);
       setCoverage(res.data.coverage || []);
       setHistory(hist.data.history || []);
+      setHolidaysList(holRes.data?.data?.holidays || []);
       setMessage('');
     } catch (e) {
       if (e.response?.status === 404) {
@@ -371,6 +374,10 @@ export default function LeaveManagementPage() {
             <span className="w-2 h-2 rounded-full bg-blue-500" />
             Blue: Joined Date ★
           </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-bold border border-sky-300 dark:border-sky-800">
+            <span className="w-2 h-2 rounded-full bg-sky-500" />
+            Sky: Tuesday Off / Holiday
+          </span>
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-bold border border-slate-300 dark:border-slate-700 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-500" />
             White: Future / Upcoming
@@ -540,6 +547,11 @@ export default function LeaveManagementPage() {
               const isBeforeJoining = date < joiningDate;
               const isPastActiveDay = date >= joiningDate && date < todayYmd;
 
+              const [y, mStr, dStr] = date.split('-').map(Number);
+              const dayOfWeek = new Date(y, mStr - 1, dStr).getDay();
+              const isTuesday = dayOfWeek === 2;
+              const declaredHoliday = holidaysList.find((h) => String(h.holiday_date).slice(0, 10) === date);
+
               let cellClass = '';
               let badgeElement = null;
 
@@ -559,6 +571,24 @@ export default function LeaveManagementPage() {
                 badgeElement = (
                   <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 truncate">
                     Pending
+                  </span>
+                );
+              } else if (isTuesday) {
+                // Tuesday: Automatic weekly off holiday
+                cellClass =
+                  'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs';
+                badgeElement = (
+                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 truncate">
+                    Tuesday Off
+                  </span>
+                );
+              } else if (declaredHoliday) {
+                // Declared company holiday
+                cellClass =
+                  'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs';
+                badgeElement = (
+                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 truncate" title={declaredHoliday.title}>
+                    {declaredHoliday.title || 'Holiday'}
                   </span>
                 );
               } else if (isJoiningDate) {
@@ -613,7 +643,11 @@ export default function LeaveManagementPage() {
                   key={date}
                   className={`min-h-14 sm:min-h-20 rounded-2xl p-1.5 sm:p-2.5 flex flex-col justify-between transition-all border ${cellClass}`}
                   title={
-                    isBeforeJoining
+                    isTuesday
+                      ? `${date}: Tuesday Weekly Off (Weekly Holiday)`
+                      : declaredHoliday
+                      ? `${date}: Company Holiday (${declaredHoliday.title})`
+                      : isBeforeJoining
                       ? `${date}: Prior to agent joining (${joiningDate})`
                       : items.length > 0
                       ? items.map((x) => `${x.agent_name || 'Agent'}: ${x.status} (${x.reason || 'No reason'})`).join('\n')

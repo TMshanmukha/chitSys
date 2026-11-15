@@ -55,6 +55,7 @@ import {
   Target,
   Edit3,
   FilePenLine,
+  Palmtree,
 } from 'lucide-react';
 import { formatDate, formatTime, formatDateTime, getServerDate, getServerYMD } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
@@ -1378,169 +1379,141 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
           </div>
         </div>
 
-        {/* Metrics Grid - 6 Cards in Standard Financial Order: Today's Target, Today's Collections, Cash on Hand, UPI / Digital, Pending Amount, Today's Tasks */}
-        {activeTab === 'tasks' && (
+        {/* Company Holiday & Weekly Tuesday Off Pause Banner */}
+        {routesData.holidayInfo?.isHoliday && (
+          <div className="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-900 dark:text-sky-100 flex items-center justify-between gap-3 shadow-xs animate-fadeIn">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 flex items-center justify-center shrink-0">
+                <Palmtree className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-extrabold text-xs sm:text-sm font-heading flex items-center gap-2 flex-wrap">
+                  <span>🌴 {routesData.holidayInfo.title || 'Official Company Holiday'}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-200/80 dark:bg-sky-900 text-sky-800 dark:text-sky-200">
+                    COLLECTIONS PAUSED
+                  </span>
+                </h4>
+                <p className="text-[11px] text-sky-700 dark:text-sky-300 mt-0.5">
+                  Today is an authoritative business holiday. Daily collections pause cleanly, and active chit scheme remaining duration counts remain fully preserved without penalty.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/agent/holidays"
+              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-300 hover:bg-sky-100 border border-sky-200 dark:border-sky-700 text-xs font-bold shrink-0 transition-colors hidden sm:inline-flex items-center gap-1"
+            >
+              <span>Holiday Calendar</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
+
+        {/* Clean Agent Operational Financial Strip: Cash on Hand, UPI, Total Collected, Receipts, Active Chits & Status */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-bold px-1">
             <span className="flex items-center gap-1.5 font-heading text-blue-600 dark:text-blue-400 uppercase tracking-wider text-[11px]">
               <Calendar className="w-3.5 h-3.5" />
-              Today's Field Operations · {formatDate(getServerDate())}
+              Today's Collections & Reconciliation · {formatDate(getServerDate())}
             </span>
             <span className="text-[10px] sm:text-[11px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">
-              Resets daily at 12:00 AM midnight
+              Universal Collection Pool Active
             </span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-          {/* 1. Today's Target */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-blue-50/40 dark:from-indigo-950/40 dark:via-slate-900 dark:to-blue-950/20 border border-indigo-200/90 dark:border-indigo-800/70 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider truncate flex items-center gap-1 font-heading">
-                <Target className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                <span>Today's Target</span>
-              </span>
-              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 shrink-0">
-                {targetProgressPercent}%
-              </span>
-            </div>
-            <div
-              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${agentDailyTarget.toLocaleString('en-IN')}`}
-            >
-              ₹{agentDailyTarget.toLocaleString('en-IN')}
-            </div>
-            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate mt-0.5 flex items-center justify-between">
-              <span>Today's Collection:</span>
-              <strong className="text-emerald-600 dark:text-emerald-400 font-mono">₹{todayNormalCollectedTotal.toLocaleString('en-IN')}</strong>
-            </div>
-            {Number(routesData.summary?.todayAdvanceAdjusted || 0) > 0 && (
-              <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 truncate mt-0.5 block">
-                ✨ ₹{Number(routesData.summary.todayAdvanceAdjusted).toLocaleString('en-IN')} advance adjusted
-              </span>
-            )}
-            <div className="mt-1 space-y-1">
-              <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate gap-1">
-                <span className="truncate">
-                  {targetRemainingAmount === 0 && agentDailyTarget > 0 ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">✓ Target Reached!</span>
-                  ) : (
-                    `₹${targetRemainingAmount.toLocaleString('en-IN')} to goal`
-                  )}
-                </span>
-                <span className="text-[10px] text-slate-400 shrink-0">
-                  {agentDailyTarget > 0 ? `${targetProgressPercent}%` : '0%'}
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="bg-indigo-600 dark:bg-indigo-500 h-1.5 rounded-full transition-all duration-500"
-                  style={{ width: `${targetProgressPercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* 2. Total Collected */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
-              Total Collected
-            </span>
-            <div
-              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${todayTotalCollected.toLocaleString('en-IN')}`}
-            >
-              ₹{todayTotalCollected.toLocaleString('en-IN')}
-            </div>
-            {todayAdvanceTotal > 0 ? (
-              <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 truncate mt-0.5 block">
-                ⚡ Incl. ₹{todayAdvanceTotal.toLocaleString('en-IN')} Advance
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            {/* 1. Cash on Hand */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 block uppercase tracking-wider truncate font-heading">
+                Cash on Hand
               </span>
-            ) : (
-              <span className="text-[10px] text-slate-400 truncate mt-0.5 block">
-                Regular Installments
-              </span>
-            )}
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
-              <Receipt className="w-3 h-3 text-slate-400 shrink-0" />
-              <span className="truncate">{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
-            </div>
-          </div>
-
-          {/* 3. Cash on Hand */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
-              Cash on Hand
-            </span>
-            <div
-              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}`}
-            >
-              ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}
-            </div>
-            <span className="text-[11px] text-slate-400 mt-1 block truncate">To reconcile with admin</span>
-          </div>
-
-          {/* 4. UPI / Digital Collected */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
-            <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 block uppercase tracking-wider truncate font-heading">
-              UPI / Digital Collected
-            </span>
-            <div
-              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-purple-600 dark:text-purple-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}`}
-            >
-              ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
-              <CreditCard className="w-3 h-3 text-purple-500 shrink-0" />
-              <span className="truncate">GPay, PhonePe & Netbanking</span>
-            </div>
-          </div>
-
-          {/* 5. Pending Amount */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
-            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 block uppercase tracking-wider truncate font-heading">
-              Pending Amount
-            </span>
-            <div
-              className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 truncate font-mono tracking-tight"
-              title={`₹${totalTaskPendingAmount.toLocaleString('en-IN')}`}
-            >
-              ₹{totalTaskPendingAmount.toLocaleString('en-IN')}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
-              <Clock className="w-3 h-3 text-amber-500 shrink-0" />
-              <span className="truncate">{pendingTasksCount} collections pending</span>
-            </div>
-          </div>
-
-          {/* 6. Today's Tasks (Work Volume) */}
-          <div
-            onClick={() => {
-              handleTabSwitch('tasks');
-            }}
-            className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-blue-400 transition-colors min-w-0 overflow-hidden flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
-                Today's Tasks
-              </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 shrink-0">
-                {taskProgressPercent}%
-              </span>
-            </div>
-            <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-slate-900 dark:text-white mt-1 truncate font-mono">
-              {completedTasksCount} / {totalTasksCount}
-            </div>
-            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
               <div
-                className="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
-                style={{ width: `${taskProgressPercent}%` }}
-              />
+                className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate font-mono tracking-tight"
+                title={`₹${Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}`}
+              >
+                ₹{Number(routesData.summary?.todayCash || 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-[11px] text-slate-400 mt-1 block truncate">Physical cash to close</span>
+            </div>
+
+            {/* 2. UPI / Digital Collected */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800/60 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+              <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 block uppercase tracking-wider truncate font-heading">
+                UPI / Online
+              </span>
+              <div
+                className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-purple-600 dark:text-purple-400 mt-1 truncate font-mono tracking-tight"
+                title={`₹${Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}`}
+              >
+                ₹{Number(routesData.summary?.todayUpi ?? routesData.summary?.todayOnline ?? 0).toLocaleString('en-IN')}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 truncate">
+                <CreditCard className="w-3 h-3 text-purple-500 shrink-0" />
+                <span className="truncate">Digital payments</span>
+              </div>
+            </div>
+
+            {/* 3. Total Collected Today */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/40 dark:from-blue-950/40 dark:via-slate-900 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800/70 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+              <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 block uppercase tracking-wider truncate font-heading">
+                Total Collected
+              </span>
+              <div
+                className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 truncate font-mono tracking-tight"
+                title={`₹${todayTotalCollected.toLocaleString('en-IN')}`}
+              >
+                ₹{todayTotalCollected.toLocaleString('en-IN')}
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1 truncate font-medium">
+                <Receipt className="w-3 h-3 text-blue-500 shrink-0" />
+                <span className="truncate">{routesData.summary?.totalCollectionsCount || 0} receipts issued</span>
+              </div>
+            </div>
+
+            {/* 4. Active Chit Schemes */}
+            <div
+              onClick={() => handleTabSwitch('routes')}
+              className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-blue-400 transition-colors min-w-0 overflow-hidden flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
+                  All Chit Schemes
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 shrink-0">
+                  OPEN POOL
+                </span>
+              </div>
+              <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-black text-slate-900 dark:text-white mt-1 truncate font-mono">
+                {(routesData.groups || []).length} Schemes
+              </div>
+              <span className="text-[11px] text-blue-600 dark:text-blue-400 mt-1 block truncate font-medium">
+                Collect any member & chit →
+              </span>
+            </div>
+
+            {/* 5. Today's Working Status */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs min-w-0 overflow-hidden flex flex-col justify-between">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider truncate font-heading">
+                Duty Shift
+              </span>
+              <div className="mt-1">
+                {routesData.holidayInfo?.isHoliday ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200 font-heading truncate">
+                    <Palmtree className="w-3.5 h-3.5" />
+                    <span className="truncate">{routesData.holidayInfo.title || 'Holiday Off'}</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 font-heading">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Active Duty</span>
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-400 mt-1 block truncate">
+                {routesData.holidayInfo?.isHoliday ? 'Collections paused today' : 'Ready to record collections'}
+              </span>
             </div>
           </div>
         </div>
-        </div>
-        )}
 
         {/* Loading Spinner */}
         {loading ? (
@@ -1800,7 +1773,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                         <th className="py-3 px-4">Stop #</th>
                         <th className="py-3 px-4">Subscriber Member</th>
                         <th className="py-3 px-4">Chit Scheme</th>
-                        <th className="py-3 px-4 text-right">Target / Due</th>
+                        <th className="py-3 px-4 text-right">Installment Due</th>
                         <th className="py-3 px-4 text-center">Status</th>
                         <th className="py-3 px-4 text-right">Actions</th>
                       </tr>
@@ -1997,11 +1970,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                         <div className="flex items-center gap-4 self-end sm:self-center">
                           <div className="text-right">
                             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
-                              Today's Collection:{' '}
+                              Collected Today:{' '}
                               <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
                                 ₹{groupNormalCollectedAmt.toLocaleString('en-IN')}
-                              </span>{' '}
-                              / ₹{groupTargetAmt.toLocaleString('en-IN')}
+                              </span>
                             </span>
                             {groupAdvanceCollectedAmt > 0 && (
                               <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold block">
@@ -2009,7 +1981,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                               </span>
                             )}
                             <span className="text-[10px] text-slate-400 font-medium">
-                              {groupPaidCount} of {groupTotalCount} stops ({groupPercent}%)
+                              {groupPaidCount} of {groupTotalCount} collected ({groupPercent}%)
                               {groupAdminPaidCount > 0 && (
                                 <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300">
                                   ⚡ {groupAdminPaidCount} Paid by Admin (-{groupAdminPaidCount} Task)
@@ -2323,7 +2295,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
                       }`}
                     >
-                      All Assigned ({routesData.groups.length})
+                      All Active Chits ({routesData.groups.length})
                     </button>
                     <button
                       type="button"
@@ -2356,7 +2328,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {paginatedRoutes.map((group) => {
-                        const groupMembers = routesData.members.filter((m) => m.group_id === group.id);
+                        const groupMembers = (routesData.members || [])
+                          .filter((m) => m.group_id === group.id)
+                          .sort((a, b) => (parseInt(a.ticket_number, 10) || 0) - (parseInt(b.ticket_number, 10) || 0));
                         const paidMembers = groupMembers.filter((m) => Boolean(m.is_paid));
                         const pendingMembers = groupMembers.filter((m) => !m.is_paid);
                         const isDaily = group.chit_type === 'DAILY_CHIT' || group.route_category === 'DAILY_ROUTE';

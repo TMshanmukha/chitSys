@@ -964,11 +964,12 @@ For repayments or balance settlement, contact your loan manager.`;
         isOpen={isNewLoanOpen}
         onClose={() => setIsNewLoanOpen(false)}
         onSuccess={loadPassbook}
-        initialCustomerId={customer?.id}
-        initialCustomer={{
+        initialCustomerId={customer?.id || id}
+        initialCustomer={customer ? {
           ...customer,
+          id: customer.id || id,
           assigned_agent_id: customer?.assigned_agent_id || loans.find((l) => l.assigned_agent_id)?.assigned_agent_id,
-        }}
+        } : (id ? { id, full_name: data?.customer?.full_name || 'Customer', phone: data?.customer?.phone || '' } : null)}
       />
 
       {/* Edit Customer Modal */}

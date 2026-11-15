@@ -49,3 +49,27 @@ export function getNowIST() {
   };
 }
 
+/**
+ * Returns true if the given date is a Tuesday in IST.
+ * Tuesday is the mandatory weekly business holiday.
+ * @param {Date|string|number} [dateInput]
+ * @returns {boolean}
+ */
+export function isTuesday(dateInput) {
+  const ymd = getTodayIST(dateInput);
+  const [year, month, day] = ymd.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.getDay() === 2;
+}
+
+/**
+ * Returns day of week integer (0=Sun, 1=Mon, 2=Tue, etc.) in IST.
+ */
+export function getDayOfWeekIST(dateInput) {
+  const ymd = getTodayIST(dateInput);
+  const [year, month, day] = ymd.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.getDay();
+}
+
+

@@ -27,6 +27,7 @@ import {
   approveCollectionEditRequest,
   rejectCollectionEditRequest,
 } from '../controllers/collectionEditController.js';
+import { listHolidays, declareHoliday, deleteHoliday } from '../controllers/holidayController.js';
 
 const router = Router();
 
@@ -45,6 +46,11 @@ router.get('/commissions', getAdminCommissionsAndProfile);
 router.post('/commissions/withdraw', recordCommissionWithdrawal);
 router.put('/profile', updateAdminProfile);
 router.put('/security/password', updateAdminPassword);
+
+// Company & Government Holidays Management
+router.get('/holidays', listHolidays);
+router.post('/holidays', declareHoliday);
+router.delete('/holidays/:id', deleteHoliday);
 
 
 // Chit Groups Management (Daily Chit Route, Monthly Auction Chit, Monthly Double Chit)

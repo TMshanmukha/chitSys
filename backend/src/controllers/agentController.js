@@ -6,6 +6,7 @@ import { getMonthlyCycleInfo, formatYMD } from '../utils/cycleHelper.js';
 import { getTodayIST } from '../utils/dateUtils.js';
 import { broadcastSync } from '../services/realtimeService.js';
 import { createNotification } from './notificationController.js';
+import { isDateHoliday } from './holidayController.js';
 import { ensureAdvanceTables, autoAdjustAdvanceForDate, calculateMemberDaysSchedule, getMemberAdvanceBalance } from '../services/advanceEngine.js';
 
 const agentSchema = z.object({
@@ -324,31 +325,19 @@ export async function assignAgentToGroup(req, res, next) {
 
 export async function getMyAssignedRoutes(req, res, next) {
   try {
-    // For the logged-in agent, get their active assigned groups and members
+    // Open collection pool: any active agent can view and collect from any active chit group
     const agentId = req.user.id;
     const todayStr = getTodayIST();
+    const todayHoliday = await isDateHoliday(todayStr);
 
     const [groups] = await pool.execute(
       `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
               g.location_name, g.installment_amount, g.total_pool_amount, g.status,
               g.start_date, g.created_at
-       FROM agent_group_assignments aga
-       JOIN chit_groups g ON aga.group_id = g.id
-       WHERE aga.agent_id = ? AND aga.is_active = 1 AND g.status = 'ACTIVE'
-         AND NOT EXISTS (SELECT 1 FROM agent_leaves al WHERE al.agent_id=aga.agent_id AND al.leave_date=? AND al.status='APPROVED')
-       ORDER BY g.route_category ASC, g.id ASC`,
-      [agentId, todayStr]
+       FROM chit_groups g
+       WHERE g.status = 'ACTIVE'
+       ORDER BY g.route_category ASC, g.id ASC`
     );
-
-    // Approved leave coverage adds the absent agent's routes only for the covered day.
-    const [coveredGroups] = await pool.execute(
-      `SELECT g.id,g.group_code,g.group_name,g.chit_type,g.frequency,g.route_category,
-              g.location_name,g.installment_amount,g.total_pool_amount,g.status,g.start_date,g.created_at,
-              l.agent_id AS absent_agent_id, absent.full_name AS absent_agent_name
-       FROM agent_leave_coverages c JOIN agent_leaves l ON l.id=c.leave_id
-       JOIN chit_groups g ON g.id=c.group_id JOIN users absent ON absent.id=l.agent_id
-       WHERE c.covering_agent_id=? AND l.leave_date=? AND l.status='APPROVED' AND g.status='ACTIVE'`, [agentId, todayStr]);
-    for (const g of coveredGroups) if (!groups.some((mine) => mine.id === g.id)) groups.push({ ...g, temporary_coverage: true });
 
     const enrichedGroups = groups.map((g) => {
       const isDaily = g.frequency === 'DAILY';
@@ -712,6 +701,7 @@ export async function getMyAssignedRoutes(req, res, next) {
       data: {
         groups: finalGroups,
         members,
+        holidayInfo: todayHoliday,
         summary: {
           ...todayCollections[0],
           todayAdvanceAdjusted: totalAdvanceAdjustedToday,
@@ -726,6 +716,7 @@ export async function getMyAssignedRoutes(req, res, next) {
           monthlyPaidMembersCount: monthlyMembers.filter((m) => m.is_paid).length,
           dailyPendingMembersCount: dailyMembers.filter((m) => !m.is_paid).length,
           monthlyPendingMembersCount: monthlyMembers.filter((m) => !m.is_paid).length,
+          holidayInfo: todayHoliday,
         },
       },
     });
