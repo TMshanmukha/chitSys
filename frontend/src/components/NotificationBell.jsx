@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../utils/dateUtils';
+import { cleanNotificationTitle, cleanNotificationText } from '../utils/notificationFormatter';
 import {
   Bell,
   CheckCheck,
@@ -195,7 +196,7 @@ export default function NotificationBell() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-1 mb-0.5">
                 <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                  {item.title}
+                  {cleanNotificationTitle(item.title)}
                 </span>
                 <span className="text-[10px] text-slate-400 shrink-0 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
@@ -203,7 +204,7 @@ export default function NotificationBell() {
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-snug line-clamp-2">
-                {item.message}
+                {cleanNotificationText(item.message)}
               </p>
               {item.link && (
                 <span className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-1 group-hover:underline">

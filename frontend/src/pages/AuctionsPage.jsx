@@ -53,6 +53,12 @@ export default function AuctionsPage() {
   const [voucherModal, setVoucherModal] = useState(null);
   const [showDisburseModal, setShowDisburseModal] = useState(false);
   const [showAuctionConfirm, setShowAuctionConfirm] = useState(false);
+  const [showShortfallConfirm, setShowShortfallConfirm] = useState(false);
+  const [shortfallDetails, setShortfallDetails] = useState({
+    requiredPool: 0,
+    actualCollected: 0,
+    shortfall: 0,
+  });
   const [showDisburseConfirm, setShowDisburseConfirm] = useState(false);
   const [selectedAuctionForDisburse, setSelectedAuctionForDisburse] = useState(null);
   const [disburseForm, setDisburseForm] = useState({
@@ -659,10 +665,23 @@ export default function AuctionsPage() {
       }
     }
 
+    // Check if required pool amount is not fully collected for regular auction
+    const requiredPool = effectivePool;
+    const actualCollected = groupTotalCollected;
+    if (form.pool_source !== 'SAVED_RESERVE' && form.draw_number !== 2 && actualCollected < requiredPool) {
+      setShortfallDetails({
+        requiredPool,
+        actualCollected,
+        shortfall: Math.max(0, requiredPool - actualCollected),
+      });
+      setShowShortfallConfirm(true);
+      return;
+    }
+
     setShowAuctionConfirm(true);
   };
 
-  const executeConfirmedAuction = async () => {
+  const executeConfirmedAuction = async (confirmedShortfall = false) => {
     setError('');
     setSubmitting(true);
 
@@ -678,6 +697,8 @@ export default function AuctionsPage() {
         winning_ticket_number: parseInt(form.winning_ticket_number, 10),
         bid_discount: parseFloat(form.bid_discount || 0),
         auction_date: form.auction_date,
+        confirm_admin_shortfall: Boolean(confirmedShortfall),
+        cover_shortfall_by_admin: Boolean(confirmedShortfall),
         custom_commission_percent: form.commission_percent !== '' ? parseFloat(form.commission_percent) : null,
         custom_foreman_commission: effectiveForemanCommission,
         custom_net_payable: effectiveNetPayablePrize,
@@ -704,6 +725,7 @@ export default function AuctionsPage() {
 
       if (res.data?.success) {
         setShowAuctionConfirm(false);
+        setShowShortfallConfirm(false);
         setShowModal(false);
         setForm({
           group_id: '',
@@ -749,9 +771,19 @@ export default function AuctionsPage() {
         if (selectedSchemeId) {
           await loadSchemeBreakdown(selectedSchemeId);
         }
+        window.dispatchEvent(new CustomEvent('auction:updated'));
       }
     } catch (err) {
       setShowAuctionConfirm(false);
+      if (err.response?.data?.requires_shortfall_confirmation) {
+        setShortfallDetails({
+          requiredPool: err.response.data.required_pool || effectivePool,
+          actualCollected: err.response.data.actual_collected || groupTotalCollected,
+          shortfall: err.response.data.shortfall_amount || Math.max(0, effectivePool - groupTotalCollected),
+        });
+        setShowShortfallConfirm(true);
+        return;
+      }
       setError(getFriendlyErrorMessage(err, 'Failed to finalize auction. Please verify details and try again.'));
     } finally {
       setSubmitting(false);
@@ -1632,9 +1664,19 @@ export default function AuctionsPage() {
             </div>
 
             {error && (
-              <div className="p-4 rounded-2xl bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900/50 text-red-700 dark:text-rose-300 text-sm flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
-                <span>{error}</span>
+              <div className="p-4 rounded-2xl bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900/50 text-red-700 dark:text-rose-300 text-sm flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setError('')}
+                  className="text-red-500 hover:text-red-700 text-xs font-bold p-1 cursor-pointer"
+                  title="Dismiss error"
+                >
+                  ✕
+                </button>
               </div>
             )}
 
@@ -3076,7 +3118,7 @@ export default function AuctionsPage() {
       <ConfirmModal
         isOpen={showAuctionConfirm}
         onClose={() => setShowAuctionConfirm(false)}
-        onConfirm={executeConfirmedAuction}
+        onConfirm={() => executeConfirmedAuction(false)}
         isLoading={submitting}
         title={
           isDoubleChitScheme && form.conduct_draw2
@@ -3101,6 +3143,24 @@ export default function AuctionsPage() {
             ? `Draw #1 Prize: ₹${Number(effectiveNetPayablePrize).toLocaleString('en-IN')} | Draw #2 Prize: ₹${Number(draw2EffectiveNetPayablePrize).toLocaleString('en-IN')} | Total Admin Commission: ₹${Number(effectiveForemanCommission + draw2EffectiveForemanCommission).toLocaleString('en-IN')} | Final Chit Reserve: ₹${Number(draw2EffectiveDoubleChitReserve).toLocaleString('en-IN')}`
             : `Net Prize: ₹${Number(effectiveNetPayablePrize).toLocaleString('en-IN')} | Foreman Commission: ₹${Number(effectiveForemanCommission).toLocaleString('en-IN')} (from Winner Prize) | Dividend/Member: ₹${Number(effectiveDividendPerMember).toLocaleString('en-IN')}${effectiveDoubleChitReserve > 0 ? ` | Chit Pool Reserve: ₹${Number(effectiveDoubleChitReserve).toLocaleString('en-IN')}` : ''}`
         }
+      />
+
+      {/* Shortfall Pending Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={showShortfallConfirm}
+        onClose={() => setShowShortfallConfirm(false)}
+        onConfirm={() => {
+          setShowShortfallConfirm(false);
+          executeConfirmedAuction(true);
+        }}
+        isLoading={submitting}
+        title="Required Amount Shortfall"
+        message="The required amount is not collected for the aution , so the pending added to admin"
+        confirmLabel="Yes, Add & Continue"
+        cancelLabel="No, Return to Auction Page"
+        variant="warning"
+        icon={AlertCircle}
+        subtext={`Chit Scheme: ${selectedGroup?.group_name || 'Selected Scheme'} | Required Pool: ₹${Number(shortfallDetails.requiredPool).toLocaleString('en-IN')} | Currently Collected: ₹${Number(shortfallDetails.actualCollected).toLocaleString('en-IN')} | Shortfall: ₹${Number(shortfallDetails.shortfall).toLocaleString('en-IN')}`}
       />
 
       {/* Confirmation Dialog for Prize Disbursement */}

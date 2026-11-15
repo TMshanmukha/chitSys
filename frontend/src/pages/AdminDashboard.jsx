@@ -105,7 +105,7 @@ export default function AdminDashboard() {
     fetchDashboard(false);
   }, []);
 
-  useRealtimeSync(['collections', 'groups', 'members', 'agents', 'day_closing', 'commissions'], () => {
+  useRealtimeSync(['auctions', 'collections', 'groups', 'members', 'agents', 'day_closing', 'commissions'], () => {
     fetchDashboard(true);
   });
 

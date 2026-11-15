@@ -273,10 +273,16 @@ export async function recordCollection(req, res, next) {
       },
     });
 
+    let collectorMemberName = 'Subscriber';
+    try {
+      const [mNameRows] = await pool.query('SELECT full_name FROM members WHERE id = ?', [validated.member_id]);
+      if (mNameRows.length > 0 && mNameRows[0].full_name) collectorMemberName = mNameRows[0].full_name;
+    } catch (_) {}
+
     createNotification({
       targetRole: 'ADMIN',
       title: `💰 Payment Received: ₹${Number(validated.amount).toLocaleString('en-IN')}`,
-      message: `Receipt #${receiptNumber} collected via ${validated.payment_method} for Group #${validated.group_id}.`,
+      message: `Payment of ₹${Number(validated.amount).toLocaleString('en-IN')} received via ${validated.payment_method === 'UPI' ? 'UPI' : 'Cash'} for ${chitGroup.group_name} from ${collectorMemberName} (Receipt #${receiptNumber}).`,
       type: 'COLLECTION',
       link: '/admin/collections',
     }).catch(() => {});

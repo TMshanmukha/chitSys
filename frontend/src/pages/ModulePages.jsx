@@ -186,7 +186,7 @@ export function ChitGroupsPage() {
     loadData();
   }, []);
 
-  useRealtimeSync(['groups', 'agents', 'members'], () => {
+  useRealtimeSync(['groups', 'agents', 'members', 'auctions'], () => {
     loadData(true);
   });
 

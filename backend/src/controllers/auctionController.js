@@ -285,7 +285,7 @@ export async function conductAuction(req, res, next) {
       effectivePoolAmount = parseFloat(validated.custom_pool_amount);
     }
 
-    // Requirement: For regular auction, the total pool amount must be fully collected in the scheme
+    // Requirement: For regular auction, check if total pool amount is collected
     if (validated.pool_source !== 'SAVED_RESERVE' && validated.draw_number !== 2) {
       const [collSumRows] = await pool.execute(
         "SELECT COALESCE(SUM(amount), 0) as totalCollected FROM collections WHERE group_id = ? AND verification_status != 'CANCELLED'",
@@ -293,10 +293,17 @@ export async function conductAuction(req, res, next) {
       );
       const actualCollected = parseFloat(collSumRows[0]?.totalCollected || 0);
       if (actualCollected < groupPoolAmount) {
-        return res.status(400).json({
-          success: false,
-          message: `Total chit pool of ₹${groupPoolAmount.toLocaleString('en-IN')} must be fully collected before conducting the auction. Currently collected: ₹${actualCollected.toLocaleString('en-IN')} (Shortfall: ₹${(groupPoolAmount - actualCollected).toLocaleString('en-IN')}). Please record member collections or have Admin cover the pending dues first.`,
-        });
+        if (!req.body.confirm_admin_shortfall && !req.body.cover_shortfall_by_admin) {
+          return res.status(400).json({
+            success: false,
+            code: 'REQUIRES_SHORTFALL_CONFIRMATION',
+            requires_shortfall_confirmation: true,
+            required_pool: groupPoolAmount,
+            actual_collected: actualCollected,
+            shortfall_amount: groupPoolAmount - actualCollected,
+            message: 'The required amount is not collected for the aution , so the pending added to admin',
+          });
+        }
       }
     }
 
@@ -703,8 +710,8 @@ export async function conductAuction(req, res, next) {
       targetRole: 'ALL',
       title: `🏆 Auction Won: ${group.group_name || group.name || 'Chit Scheme'}`,
       message: validated.conduct_draw2
-        ? `Double Chit Round #${validated.period_number} Completed: Draw #1 won by ${winnerName} (Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')}) & Draw #2 (Reversing Pool) won by ${draw2WinnerName} (Prize: ₹${Number(draw2NetPayableAmount).toLocaleString('en-IN')}) · Total Admin Comm: ₹${(foremanCommission + draw2ForemanCommission).toLocaleString('en-IN')}`
-        : `Winner: ${winnerName} · Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')} (Admin Comm: ₹${foremanCommission.toLocaleString('en-IN')} from Winner Prize)${dividendPerMember > 0 ? ` · Dividend: ₹${dividendPerMember}/member (from Bid Amount)` : ` · Saved Chit Reserve: ₹${doubleChitReserve.toLocaleString('en-IN')}`}`,
+        ? `Double Chit Round #${validated.period_number} completed: ${winnerName} won Draw #1 (Prize: ₹${Number(netPayableAmount).toLocaleString('en-IN')}) and ${draw2WinnerName} won Draw #2 (Prize: ₹${Number(draw2NetPayableAmount).toLocaleString('en-IN')}).`
+        : `Subscriber ${winnerName} won Round #${validated.period_number} with prize ₹${Number(netPayableAmount).toLocaleString('en-IN')}.${dividendPerMember > 0 ? ` Dividend of ₹${dividendPerMember} credited to each member passbook.` : ` Saved reserve of ₹${Number(doubleChitReserve).toLocaleString('en-IN')} added to chit pool.`}`,
       type: 'AUCTION',
       link: '/admin/auctions',
     });
@@ -752,6 +759,24 @@ export async function conductAuction(req, res, next) {
         groupId: validated.group_id,
         periodNumber: validated.period_number,
       },
+    });
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'groups',
+      action: 'UPDATE',
+      data: { groupId: validated.group_id },
+    });
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'members',
+      action: 'UPDATE',
+      data: { groupId: validated.group_id },
+    });
+    broadcastSync({
+      business: 'chitfund',
+      entity: 'commissions',
+      action: 'UPDATE',
+      data: { groupId: validated.group_id },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

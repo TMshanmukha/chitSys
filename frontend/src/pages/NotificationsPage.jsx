@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDate, formatDateTime as formatAppDateTime } from '../utils/dateUtils';
+import { cleanNotificationTitle, cleanNotificationText } from '../utils/notificationFormatter';
 import {
   Bell,
   CheckCheck,
@@ -538,12 +539,12 @@ export default function NotificationsPage() {
 
                       {/* Main Title */}
                       <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">
-                        {item.title}
+                        {cleanNotificationTitle(item.title)}
                       </h3>
 
                       {/* Notification Message */}
                       <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
-                        {item.message}
+                        {cleanNotificationText(item.message)}
                       </p>
                     </div>
                   </div>

@@ -323,8 +323,8 @@ export async function createGroup(req, res, next) {
     // Dispatch real-time live notification
     createNotification({
       targetRole: 'ALL',
-      title: `🚀 Chit Scheme Initialized: ${validated.group_name}`,
-      message: `${validated.chit_type.replace('_', ' ')} (${finalGroupCode}) successfully created with ${memberIds.length} enrolled members. Total Pool: ₹${Number(validated.total_pool_amount).toLocaleString('en-IN')}.`,
+      title: `🚀 New Chit Scheme: ${validated.group_name}`,
+      message: `${validated.chit_type === 'DOUBLE_CHIT' ? 'Double Chit Scheme' : 'Auction Chit Scheme'} "${validated.group_name}" (${finalGroupCode}) created with ${memberIds.length} enrolled members. Total Pool: ₹${Number(validated.total_pool_amount).toLocaleString('en-IN')}.`,
       type: 'SYSTEM',
       link: '/admin/chit-groups',
     }).catch(() => {});

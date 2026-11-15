@@ -290,12 +290,18 @@ export async function assignAgentToGroup(req, res, next) {
       details: { agentId, groupId },
     });
 
+    let targetGroupName = 'Chit Scheme';
+    try {
+      const [gRows] = await pool.query('SELECT group_name FROM chit_groups WHERE id = ?', [groupId]);
+      if (gRows.length > 0 && gRows[0].group_name) targetGroupName = gRows[0].group_name;
+    } catch (_) {}
+
     // Notify assigned agent directly in real time
     createNotification({
       userId: agentId,
       targetRole: 'AGENT',
       title: '📋 Route Assignment Updated',
-      message: `You have been assigned to collect Route Scheme #${groupId}.`,
+      message: `You have been assigned to collect ${targetGroupName}.`,
       type: 'ASSIGNMENT',
       link: '/agent/tasks',
     }).catch(() => {});
