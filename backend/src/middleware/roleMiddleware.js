@@ -9,7 +9,9 @@ export function requireRole(...allowedRoles) {
       });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    const userRole = (req.user.role || '').toUpperCase();
+    const rolesUpper = allowedRoles.map((r) => String(r).toUpperCase());
+    if (!rolesUpper.includes(userRole)) {
       logger.warn('Unauthorized role access attempt', {
         userId: req.user.id,
         userRole: req.user.role,

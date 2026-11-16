@@ -2631,7 +2631,7 @@ export function AgentsPage() {
                 <th className="py-3.5 px-4">Agent Name</th>
                 <th className="py-3.5 px-4">Username</th>
                 <th className="py-3.5 px-4">Contact Phone</th>
-                <th className="py-3.5 px-4">Assigned Routes / Groups</th>
+                <th className="py-3.5 px-4">Collection Access</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
@@ -2660,11 +2660,10 @@ export function AgentsPage() {
                       </td>
                       <td className="py-3.5 px-4">{ag.phone}</td>
                       <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 max-w-xs">
-                        {ag.assigned_group_names ? (
-                          <ShowMoreText text={ag.assigned_group_names} maxChars={32} />
-                        ) : (
-                          <span className="italic text-slate-400">None assigned</span>
-                        )}
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-heading">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span>All Schemes (Open Pool)</span>
+                        </span>
                       </td>
                       <td className="py-3.5 px-4">
                         <span
@@ -2679,18 +2678,6 @@ export function AgentsPage() {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-right space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedAgent(ag);
-                            setShowAssignModal(true);
-                            setError('');
-                            scrollToFormOrModal('assign-agent-modal');
-                          }}
-                          className="px-2.5 py-1 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 font-semibold cursor-pointer"
-                        >
-                          Assign Route
-                        </button>
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(ag)}
@@ -2830,76 +2817,6 @@ export function AgentsPage() {
             </form>
           </div>
       </ModalPortal>
-
-      {/* Modal: Assign Agent to Route */}
-      {selectedAgent && (
-        <ModalPortal
-          id="assign-agent-modal"
-          isOpen={showAssignModal && Boolean(selectedAgent)}
-          onClose={() => setShowAssignModal(false)}
-        >
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-                  <MapPin className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base sm:text-lg font-heading">
-                    Assign Agent to Route
-                  </h3>
-                  <p className="text-xs text-slate-500">{selectedAgent?.full_name || 'Agent'}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAssignModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl cursor-pointer"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAssignAgent} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Select Chit Scheme / Route *
-                </label>
-                <select
-                  required
-                  value={selectedGroupId}
-                  onChange={(e) => setSelectedGroupId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                >
-                  <option value="">-- Choose Chit Scheme Group --</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.group_name} · ₹{parseFloat(g.installment_amount).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'} ({g.location_name || 'All Stops'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowAssignModal(false)}
-                  className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !selectedGroupId}
-                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Assignment'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </ModalPortal>
-      )}
     </div>
   );
 }

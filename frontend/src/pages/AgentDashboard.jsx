@@ -629,15 +629,22 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
             ? Math.max(0, expectedAmount - collectedAmount)
             : 0;
 
+        const isCoveredByAdvance = Boolean(m.is_covered_by_advance);
+        const isCollectedByMe = Boolean(
+          m.is_collected_by_me ||
+          (m.completed_by_agent_id != null && Number(m.completed_by_agent_id) === Number(user?.id)) ||
+          (m.completed_by_name && m.completed_by_name.toLowerCase().trim() === (user?.full_name || '').toLowerCase().trim())
+        );
         const isPaidToAdmin = Boolean(
-          (isPaid || m.is_paid) && (
-            m.is_paid_to_admin ||
-            m.task_deducted ||
-            m.collected_by_admin ||
-            m.completed_by_role === 'ADMIN' ||
-            m.completed_by_role === 'SUPER_ADMIN' ||
-            (m.completed_by_name && !m.completed_by_name.toLowerCase().includes((user?.full_name || '').toLowerCase()))
-          )
+          !isCoveredByAdvance &&
+          (m.is_paid_to_admin || m.completed_by_role === 'ADMIN' || m.completed_by_role === 'SUPER_ADMIN')
+        );
+        const isCollectedByOtherAgent = Boolean(
+          !isCoveredByAdvance &&
+          !isCollectedByMe &&
+          !isPaidToAdmin &&
+          (isPaid || m.is_paid) &&
+          (m.completed_by_name || m.completed_by_agent_id != null)
         );
 
         const hasCustomRemark =
@@ -665,9 +672,25 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
           remainingBalance,
           isPaid,
           isPaidToAdmin,
-          isPartial,
-          nodeColor: isPaidToAdmin ? 'GREEN' : (m.node_color || (isPaid ? 'GREEN' : (isPartial ? 'YELLOW' : 'RED'))),
-          statusLabel: isPaidToAdmin ? 'Paid to Admin' : (isPaid ? 'Paid' : (isPartial ? 'Partial' : (m.status_label || 'Unpaid'))),
+          isCollectedByMe,
+          isCollectedByOtherAgent,
+          isCoveredByAdvance,
+          completedByName: m.completed_by_name || null,
+          completedByRole: m.completed_by_role || null,
+          nodeColor: (isPaid || isPaidToAdmin || isCoveredByAdvance || isCollectedByOtherAgent) ? 'GREEN' : (isPartial ? 'YELLOW' : 'RED'),
+          statusLabel: isCoveredByAdvance
+            ? 'Paid (Advance)'
+            : isCollectedByMe
+            ? 'Collected by You'
+            : isCollectedByOtherAgent
+            ? `Paid (${m.completed_by_name || 'Agent'})`
+            : isPaidToAdmin
+            ? 'Paid to Admin'
+            : isPaid
+            ? 'Paid'
+            : isPartial
+            ? 'Partial'
+            : (m.status_label || 'Unpaid'),
           notes: m.today_notes,
           hasCustomRemark,
           receiptNumber: m.receipt_number,
@@ -2088,16 +2111,26 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                 </div>
 
                                 {/* Status / Remark banner */}
-                                {task.isPaidToAdmin ? (
+                                {task.isCoveredByAdvance ? (
+                                  <div className="text-[11px] text-blue-700 dark:text-blue-300 font-semibold flex items-center gap-1.5 mt-1 bg-blue-50 dark:bg-blue-950/40 px-2 py-1 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                    <span>Paid via Advance Credit (₹{Number(task.collectedAmount || task.expectedAmount).toLocaleString('en-IN')}) · Auto-Settled</span>
+                                  </div>
+                                ) : task.isPaidToAdmin ? (
                                   <div className="text-[11px] text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-1.5 mt-1 bg-purple-50 dark:bg-purple-950/40 px-2 py-1 rounded-lg border border-purple-200 dark:border-purple-800">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                                    <span>Paid by Admin, not by Agent · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod || 'CASH'}) · Stop Completed</span>
+                                    <span>Paid to Office / Admin ({task.completedByName || 'Admin'}) · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod || 'CASH'})</span>
+                                  </div>
+                                ) : task.isCollectedByOtherAgent ? (
+                                  <div className="text-[11px] text-indigo-700 dark:text-indigo-300 font-semibold flex items-center gap-1.5 mt-1 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                    <span>Collected by {task.completedByName || 'Agent'} (Field Staff) · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod || 'CASH'})</span>
                                   </div>
                                 ) : task.isPaid ? (
                                   <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1 mt-1">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                     <span>
-                                      Paid Today · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod})
+                                      Paid Today · Collected by You · Receipt #{task.receiptNumber || 'REC-ISSUED'} ({task.paymentMethod || 'CASH'})
                                     </span>
                                   </div>
                                 ) : task.isPartial ? (
@@ -2139,15 +2172,25 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                             <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
                               <div className="text-right">
                                 <span className="text-[10px] text-slate-400 block uppercase font-bold">
-                                  {task.isPaidToAdmin ? 'Paid to Office' : task.isPartial ? 'Remaining Balance' : 'Due Amount'}
+                                  {task.isCoveredByAdvance
+                                    ? 'Covered by Advance'
+                                    : task.isPaidToAdmin
+                                    ? 'Paid to Admin'
+                                    : task.isCollectedByOtherAgent
+                                    ? `Paid (${task.completedByName || 'Agent'})`
+                                    : task.isPaid
+                                    ? 'Collected by You'
+                                    : task.isPartial
+                                    ? 'Remaining Balance'
+                                    : 'Due Amount'}
                                 </span>
-                                <span className={`text-base font-extrabold ${task.isPaidToAdmin ? 'text-purple-600 dark:text-purple-400' : task.isPartial ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                                  ₹{(task.isPaidToAdmin ? (task.collectedAmount || task.expectedAmount) : task.isPartial ? task.remainingBalance : task.expectedAmount).toLocaleString('en-IN')}
+                                <span className={`text-base font-extrabold ${task.isPaid || task.isCoveredByAdvance || task.isPaidToAdmin || task.isCollectedByOtherAgent ? 'text-emerald-600 dark:text-emerald-400' : task.isPartial ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                  ₹{(task.isPaid || task.isCoveredByAdvance || task.isPaidToAdmin || task.isCollectedByOtherAgent ? (task.collectedAmount || task.expectedAmount) : task.isPartial ? task.remainingBalance : task.expectedAmount).toLocaleString('en-IN')}
                                 </span>
                               </div>
 
                               <div className="flex items-center gap-1.5">
-                                {task.isPaidToAdmin ? (
+                                {task.isPaidToAdmin || task.isCollectedByOtherAgent || task.isCoveredByAdvance ? (
                                   <button
                                     type="button"
                                     onClick={() => openReceiptForPaidMember(task.rawGroup, task.rawMember)}
@@ -3451,7 +3494,13 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                                             <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1 pt-0.5">
                                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                               <span>
-                                                Paid Today · {Boolean(member.is_paid_to_admin || member.completed_by_admin) ? 'Paid by Admin, not by Agent' : 'Agent Collected'} · ₹{Number(member.collected_amount || group.installment_amount).toLocaleString('en-IN')} ({member.payment_method || 'CASH'}) · Receipt #{member.receipt_number || 'REC-ISSUED'}{member.collection_time ? ` · ${formatTime(member.collection_time)}` : ''}
+                                                Paid Today · {member.is_covered_by_advance
+                                                  ? 'Covered by Advance'
+                                                  : member.is_paid_to_admin
+                                                  ? `Paid to Admin (${member.completed_by_name || 'Admin'})`
+                                                  : member.is_collected_by_other_agent
+                                                  ? `Collected by ${member.completed_by_name || 'Field Agent'} (Field Staff)`
+                                                  : 'Collected by You'} · ₹{Number(member.collected_amount || group.installment_amount).toLocaleString('en-IN')} ({member.payment_method || 'CASH'}) · Receipt #{member.receipt_number || 'REC-ISSUED'}{member.collection_time ? ` · ${formatTime(member.collection_time)}` : ''}
                                               </span>
                                             </div>
                                           ) : (
@@ -5237,14 +5286,17 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
 
             {/* KPI Summary Cards */}
             {(() => {
-              const liveCash = (routesData.members || [])
-                .filter((m) => (m.is_paid || m.today_status === 'PAID') && m.payment_method === 'CASH')
-                .reduce((s, m) => s + Number(m.collected_amount || 0), 0);
-              const liveUpi = (routesData.members || [])
-                .filter((m) => (m.is_paid || m.today_status === 'PAID') && m.payment_method !== 'CASH')
-                .reduce((s, m) => s + Number(m.collected_amount || 0), 0);
-              const liveTotal = liveCash + liveUpi;
-              const liveReceipts = (routesData.members || []).filter((m) => m.is_paid || m.today_status === 'PAID').length;
+              const myCollectedMembers = (routesData.members || []).filter(
+                (m) => (m.is_collected_by_me || (user?.id && Number(m.completed_by_agent_id) === Number(user.id))) && (m.is_paid || m.today_status === 'PAID')
+              );
+              const liveCash = Number(routesData.summary?.todayCash ?? myCollectedMembers
+                .filter((m) => m.payment_method === 'CASH')
+                .reduce((s, m) => s + Number(m.collected_amount || 0), 0));
+              const liveUpi = Number(routesData.summary?.todayUpi ?? myCollectedMembers
+                .filter((m) => m.payment_method !== 'CASH')
+                .reduce((s, m) => s + Number(m.collected_amount || 0), 0));
+              const liveTotal = Number(routesData.summary?.todayTotal ?? (liveCash + liveUpi));
+              const liveReceipts = Number(routesData.summary?.totalCollectionsCount ?? myCollectedMembers.length);
 
               const totalCol = currentDaySubmission ? Number(currentDaySubmission.total_collected || 0) : liveTotal;
               const cashCol = currentDaySubmission ? Number(currentDaySubmission.cash_collected || 0) : liveCash;
@@ -5370,7 +5422,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   // Generate preview live from routesData
                   breakdownItems = (routesData.groups || []).map((g) => {
                     const gMembers = (routesData.members || []).filter((m) => m.group_id === g.id);
-                    const pMembers = gMembers.filter((m) => m.is_paid || m.today_status === 'PAID');
+                    const pMembers = gMembers.filter(
+                      (m) => (m.is_collected_by_me || (user?.id && Number(m.completed_by_agent_id) === Number(user.id))) && (m.is_paid || m.today_status === 'PAID')
+                    );
                     const uMembers = gMembers.filter((m) => !m.is_paid && m.today_status !== 'PAID');
                     const cash = pMembers.filter((m) => m.payment_method === 'CASH').reduce((s, m) => s + Number(m.collected_amount || 0), 0);
                     const upi = pMembers.filter((m) => m.payment_method !== 'CASH').reduce((s, m) => s + Number(m.collected_amount || 0), 0);

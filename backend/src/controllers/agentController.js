@@ -339,9 +339,11 @@ export async function getMyAssignedRoutes(req, res, next) {
     const [groups] = await pool.execute(
       `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.route_category,
               g.location_name, g.installment_amount, g.total_pool_amount, g.status,
-              g.start_date, g.created_at
+              g.start_date, g.created_at,
+              (SELECT COUNT(*) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE') as enrolled_count
        FROM chit_groups g
        WHERE g.status = 'ACTIVE'
+         AND (SELECT COUNT(*) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE') > 0
        ORDER BY g.route_category ASC, g.id ASC`
     );
 
@@ -522,19 +524,20 @@ export async function getMyAssignedRoutes(req, res, next) {
           ? editRequests.find((er) => er.collection_id === myCollection.id)
           : editRequests.find((er) => er.member_id === m.member_id && er.group_id === m.group_id);
 
-        // Check if member paid directly to admin/office or another collector
-        const hasAdminColl = inCycleColls.some((c) => {
-          const role = (c.collector_role || '').toUpperCase();
-          const collAgentId = c.agent_id != null ? Number(c.agent_id) : null;
-          return role === 'ADMIN' || role === 'SUPER_ADMIN' || (collAgentId !== null && collAgentId !== Number(agentId));
-        });
-        const isPaidToAdmin = Boolean(isFullyPaid && hasAdminColl && !isCoveredByAdvance);
+        // Check who collected this payment: logged-in agent, another agent, or office/admin
+        const otherAgentColl = inCycleColls.find((c) => c.agent_id != null && Number(c.agent_id) !== Number(agentId) && !['ADMIN', 'SUPER_ADMIN'].includes((c.collector_role || '').toUpperCase()));
+        const adminColl = inCycleColls.find((c) => ['ADMIN', 'SUPER_ADMIN'].includes((c.collector_role || '').toUpperCase()));
+
+        const isCollectedByMe = Boolean(myCollection);
+        const isCollectedByOtherAgent = Boolean(!isCollectedByMe && otherAgentColl);
+        const isPaidToAdmin = Boolean(!isCollectedByMe && !isCollectedByOtherAgent && adminColl && !isCoveredByAdvance);
+
+        const otherCollectorName = otherAgentColl?.collector_name || null;
+        const adminCollectorName = adminColl?.collector_name || null;
+
+        const hasAdminColl = Boolean(adminColl);
         const adminCollectedAmt = inCycleColls
-          .filter((c) => {
-            const role = (c.collector_role || '').toUpperCase();
-            const collAgentId = c.agent_id != null ? Number(c.agent_id) : null;
-            return role === 'ADMIN' || role === 'SUPER_ADMIN' || (collAgentId !== null && collAgentId !== Number(agentId));
-          })
+          .filter((c) => ['ADMIN', 'SUPER_ADMIN'].includes((c.collector_role || '').toUpperCase()))
           .reduce((sum, c) => sum + Number(c.amount || 0), 0);
 
         let defaultNote = '';
@@ -542,8 +545,12 @@ export async function getMyAssignedRoutes(req, res, next) {
           defaultNote = `Paid in advance from previous excess payment (₹${advAdj.adjustedToday.toLocaleString('en-IN')}) · Auto-settled`;
         } else if (advAdj.adjustedToday > 0 && remainingBalance > 0) {
           defaultNote = `₹${advAdj.adjustedToday.toLocaleString('en-IN')} covered by advance · Remaining due: ₹${remainingBalance.toLocaleString('en-IN')}`;
+        } else if (isCollectedByMe) {
+          defaultNote = isDaily ? 'Paid for today (Collected by You)' : `Paid for monthly cycle (Collected by You)`;
+        } else if (isCollectedByOtherAgent) {
+          defaultNote = `Collected by ${otherCollectorName || 'Field Agent'} · Receipt #${otherAgentColl?.receipt_number || 'ISSUED'}`;
         } else if (isPaidToAdmin) {
-          defaultNote = `Paid directly to Office / Admin (${latestColl?.collector_name || 'Admin'}) · Task Deducted`;
+          defaultNote = `Paid directly to Office / Admin (${adminCollectorName || 'Admin'}) · Task Deducted`;
         } else if (isFullyPaid) {
           defaultNote = isDaily ? 'Paid for today' : `Paid for monthly cycle (Due: ${g?.cycle_due})`;
         } else if (isPartiallyPaid) {
@@ -566,22 +573,26 @@ export async function getMyAssignedRoutes(req, res, next) {
           ? `Paid via Advance (₹${advAdj.adjustedToday.toLocaleString('en-IN')})`
           : (advAdj.adjustedToday > 0 && remainingBalance > 0)
             ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')} · ₹${advAdj.adjustedToday.toLocaleString('en-IN')} advance)`
-            : isPaidToAdmin
-              ? 'Paid to Admin'
-              : isFullyPaid 
-                ? (isDaily ? 'Paid for Today' : 'Paid for Month')
-                : (isPartiallyPaid 
-                    ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')})` 
-                    : (isDaily 
-                        ? 'Not Paid Today' 
-                        : (g?.has_time_remaining 
-                            ? `In Progress (${g.cycle_days_remaining}d left)` 
-                            : (g?.is_deadline_today ? 'Due Today!' : 'Overdue'))));
+            : isCollectedByMe
+              ? 'Paid to You'
+              : isCollectedByOtherAgent
+                ? `Paid (${otherCollectorName || 'Agent'})`
+                : isPaidToAdmin
+                  ? 'Paid to Admin'
+                  : isFullyPaid 
+                    ? (isDaily ? 'Paid for Today' : 'Paid for Month')
+                    : (isPartiallyPaid 
+                        ? `Partial (Due: ₹${remainingBalance.toLocaleString('en-IN')})` 
+                        : (isDaily 
+                            ? 'Not Paid Today' 
+                            : (g?.has_time_remaining 
+                                ? `In Progress (${g.cycle_days_remaining}d left)` 
+                                : (g?.is_deadline_today ? 'Due Today!' : 'Overdue'))));
 
-        const isTaskDeducted = Boolean(isPaidToAdmin || isCoveredByAdvance);
+        const isTaskDeducted = Boolean(isPaidToAdmin || isCoveredByAdvance || isCollectedByOtherAgent);
         const taskDeductedReason = isCoveredByAdvance 
           ? 'Paid in advance by subscriber on previous day'
-          : (isPaidToAdmin ? 'Paid directly to Office / Admin' : null);
+          : (isPaidToAdmin ? 'Paid directly to Office / Admin' : (isCollectedByOtherAgent ? `Collected by ${otherCollectorName || 'another agent'}` : null));
 
         return {
           group_id: m.group_id,
@@ -642,6 +653,19 @@ export async function getMyAssignedRoutes(req, res, next) {
           collection_time: latestColl?.collection_time || null,
           completed_by_name: latestColl?.collector_name || (isCoveredByAdvance ? 'Auto-Advance Credit' : null),
           completed_by_role: latestColl?.collector_role || null,
+          completed_by_agent_id: latestColl?.agent_id || null,
+          is_collected_by_me: isCollectedByMe,
+          is_collected_by_other_agent: isCollectedByOtherAgent,
+          is_my_collection: isCollectedByMe,
+          collector_display_badge: isCoveredByAdvance
+            ? 'Advance Covered'
+            : isCollectedByMe
+              ? 'Collected by You'
+              : isCollectedByOtherAgent
+                ? `Collected by ${otherCollectorName || 'Agent'}`
+                : isPaidToAdmin
+                  ? `Paid to Admin (${adminCollectorName || 'Admin'})`
+                  : null,
           absent_agent_name: g?.absent_agent_name || null,
           is_temporary_coverage: Boolean(g?.temporary_coverage),
           cycle_start: g?.cycle_start || null,

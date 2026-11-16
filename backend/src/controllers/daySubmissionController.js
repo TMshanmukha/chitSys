@@ -12,19 +12,14 @@ import { ensureAdvanceTables } from '../services/advanceEngine.js';
  */
 export async function calculateDayWorkData(agentId, workDate) {
 
-  // 1. Fetch agent's active assigned groups
+  // 1. Fetch active chit groups with enrolled members
   const [groups] = await pool.query(
     `SELECT g.id, g.group_code, g.group_name, g.chit_type, g.frequency, g.installment_amount, g.total_pool_amount,
-              g.start_date, g.created_at, absent_agent.full_name AS absent_agent_name
-       FROM chit_groups g
-       LEFT JOIN agent_group_assignments aga ON aga.group_id=g.id AND aga.agent_id=? AND aga.is_active=1
-       LEFT JOIN agent_leave_coverages alc ON alc.group_id=g.id AND alc.covering_agent_id=?
-       LEFT JOIN agent_leaves al ON al.id=alc.leave_id AND al.leave_date=? AND al.status='APPROVED'
-       LEFT JOIN users absent_agent ON absent_agent.id=al.agent_id
-       WHERE ((aga.agent_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM agent_leaves own_leave WHERE own_leave.agent_id=? AND own_leave.leave_date=? AND own_leave.status='APPROVED')) OR al.id IS NOT NULL) AND g.status = 'ACTIVE'
-       GROUP BY g.id,g.group_code,g.group_name,g.chit_type,g.frequency,g.installment_amount,g.total_pool_amount,g.start_date,g.created_at,absent_agent.full_name
-       ORDER BY g.id ASC`,
-    [agentId, agentId, workDate, agentId, workDate]
+            g.start_date, g.created_at
+     FROM chit_groups g
+     WHERE g.status = 'ACTIVE'
+       AND (SELECT COUNT(*) FROM group_memberships gm WHERE gm.group_id = g.id AND gm.status = 'ACTIVE') > 0
+     ORDER BY g.id ASC`
   );
 
   const groupIds = groups.map((g) => g.id);
@@ -172,56 +167,48 @@ export async function calculateDayWorkData(agentId, workDate) {
       const effectivePaidTotal = collectedForMember + advanceAdjustedForMember;
       const coll = memberCollections[0] || null;
 
-      if (effectivePaidTotal >= installmentAmt && installmentAmt > 0) {
-        const adminAmt = memberCollections
-          .filter((item) => ['ADMIN', 'SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) || (item.collector_id && Number(item.collector_id) !== Number(agentId)))
-          .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-        const agentAmt = memberCollections
-          .filter((item) => !['ADMIN', 'SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) && (!item.collector_id || Number(item.collector_id) === Number(agentId)))
-          .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-        const isPaidByAdmin = adminAmt > 0;
-        const isCoveredByAdvance = Boolean(advanceAdjustedForMember >= installmentAmt && collectedForMember === 0);
-        const isSolelyAdmin = isPaidByAdmin && agentAmt === 0;
+      const adminAmt = memberCollections
+        .filter((item) => ['ADMIN', 'SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) || (item.collector_id && Number(item.collector_id) !== Number(agentId)))
+        .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+      const agentAmt = memberCollections
+        .filter((item) => !['ADMIN', 'SUPER_ADMIN'].includes((item.collector_role || '').toUpperCase()) && (!item.collector_id || Number(item.collector_id) === Number(agentId)))
+        .reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+      const isPaidByAdmin = adminAmt > 0;
+      const isCoveredByAdvance = Boolean(advanceAdjustedForMember >= installmentAmt && collectedForMember === 0);
+      const isSolelyAdmin = (isPaidByAdmin || isCoveredByAdvance) && agentAmt === 0;
 
-        if (isSolelyAdmin || isCoveredByAdvance) {
-          adminSolelyMembersCount++; // Task deducted from agent's active collection stops
-        } else {
-          totalStopsVisited++;
-        }
-
-        const memberAdvanceAmount = memberCollections.reduce((sum, c) => sum + parseFloat(c.advance_amount || 0), 0);
-        const memberNormalAmount = installmentAmt > 0 ? Math.min(collectedForMember, installmentAmt) : collectedForMember;
+      if (agentAmt > 0) {
+        totalStopsVisited++;
+        const myMemberColls = memberCollections.filter((item) => Number(item.collector_id) === Number(agentId));
+        const myColl = myMemberColls[0] || coll;
+        const myMethod = (myColl?.payment_method || '').toUpperCase().trim();
+        const memberAdvanceAmount = myMemberColls.reduce((sum, c) => sum + parseFloat(c.advance_amount || 0), 0);
+        const memberNormalAmount = installmentAmt > 0 ? Math.min(agentAmt, installmentAmt) : agentAmt;
 
         paidMembers.push({
           memberId: m.member_id,
           memberName: m.full_name,
           ticketNumber: m.ticket_number,
           phone: m.phone,
-          amount: collectedForMember > 0 ? collectedForMember : installmentAmt,
+          amount: agentAmt,
           normalAmount: memberNormalAmount,
           advanceAmount: memberAdvanceAmount,
           hasAdvance: memberAdvanceAmount > 0,
           agentAmount: agentAmt,
-          adminAmount: adminAmt,
-          isAdvanceCovered: isCoveredByAdvance,
-          advanceAdjustedAmount: advanceAdjustedForMember,
-          paymentMethod: isCoveredByAdvance ? 'ADVANCE_CREDIT' : (coll ? coll.payment_method : 'CASH'),
-          receiptNumber: coll ? coll.receipt_number : 'ADV-AUTO',
-          collectionTime: coll ? coll.collection_time : null,
-          completedBy: isCoveredByAdvance
-            ? 'Auto-Advance Credit'
-            : ([...new Set(memberCollections.map((item) => item.completed_by_name).filter(Boolean))].join(', ') || null),
-          completedByAdmin: isPaidByAdmin,
-          paidByNotice: isCoveredByAdvance
-            ? `Paid in advance from previous excess collection (₹${advanceAdjustedForMember.toLocaleString('en-IN')}) · Task Deducted`
-            : (isSolelyAdmin
-              ? 'Paid by Admin, not by Agent'
-              : (isPaidByAdmin ? `₹${adminAmt} paid by Admin, ₹${agentAmt} collected by Agent` : 'Collected by Agent')),
-          notes: coll ? (coll.notes || '') : 'Covered via advance credit',
-          statusLabel: isCoveredByAdvance
-            ? 'Paid via Advance'
-            : (isSolelyAdmin ? 'Paid by Admin, not by Agent' : 'Collected Today'),
+          adminAmount: 0,
+          isAdvanceCovered: false,
+          advanceAdjustedAmount: 0,
+          paymentMethod: myMethod === 'CASH' ? 'CASH' : 'UPI',
+          receiptNumber: myColl?.receipt_number || 'REC-ISSUED',
+          collectionTime: myColl?.collection_time || null,
+          completedBy: 'You',
+          completedByAdmin: false,
+          paidByNotice: 'Collected by You',
+          notes: myColl?.notes || '',
+          statusLabel: 'Collected by You',
         });
+      } else if (effectivePaidTotal >= installmentAmt && installmentAmt > 0) {
+        adminSolelyMembersCount++; // Settled by Admin, Advance, or another agent
       } else {
         totalStopsPending++;
         let statusType = 'DAILY_UNPAID';

@@ -5,10 +5,10 @@ import { broadcastSync } from '../services/realtimeService.js';
 import { recordAuditLog } from '../services/authService.js';
 
 const holidaySchema = z.object({
-  title: z.string().min(2, 'Holiday title or festival name is required'),
+  title: z.string().min(1, 'Holiday title or festival name is required'),
   description: z.string().optional().nullable(),
-  holiday_type: z.enum(['FESTIVAL', 'NATIONAL', 'EMERGENCY', 'ADMIN_DECLARED', 'OTHER']).default('ADMIN_DECLARED'),
-  start_date: z.string().min(8, 'Start date is required'),
+  holiday_type: z.string().optional().nullable().default('ADMIN_DECLARED'),
+  start_date: z.string().min(4, 'Start date is required'),
   end_date: z.string().optional().nullable(),
 });
 
@@ -90,30 +90,44 @@ export async function declareHoliday(req, res, next) {
   try {
     await ensureHolidaysTable();
     const validated = holidaySchema.parse(req.body);
-    const startDate = validated.start_date.slice(0, 10);
-    const endDate = (validated.end_date || validated.start_date).slice(0, 10);
 
-    const [sY, sM, sD] = startDate.split('-').map(Number);
-    const [eY, eM, eD] = endDate.split('-').map(Number);
+    const normalizeDate = (d) => {
+      if (!d) return null;
+      d = String(d).trim();
+      if (d.includes('/')) {
+        const parts = d.split('/');
+        if (parts.length === 3) {
+          if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+      return d.slice(0, 10);
+    };
 
-    const startUtc = Date.UTC(sY, sM - 1, sD);
-    const endUtc = Date.UTC(eY, eM - 1, eD);
+    const startDate = normalizeDate(validated.start_date);
+    const endDate = normalizeDate(validated.end_date || validated.start_date);
 
-    if (endUtc < startUtc) {
+    if (!startDate || !endDate) {
+      return res.status(400).json({ success: false, message: 'Valid start date is required.' });
+    }
+
+    if (endDate < startDate) {
       return res.status(400).json({
         success: false,
         message: 'End date cannot be earlier than start date.',
       });
     }
 
+    const cur = new Date(`${startDate}T00:00:00Z`);
+    const end = new Date(`${endDate}T00:00:00Z`);
     const datesToInsert = [];
-    for (let t = startUtc; t <= endUtc; t += 86400000) {
-      const d = new Date(t);
-      const ymd = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-      datesToInsert.push(ymd);
+    while (cur <= end) {
+      datesToInsert.push(cur.toISOString().slice(0, 10));
+      cur.setUTCDate(cur.getUTCDate() + 1);
     }
 
     const createdBy = req.user?.id || 1;
+    const holidayType = (validated.holiday_type || 'ADMIN_DECLARED').toUpperCase();
     let insertedCount = 0;
 
     for (const d of datesToInsert) {
@@ -121,7 +135,7 @@ export async function declareHoliday(req, res, next) {
         `INSERT INTO company_holidays (holiday_date, title, holiday_type, description, created_by)
          VALUES (?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE title = VALUES(title), holiday_type = VALUES(holiday_type), description = VALUES(description)`,
-        [d, validated.title, validated.holiday_type, validated.description || null, createdBy]
+        [d, validated.title.trim(), holidayType, validated.description?.trim() || null, createdBy]
       );
       insertedCount++;
     }

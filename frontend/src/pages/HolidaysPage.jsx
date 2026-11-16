@@ -27,7 +27,7 @@ import { getFriendlyErrorMessage } from '../utils/friendlyError';
 
 export default function HolidaysPage() {
   const { user } = useAuth();
-  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user?.role);
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes((user?.role || '').toUpperCase());
 
   const [holidays, setHolidays] = useState([]);
   const [todayStatus, setTodayStatus] = useState(null);
@@ -422,15 +422,27 @@ export default function HolidaysPage() {
               return (
                 <div
                   key={date}
+                  onClick={() => {
+                    if (!isAdmin) return;
+                    const existing = holidaysMap.get(date);
+                    setForm({
+                      title: existing?.title || (isTuesday ? 'Tuesday Weekly Off' : ''),
+                      holiday_type: existing?.holiday_type || (isTuesday ? 'NATIONAL' : 'FESTIVAL'),
+                      start_date: date,
+                      end_date: date,
+                      description: existing?.description || '',
+                    });
+                    setShowDeclareModal(true);
+                  }}
                   className={`min-h-14 sm:min-h-16 rounded-xl p-1.5 sm:p-2 border flex flex-col justify-between transition-all ${cellBg} ${
                     isToday ? 'ring-2 ring-blue-500 shadow-xs' : ''
-                  }`}
+                  } ${isAdmin ? 'cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 hover:scale-[1.02]' : ''}`}
                   title={
                     isTuesday
                       ? `${date}: Tuesday Weekly Off`
                       : holiday
-                      ? `${date}: ${holiday.title}`
-                      : `${date}: Regular Working Day`
+                      ? `${date}: ${holiday.title}${isAdmin ? ' (Click to manage)' : ''}`
+                      : `${date}: Regular Working Day${isAdmin ? ' (Click to declare holiday)' : ''}`
                   }
                 >
                   <div className="flex items-center justify-between text-xs font-bold">
