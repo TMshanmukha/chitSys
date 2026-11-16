@@ -34,7 +34,7 @@
       ]
     },
     {
-      "source": "/(favicon\\..*|.*\\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf))",
+      "source": "/(.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|json|txt))",
       "headers": [
         {
           "key": "Cache-Control",
