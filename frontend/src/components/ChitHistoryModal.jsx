@@ -328,7 +328,7 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
               {group?.group_name || 'Chit Scheme History & Audit Dossier'}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Assigned Field Area: <strong>{group?.location_name}</strong> · Launched: <strong>{group?.start_date ? formatDate(group.start_date) : 'N/A'}</strong> · Field Agent: <strong>{group?.agents?.map(a => a.full_name).join(', ') || 'Unassigned'}</strong>
+              Location / Route Area: <strong>{group?.location_name}</strong> · Launched: <strong>{group?.start_date ? formatDate(group.start_date) : 'N/A'}</strong> · Collection Pool: <strong>Open to All Agents</strong>
             </p>
           </div>
 
@@ -545,8 +545,8 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                           <strong>{auctions.length} Rounds</strong>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-purple-600 dark:text-purple-400">Assigned Agents:</span>
-                          <strong>{group?.agents?.length || 0} Staff</strong>
+                          <span className="text-purple-600 dark:text-purple-400">Collection Access:</span>
+                          <strong>Open to All Agents</strong>
                         </div>
                       </div>
                     </div>
@@ -978,10 +978,10 @@ export default function ChitHistoryModal({ groupId, isOpen, onClose }) {
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-bold text-slate-900 dark:text-white text-sm">
-                      Assigned Chit Nodes & Field Trajectory ({stops.length} Nodes)
+                      Chit Route Nodes & Field Trajectory ({stops.length} Nodes)
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Sequential route nodes assigned for collection agent visits corresponding strictly to enrolled chit tickets.
+                      Sequential route nodes for field collection visits corresponding strictly to enrolled chit tickets.
                     </p>
                   </div>
 

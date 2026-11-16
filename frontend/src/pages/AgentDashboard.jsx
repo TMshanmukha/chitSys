@@ -1519,7 +1519,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
         {loading ? (
           <div className="p-12 text-center">
             <Loader2 className="w-7 h-7 text-blue-600 animate-spin mx-auto mb-2" />
-            <p className="text-xs text-slate-500">Loading assigned routes and member dues...</p>
+            <p className="text-xs text-slate-500">Loading active chit routes and members...</p>
           </div>
         ) : activeTab === 'tasks' ? (
           /* =========================================================================
@@ -1601,9 +1601,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                           ? 'bg-blue-600 text-white shadow-xs'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
-                      title="Collect from any assigned subscriber anytime (Flexible real-life mode)"
+                      title="Collect from any subscriber anytime (Flexible real-life mode)"
                     >
-                      🌐 All Assigned ({routesData.members?.length || 0})
+                      🌐 All Subscribers ({routesData.members?.length || 0})
                     </button>
                     <button
                       type="button"
@@ -2276,9 +2276,9 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
                 <MapPin className="w-6 h-6" />
               </div>
-              <h3 className="font-semibold text-slate-900 dark:text-white text-sm">No Route Assigned Yet</h3>
+              <h3 className="font-semibold text-slate-900 dark:text-white text-sm">No Active Schemes Yet</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                Your business administrator has not yet assigned active chit group routes to this terminal. Once assigned, members and dues will appear here automatically.
+                There are no active chit schemes currently running. Once chit schemes are created by Admin, all schemes and members will appear here automatically.
               </p>
             </div>
           ) : (
@@ -2709,7 +2709,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                   {pendingChitSearch
                     ? 'Try adjusting your search query or frequency filter.'
-                    : 'All subscribers in your assigned chit schemes have cleared their installments in full. Great job!'}
+                    : 'All subscribers have cleared their installments in full. Great job!'}
                 </p>
               </div>
             ) : (
@@ -3006,7 +3006,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5 font-heading">
                     <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span>Assigned Routes</span>
+                    <span>Active Routes</span>
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
                     Active
@@ -3146,7 +3146,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   <Compass className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   <div>
                     <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                      Assigned Chit Schemes Directory ({activeProfileRoutes.length} Active Today)
+                      Chit Schemes Directory ({activeProfileRoutes.length} Active Today)
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       Every chit scheme operates under its own distinct financial cycle and rules. View schedules, financial specifications, and manage subscribers per chit.
@@ -3168,7 +3168,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                   </div>
                   <div>
                     <strong className="block font-bold">
-                      ⚡ Flexible Real-Life Collections (All Assigned Schemes Visible Anytime)
+                      ⚡ Flexible Collections (All Schemes Visible Anytime)
                     </strong>
                     <span className="text-[11px] opacity-80 block mt-0.5 leading-relaxed">
                       Daily chits are collected everyday. Monthly chits can be collected on any date and any time during their monthly cycle (limit: cycle anchor day). No restrictive 1st-of-month blocks!
@@ -5415,7 +5415,7 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
                 if (!Array.isArray(breakdownItems) || breakdownItems.length === 0) {
                   return (
                     <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-500">
-                      No active chits assigned for this date.
+                      No active chits found for this date.
                     </div>
                   );
                 }

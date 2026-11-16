@@ -371,14 +371,6 @@ export async function updateGroup(req, res, next) {
 
     const group = existingRows[0];
 
-    // Validate required agent assignment
-    if (!req.body.assigned_agent_id) {
-      return res.status(400).json({
-        success: false,
-        message: '⚠️ Collection Agent Required: Please assign this chit scheme to an agent.',
-      });
-    }
-
     let derivedFrequency = req.body.frequency || group.frequency;
     let derivedRouteCategory = req.body.route_category || group.route_category;
 
@@ -405,7 +397,7 @@ export async function updateGroup(req, res, next) {
       total_members_limit: parseInt(req.body.total_members_limit || 20, 10),
       foreman_commission_percent: req.body.foreman_commission_percent ? parseFloat(req.body.foreman_commission_percent) : 5.0,
       max_bid_percent: req.body.max_bid_percent ? parseFloat(req.body.max_bid_percent) : 35.0,
-      assigned_agent_id: parseInt(req.body.assigned_agent_id, 10),
+      assigned_agent_id: req.body.assigned_agent_id ? parseInt(req.body.assigned_agent_id, 10) : null,
     });
 
     const finalGroupCode = (validated.group_code || group.group_code).trim().toUpperCase();

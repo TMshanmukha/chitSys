@@ -801,7 +801,7 @@ export function ChitGroupsPage() {
                   <th className="py-3 px-4 text-right">Installment</th>
                   <th className="py-3 px-4 text-right">Total Pool</th>
                   <th className="py-3 px-4 text-center">Members</th>
-                  <th className="py-3 px-4">Custodian Agent</th>
+                  <th className="py-3 px-4">Collection Access</th>
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
@@ -871,7 +871,9 @@ export function ChitGroupsPage() {
                           <span className="font-bold text-slate-900 dark:text-white">{g.enrolled_members}</span> / {g.total_members_limit}
                         </td>
                         <td className="py-3 px-4 font-medium text-slate-600 dark:text-slate-400">
-                          {g.assigned_agents || <span className="text-slate-400 italic">Unassigned</span>}
+                          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
+                            All Agents (Open Pool)
+                          </span>
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -1082,8 +1084,8 @@ export function ChitGroupsPage() {
                     <span className="text-slate-500 dark:text-slate-400">
                       <strong className="text-slate-800 dark:text-slate-200">{g.enrolled_members}</strong> / {g.total_members_limit} Members
                     </span>
-                    <span className="font-medium text-blue-600 dark:text-blue-400 truncate max-w-[140px]">
-                      {g.assigned_agents ? `Agent: ${g.assigned_agents}` : 'Unassigned'}
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400 truncate max-w-[140px] text-[11px]">
+                      Open Pool (All Agents)
                     </span>
                   </div>
 
@@ -1485,49 +1487,6 @@ export function ChitGroupsPage() {
                       onChange={(e) => setForm({ ...form, location_name: e.target.value })}
                       className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs"
                     />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Assign Collection Agent * <span className="text-rose-500 font-extrabold">(Required)</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQuickAgentError('');
-                          setShowQuickAgentModal(true);
-                          scrollToFormOrModal('quick-agent-modal');
-                        }}
-                        className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>Add New Agent</span>
-                      </button>
-                    </div>
-                    <select
-                      value={form.assigned_agent_id}
-                      onChange={(e) => {
-                        setForm({ ...form, assigned_agent_id: e.target.value });
-                        if (error && error.includes('Collection Agent Required')) setError('');
-                      }}
-                      className="w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 focus:outline-none shadow-2xs font-medium transition-all"
-                    >
-                      <option value="">-- All Agents (Universal Open Pool - Default) --</option>
-                      {agents.map((ag) => (
-                        <option key={ag.id} value={ag.id}>
-                          {ag.full_name} ({ag.phone})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
-                      💡 Universal Collection: Any active field agent can collect from this scheme.
-                    </p>
-                    {agents.length === 0 && (
-                      <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">
-                        No agents registered yet. Click "+ Add New Agent" above to create one right now.
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -2053,9 +2012,9 @@ export function ChitGroupsPage() {
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                      <span className="text-blue-200/80 block text-[11px] font-medium">Field Collection</span>
+                      <span className="text-blue-200/80 block text-[11px] font-medium">Collection Pool</span>
                       <strong className="text-white truncate block text-xs sm:text-sm font-semibold">
-                        {agents.find((a) => String(a.id) === String(form.assigned_agent_id))?.full_name || 'Universal Open Pool (All Agents)'}
+                        Open Pool (All Agents)
                       </strong>
                     </div>
                   </div>

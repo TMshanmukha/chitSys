@@ -31,7 +31,7 @@ const AGENT_NAV_ITEMS = [
     hoverText: 'hover:text-blue-600 dark:hover:text-blue-400',
   },
   {
-    name: 'Assigned Routes',
+    name: 'Chit Routes',
     path: '/agent/routes',
     icon: Compass,
     activeGradient: 'from-cyan-600 to-blue-600',

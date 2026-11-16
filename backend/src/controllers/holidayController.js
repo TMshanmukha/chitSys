@@ -1,4 +1,4 @@
-import { pool } from '../config/db.js';
+import { pool, ensureHolidaysTable } from '../config/db.js';
 import { z } from 'zod';
 import { getTodayIST, isTuesday } from '../utils/dateUtils.js';
 import { broadcastSync } from '../services/realtimeService.js';
@@ -61,6 +61,7 @@ export async function isDateHoliday(dateStr, connection = pool) {
  */
 export async function listHolidays(req, res, next) {
   try {
+    await ensureHolidaysTable();
     const todayIST = getTodayIST();
     const todayStatus = await isDateHoliday(todayIST);
 
@@ -87,14 +88,18 @@ export async function listHolidays(req, res, next) {
  */
 export async function declareHoliday(req, res, next) {
   try {
+    await ensureHolidaysTable();
     const validated = holidaySchema.parse(req.body);
     const startDate = validated.start_date.slice(0, 10);
     const endDate = (validated.end_date || validated.start_date).slice(0, 10);
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const [sY, sM, sD] = startDate.split('-').map(Number);
+    const [eY, eM, eD] = endDate.split('-').map(Number);
 
-    if (end < start) {
+    const startUtc = Date.UTC(sY, sM - 1, sD);
+    const endUtc = Date.UTC(eY, eM - 1, eD);
+
+    if (endUtc < startUtc) {
       return res.status(400).json({
         success: false,
         message: 'End date cannot be earlier than start date.',
@@ -102,11 +107,10 @@ export async function declareHoliday(req, res, next) {
     }
 
     const datesToInsert = [];
-    const cur = new Date(start);
-    while (cur <= end) {
-      const ymd = cur.toISOString().slice(0, 10);
+    for (let t = startUtc; t <= endUtc; t += 86400000) {
+      const d = new Date(t);
+      const ymd = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
       datesToInsert.push(ymd);
-      cur.setDate(cur.getDate() + 1);
     }
 
     const createdBy = req.user?.id || 1;
@@ -162,6 +166,7 @@ export async function declareHoliday(req, res, next) {
  */
 export async function deleteHoliday(req, res, next) {
   try {
+    await ensureHolidaysTable();
     const { id } = req.params;
 
     const [existing] = await pool.query(

@@ -27,3 +27,4 @@ if (fs.existsSync(frontendDist)) {
   console.error('ERROR: frontend/dist was not created by Vite build.');
   process.exit(1);
 }
+

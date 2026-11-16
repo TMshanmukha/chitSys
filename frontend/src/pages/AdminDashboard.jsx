@@ -670,7 +670,7 @@ export default function AdminDashboard() {
                 <th className="py-3 px-4">Location</th>
                 <th className="py-3 px-4">Installment</th>
                 <th className="py-3 px-4">Enrolled Members</th>
-                <th className="py-3 px-4">Assigned Agent</th>
+                <th className="py-3 px-4">Collection Access</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
@@ -722,7 +722,9 @@ export default function AdminDashboard() {
                         {group.enrolled_members || 0} Members
                       </td>
                       <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                        <ShowMoreText text={group.assigned_agents || 'Unassigned'} maxChars={22} />
+                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
+                          All Field Agents
+                        </span>
                       </td>
                     </tr>
                   );

@@ -47,7 +47,6 @@ export default function UsersPage() {
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userToToggleStatus, setUserToToggleStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -69,9 +68,6 @@ export default function UsersPage() {
     password: '',
     is_active: 1,
   });
-
-  // Route assignment form
-  const [selectedGroupId, setSelectedGroupId] = useState('');
 
   useEffect(() => {
     setCurrentPage(1);
@@ -197,26 +193,6 @@ export default function UsersPage() {
     }
   };
 
-  // Assign agent to route
-  const handleAssignSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedGroupId) return;
-    setSubmitting(true);
-    try {
-      await api.post('/admin/agents/assign', {
-        agentId: selectedUser.id,
-        groupId: parseInt(selectedGroupId, 10),
-      });
-      setSuccess(`Assigned ${selectedUser.full_name} to route successfully.`);
-      setShowAssignModal(false);
-      loadData();
-    } catch (err) {
-      setError(getFriendlyErrorMessage(err, 'Failed to assign route. Please try again.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   // Filter users by role and search query
   const safeUsers = Array.isArray(users) ? users.filter(Boolean) : [];
   const safeGroups = Array.isArray(groups) ? groups.filter(Boolean) : [];
@@ -253,7 +229,7 @@ export default function UsersPage() {
             User & Agent Management
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Create collection agents, edit personal profiles, update passwords/PINs, and manage route assignments
+            Create collection agents, edit personal profiles, update passwords/PINs, and manage account statuses
           </p>
         </div>
 
@@ -428,7 +404,7 @@ export default function UsersPage() {
                 <th className="py-3.5 px-4">Username (Login ID)</th>
                 <th className="py-3.5 px-4">Role</th>
                 <th className="py-3.5 px-4">Contact Phone</th>
-                <th className="py-3.5 px-4">Assigned Routes</th>
+                <th className="py-3.5 px-4">Collection Access</th>
                 <th className="py-3.5 px-4">Last Login Time</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
@@ -488,15 +464,14 @@ export default function UsersPage() {
                         </div>
                       </td>
 
-                      {/* Assigned Routes / Groups & Today Collections */}
+                      {/* Collection Access & Today Collections */}
                       <td className="py-3.5 px-4 max-w-xs">
                         {u.role === 'COLLECTION_AGENT' ? (
                           <div className="space-y-1">
-                            {u.assigned_group_names ? (
-                              <ShowMoreText text={u.assigned_group_names} maxChars={32} />
-                            ) : (
-                              <span className="text-slate-400 italic">Unassigned</span>
-                            )}
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-heading">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <span>All Schemes (Open Pool)</span>
+                            </span>
                             {Number(u.today_total || 0) > 0 && (
                               <div className="flex items-center gap-1.5 text-[10px] flex-wrap pt-0.5">
                                 <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono font-bold">
@@ -535,7 +510,7 @@ export default function UsersPage() {
                         </button>
                       </td>
 
-                      {/* Actions: Edit & Assign */}
+                      {/* Actions: Edit Profile & Password */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
@@ -546,23 +521,6 @@ export default function UsersPage() {
                             <Edit3 className="w-3.5 h-3.5 text-blue-600" />
                             <span>Edit</span>
                           </button>
-
-                          {u.role === 'COLLECTION_AGENT' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedUser(u);
-                                setSelectedGroupId('');
-                                setShowAssignModal(true);
-                                setError('');
-                                scrollToFormOrModal('user-assign-modal');
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 font-semibold transition-colors cursor-pointer"
-                            >
-                              <Layers className="w-3.5 h-3.5" />
-                              <span>Assign</span>
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -841,83 +799,6 @@ export default function UsersPage() {
         </ModalPortal>
       )}
 
-      {/* ASSIGN ROUTE MODAL */}
-      {selectedUser && (
-        <ModalPortal
-          id="user-assign-modal"
-          isOpen={showAssignModal && Boolean(selectedUser)}
-          onClose={() => setShowAssignModal(false)}
-        >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-6 my-auto max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-                  <Layers className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-lg font-heading">
-                    Assign Agent to Chit Route
-                  </h3>
-                  <p className="text-xs text-slate-500">{selectedUser?.full_name || 'User'} (@{selectedUser?.username || ''})</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAssignModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl cursor-pointer"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-900/50">
-              Assigning Agent: <span className="font-bold">{selectedUser?.full_name || 'User'}</span> (@{selectedUser?.username || ''})
-            </div>
-
-            <form onSubmit={handleAssignSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Select Active Chit Scheme / Route *
-                </label>
-                <select
-                  required
-                  value={selectedGroupId}
-                  onChange={(e) => setSelectedGroupId(e.target.value)}
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                >
-                  <option value="">-- Choose Chit Group Route --</option>
-                  {safeGroups.map((g) => {
-                    if (!g) return null;
-                    return (
-                      <option key={g.id} value={g.id}>
-                        {g.group_name} · ₹{parseFloat(g.installment_amount || 0).toLocaleString('en-IN')} / {g.frequency === 'DAILY' ? 'Day' : 'Month'} · {g.location_name || 'All Stops'}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowAssignModal(false)}
-                  className="px-5 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-sm transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-                >
-                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Assignment'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </ModalPortal>
-      )}
-
       {/* Confirmation Dialog for Agent Status Toggle */}
       <ConfirmModal
         isOpen={Boolean(userToToggleStatus)}
@@ -927,8 +808,8 @@ export default function UsersPage() {
         title={userToToggleStatus?.is_active ? 'Deactivate Account' : 'Activate Account'}
         message={
           userToToggleStatus?.is_active
-            ? `Are you sure you want to deactivate ${userToToggleStatus?.full_name} (@${userToToggleStatus?.username})? While inactive, this user will not be able to log in or record collections on their assigned routes.`
-            : `Are you sure you want to reactivate ${userToToggleStatus?.full_name} (@${userToToggleStatus?.username})? They will immediately regain access to their assigned chits and field route.`
+            ? `Are you sure you want to deactivate ${userToToggleStatus?.full_name} (@${userToToggleStatus?.username})? While inactive, this user will not be able to log in or record field collections.`
+            : `Are you sure you want to reactivate ${userToToggleStatus?.full_name} (@${userToToggleStatus?.username})? They will immediately regain access to the mobile field collection portal.`
         }
         confirmLabel={userToToggleStatus?.is_active ? 'Yes, Deactivate' : 'Yes, Activate'}
         cancelLabel="Cancel"
