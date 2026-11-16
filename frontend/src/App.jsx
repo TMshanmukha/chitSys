@@ -130,7 +130,7 @@ export default function App() {
                   <Route path="routes" element={<AgentDashboard key="routes" defaultTab="routes" />} />
                   <Route path="pending-dues" element={<AgentDashboard key="pending-dues" defaultTab="pending-dues" />} />
                   <Route path="leaves" element={<LeaveManagementPage />} />
-                  <Route path="holidays" element={<HolidaysPage />} />
+                  <Route path="holidays" element={<Navigate to="/agent/leaves" replace />} />
                   <Route path="day-closing" element={<AgentDayClosingPage />} />
                   <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="history" element={<AgentDashboard key="history" defaultTab="history" />} />

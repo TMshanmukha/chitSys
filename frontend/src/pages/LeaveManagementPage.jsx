@@ -374,9 +374,9 @@ export default function LeaveManagementPage() {
             <span className="w-2 h-2 rounded-full bg-blue-500" />
             Blue: Joined Date ★
           </span>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-bold border border-sky-300 dark:border-sky-800">
-            <span className="w-2 h-2 rounded-full bg-sky-500" />
-            Sky: Tuesday Off / Holiday
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-bold border border-sky-300 dark:border-sky-800">
+            <span className="text-xs">🏖️</span>
+            <span>Tuesday Off / Holiday</span>
           </span>
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-bold border border-slate-300 dark:border-slate-700 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-500" />
@@ -560,7 +560,7 @@ export default function LeaveManagementPage() {
                 cellClass =
                   'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200 border-rose-300 dark:border-rose-800 shadow-xs ring-1 ring-rose-400/30';
                 badgeElement = (
-                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100 truncate">
+                  <span className="block w-full max-w-full px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100 truncate text-center overflow-hidden whitespace-nowrap text-ellipsis leading-tight">
                     Leave
                   </span>
                 );
@@ -569,26 +569,32 @@ export default function LeaveManagementPage() {
                 cellClass =
                   'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 border-amber-300 dark:border-amber-800 shadow-xs ring-1 ring-amber-400/30';
                 badgeElement = (
-                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 truncate">
+                  <span className="block w-full max-w-full px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 truncate text-center overflow-hidden whitespace-nowrap text-ellipsis leading-tight">
                     Pending
                   </span>
                 );
               } else if (isTuesday) {
-                // Tuesday: Automatic weekly off holiday
+                // Tuesday: Automatic weekly off holiday (Clean Sky color with holiday symbol)
                 cellClass =
-                  'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs';
+                  'bg-sky-50/80 text-sky-900 dark:bg-sky-950/40 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs';
                 badgeElement = (
-                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 truncate">
-                    Tuesday Off
+                  <span
+                    className="block w-full max-w-full px-1 sm:px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-200 border border-sky-200 dark:border-sky-800 truncate text-center overflow-hidden whitespace-nowrap text-ellipsis leading-tight"
+                    title="Tuesday Weekly Off"
+                  >
+                    🏖️ Tuesday Off
                   </span>
                 );
               } else if (declaredHoliday) {
-                // Declared company holiday
+                // Declared company holiday: Clean soft amber/sky tint with holiday symbol
                 cellClass =
-                  'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs';
+                  'bg-sky-50/90 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200 border-sky-300 dark:border-sky-800 shadow-2xs';
                 badgeElement = (
-                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 truncate" title={declaredHoliday.title}>
-                    {declaredHoliday.title || 'Holiday'}
+                  <span
+                    className="block w-full max-w-full px-1 sm:px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800 truncate text-center overflow-hidden whitespace-nowrap text-ellipsis leading-tight"
+                    title={`Declared Holiday: ${declaredHoliday.title}`}
+                  >
+                    🌴 {declaredHoliday.title || 'Holiday'}
                   </span>
                 );
               } else if (isJoiningDate) {
@@ -596,7 +602,7 @@ export default function LeaveManagementPage() {
                 cellClass =
                   'bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200 border-blue-300 dark:border-blue-800 shadow-xs ring-1 ring-blue-400/30';
                 badgeElement = (
-                  <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-100 truncate">
+                  <span className="block w-full max-w-full px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-100 truncate text-center overflow-hidden whitespace-nowrap text-ellipsis leading-tight">
                     Joined ★
                   </span>
                 );
@@ -605,7 +611,7 @@ export default function LeaveManagementPage() {
                 cellClass =
                   'bg-slate-50/50 text-slate-300 dark:bg-slate-900/20 dark:text-slate-600 border-slate-100 dark:border-slate-800/40';
                 badgeElement = (
-                  <span className="inline-block text-[9px] font-medium text-slate-300 dark:text-slate-600">
+                  <span className="block w-full text-center text-[9px] font-medium text-slate-300 dark:text-slate-600 leading-tight">
                     -
                   </span>
                 );
@@ -614,7 +620,7 @@ export default function LeaveManagementPage() {
                 cellClass =
                   'bg-emerald-50/80 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800 shadow-xs outline-2 outline-blue-500/80 outline-offset-1';
                 badgeElement = (
-                  <span className="inline-block text-[8px] sm:text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                  <span className="block w-full text-center text-[8px] sm:text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate overflow-hidden whitespace-nowrap text-ellipsis leading-tight">
                     Working
                   </span>
                 );
@@ -623,7 +629,7 @@ export default function LeaveManagementPage() {
                 cellClass =
                   'bg-emerald-50/70 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200 border-emerald-200 dark:border-emerald-900/60 shadow-2xs';
                 badgeElement = (
-                  <span className="inline-block text-[8px] sm:text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                  <span className="block w-full text-center text-[8px] sm:text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate overflow-hidden whitespace-nowrap text-ellipsis leading-tight">
                     Worked ✓
                   </span>
                 );
@@ -632,7 +638,7 @@ export default function LeaveManagementPage() {
                 cellClass =
                   'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700';
                 badgeElement = (
-                  <span className="inline-block text-[8px] sm:text-[9px] font-medium text-slate-400 dark:text-slate-500 truncate">
+                  <span className="block w-full text-center text-[8px] sm:text-[9px] font-medium text-slate-400 dark:text-slate-500 truncate overflow-hidden whitespace-nowrap text-ellipsis leading-tight">
                     Upcoming
                   </span>
                 );
@@ -641,7 +647,7 @@ export default function LeaveManagementPage() {
               return (
                 <div
                   key={date}
-                  className={`min-h-14 sm:min-h-20 rounded-2xl p-1.5 sm:p-2.5 flex flex-col justify-between transition-all border ${cellClass}`}
+                  className={`h-16 sm:h-20 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 flex flex-col justify-between transition-all border overflow-hidden ${cellClass}`}
                   title={
                     isTuesday
                       ? `${date}: Tuesday Weekly Off (Weekly Holiday)`
@@ -658,19 +664,26 @@ export default function LeaveManagementPage() {
                       : `${date}: Completed duty day (Worked)`
                   }
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-xs sm:text-sm font-mono">
+                  <div className="flex items-center justify-between leading-none shrink-0">
+                    <span className="font-extrabold text-xs sm:text-sm font-mono leading-none">
                       {Number(date.slice(-2))}
                     </span>
-                    {approved && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
-                    {pending && <span className="w-2 h-2 rounded-full bg-amber-500" />}
-                    {isJoiningDate && <span className="w-2 h-2 rounded-full bg-blue-500" />}
-                    {!approved && !pending && !isJoiningDate && (isToday || isPastActiveDay) && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    )}
+                    {approved ? (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 animate-pulse" />
+                    ) : pending ? (
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    ) : isTuesday ? (
+                      <span className="text-[10px] sm:text-xs shrink-0 leading-none select-none" title="Tuesday Weekly Off">🏖️</span>
+                    ) : declaredHoliday ? (
+                      <span className="text-[10px] sm:text-xs shrink-0 leading-none select-none" title={`Company Holiday: ${declaredHoliday.title}`}>🌴</span>
+                    ) : isJoiningDate ? (
+                      <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                    ) : (isToday || isPastActiveDay) ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    ) : null}
                   </div>
 
-                  <div className="mt-1 truncate">
+                  <div className="w-full min-w-0 overflow-hidden mt-auto pt-0.5">
                     {badgeElement}
                   </div>
                 </div>

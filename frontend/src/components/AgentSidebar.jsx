@@ -67,15 +67,6 @@ const AGENT_NAV_ITEMS = [
     hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400',
   },
   {
-    name: 'Holidays',
-    path: '/agent/holidays',
-    icon: Palmtree,
-    activeGradient: 'from-sky-600 to-indigo-600',
-    glowColor: 'rgba(14, 165, 233, 0.4)',
-    hoverBg: 'hover:bg-sky-50/70 dark:hover:bg-sky-950/40',
-    hoverText: 'hover:text-sky-600 dark:hover:text-sky-400',
-  },
-  {
     name: 'Collection History',
     path: '/agent/history',
     icon: History,

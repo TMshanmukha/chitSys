@@ -1422,10 +1422,10 @@ export default function AgentDashboard({ defaultTab = 'tasks' }) {
               </div>
             </div>
             <Link
-              to="/agent/holidays"
+              to="/agent/leaves"
               className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-300 hover:bg-sky-100 border border-sky-200 dark:border-sky-700 text-xs font-bold shrink-0 transition-colors hidden sm:inline-flex items-center gap-1"
             >
-              <span>Holiday Calendar</span>
+              <span>Leave & Holiday Calendar</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
