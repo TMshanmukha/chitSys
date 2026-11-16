@@ -41,3 +41,4 @@ export function cleanNotificationTitle(title) {
   cleaned = cleaned.replace(/\bChit Scheme Initialized:\s*/gi, 'New Chit Scheme: ');
   return cleaned.trim();
 }
+
